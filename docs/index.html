@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Prediction Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: none;
+      }
+      .signal-buy {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .signal-sell {
+        color: #0d6efd;
+        font-weight: bold;
+      }
+      .signal-hold {
+        color: #6c757d;
+      }
+    </style>
+  </head>
+  <body class="py-4">
+    <div class="container">
+      <h1 class="mb-4 text-center">📈 Stock Prediction Dashboard</h1>
+      <p class="text-center text-muted">Last Update: 2026-01-09 15:23:50 (JST)</p>
+
+      <!-- Latest Status -->
+      <h2 class="mb-3">今日の判断</h2>
+      <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+        
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-header bg-white">
+              <span class="badge bg-secondary">8306.JP</span>
+              <h5 class="card-title mt-2">Mitsubishi UFJ Financial Group</h5>
+            </div>
+            <div class="card-body">
+              <h3
+                class="text-center mb-3 signal-sell "
+              >
+                SELL
+              </h3>
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                  <span>現在値</span>
+                  <strong>2,604.0円</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                  <span>上昇確率</span>
+                  <strong>7.5%</strong>
+                </li>
+                
+                <li
+                  class="list-group-item d-flex justify-content-between bg-light"
+                >
+                  <span>指値目安</span>
+                  <strong>2,617円</strong>
+                </li>
+                
+              </ul>
+              <p class="card-text mt-3 small text-muted">Low prob (0.07)</p>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+
+      <!-- History -->
+      <h2 class="mb-3">過去30日の履歴</h2>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Ticker</th>
+                  <th>Action</th>
+                  <th>Close</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                 
+                <tr>
+                  <td>2026-01-09</td>
+                  <td>Mitsubishi UFJ Financial Group (8306.JP)</td>
+                  <td>
+                    <span
+                      class="badge bg-primary "
+                    >
+                      SELL
+                    </span>
+                  </td>
+                  <td>2,604.0</td>
+                  <td class="small">Low prob (0.07)</td>
+                </tr>
+                  
+                <tr>
+                  <td>2026-01-09</td>
+                  <td>Mitsubishi UFJ Financial Group (8306.JP)</td>
+                  <td>
+                    <span
+                      class="badge bg-primary "
+                    >
+                      SELL
+                    </span>
+                  </td>
+                  <td>2,604.0</td>
+                  <td class="small">Low prob (0.07)</td>
+                </tr>
+                 
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
