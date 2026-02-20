@@ -3,9 +3,65 @@ import shutil
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from typing import Any
 from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
 from .data_loader import load_data
 from .model import add_features
+
+MAX_HISTORY_DAYS = 30
+
+def _normalize_signals(signals: Any):
+    """
+    Keep signal list stable and remove duplicate tickers in a day.
+    """
+    if not isinstance(signals, list):
+        return []
+
+    normalized = []
+    seen_tickers = set()
+
+    for signal in signals:
+        if not isinstance(signal, dict):
+            continue
+
+        ticker = signal.get("ticker")
+        if isinstance(ticker, str) and ticker:
+            if ticker in seen_tickers:
+                continue
+            seen_tickers.add(ticker)
+
+        normalized.append(signal)
+
+    return normalized
+
+def _normalize_history(history: Any):
+    """
+    Ensure history has at most one entry per date and valid structure.
+    """
+    if not isinstance(history, list):
+        return []
+
+    normalized = []
+    seen_dates = set()
+
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+
+        date = entry.get("date")
+        if not isinstance(date, str) or not date or date in seen_dates:
+            continue
+
+        seen_dates.add(date)
+        normalized.append({
+            "date": date,
+            "signals": _normalize_signals(entry.get("signals", []))
+        })
+
+        if len(normalized) >= MAX_HISTORY_DAYS:
+            break
+
+    return normalized
 
 def update_dashboard(signals):
     """
@@ -26,17 +82,22 @@ def update_state(signals):
             state = json.load(f)
     else:
         state = {"history": [], "last_update": ""}
-    
+
+    history = _normalize_history(state.get("history", []))
     today_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    state['last_update'] = today_str
-    
+    today_date = datetime.now().strftime('%Y-%m-%d')
+
     days_entry = {
-        "date": datetime.now().strftime('%Y-%m-%d'),
-        "signals": signals
+        "date": today_date,
+        "signals": _normalize_signals(signals)
     }
-    
-    state['history'].insert(0, days_entry)
-    state['history'] = state['history'][:30] # Keep last 30
+
+    # Replace today's entry when re-running in the same day.
+    history = [entry for entry in history if entry["date"] != today_date]
+    history.insert(0, days_entry)
+
+    state['last_update'] = today_str
+    state['history'] = history[:MAX_HISTORY_DAYS]
     
     with open(STATE_FILE, 'w', encoding='utf-8') as f:
         json.dump(state, f, indent=2, ensure_ascii=False)
@@ -52,7 +113,13 @@ def export_history_data():
     if STATE_FILE.exists():
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
             state = json.load(f)
-            
+
+    normalized_history = _normalize_history(state.get("history", []))
+    if state.get("history") != normalized_history:
+        state["history"] = normalized_history
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+
     history_data["last_update"] = state.get("last_update", "")
     history_data["tickers"] = {}
     
@@ -82,7 +149,7 @@ def export_history_data():
         }
 
     # Include recent signals
-    history_data["signals_history"] = state.get("history", [])
+    history_data["signals_history"] = normalized_history
 
     output_file = DOCS_DIR / "history_data.json"
     with open(output_file, 'w', encoding='utf-8') as f:
