@@ -10,7 +10,7 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-def add_features(df):
+def add_features(df, dropna=True):
     """
     Add technical indicators as features.
     """
@@ -44,7 +44,8 @@ def add_features(df):
     df['vol_change'] = df['volume'].pct_change()
     
     # Drop NaN
-    df = df.dropna().reset_index(drop=True)
+    if dropna:
+        df = df.dropna().reset_index(drop=True)
     
     return df
 
