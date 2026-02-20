@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ComposedChart,
   ResponsiveContainer,
   Bar,
@@ -60,7 +59,7 @@ interface CandlestickProps {
 
 const Candlestick = (props: CandlestickProps) => {
   const { x, width, payload, yAxis } = props;
-  if (!payload || !x || !width || !yAxis?.scale) return null;
+  if (!payload || x == null || width == null || width <= 0 || !yAxis?.scale) return null;
 
   const { open, close, high, low } = payload;
   if (open == null || close == null || high == null || low == null) return null;
@@ -292,6 +291,31 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
               isAnimationActive={false}
             />
 
+            {/* Close price line (always visible) */}
+            <Line
+              type="monotone"
+              dataKey="close"
+              yAxisId="price"
+              stroke="#0f172a"
+              dot={false}
+              strokeWidth={4}
+              opacity={0.65}
+              legendType="none"
+              isAnimationActive={false}
+              connectNulls
+            />
+            <Line
+              type="monotone"
+              dataKey="close"
+              yAxisId="price"
+              stroke="#e2e8f0"
+              dot={false}
+              strokeWidth={1.8}
+              name="Close"
+              isAnimationActive={false}
+              connectNulls
+            />
+
             {/* Moving Averages */}
             {indicators.ma5 && (
               <Line
@@ -338,6 +362,9 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
 
       {/* Legend for MAs */}
       <div className="flex items-center gap-4 mt-2 px-2 text-xs text-slate-400">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-0.5 bg-slate-200 rounded" /> Close
+        </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-0.5 bg-red-500 rounded" /> 陽線
         </span>
