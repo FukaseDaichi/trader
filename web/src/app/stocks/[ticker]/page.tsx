@@ -18,12 +18,8 @@ export async function generateStaticParams() {
       const codes = [...yamlRaw.matchAll(/code:\s*"([^"]+)"/g)].map((m) => m[1]);
       return codes.map((ticker) => ({ ticker }));
     } catch {
-      // Final fallback
-      return [
-        { ticker: "8306.JP" },
-        { ticker: "7974.JP" },
-        { ticker: "2914.JP" },
-      ];
+      // Final fallback: no hard-coded ticker limit.
+      return [];
     }
   }
 }

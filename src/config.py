@@ -22,9 +22,26 @@ def load_tickers():
         raise FileNotFoundError(f"Tickers configuration file not found at {TICKERS_FILE}")
 
     with open(TICKERS_FILE, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+        config = yaml.safe_load(f) or {}
 
-    return [t for t in config.get("tickers", []) if t.get("enabled", True)][:config.get("settings", {}).get("max_tickers", 3)]
+    enabled_tickers = [t for t in config.get("tickers", []) if t.get("enabled", True)]
+
+    settings = config.get("settings", {}) or {}
+    max_tickers = settings.get("max_tickers")
+
+    # max_tickers: null or omitted means "no upper limit".
+    if max_tickers is None:
+        return enabled_tickers
+
+    try:
+        max_tickers = int(max_tickers)
+    except (TypeError, ValueError) as e:
+        raise ValueError("settings.max_tickers must be an integer or null") from e
+
+    if max_tickers < 1:
+        raise ValueError("settings.max_tickers must be >= 1 or null")
+
+    return enabled_tickers[:max_tickers]
 
 def get_line_config():
     return {

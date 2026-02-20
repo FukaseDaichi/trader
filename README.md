@@ -1,6 +1,6 @@
 # AI株式トレーダー — Stock Prediction & Trading Signal System
 
-日本株（最大 3 銘柄）の株価データを毎日取得・学習し、LightGBM で翌日の上昇確率を予測して LINE 通知するシステムです。
+日本株（複数銘柄・上限は設定可能）の株価データを毎日取得・学習し、LightGBM で翌日の上昇確率を予測して LINE 通知するシステムです。
 React (Next.js) ベースのダッシュボードで、ローソク足チャート・出来高・RSI・移動平均線を可視化できます。
 
 ## 特徴
@@ -119,7 +119,7 @@ cp -r out/* ../docs/
 
 ## 銘柄の設定
 
-`tickers.yml` で監視する銘柄を管理します (最大 3 銘柄)。
+`tickers.yml` で監視する銘柄を管理します（3銘柄以上に対応）。
 
 ```yaml
 tickers:
@@ -130,9 +130,11 @@ tickers:
     name: "任天堂"
     enabled: true
 settings:
-  max_tickers: 3
+  # null または省略: enabled=true の銘柄をすべて処理
+  max_tickers: null
 ```
 
+`max_tickers` に数値を指定すると上限を設定できます（例: `10`）。  
 銘柄を変更した場合、`main.py` を実行すればデータ取得からダッシュボード更新まで自動で行われます。フロントエンドの `generateStaticParams` は `docs/history_data.json` から動的にティッカーを読み取るため、手動でのコード変更は不要です。
 
 ## GitHub Actions デプロイ手順
