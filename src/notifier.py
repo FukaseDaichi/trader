@@ -22,6 +22,7 @@ def send_notification(signal):
 
     token = LINE_CONFIG['channel_access_token']
     user_id = LINE_CONFIG['user_id']
+    dashboard_url = LINE_CONFIG.get('dashboard_url')
 
     if not token or not user_id:
         print("LINE configuration missing. Skipping notification.")
@@ -45,6 +46,8 @@ def send_notification(signal):
         lines.append(f"損切目安: {signal['stop_loss']:,.0f}円")
 
     lines.append(f"理由: {signal['reason']}")
+    if dashboard_url:
+        lines.append(f"ダッシュボード: {dashboard_url}")
 
     text = "\n".join(lines)
 

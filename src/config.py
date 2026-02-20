@@ -29,7 +29,8 @@ def load_tickers():
 def get_line_config():
     return {
         "channel_access_token": os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"),
-        "user_id": os.environ.get("LINE_USER_ID")
+        "user_id": os.environ.get("LINE_USER_ID"),
+        "dashboard_url": os.environ.get("TRADER_DASHBOARD_URL", "https://fukasedaichi.github.io/trader/").strip()
     }
 
 TICKERS = load_tickers()

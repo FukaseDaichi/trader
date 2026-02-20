@@ -19,8 +19,8 @@ export default function StockDetailContent({ ticker }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In production, data is relative to index.html
-    const dataUrl = process.env.NODE_ENV === "development" ? "/history_data.json" : "../../history_data.json";
+    const basePath = process.env.NODE_ENV === "development" ? "" : "/trader";
+    const dataUrl = `${basePath}/history_data.json`;
     
     fetch(dataUrl)
       .then((res) => res.json())
