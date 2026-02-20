@@ -1,7 +1,6 @@
 import pandas as pd
 import requests
 import io
-from datetime import datetime
 from .config import DATA_DIR
 
 def download_stooq_data(ticker_code):
@@ -76,3 +75,25 @@ def load_data(ticker_code):
     if file_path.exists():
         return pd.read_parquet(file_path)
     return None
+
+
+def sync_data_files(active_ticker_codes):
+    """
+    Remove local parquet files that are not in the active ticker list.
+    """
+    active_codes = {code for code in active_ticker_codes if isinstance(code, str) and code}
+    removed_codes = []
+
+    for file_path in DATA_DIR.glob("*.parquet"):
+        ticker_code = file_path.stem
+        if ticker_code in active_codes:
+            continue
+
+        file_path.unlink(missing_ok=True)
+        removed_codes.append(ticker_code)
+
+    if removed_codes:
+        removed_codes.sort()
+        print(f"Removed stale data files: {', '.join(removed_codes)}")
+
+    return removed_codes

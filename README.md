@@ -135,7 +135,7 @@ settings:
 ```
 
 `max_tickers` に数値を指定すると上限を設定できます（例: `10`）。  
-銘柄を変更した場合、`main.py` を実行すればデータ取得からダッシュボード更新まで自動で行われます。フロントエンドの `generateStaticParams` は `docs/history_data.json` から動的にティッカーを読み取るため、手動でのコード変更は不要です。
+銘柄を変更した場合、`main.py` を実行すればデータ取得からダッシュボード更新まで自動で行われます。`data/` 配下の不要な `*.parquet`（`tickers.yml` の有効銘柄に含まれないもの）は実行時に自動削除されます。フロントエンドの `generateStaticParams` は `docs/history_data.json` から動的にティッカーを読み取るため、手動でのコード変更は不要です。
 
 ## GitHub Actions デプロイ手順
 

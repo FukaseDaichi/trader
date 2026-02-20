@@ -1,6 +1,5 @@
-import sys
 from src.config import TICKERS
-from src.data_loader import update_data, load_data
+from src.data_loader import update_data, load_data, sync_data_files
 from src.model import add_features, train_and_predict
 from src.predictor import generate_signal
 from src.notifier import send_notification
@@ -8,7 +7,13 @@ from src.dashboard import update_dashboard
 
 def main():
     print("Starting daily stock prediction job...")
-    
+
+    active_codes = [ticker_info["code"] for ticker_info in TICKERS]
+    print(f"Configured tickers: {', '.join(active_codes) if active_codes else '(none)'}")
+
+    # Keep data directory aligned with active tickers in tickers.yml.
+    sync_data_files(active_codes)
+
     signals = []
     
     for ticker_info in TICKERS:
@@ -49,11 +54,10 @@ def main():
         # 6. Notify
         send_notification(signal)
         
-    # 7. Update Dashboard
-    if signals:
-        update_dashboard(signals)
-    else:
-        print("No signals generated to update dashboard.")
+    # 7. Update Dashboard (always run to keep frontend data in sync with tickers.yml)
+    update_dashboard(signals)
+    if not signals:
+        print("No signals generated. Dashboard data was still refreshed.")
         
     print("\nDaily job completed.")
 

@@ -10,9 +10,10 @@ from .model import add_features
 
 MAX_HISTORY_DAYS = 30
 
-def _normalize_signals(signals: Any):
+def _normalize_signals(signals: Any, allowed_tickers: set[str] | None = None):
     """
-    Keep signal list stable and remove duplicate tickers in a day.
+    Keep signal list stable, remove duplicate tickers in a day,
+    and optionally filter by allowed tickers.
     """
     if not isinstance(signals, list):
         return []
@@ -25,16 +26,21 @@ def _normalize_signals(signals: Any):
             continue
 
         ticker = signal.get("ticker")
-        if isinstance(ticker, str) and ticker:
-            if ticker in seen_tickers:
-                continue
-            seen_tickers.add(ticker)
+        if not isinstance(ticker, str) or not ticker:
+            continue
+
+        if allowed_tickers is not None and ticker not in allowed_tickers:
+            continue
+
+        if ticker in seen_tickers:
+            continue
+        seen_tickers.add(ticker)
 
         normalized.append(signal)
 
     return normalized
 
-def _normalize_history(history: Any):
+def _normalize_history(history: Any, allowed_tickers: set[str] | None = None):
     """
     Ensure history has at most one entry per date and valid structure.
     """
@@ -55,7 +61,7 @@ def _normalize_history(history: Any):
         seen_dates.add(date)
         normalized.append({
             "date": date,
-            "signals": _normalize_signals(entry.get("signals", []))
+            "signals": _normalize_signals(entry.get("signals", []), allowed_tickers=allowed_tickers)
         })
 
         if len(normalized) >= MAX_HISTORY_DAYS:
@@ -77,19 +83,21 @@ def update_state(signals):
     """
     Update state.json with new signals
     """
+    allowed_tickers = {t["code"] for t in TICKERS}
+
     if STATE_FILE.exists():
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
             state = json.load(f)
     else:
         state = {"history": [], "last_update": ""}
 
-    history = _normalize_history(state.get("history", []))
+    history = _normalize_history(state.get("history", []), allowed_tickers=allowed_tickers)
     today_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     today_date = datetime.now().strftime('%Y-%m-%d')
 
     days_entry = {
         "date": today_date,
-        "signals": _normalize_signals(signals)
+        "signals": _normalize_signals(signals, allowed_tickers=allowed_tickers)
     }
 
     # Replace today's entry when re-running in the same day.
@@ -106,6 +114,8 @@ def export_history_data():
     """
     Load data for all enabled tickers, calculate features, and save to json
     """
+    allowed_tickers = {t["code"] for t in TICKERS}
+
     history_data = {}
     
     # Load signal history to map checks
@@ -114,7 +124,7 @@ def export_history_data():
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
             state = json.load(f)
 
-    normalized_history = _normalize_history(state.get("history", []))
+    normalized_history = _normalize_history(state.get("history", []), allowed_tickers=allowed_tickers)
     if state.get("history") != normalized_history:
         state["history"] = normalized_history
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
@@ -129,6 +139,10 @@ def export_history_data():
         
         df = load_data(code)
         if df is None or df.empty:
+            history_data["tickers"][code] = {
+                "name": name,
+                "data": []
+            }
             continue
             
         # Add features without dropping NaNs to keep price history
