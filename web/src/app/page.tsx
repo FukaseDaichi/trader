@@ -21,7 +21,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const basePath = process.env.NODE_ENV === "development" ? "" : "/trader";
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     const dataUrl = `${basePath}/history_data.json`;
 
     fetch(dataUrl)
