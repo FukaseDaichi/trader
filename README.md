@@ -135,7 +135,8 @@ settings:
 ```
 
 `max_tickers` に数値を指定すると上限を設定できます（例: `10`）。  
-銘柄を変更した場合、`main.py` を実行すればデータ取得からダッシュボード更新まで自動で行われます。`data/` 配下の不要な `*.parquet`（`tickers.yml` の有効銘柄に含まれないもの）は実行時に自動削除されます。フロントエンドの `generateStaticParams` は `docs/history_data.json` から動的にティッカーを読み取るため、手動でのコード変更は不要です。
+銘柄を変更した場合、`main.py` 実行でデータ更新と `history_data.json` 更新は自動で行われます。`data/` 配下の不要な `*.parquet`（`tickers.yml` の有効銘柄に含まれないもの）は実行時に自動削除されます。  
+`/stocks/[ticker]` は静的生成ページのため、ローカル運用では `web` の本番ビルド（`npm run build:prod`）と `docs/` への反映が必要です。GitHub Actions の日次ジョブでは、このビルドと同期を自動実行します。
 
 ## GitHub Actions デプロイ手順
 

@@ -17,6 +17,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -31,6 +38,16 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: uv run python main.py
+
+      - name: Build frontend static export
+        run: |
+          npm ci --prefix web
+          npm run build:prod --prefix web
+
+      - name: Sync frontend export to docs
+        run: |
+          rm -rf docs/_next docs/stocks docs/_not-found docs/_not-found.html docs/_not-found.txt docs/index.html docs/index.txt docs/404.html
+          cp -R web/out/. docs/
 
       - name: Commit and push changes
         run: |
