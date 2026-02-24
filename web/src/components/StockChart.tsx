@@ -158,7 +158,7 @@ const CustomPriceTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 };
 
 export default function StockChart({ data, tickerName }: StockChartProps) {
-  const [dateRange, setDateRange] = useState<DateRange>("6m");
+  const [dateRange, setDateRange] = useState<DateRange>("1m");
   const [indicators, setIndicators] = useState<IndicatorToggles>({
     ma5: true,
     ma20: true,
