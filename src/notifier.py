@@ -1,4 +1,5 @@
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, PushMessageRequest, TextMessage
+from urllib.parse import quote, urljoin
 from .config import LINE_CONFIG
 
 # 5-level action → Japanese label + emoji
@@ -47,7 +48,10 @@ def send_notification(signal):
 
     lines.append(f"理由: {signal['reason']}")
     if dashboard_url:
-        lines.append(f"ダッシュボード: {dashboard_url}")
+        base_url = f"{dashboard_url.rstrip('/')}/"
+        ticker = quote(signal["ticker"])
+        stock_url = urljoin(base_url, f"stocks/{ticker}")
+        lines.append(f"銘柄ページ: {stock_url}")
 
     text = "\n".join(lines)
 
