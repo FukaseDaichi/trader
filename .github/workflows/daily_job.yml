@@ -46,12 +46,17 @@ jobs:
 
       - name: Sync frontend export to docs
         run: |
-          rm -rf docs/_next docs/stocks docs/_not-found docs/_not-found.html docs/_not-found.txt docs/index.html docs/index.txt docs/404.html
-          cp -R web/out/. docs/
+          mkdir -p docs
+          touch docs/.nojekyll
+          rsync -av --delete \
+            --exclude '.nojekyll' \
+            --exclude 'state.json' \
+            --exclude 'CNAME' \
+            web/out/ docs/
 
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add data/ docs/
+          git add -A data/ docs/
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily prediction data" && git push)
