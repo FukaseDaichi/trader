@@ -83,6 +83,15 @@ def _get_env_bool(name, default):
     raise ValueError(f"{name} must be a boolean value (true/false)")
 
 
+def _get_env_choice(name, default, choices):
+    raw = os.environ.get(name)
+    value = (raw if raw not in (None, "") else default).strip().lower()
+    if value not in choices:
+        allowed = ", ".join(sorted(choices))
+        raise ValueError(f"{name} must be one of: {allowed}")
+    return value
+
+
 def get_backtest_gate_config():
     """
     Runtime config for KPI gate. Defaults are conservative and can be tuned by env vars.
@@ -102,6 +111,14 @@ def get_backtest_gate_config():
         "max_drawdown": _get_env_float("TRADER_KPI_MAX_DRAWDOWN", 0.25),
         "min_sharpe": _get_env_float("TRADER_KPI_MIN_SHARPE", 0.20),
         "min_trades": _get_env_int("TRADER_KPI_MIN_TRADES", 10),
+        "auto_threshold_enabled": _get_env_bool("TRADER_AUTO_THRESHOLD_ENABLED", True),
+        "auto_threshold_min_trades": _get_env_int("TRADER_AUTO_THRESHOLD_MIN_TRADES", 8),
+        "auto_threshold_objective": _get_env_choice(
+            "TRADER_AUTO_THRESHOLD_OBJECTIVE",
+            "expectancy",
+            {"expectancy", "cagr", "sharpe", "net_return"},
+        ),
+        "auto_threshold_min_gap": _get_env_float("TRADER_AUTO_THRESHOLD_MIN_GAP", 0.05),
     }
 
 TICKERS = load_tickers()

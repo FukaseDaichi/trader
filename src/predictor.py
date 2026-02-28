@@ -1,32 +1,79 @@
-BUY_THRESHOLD = 0.80       # ~P80  — top 20% conviction
-MILD_BUY_THRESHOLD = 0.65  # ~P55  — moderate positive lean
-MILD_SELL_THRESHOLD = 0.25 # ~P25  — moderate negative lean
-SELL_THRESHOLD = 0.10      # ~P10  — bottom 10% conviction
-VOLATILITY_LIMIT = 0.04    # 4% daily vol — avoid strong BUY in wild markets
+import math
 
 
-def action_from_probability(prob_up, volatility=None):
+DEFAULT_SIGNAL_THRESHOLDS = {
+    "buy": 0.80,            # ~P80  — top 20% conviction
+    "mild_buy": 0.65,       # ~P55  — moderate positive lean
+    "mild_sell": 0.25,      # ~P25  — moderate negative lean
+    "sell": 0.10,           # ~P10  — bottom 10% conviction
+    "volatility_limit": 0.04,  # 4% daily vol — avoid strong BUY in wild markets
+}
+
+
+def resolve_thresholds(thresholds=None):
+    """
+    Return validated threshold dict by overlaying optional custom values
+    on top of defaults.
+    """
+    resolved = dict(DEFAULT_SIGNAL_THRESHOLDS)
+    if isinstance(thresholds, dict):
+        for key in DEFAULT_SIGNAL_THRESHOLDS:
+            if key in thresholds and thresholds[key] is not None:
+                resolved[key] = float(thresholds[key])
+
+    sell = resolved["sell"]
+    mild_sell = resolved["mild_sell"]
+    mild_buy = resolved["mild_buy"]
+    buy = resolved["buy"]
+
+    if not (0.0 <= sell <= 1.0):
+        raise ValueError("thresholds.sell must be in [0, 1]")
+    if not (0.0 <= mild_sell <= 1.0):
+        raise ValueError("thresholds.mild_sell must be in [0, 1]")
+    if not (0.0 <= mild_buy <= 1.0):
+        raise ValueError("thresholds.mild_buy must be in [0, 1]")
+    if not (0.0 <= buy <= 1.0):
+        raise ValueError("thresholds.buy must be in [0, 1]")
+    if not (sell < mild_sell < mild_buy < buy):
+        raise ValueError("threshold ordering must satisfy sell < mild_sell < mild_buy < buy")
+    if resolved["volatility_limit"] < 0.0:
+        raise ValueError("thresholds.volatility_limit must be >= 0")
+
+    return resolved
+
+
+def _is_missing_or_nan(value):
+    if value is None:
+        return True
+    try:
+        return math.isnan(float(value))
+    except (TypeError, ValueError):
+        return True
+
+
+def action_from_probability(prob_up, volatility=None, thresholds=None):
     """
     Map model probability (+ optional volatility) to a discrete action.
     """
-    if prob_up >= BUY_THRESHOLD:
-        if volatility is None or volatility <= VOLATILITY_LIMIT:
+    t = resolve_thresholds(thresholds)
+    if prob_up >= t["buy"]:
+        if _is_missing_or_nan(volatility) or volatility <= t["volatility_limit"]:
             return "BUY"
         return "MILD_BUY"
 
-    if prob_up >= MILD_BUY_THRESHOLD:
+    if prob_up >= t["mild_buy"]:
         return "MILD_BUY"
 
-    if prob_up <= SELL_THRESHOLD:
+    if prob_up <= t["sell"]:
         return "SELL"
 
-    if prob_up <= MILD_SELL_THRESHOLD:
+    if prob_up <= t["mild_sell"]:
         return "MILD_SELL"
 
     return "HOLD"
 
 
-def generate_signal(df, prob_up, ticker_info):
+def generate_signal(df, prob_up, ticker_info, thresholds=None):
     """
     Generate a 5-level signal based on the predicted probability of price increase.
 
@@ -56,7 +103,8 @@ def generate_signal(df, prob_up, ticker_info):
     }
 
     # --- Decision logic ---
-    action = action_from_probability(prob_up, volatility=volatility)
+    t = resolve_thresholds(thresholds)
+    action = action_from_probability(prob_up, volatility=volatility, thresholds=t)
     signal["action"] = action
 
     if action == "BUY":
@@ -64,7 +112,7 @@ def generate_signal(df, prob_up, ticker_info):
         signal["stop_loss"] = int(close_price * (1 - 0.02))
         signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボラティリティ低 ({volatility:.1%})"
 
-    elif action == "MILD_BUY" and prob_up >= BUY_THRESHOLD:
+    elif action == "MILD_BUY" and prob_up >= t["buy"]:
         signal["reason"] = f"上昇シグナルだがボラティリティ高 ({volatility:.1%})・様子見推奨 (上昇確率 {prob_up:.0%})"
 
     elif action == "MILD_BUY":

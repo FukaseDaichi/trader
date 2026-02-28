@@ -54,6 +54,8 @@ def main():
             "reason": gate_result["reason"],
             "failures": gate_result["failures"],
             "metrics": gate_result["metrics"],
+            "thresholds": gate_result.get("thresholds"),
+            "threshold_optimization": gate_result.get("threshold_optimization"),
         })
 
         if not gate_result["passed"]:
@@ -80,9 +82,10 @@ def main():
             continue
             
         print(f"Prediction for {code}: Up Probability = {prob_up:.2%}")
+        thresholds = gate_result.get("thresholds")
         
         # 6. Generate Signal
-        signal = generate_signal(df, prob_up, ticker_info)
+        signal = generate_signal(df, prob_up, ticker_info, thresholds=thresholds)
         signals.append(signal)
         
         # 7. Notify

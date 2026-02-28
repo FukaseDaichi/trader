@@ -8,7 +8,7 @@ import pandas as pd
 
 from .config import DOCS_DIR
 from .model import FEATURE_COLS, _train_single_fold
-from .predictor import action_from_probability
+from .predictor import action_from_probability, resolve_thresholds
 
 _LONG_ONLY_POSITION = {
     "BUY": 1.0,
@@ -24,6 +24,14 @@ _LONG_SHORT_POSITION = {
     "HOLD": 0.0,
     "MILD_SELL": -0.5,
     "SELL": -1.0,
+}
+
+_AUTO_THRESHOLD_CANDIDATES = {
+    "buy": [0.70, 0.75, 0.80, 0.85, 0.90],
+    "mild_buy": [0.55, 0.60, 0.65, 0.70, 0.75],
+    "mild_sell": [0.20, 0.25, 0.30, 0.35, 0.40],
+    "sell": [0.05, 0.10, 0.15, 0.20],
+    "volatility_limit": [0.03, 0.04, 0.05],
 }
 
 
@@ -90,13 +98,66 @@ def _to_position(action, allow_short):
     return _LONG_ONLY_POSITION.get(action, 0.0)
 
 
-def _simulate_strategy(oos, config):
+def _threshold_signature(thresholds):
+    t = resolve_thresholds(thresholds)
+    return (
+        round(t["buy"], 6),
+        round(t["mild_buy"], 6),
+        round(t["mild_sell"], 6),
+        round(t["sell"], 6),
+        round(t["volatility_limit"], 6),
+    )
+
+
+def _build_threshold_candidates(config):
+    default_thresholds = resolve_thresholds()
+    if not bool(config.get("auto_threshold_enabled", True)):
+        return [default_thresholds]
+
+    min_gap = float(config.get("auto_threshold_min_gap", 0.05))
+    candidates = [default_thresholds]
+    seen = {_threshold_signature(default_thresholds)}
+
+    for buy in _AUTO_THRESHOLD_CANDIDATES["buy"]:
+        for mild_buy in _AUTO_THRESHOLD_CANDIDATES["mild_buy"]:
+            for mild_sell in _AUTO_THRESHOLD_CANDIDATES["mild_sell"]:
+                for sell in _AUTO_THRESHOLD_CANDIDATES["sell"]:
+                    for volatility_limit in _AUTO_THRESHOLD_CANDIDATES["volatility_limit"]:
+                        if buy - mild_buy < min_gap:
+                            continue
+                        if mild_buy - mild_sell < min_gap:
+                            continue
+                        if mild_sell - sell < min_gap:
+                            continue
+
+                        try:
+                            threshold = resolve_thresholds({
+                                "buy": buy,
+                                "mild_buy": mild_buy,
+                                "mild_sell": mild_sell,
+                                "sell": sell,
+                                "volatility_limit": volatility_limit,
+                            })
+                        except ValueError:
+                            continue
+
+                        signature = _threshold_signature(threshold)
+                        if signature in seen:
+                            continue
+                        seen.add(signature)
+                        candidates.append(threshold)
+
+    return candidates
+
+
+def _simulate_strategy(oos, config, thresholds=None):
     if oos.empty:
         return oos
 
+    t = resolve_thresholds(thresholds)
     sim = oos.copy()
     sim["action"] = [
-        action_from_probability(prob_up=row.prob_up, volatility=row.volatility)
+        action_from_probability(prob_up=row.prob_up, volatility=row.volatility, thresholds=t)
         for row in sim.itertuples(index=False)
     ]
     sim["position"] = [
@@ -181,7 +242,85 @@ def _evaluate_gate_rules(metrics, config):
     return failures
 
 
+def _score_for_objective(metrics, objective):
+    if objective == "cagr":
+        return float(metrics["cagr"])
+    if objective == "sharpe":
+        return float(metrics["sharpe"])
+    if objective == "net_return":
+        return float(metrics["net_return_total"])
+    return float(metrics["expectancy"])
+
+
+def _optimize_thresholds(oos, config):
+    default_thresholds = resolve_thresholds()
+    enabled = bool(config.get("auto_threshold_enabled", True))
+    objective = str(config.get("auto_threshold_objective", "expectancy")).strip().lower()
+    min_trades = int(config.get("auto_threshold_min_trades", 8))
+
+    if oos.empty or not enabled:
+        return default_thresholds, {
+            "enabled": enabled,
+            "optimized": False,
+            "objective": objective,
+            "min_trades": min_trades,
+            "candidate_count": 1,
+            "selection": "default",
+        }
+
+    candidates = _build_threshold_candidates(config)
+    best_any = None
+    best_feasible = None
+
+    for threshold in candidates:
+        sim = _simulate_strategy(oos, config, thresholds=threshold)
+        metrics = _compute_metrics(sim)
+        score = _score_for_objective(metrics, objective)
+        rank = (score, metrics["sharpe"], metrics["cagr"], metrics["net_return_total"])
+        candidate = {
+            "thresholds": threshold,
+            "metrics": metrics,
+            "rank": rank,
+            "trades": int(metrics["trades"]),
+            "score": score,
+        }
+
+        if best_any is None or candidate["rank"] > best_any["rank"]:
+            best_any = candidate
+
+        if candidate["trades"] >= min_trades:
+            if best_feasible is None or candidate["rank"] > best_feasible["rank"]:
+                best_feasible = candidate
+
+    selected = best_feasible if best_feasible is not None else best_any
+    if selected is None:
+        return default_thresholds, {
+            "enabled": enabled,
+            "optimized": False,
+            "objective": objective,
+            "min_trades": min_trades,
+            "candidate_count": len(candidates),
+            "selection": "default",
+        }
+
+    selected_thresholds = resolve_thresholds(selected["thresholds"])
+    optimized = _threshold_signature(selected_thresholds) != _threshold_signature(default_thresholds)
+    selection = "feasible_best" if best_feasible is not None else "fallback_best_any"
+
+    return selected_thresholds, {
+        "enabled": enabled,
+        "optimized": optimized,
+        "objective": objective,
+        "min_trades": min_trades,
+        "candidate_count": len(candidates),
+        "selection": selection,
+        "selected_score": float(selected["score"]),
+        "selected_trades": int(selected["trades"]),
+    }
+
+
 def evaluate_kpi_gate(df, config):
+    default_thresholds = resolve_thresholds()
     if not bool(config.get("enabled", True)):
         return {
             "passed": True,
@@ -189,6 +328,15 @@ def evaluate_kpi_gate(df, config):
             "reason": "gate_disabled",
             "metrics": _compute_metrics(pd.DataFrame()),
             "failures": [],
+            "thresholds": default_thresholds,
+            "threshold_optimization": {
+                "enabled": bool(config.get("auto_threshold_enabled", True)),
+                "optimized": False,
+                "objective": str(config.get("auto_threshold_objective", "expectancy")).strip().lower(),
+                "min_trades": int(config.get("auto_threshold_min_trades", 8)),
+                "candidate_count": 1,
+                "selection": "default",
+            },
         }
 
     labelled = _prepare_labelled_data(df, config)
@@ -200,10 +348,20 @@ def evaluate_kpi_gate(df, config):
             "reason": "insufficient_rows",
             "metrics": _compute_metrics(pd.DataFrame()),
             "failures": [f"rows<{min_required}"],
+            "thresholds": default_thresholds,
+            "threshold_optimization": {
+                "enabled": bool(config.get("auto_threshold_enabled", True)),
+                "optimized": False,
+                "objective": str(config.get("auto_threshold_objective", "expectancy")).strip().lower(),
+                "min_trades": int(config.get("auto_threshold_min_trades", 8)),
+                "candidate_count": 1,
+                "selection": "default",
+            },
         }
 
     oos = _collect_oos_predictions(labelled, config)
-    sim = _simulate_strategy(oos, config)
+    thresholds, threshold_optimization = _optimize_thresholds(oos, config)
+    sim = _simulate_strategy(oos, config, thresholds=thresholds)
     metrics = _compute_metrics(sim)
     failures = _evaluate_gate_rules(metrics, config)
 
@@ -213,17 +371,24 @@ def evaluate_kpi_gate(df, config):
         "reason": "ok" if not failures else "kpi_failed",
         "metrics": metrics,
         "failures": failures,
+        "thresholds": thresholds,
+        "threshold_optimization": threshold_optimization,
     }
 
 
 def format_gate_summary(result):
     metrics = result.get("metrics", {})
+    thresholds = resolve_thresholds(result.get("thresholds"))
+    optimization = result.get("threshold_optimization", {}) or {}
+    optimized_flag = "*" if optimization.get("optimized") else "-"
     return (
         f"CAGR={metrics.get('cagr', 0.0):.1%}, "
         f"MaxDD={metrics.get('max_drawdown', 0.0):.1%}, "
         f"Sharpe={metrics.get('sharpe', 0.0):.2f}, "
         f"Exp={metrics.get('expectancy', 0.0):.3%}, "
-        f"Trades={metrics.get('trades', 0)}"
+        f"Trades={metrics.get('trades', 0)}, "
+        f"Thr{optimized_flag}=B{thresholds['buy']:.2f}/MB{thresholds['mild_buy']:.2f}/"
+        f"MS{thresholds['mild_sell']:.2f}/S{thresholds['sell']:.2f}"
     )
 
 
