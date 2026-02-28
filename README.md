@@ -45,6 +45,12 @@ trader/
 │   │   ├── components/      # StockChart, SignalCard
 │   │   └── types/           # TypeScript 型定義
 │   └── package.json
+├── AGENTS.md                # Codex のスキルトリガー定義
+├── skills/                  # リポジトリ同梱の Codex スキル
+│   └── jp-stock-ticker-curation/
+│       ├── SKILL.md         # 銘柄調査〜tickers.yml更新ワークフロー
+│       ├── agents/openai.yaml
+│       └── references/selection-framework.md
 ├── tickers.yml              # 監視銘柄の設定
 ├── data/                    # 株価データ (Parquet)
 ├── docs/                    # GitHub Pages 公開ディレクトリ
@@ -137,6 +143,57 @@ settings:
 `max_tickers` に数値を指定すると上限を設定できます（例: `10`）。  
 銘柄を変更した場合、`main.py` 実行でデータ更新と `history_data.json` 更新は自動で行われます。`data/` 配下の不要な `*.parquet`（`tickers.yml` の有効銘柄に含まれないもの）は実行時に自動削除されます。  
 `/stocks/[ticker]` は静的生成ページのため、ローカル運用では `web` の本番ビルド（`npm run build:prod`）と `docs/` への反映が必要です。GitHub Actions の日次ジョブでは、このビルドと同期を自動実行します。
+
+## Codex スキルで銘柄選定を自動化する
+
+このリポジトリには、`tickers.yml` の更新専用スキル `jp-stock-ticker-curation` を同梱しています。
+ユーザーが「ネット調査して有望な日本株を選んで `tickers.yml` を更新して」と依頼したときに、再現可能な手順で実行するためのスキルです。
+
+### できること
+
+- 最新の公開情報をインターネット調査
+- 日本株候補をスコアリングして絞り込み
+- `tickers.yml` をフォーマット維持で更新
+- 変更内容と根拠ソースをセットで報告
+
+### 参照ファイル
+
+- `AGENTS.md`: スキル発火ルール
+- `skills/jp-stock-ticker-curation/SKILL.md`: 実行ワークフロー本体
+- `skills/jp-stock-ticker-curation/references/selection-framework.md`: 選定基準
+
+### 使い方（Codexへの依頼例）
+
+以下のように依頼するとスキルが発火します。
+
+```text
+jp-stock-ticker-curation を使って、最新情報で有望な日本株を選んで tickers.yml を更新して
+```
+
+```text
+インターネット上の一次情報を調べて、比較的値上がりが見込める日本株で tickers.yml を入れ替えて
+```
+
+### 実行フロー（内部的に行う処理）
+
+1. `tickers.yml` の現在フォーマットを確認
+2. 企業IR・決算資料などの一次情報を中心に収集
+3. 選定基準（業績モメンタム、ガイダンス、バリュエーション、還元方針など）で評価
+4. セクター偏りを抑えて最終銘柄を決定
+5. `tickers.yml` を更新し、変更点と情報ソースを報告
+
+### 出力イメージ
+
+- 更新ファイルパス
+- 採用銘柄一覧（`code` + `name`）
+- セクター/テーマ別の簡潔な採用理由
+- 参照したソースURL一覧
+
+### 運用上の注意
+
+- 本スキルは投資助言ではありません。最終判断は利用者側で行ってください。
+- 市況や企業見通しは短期間で変化します。定期的に再実行してください。
+- 一次情報の公開タイミングによっては、直近データが未反映な場合があります。
 
 ## GitHub Actions デプロイ手順
 
