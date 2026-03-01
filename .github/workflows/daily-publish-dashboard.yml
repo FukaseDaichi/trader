@@ -1,0 +1,110 @@
+name: Daily Publish Dashboard
+
+on:
+  workflow_run:
+    workflows:
+      - Daily Preopen Core
+      - Daily Preopen Retry
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish even when no same-day update is detected"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-publish-main
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Determine publish necessity
+        id: guard
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          echo "today_jst=$TODAY_JST" >> "$GITHUB_OUTPUT"
+
+          FORCE="${{ github.event.inputs.force_publish || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "has_today_update=true" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=forced_publish" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          uv run python scripts/run_guard.py has-today-update \
+            --state-file docs/state.json \
+            --date "$TODAY_JST" \
+            --github-output
+
+      - name: Skip publish when no same-day update exists
+        if: ${{ steps.guard.outputs.has_today_update != 'true' }}
+        run: echo "No same-day update found. Publish skipped (${{ steps.guard.outputs.guard_reason }})."
+
+      - name: Sync latest history_data into web/public
+        if: ${{ steps.guard.outputs.has_today_update == 'true' }}
+        run: |
+          if [ -f docs/history_data.json ]; then
+            cp docs/history_data.json web/public/history_data.json
+          fi
+
+      - name: Build frontend static export
+        if: ${{ steps.guard.outputs.has_today_update == 'true' }}
+        run: |
+          npm ci --prefix web
+          npm run build:prod --prefix web
+
+      - name: Sync frontend export to docs
+        if: ${{ steps.guard.outputs.has_today_update == 'true' }}
+        run: |
+          mkdir -p docs
+          touch docs/.nojekyll
+          rsync -av --delete \
+            --exclude '.nojekyll' \
+            --exclude 'state.json' \
+            --exclude 'backtest_report.json' \
+            --exclude 'portfolio_report.json' \
+            --exclude 'monthly_audit.json' \
+            --exclude 'universe_refresh_report.json' \
+            --exclude 'feature_precompute_report.json' \
+            --exclude 'rotating_refresh_report.json' \
+            --exclude 'stress_test_report.json' \
+            --exclude 'CNAME' \
+            web/out/ docs/
+
+      - name: Commit and push docs updates
+        if: ${{ steps.guard.outputs.has_today_update == 'true' }}
+        run: |
+          TODAY_JST="${{ steps.guard.outputs.today_jst }}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A docs/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Publish dashboard ($TODAY_JST)" && git push)

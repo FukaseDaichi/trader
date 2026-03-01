@@ -1,0 +1,39 @@
+name: Nightly Rotating Refresh
+
+on:
+  schedule:
+    # 10:30 UTC = 19:30 JST (Mon-Fri JST)
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rotate-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run rotating refresh
+        run: uv run python scripts/rotating_refresh.py --output docs/rotating_refresh_report.json --buckets 5
+
+      - name: Commit and push rotating refresh outputs
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A data/ docs/rotating_refresh_report.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Nightly rotating refresh ($TODAY_JST)" && git push)

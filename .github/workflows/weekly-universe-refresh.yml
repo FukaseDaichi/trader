@@ -1,0 +1,43 @@
+name: Weekly Universe Refresh
+
+on:
+  schedule:
+    # 22:00 UTC Saturday = 07:00 JST Sunday
+    - cron: "0 22 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-universe-main
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Generate universe refresh report
+        run: uv run python scripts/universe_refresh.py --output docs/universe_refresh_report.json
+
+      - name: Commit and push universe report
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A docs/universe_refresh_report.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Weekly universe refresh ($TODAY_JST)" && git push)

@@ -1,0 +1,76 @@
+name: Daily Preopen Retry
+
+on:
+  schedule:
+    # 21:20 / 21:40 UTC = 06:20 / 06:40 JST (Mon-Fri JST)
+    - cron: "20 21 * * 0-4"
+    - cron: "40 21 * * 0-4"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-core-main
+  cancel-in-progress: false
+
+jobs:
+  preopen-retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Check JPX open day
+        id: market
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          echo "today_jst=$TODAY_JST" >> "$GITHUB_OUTPUT"
+          uv run python scripts/jpx_calendar.py is-open \
+            --date "$TODAY_JST" \
+            --cache-path data/jpx_holidays.json \
+            --github-output
+
+      - name: Check whether daily update already exists
+        id: guard
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        run: |
+          uv run python scripts/run_guard.py needs-core-run \
+            --state-file docs/state.json \
+            --date "${{ steps.market.outputs.today_jst }}" \
+            --github-output
+
+      - name: Skip on JPX close day
+        if: ${{ steps.market.outputs.is_open != 'true' }}
+        run: echo "JPX closed. Retry skipped."
+
+      - name: Skip when core already completed
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run != 'true' }}
+        run: echo "Today's update already exists. Retry skipped."
+
+      - name: Run retry prediction script
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: uv run python main.py
+
+      - name: Commit and push retry updates
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: |
+          TODAY_JST="${{ steps.market.outputs.today_jst }}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A data/ docs/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Retry daily update ($TODAY_JST)" && git push)

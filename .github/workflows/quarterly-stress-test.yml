@@ -1,0 +1,43 @@
+name: Quarterly Stress Test
+
+on:
+  schedule:
+    # 01:00 UTC on first day of quarter = 10:00 JST
+    - cron: "0 1 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run stress test
+        run: |
+          uv run python scripts/stress_test.py \
+            --output docs/stress_test_report.json \
+            --cost-bps 20.0 \
+            --slippage-bps 10.0
+
+      - name: Commit and push stress test report
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A docs/stress_test_report.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Quarterly stress test ($TODAY_JST)" && git push)
