@@ -8,17 +8,18 @@
 
 ---
 
-## Phase 1: 緊急対応 (1-2 日)
+## Phase 1: 緊急対応 (半日-1日)
 
 | # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
 |---|------|---------|--------|------|--------|------|
-| 1 | HTTP タイムアウト未設定 | `data_loader.py` | HIGH | MEDIUM | S | 01-1.1 |
-| 2 | fetch の `res.ok` チェック未実装 | `page.tsx`, `StockDetailContent.tsx` | HIGH | MEDIUM | S | 02-1.1 |
-| 3 | `Math.min/max` 空配列クラッシュ | `StockChart.tsx` | HIGH | LOW | S | 02-3.1 |
-| 4 | volatility NaN 時の表示崩れ | `predictor.py` | HIGH | MEDIUM | S | 01-3.1 |
-| 5 | ティッカー毎の例外ハンドリング | `main.py` | MEDIUM | MEDIUM | S | 01-7.1 |
+| 1 | git push 前に pull --rebase 追加 | 全 10 ワークフロー | HIGH | MEDIUM | M | 03-1.1 |
+| 2 | HTTP タイムアウト未設定 | `data_loader.py` | HIGH | MEDIUM | S | 01-1.1 |
+| 3 | fetch の `res.ok` チェック未実装 | `page.tsx`, `StockDetailContent.tsx` | HIGH | MEDIUM | S | 02-1.1 |
+| 4 | `Math.min/max` 空配列クラッシュ | `StockChart.tsx` | HIGH | LOW | S | 02-3.1 |
+| 5 | volatility NaN 時の表示崩れ | `predictor.py` | HIGH | MEDIUM | S | 01-3.1 |
+| 6 | ティッカー毎の例外ハンドリング | `main.py` | MEDIUM | MEDIUM | S | 01-7.1 |
 
-**推定工数**: 2-4 時間
+**推定工数**: 4-8 時間
 
 ---
 
@@ -26,8 +27,7 @@
 
 | # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
 |---|------|---------|--------|------|--------|------|
-| 6 | git push 前に pull --rebase 追加 | 全 9 ワークフロー | HIGH | MEDIUM | M | 03-1.1 |
-| 7 | retry ワークフローの stale checkout | `daily-preopen-retry.yml` | HIGH | MEDIUM | S | 03-3.1 |
+| 7 | retry ワークフローの stale checkout | `daily-preopen-retry.yml` | MEDIUM | MEDIUM | S | 03-3.1 |
 | 8 | rsync --delete の exclude 追加 | `daily-publish-dashboard.yml` | HIGH | LOW | S | 03-4.1 |
 | 9 | JSON ファイルのアトミック書き込み | `dashboard.py` | MEDIUM | LOW | M | 01-6.2 |
 | 10 | LINE API のリトライロジック | `notifier.py` | MEDIUM | MEDIUM | M | 01-5.1 |
@@ -93,7 +93,7 @@
 
 | フェーズ | 工数 | 累計 |
 |---------|------|------|
-| Phase 1: 緊急対応 | 2-4h | 2-4h |
+| Phase 1: 緊急対応 | 4-8h | 4-8h |
 | Phase 2: 安定性向上 | 1-2日 | 2-3日 |
 | Phase 3: データ品質 | 5-10日 | 1-2週 |
 | Phase 4: コード品質 | 2-3週 | 3-5週 |

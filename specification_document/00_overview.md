@@ -29,10 +29,12 @@
 | LOW | 18 |
 | **合計** | **56** |
 
+※ 合計56件は、領域別ドキュメント間の再掲を含む集計値。
+
 ## 最も影響が大きい問題 (TOP 5)
 
-1. **git push 競合** — 9つのワークフローが `git pull --rebase` なしで `main` にプッシュ。同時実行で non-fast-forward エラーが発生する
+1. **git push 競合** — 10のワークフローが `git pull --rebase` なしで `main` にプッシュ。同時実行で non-fast-forward エラーが発生する
 2. **HTTP リクエストにタイムアウト未設定** — `data_loader.py` の Stooq API 呼び出しが無制限にハングする可能性
-3. **dashboard.py が全価格履歴＋全特徴量を JSON 出力** — `history_data.json` が数十MBに膨張し、ページ読込を阻害
+3. **dashboard.py が全価格履歴＋全特徴量を JSON 出力** — `history_data.json` が実測約50MBに膨張し、ページ読込を阻害
 4. **閾値最適化の過学習リスク** — `backtest.py` が 1500 候補をOOSデータで探索しつつ同データで評価
 5. **フロントエンドの fetch に `res.ok` チェック未実装** — HTTP エラー時に JSON パースが失敗し白画面化

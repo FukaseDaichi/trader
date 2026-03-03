@@ -4,7 +4,7 @@
 
 ### 1.1 [CRITICAL] git push 競合 — pull/rebase なしで main にプッシュ
 
-**影響ワークフロー**: 9つ全て (core, retry, publish, retrain, universe, calendar, audit, rotating, feature)
+**影響ワークフロー**: 10 (core, retry, publish, retrain, universe, calendar, audit, rotating, feature, stress)
 
 **問題**: 全ワークフローが `git push` 前に `git pull --rebase` を実行しない。2つのワークフローが同時実行され、両方が push すると、後発が `non-fast-forward` エラーで失敗する。
 
@@ -68,11 +68,11 @@ git add data/*.parquet data/jpx_holidays.json docs/
 
 ## 3. `daily-preopen-retry.yml`
 
-### 3.1 [HIGH] stale checkout で run_guard が誤判定
+### 3.1 [MEDIUM] stale checkout で run_guard が誤判定
 
 **箇所**: L24 (checkout) → L49-52 (run_guard)
 
-**問題**: チェックアウト後に core ワークフローが push した場合、`docs/state.json` が古い状態のまま。run_guard が `needs_run=true` と誤判定し、不要な重複実行が発生する。
+**問題**: core/retry は同一 `concurrency` グループで直列化されるため頻度は高くないが、チェックアウト後に `docs/state.json` が更新された場合は stale 状態を読む。`run_guard` が `needs_run=true` と誤判定し、不要な重複実行が発生する余地がある。
 
 **修正方針**: run_guard チェックの直前に `git pull` を追加:
 ```yaml
