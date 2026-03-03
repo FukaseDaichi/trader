@@ -21,9 +21,10 @@ interface StockChartProps {
   tickerName: string;
 }
 
-type DateRange = "1m" | "3m" | "6m" | "1y" | "all";
+type DateRange = "1w" | "1m" | "3m" | "6m" | "1y" | "all";
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: "1w", label: "1週間" },
   { value: "1m", label: "1ヶ月" },
   { value: "3m", label: "3ヶ月" },
   { value: "6m", label: "6ヶ月" },
@@ -32,11 +33,12 @@ const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
 ];
 
 const RANGE_TO_DAYS: Record<DateRange, number> = {
+  "1w": 5,
   "1m": 22,
   "3m": 66,
   "6m": 132,
   "1y": 250,
-  "all": Infinity,
+  all: Infinity,
 };
 
 interface IndicatorToggles {
@@ -59,7 +61,8 @@ interface CandlestickProps {
 
 const Candlestick = (props: CandlestickProps) => {
   const { x, width, payload, yAxis } = props;
-  if (!payload || x == null || width == null || width <= 0 || !yAxis?.scale) return null;
+  if (!payload || x == null || width == null || width <= 0 || !yAxis?.scale)
+    return null;
 
   const { open, close, high, low } = payload;
   if (open == null || close == null || high == null || low == null) return null;
@@ -118,38 +121,56 @@ const CustomPriceTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   const d = payload[0].payload;
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs shadow-xl">
-      <p className="font-bold text-slate-200 mb-2">{label ? format(parseISO(label), "yyyy-MM-dd") : ""}</p>
+      <p className="font-bold text-slate-200 mb-2">
+        {label ? format(parseISO(label), "yyyy-MM-dd") : ""}
+      </p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         <span className="text-slate-400">始値:</span>
-        <span className="text-slate-200 text-right">¥{d.open?.toLocaleString()}</span>
+        <span className="text-slate-200 text-right">
+          ¥{d.open?.toLocaleString()}
+        </span>
         <span className="text-slate-400">高値:</span>
-        <span className="text-red-400 text-right">¥{d.high?.toLocaleString()}</span>
+        <span className="text-red-400 text-right">
+          ¥{d.high?.toLocaleString()}
+        </span>
         <span className="text-slate-400">安値:</span>
-        <span className="text-blue-400 text-right">¥{d.low?.toLocaleString()}</span>
+        <span className="text-blue-400 text-right">
+          ¥{d.low?.toLocaleString()}
+        </span>
         <span className="text-slate-400">終値:</span>
-        <span className="text-slate-200 text-right font-bold">¥{d.close?.toLocaleString()}</span>
+        <span className="text-slate-200 text-right font-bold">
+          ¥{d.close?.toLocaleString()}
+        </span>
         {d.volume != null && (
           <>
             <span className="text-slate-400">出来高:</span>
-            <span className="text-slate-200 text-right">{d.volume?.toLocaleString()}</span>
+            <span className="text-slate-200 text-right">
+              {d.volume?.toLocaleString()}
+            </span>
           </>
         )}
         {d.ma_5 != null && (
           <>
             <span className="text-yellow-400">MA5:</span>
-            <span className="text-slate-200 text-right">¥{d.ma_5?.toLocaleString()}</span>
+            <span className="text-slate-200 text-right">
+              ¥{d.ma_5?.toLocaleString()}
+            </span>
           </>
         )}
         {d.ma_20 != null && (
           <>
             <span className="text-sky-400">MA20:</span>
-            <span className="text-slate-200 text-right">¥{d.ma_20?.toLocaleString()}</span>
+            <span className="text-slate-200 text-right">
+              ¥{d.ma_20?.toLocaleString()}
+            </span>
           </>
         )}
         {d.ma_60 != null && (
           <>
             <span className="text-green-400">MA60:</span>
-            <span className="text-slate-200 text-right">¥{d.ma_60?.toLocaleString()}</span>
+            <span className="text-slate-200 text-right">
+              ¥{d.ma_60?.toLocaleString()}
+            </span>
           </>
         )}
       </div>
@@ -264,12 +285,20 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
             data={filteredData}
             margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#334155"
+              vertical={false}
+            />
             <XAxis
               dataKey="date"
               stroke="#94a3b8"
               tickFormatter={(str) => {
-                try { return format(parseISO(str), "MM/dd"); } catch { return str; }
+                try {
+                  return format(parseISO(str), "MM/dd");
+                } catch {
+                  return str;
+                }
               }}
               minTickGap={40}
               fontSize={11}
@@ -373,7 +402,8 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
         </span>
         {indicators.ma5 && (
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-0.5 bg-yellow-400 rounded" /> MA5
+            <span className="inline-block w-3 h-0.5 bg-yellow-400 rounded" />{" "}
+            MA5
           </span>
         )}
         {indicators.ma20 && (
@@ -383,7 +413,8 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
         )}
         {indicators.ma60 && (
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-0.5 bg-green-400 rounded" /> MA60
+            <span className="inline-block w-3 h-0.5 bg-green-400 rounded" />{" "}
+            MA60
           </span>
         )}
       </div>
@@ -392,8 +423,15 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
       <div className="h-[100px] mt-4 border-t border-slate-800 pt-3">
         <h4 className="text-sm font-semibold text-slate-400 mb-1">出来高</h4>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={filteredData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <ComposedChart
+            data={filteredData}
+            margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#334155"
+              vertical={false}
+            />
             <XAxis dataKey="date" hide />
             <YAxis
               domain={[0, maxVolume * 1.1]}
@@ -406,11 +444,22 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
               fontSize={10}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: "#1e293b", borderColor: "#334155", color: "#f1f5f9" }}
-              labelFormatter={(label) => {
-                try { return format(parseISO(label), "yyyy-MM-dd"); } catch { return label; }
+              contentStyle={{
+                backgroundColor: "#1e293b",
+                borderColor: "#334155",
+                color: "#f1f5f9",
               }}
-              formatter={(value: number | undefined) => [value != null ? value.toLocaleString() : "---", "出来高"]}
+              labelFormatter={(label) => {
+                try {
+                  return format(parseISO(label), "yyyy-MM-dd");
+                } catch {
+                  return label;
+                }
+              }}
+              formatter={(value: number | undefined) => [
+                value != null ? value.toLocaleString() : "---",
+                "出来高",
+              ]}
             />
             <Bar dataKey="volume" isAnimationActive={false}>
               {filteredData.map((entry, index) => {
@@ -418,7 +467,11 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
                 return (
                   <Cell
                     key={`vol-${index}`}
-                    fill={isUp ? "rgba(239, 68, 68, 0.5)" : "rgba(59, 130, 246, 0.5)"}
+                    fill={
+                      isUp
+                        ? "rgba(239, 68, 68, 0.5)"
+                        : "rgba(59, 130, 246, 0.5)"
+                    }
                   />
                 );
               })}
@@ -431,19 +484,52 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
       <div className="h-[120px] mt-4 border-t border-slate-800 pt-3">
         <h4 className="text-sm font-semibold text-slate-400 mb-1">RSI (14)</h4>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={filteredData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-            <XAxis dataKey="date" hide />
-            <YAxis domain={[0, 100]} stroke="#94a3b8" ticks={[30, 50, 70]} fontSize={10} />
-            <Tooltip
-              contentStyle={{ backgroundColor: "#1e293b", borderColor: "#334155", color: "#f1f5f9" }}
-              labelFormatter={(label) => {
-                try { return format(parseISO(label), "yyyy-MM-dd"); } catch { return label; }
-              }}
-              formatter={(value: number | undefined) => [value != null ? value.toFixed(1) : "---", "RSI"]}
+          <ComposedChart
+            data={filteredData}
+            margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#334155"
+              vertical={false}
             />
-            <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} />
-            <ReferenceLine y={30} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} />
+            <XAxis dataKey="date" hide />
+            <YAxis
+              domain={[0, 100]}
+              stroke="#94a3b8"
+              ticks={[30, 50, 70]}
+              fontSize={10}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#1e293b",
+                borderColor: "#334155",
+                color: "#f1f5f9",
+              }}
+              labelFormatter={(label) => {
+                try {
+                  return format(parseISO(label), "yyyy-MM-dd");
+                } catch {
+                  return label;
+                }
+              }}
+              formatter={(value: number | undefined) => [
+                value != null ? value.toFixed(1) : "---",
+                "RSI",
+              ]}
+            />
+            <ReferenceLine
+              y={70}
+              stroke="#ef4444"
+              strokeDasharray="3 3"
+              strokeWidth={1}
+            />
+            <ReferenceLine
+              y={30}
+              stroke="#22c55e"
+              strokeDasharray="3 3"
+              strokeWidth={1}
+            />
             <Line
               type="monotone"
               dataKey="rsi"
