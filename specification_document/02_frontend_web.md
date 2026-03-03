@@ -2,28 +2,6 @@
 
 ## 1. データフェッチ
 
-### 1.1 [HIGH] fetch に `res.ok` チェック未実装
-
-**箇所**: `page.tsx` L122-124, `StockDetailContent.tsx` L25-27
-
-```typescript
-fetch(dataUrl)
-  .then((res) => res.json())
-```
-
-**問題**: サーバーが 404 や 500 を返した場合でも `.json()` を実行。エラーレスポンスのパースに失敗し、不明瞭なエラーメッセージが表示される。
-
-**修正方針**:
-```typescript
-fetch(dataUrl)
-  .then((res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-```
-
----
-
 ### 1.2 [MEDIUM] フェッチデータのランタイムバリデーション未実装
 
 **箇所**: `page.tsx` L124, `StockDetailContent.tsx` L27
@@ -46,33 +24,13 @@ fetch(dataUrl)
 
 ### 1.4 [LOW] キャッシュ戦略の欠如
 
-**問題**: `history_data.json` のフェッチに Cache-Control, ETag, stale-while-revalidate なし。ページ遷移のたびに全データを再取得。
+**問題**: `dashboard_index.json` / `tickers/{code}.json` のフェッチに Cache-Control, ETag, stale-while-revalidate なし。ページ遷移のたびに再取得が発生する。
 
 **修正方針**: `useSWR` や `react-query` の導入でキャッシュ・重複排除・再検証を実現。
 
 ---
 
 ## 2. TypeScript 型定義
-
-### 2.1 [HIGH] OHLCV フィールドの型が実データと不一致
-
-**箇所**: `types/index.ts` L2-6
-
-```typescript
-export interface TickerData {
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-```
-
-**問題**: 実際のデータは null を含みうる。`StockChart.tsx` L65 では `if (open == null)` のガードが存在し、コンポーネント側は null を想定している。型定義と実装の乖離。
-
-**修正方針**: `number | null` に型修正。
-
----
 
 ### 2.2 [MEDIUM] `signal.ts` の switch 文に default ケース未設定
 

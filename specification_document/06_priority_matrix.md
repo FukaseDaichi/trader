@@ -14,7 +14,6 @@
 |---|------|---------|--------|------|--------|------|
 | 1 | git push 前に pull --rebase 追加 | 全 10 ワークフロー | HIGH | MEDIUM | M | 03-1.1 |
 | 2 | HTTP タイムアウト未設定 | `data_loader.py` | HIGH | MEDIUM | S | 01-1.1 |
-| 3 | fetch の `res.ok` チェック未実装 | `page.tsx`, `StockDetailContent.tsx` | HIGH | MEDIUM | S | 02-1.1 |
 | 4 | `Math.min/max` 空配列クラッシュ | `StockChart.tsx` | HIGH | LOW | S | 02-3.1 |
 | 5 | volatility NaN 時の表示崩れ | `predictor.py` | HIGH | MEDIUM | S | 01-3.1 |
 | 6 | ティッカー毎の例外ハンドリング | `main.py` | MEDIUM | MEDIUM | S | 01-7.1 |
@@ -28,8 +27,6 @@
 | # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
 |---|------|---------|--------|------|--------|------|
 | 7 | retry ワークフローの stale checkout | `daily-preopen-retry.yml` | MEDIUM | MEDIUM | S | 03-3.1 |
-| 8 | rsync --delete の exclude 追加 | `daily-publish-dashboard.yml` | HIGH | LOW | S | 03-4.1 |
-| 9 | JSON ファイルのアトミック書き込み | `dashboard.py` | MEDIUM | LOW | M | 01-6.2 |
 | 10 | LINE API のリトライロジック | `notifier.py` | MEDIUM | MEDIUM | M | 01-5.1 |
 | 11 | nightly ワークフローのコンカレンシーグループ | 2 ワークフロー | MEDIUM | MEDIUM | S | 03-7.1, 03-8.2 |
 | 12 | `cmd_sync` のエラーハンドリング | `jpx_calendar.py` | MEDIUM | LOW | S | 03-9.2 |
@@ -42,13 +39,11 @@
 
 | # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
 |---|------|---------|--------|------|--------|------|
-| 13 | history_data.json の肥大化対策 | `dashboard.py` | HIGH | HIGH | M | 01-6.1 |
 | 14 | 閾値最適化の過学習リスク軽減 | `backtest.py` | HIGH | HIGH | L | 01-4.1 |
 | 15 | train/backtest パラメータ統一 | `model.py`, `config.py` | MEDIUM | HIGH | M | 01-2.2 |
 | 16 | ダウンロードデータの整合性検証 | `data_loader.py` | MEDIUM | MEDIUM | M | 01-1.3 |
 | 17 | Stooq エラー検知の改善 | `data_loader.py` | MEDIUM | LOW | M | 01-1.2 |
 | 18 | 全ワークフロー失敗通知の追加 | 全ワークフロー | MEDIUM | MEDIUM | M | 03-1.2 |
-| 19 | watchdog の鮮度検証強化 | `workflow_watchdog.py` | MEDIUM | LOW | S | 04-3.2 |
 
 **推定工数**: 5-10 日
 
@@ -62,7 +57,6 @@
 | 21 | タイムゾーン処理の統一 | 全スクリプト | MEDIUM | — | M | 05-5 |
 | 22 | 型ヒントの追加 | 全 src/ | LOW | — | L | 05-2 |
 | 23 | ユニットテスト基盤の構築 | 新規 `tests/` | LOW | — | L | 05-3 |
-| 24 | TypeScript 型定義の修正 | `types/index.ts` | MEDIUM | — | S | 02-2.1 |
 | 25 | signal.ts の default ケース追加 | `signal.ts` | MEDIUM | — | S | 02-2.2 |
 | 26 | `error.tsx` / `not-found.tsx` 追加 | `web/src/app/` | MEDIUM | — | M | 02-6.2, 6.3 |
 | 27 | FOUC 対策 (CSS 修正) | `globals.css` | MEDIUM | — | S | 02-5.1 |

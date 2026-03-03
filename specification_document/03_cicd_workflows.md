@@ -84,24 +84,6 @@ git add data/*.parquet data/jpx_holidays.json docs/
 
 ---
 
-## 4. `daily-publish-dashboard.yml`
-
-### 4.1 [HIGH] `rsync --delete` の exclude リストが不完全
-
-**箇所**: L90-101
-
-**問題**: `--delete` により `web/out/` に存在しないファイルが `docs/` から削除される。`history_data.json` は事前に `web/public/` にコピーされるため通常は残るが、Next.js ビルドの挙動変更で消失するリスクがある。
-
-**修正方針**: `history_data.json` を exclude リストに明示追加:
-```yaml
-rsync -av --delete \
-  --exclude 'history_data.json' \
-  --exclude 'state.json' \
-  ...
-```
-
----
-
 ## 5. `daily-watchdog.yml`
 
 ### 5.1 [MEDIUM] watchdog がアラートを送信しない
@@ -109,14 +91,6 @@ rsync -av --delete \
 **箇所**: `scripts/workflow_watchdog.py`
 
 **問題**: 失敗検知時に exit code 1 を返すのみ。開発者が Actions タブを見ない限り、失敗に気づかない。
-
----
-
-### 5.2 [MEDIUM] `history_data.json` の日付チェック未実装
-
-**箇所**: `workflow_watchdog.py` L62-69
-
-**問題**: ファイルの存在とフィールドの有無のみチェック。`last_update` が今日の日付であることを検証しない。昨日のデータでも通過する。
 
 ---
 

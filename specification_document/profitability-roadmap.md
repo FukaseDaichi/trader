@@ -34,7 +34,7 @@
 - JPX 営業日判定 (`scripts/jpx_calendar.py`) と当日更新ガード (`scripts/run_guard.py`) を導入済み。
 
 5. 可視化と成果物
-- `src/dashboard.py` が `docs/state.json` と `docs/history_data.json` を更新。
+- `src/dashboard.py` が `docs/state.json`, `docs/dashboard_index.json`, `docs/tickers/*.json` を更新。
 - フロントは `web/` の静的ビルドを `docs/` に同期して公開。
 
 ## 3. 収益面で残っているギャップ（60点要因）

@@ -39,7 +39,7 @@
 4. 監視
 - `daily-watchdog` は以下を検証。
   - `docs/state.json` の当日更新
-  - `docs/history_data.json` の整合
+  - `docs/dashboard_index.json` と `docs/tickers/*.json` の整合
   - `docs/backtest_report.json` の件数妥当性
 
 ## 4. 頻度設計の妥当性（現状評価）

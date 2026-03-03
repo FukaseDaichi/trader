@@ -54,16 +54,6 @@ if getattr(now.tzinfo, "key", None) == TOKYO_TZ:
 
 ---
 
-### 3.2 [MEDIUM] `history_data.json` の鮮度検証未実装
-
-**箇所**: L62-69
-
-**問題**: `last_update` フィールドの存在チェックのみ。日付が当日であることを検証しない。
-
-**修正方針**: `last_update` の値を `--date` 引数と比較。
-
----
-
 ## 4. `scripts/monthly_audit.py`
 
 ### 4.1 [MEDIUM] `evaluate_kpi_gate` 失敗時の例外ハンドリング未実装
