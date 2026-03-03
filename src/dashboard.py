@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from .model import add_features
 MAX_HISTORY_DAYS = 30
 MAX_DASHBOARD_ROWS = 500
 JST = ZoneInfo("Asia/Tokyo")
+RUN_DATE_ENV = "RUN_DATE_JST"
 
 DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"
 TICKER_EXPORT_DIR = DOCS_DIR / "tickers"
@@ -167,6 +169,18 @@ def _sync_dev_public_assets() -> None:
         legacy_file.unlink(missing_ok=True)
 
 
+def _resolve_run_date_jst(now_jst: datetime) -> str:
+    override = os.getenv(RUN_DATE_ENV, "").strip()
+    if not override:
+        return now_jst.strftime("%Y-%m-%d")
+    try:
+        datetime.strptime(override, "%Y-%m-%d")
+    except ValueError:
+        print(f"Invalid {RUN_DATE_ENV}={override!r}; falling back to current JST date.")
+        return now_jst.strftime("%Y-%m-%d")
+    return override
+
+
 def update_dashboard(signals):
     """
     Update state.json and export lightweight dashboard JSON assets.
@@ -197,7 +211,7 @@ def update_state(signals):
     # Use JST so retry guard (which also uses JST) can detect same-day updates correctly.
     now_jst = datetime.now(JST)
     today_str = now_jst.strftime("%Y-%m-%d %H:%M:%S")
-    today_date = now_jst.strftime("%Y-%m-%d")
+    today_date = _resolve_run_date_jst(now_jst)
 
     day_entry = {
         "date": today_date,
