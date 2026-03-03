@@ -463,7 +463,7 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
             />
             <Bar dataKey="volume" isAnimationActive={false}>
               {filteredData.map((entry, index) => {
-                const isUp = entry.close >= entry.open;
+                const isUp = entry.close != null && entry.open != null && entry.close >= entry.open;
                 return (
                   <Cell
                     key={`vol-${index}`}

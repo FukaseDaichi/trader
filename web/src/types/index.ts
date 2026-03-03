@@ -1,21 +1,14 @@
 export interface TickerData {
   date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  return_1d?: number;
-  ma_5?: number;
-  ma_20?: number;
-  ma_60?: number;
-  rsi?: number;
-  volatility?: number;
-}
-
-export interface TickerInfo {
-  name: string;
-  data: TickerData[];
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
+  ma_5?: number | null;
+  ma_20?: number | null;
+  ma_60?: number | null;
+  rsi?: number | null;
 }
 
 export interface Signal {
@@ -26,17 +19,35 @@ export interface Signal {
   prob_up: number;
   action: "BUY" | "MILD_BUY" | "HOLD" | "MILD_SELL" | "SELL";
   reason: string;
-  limit_price?: number;
-  stop_loss?: number;
+  limit_price?: number | null;
+  stop_loss?: number | null;
 }
 
-export interface HistoryEntry {
+export interface TickerSignalHistoryEntry {
   date: string;
-  signals: Signal[];
+  signal: Signal;
 }
 
-export interface HistoryData {
+export interface TickerSummary {
+  ticker: string;
+  name: string;
+  latest_data: TickerData | null;
+  avg_volume_20: number | null;
+  latest_signal: Signal | null;
+  data_file: string;
+  rows: number;
+}
+
+export interface DashboardIndexData {
   last_update: string;
-  tickers: Record<string, TickerInfo>;
-  signals_history: HistoryEntry[];
+  tickers: Record<string, TickerSummary>;
+}
+
+export interface TickerDetailData {
+  last_update: string;
+  ticker: string;
+  name: string;
+  latest_signal: Signal | null;
+  signals: TickerSignalHistoryEntry[];
+  data: TickerData[];
 }

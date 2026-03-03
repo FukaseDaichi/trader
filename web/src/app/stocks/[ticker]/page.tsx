@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 
 export async function generateStaticParams() {
-  // Dynamically read tickers from history_data.json at build time
-  const dataPath = path.join(process.cwd(), "..", "docs", "history_data.json");
+  // Dynamically read tickers from dashboard_index.json at build time
+  const dataPath = path.join(process.cwd(), "..", "docs", "dashboard_index.json");
   try {
     const raw = fs.readFileSync(dataPath, "utf-8");
     const data = JSON.parse(raw);

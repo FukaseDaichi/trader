@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HistoryData } from "../types";
+import { DashboardIndexData } from "../types";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { actionLabel, actionBadgeClass, probTextClass } from "../lib/signal";
@@ -112,16 +112,19 @@ function describeVolume(volume?: number, avg20?: number) {
 }
 
 export default function Home() {
-  const [data, setData] = useState<HistoryData | null>(null);
+  const [data, setData] = useState<DashboardIndexData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    const dataUrl = `${basePath}/history_data.json`;
+    const dataUrl = `${basePath}/dashboard_index.json`;
 
     fetch(dataUrl)
-      .then((res) => res.json())
-      .then((json: HistoryData) => {
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((json: DashboardIndexData) => {
         setData(json);
         setLoading(false);
       })
@@ -230,13 +233,13 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.keys(data.tickers).map(code => {
                 const ticker = data.tickers[code];
-                const latestData = ticker.data.length > 0 ? ticker.data[ticker.data.length - 1] : null;
-                const latestSignal = data.signals_history[0]?.signals.find(s => s.ticker === code);
-                const avgVolume20 = ticker.data.length > 0
-                  ? ticker.data.slice(-20).reduce((sum, row) => sum + row.volume, 0) / Math.min(ticker.data.length, 20)
-                  : undefined;
-                const rsiInfo = describeRsi(latestData?.rsi);
-                const volumeInfo = describeVolume(latestData?.volume, avgVolume20);
+                const latestData = ticker.latest_data;
+                const latestSignal = ticker.latest_signal;
+                const rsiInfo = describeRsi(latestData?.rsi ?? undefined);
+                const volumeInfo = describeVolume(
+                  latestData?.volume ?? undefined,
+                  ticker.avg_volume_20 ?? undefined,
+                );
 
                 return (
                     <Link
@@ -261,7 +264,7 @@ export default function Home() {
                             <div>
                                 <div className="text-xs text-slate-500 uppercase mb-1">現在値</div>
                                 <div className="text-2xl font-bold text-white">
-                                    {latestData ? `¥${latestData.close?.toLocaleString()}` : "---"}
+                                    {latestData?.close != null ? `¥${latestData.close.toLocaleString()}` : "---"}
                                 </div>
                             </div>
                             {latestSignal && (

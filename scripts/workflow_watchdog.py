@@ -46,9 +46,12 @@ def run_daily_check(args: argparse.Namespace) -> int:
     failures: list[str] = []
 
     state_file = Path(args.state_file)
-    history_file = Path(args.history_file)
+    index_file = Path(args.index_file if args.index_file else args.history_file)
+    ticker_dir = Path(args.ticker_dir)
     report_file = Path(args.report_file)
     tickers_file = Path(args.tickers_file)
+    max_index_bytes = int(args.max_index_bytes)
+    max_ticker_total_bytes = int(args.max_ticker_total_bytes)
 
     state = _load_json(state_file)
     if state is None:
@@ -59,14 +62,47 @@ def run_daily_check(args: argparse.Namespace) -> int:
         if not has_today:
             failures.append("state_not_updated_today")
 
-    history_data = _load_json(history_file)
-    if history_data is None:
-        failures.append(f"missing_or_invalid:{history_file}")
+    index_data = _load_json(index_file)
+    if index_data is None:
+        failures.append(f"missing_or_invalid:{index_file}")
     else:
-        if history_data.get("last_update") in ("", None):
-            failures.append("history_data_missing_last_update")
-        if not isinstance(history_data.get("tickers"), dict):
-            failures.append("history_data_missing_tickers")
+        if index_file.exists() and index_file.stat().st_size > max_index_bytes:
+            failures.append(f"dashboard_index_too_large:{index_file.stat().st_size}>{max_index_bytes}")
+
+        last_update = index_data.get("last_update")
+        if not isinstance(last_update, str) or not last_update:
+            failures.append("dashboard_index_missing_last_update")
+        elif not last_update.startswith(today):
+            failures.append("dashboard_index_not_updated_today")
+
+        index_tickers = index_data.get("tickers")
+        if not isinstance(index_tickers, dict):
+            failures.append("dashboard_index_missing_tickers")
+        else:
+            enabled = _load_enabled_tickers(tickers_file)
+            expected = len(enabled)
+            if expected > 0 and len(index_tickers) < expected:
+                failures.append(f"dashboard_index_tickers_short:{len(index_tickers)}/{expected}")
+
+            missing_codes = [code for code in enabled if code not in index_tickers]
+            if missing_codes:
+                failures.append(f"dashboard_index_missing_codes:{','.join(missing_codes)}")
+
+            total_ticker_bytes = 0
+            for code in enabled:
+                ticker_file = ticker_dir / f"{code}.json"
+                ticker_payload = _load_json(ticker_file)
+                if ticker_payload is None:
+                    failures.append(f"missing_or_invalid:{ticker_file}")
+                    continue
+                total_ticker_bytes += ticker_file.stat().st_size
+                if not isinstance(ticker_payload.get("data"), list):
+                    failures.append(f"ticker_data_missing_rows:{code}")
+
+            if total_ticker_bytes > max_ticker_total_bytes:
+                failures.append(
+                    f"ticker_payloads_too_large:{total_ticker_bytes}>{max_ticker_total_bytes}"
+                )
 
     report = _load_json(report_file)
     if report is None:
@@ -95,9 +131,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Workflow watchdog")
     parser.add_argument("--today", help="YYYY-MM-DD (JST)")
     parser.add_argument("--state-file", default="docs/state.json")
-    parser.add_argument("--history-file", default="docs/history_data.json")
+    parser.add_argument("--index-file", default="docs/dashboard_index.json")
+    parser.add_argument("--ticker-dir", default="docs/tickers")
+    # Backward-compatible alias used by older calls.
+    parser.add_argument("--history-file", default="docs/dashboard_index.json", help=argparse.SUPPRESS)
     parser.add_argument("--report-file", default="docs/backtest_report.json")
     parser.add_argument("--tickers-file", default="tickers.yml")
+    parser.add_argument("--max-index-bytes", type=int, default=1_000_000)
+    parser.add_argument("--max-ticker-total-bytes", type=int, default=10_000_000)
     return parser
 
 

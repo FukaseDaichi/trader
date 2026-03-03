@@ -69,12 +69,18 @@ jobs:
         if: ${{ steps.guard.outputs.has_today_update != 'true' }}
         run: echo "No same-day update found. Publish skipped (${{ steps.guard.outputs.guard_reason }})."
 
-      - name: Sync latest history_data into web/public
+      - name: Sync latest dashboard data into web/public
         if: ${{ steps.guard.outputs.has_today_update == 'true' }}
         run: |
-          if [ -f docs/history_data.json ]; then
-            cp docs/history_data.json web/public/history_data.json
+          if [ -f docs/dashboard_index.json ]; then
+            cp docs/dashboard_index.json web/public/dashboard_index.json
           fi
+          if [ -d docs/tickers ]; then
+            rm -rf web/public/tickers
+            mkdir -p web/public/tickers
+            cp -a docs/tickers/. web/public/tickers/
+          fi
+          rm -f web/public/history_data.json
 
       - name: Build frontend static export
         if: ${{ steps.guard.outputs.has_today_update == 'true' }}

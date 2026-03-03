@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HistoryData } from "../../../types";
+import { TickerDetailData } from "../../../types";
 import StockChart from "../../../components/StockChart";
 import SignalCard from "../../../components/SignalCard";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -15,16 +15,19 @@ interface Props {
 export default function StockDetailContent({ ticker }: Props) {
   const tickerCode = decodeURIComponent(ticker);
   
-  const [data, setData] = useState<HistoryData | null>(null);
+  const [data, setData] = useState<TickerDetailData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    const dataUrl = `${basePath}/history_data.json`;
+    const dataUrl = `${basePath}/tickers/${encodeURIComponent(tickerCode)}.json`;
     
     fetch(dataUrl)
-      .then((res) => res.json())
-      .then((json: HistoryData) => {
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((json: TickerDetailData) => {
         setData(json);
         setLoading(false);
       })
@@ -32,13 +35,13 @@ export default function StockDetailContent({ ticker }: Props) {
         console.error("Failed to load history data", err);
         setLoading(false);
       });
-  }, []);
+  }, [tickerCode]);
 
   if (loading) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">読み込み中...</div>;
   }
 
-  if (!data || !data.tickers[tickerCode]) {
+  if (!data) {
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-red-400 gap-4">
             <p>データの読み込みに失敗しました ({tickerCode})</p>
@@ -47,9 +50,7 @@ export default function StockDetailContent({ ticker }: Props) {
     );
   }
 
-  const currentTicker = data.tickers[tickerCode];
-  // Find latest signal for this ticker
-  const latestSignal = data.signals_history[0]?.signals.find(s => s.ticker === tickerCode);
+  const latestSignal = data.latest_signal;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
@@ -58,7 +59,7 @@ export default function StockDetailContent({ ticker }: Props) {
             <ArrowLeft size={24} className="text-slate-400" />
         </Link>
         <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">{currentTicker.name} ({tickerCode})</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">{data.name} ({tickerCode})</h1>
             <p className="text-slate-400 text-sm">最終更新: {data.last_update}</p>
         </div>
       </header>
@@ -66,7 +67,7 @@ export default function StockDetailContent({ ticker }: Props) {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Chart Area */}
         <div className="lg:col-span-2 space-y-8">
-            <StockChart data={currentTicker.data} tickerName={currentTicker.name} />
+            <StockChart data={data.data} tickerName={data.name} />
         </div>
 
         {/* Sidebar Info */}
@@ -86,11 +87,10 @@ export default function StockDetailContent({ ticker }: Props) {
             <div className="mt-8">
                 <h3 className="text-lg font-bold text-slate-100 mb-4">シグナル履歴</h3>
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                    {data.signals_history.map((entry, idx) => {
-                        const sig = entry.signals.find(s => s.ticker === tickerCode);
-                        if (!sig) return null;
+                    {data.signals.map((entry) => {
+                        const sig = entry.signal;
                         return (
-                            <div key={idx} className="p-3 bg-slate-900/50 rounded border border-slate-800/50 flex justify-between items-center text-sm">
+                            <div key={`${entry.date}-${sig.action}`} className="p-3 bg-slate-900/50 rounded border border-slate-800/50 flex justify-between items-center text-sm">
                                 <span className="text-slate-400">{entry.date}</span>
                                 <span className={`font-bold ${actionTextClass(sig.action)}`}>
                                     {actionLabel(sig.action)}
