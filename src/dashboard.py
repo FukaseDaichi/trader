@@ -3,12 +3,14 @@ import shutil
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
 from .data_loader import load_data
 from .model import add_features
 
 MAX_HISTORY_DAYS = 30
+JST = ZoneInfo("Asia/Tokyo")
 
 def _normalize_signals(signals: Any, allowed_tickers: set[str] | None = None):
     """
@@ -92,8 +94,10 @@ def update_state(signals):
         state = {"history": [], "last_update": ""}
 
     history = _normalize_history(state.get("history", []), allowed_tickers=allowed_tickers)
-    today_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    today_date = datetime.now().strftime('%Y-%m-%d')
+    # Use JST so retry guard (which also uses JST) can detect same-day updates correctly.
+    now_jst = datetime.now(JST)
+    today_str = now_jst.strftime('%Y-%m-%d %H:%M:%S')
+    today_date = now_jst.strftime('%Y-%m-%d')
 
     days_entry = {
         "date": today_date,
