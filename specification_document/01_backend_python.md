@@ -84,24 +84,7 @@ df['vol_ratio'] = df['vol_ma_5'] / df['vol_ma_20']
 
 ---
 
-### 2.2 [MEDIUM] train/backtest 間のパラメータ不整合
-
-**箇所**: L275-277 (model.py) vs backtest.py の環境変数
-
-```python
-# model.py — ハードコード
-val_size = 60
-purge_gap = 5
-n_folds = 3
-```
-
-**問題**: `backtest.py` は `TRADER_BT_VAL_SIZE` 等の環境変数で設定可能だが、`model.py` はハードコード。ユーザーが環境変数でバックテスト設定を変更しても、訓練側に反映されない。
-
-**修正方針**: `model.py` も `BACKTEST_GATE_CONFIG` から読み取るか、共通定数を `config.py` に定義する。
-
----
-
-### 2.3 [LOW] ストリーク計算が O(n) の iloc ループ
+### 2.2 [LOW] ストリーク計算が O(n) の iloc ループ
 
 **箇所**: L122-128
 
@@ -111,7 +94,7 @@ n_folds = 3
 
 ---
 
-### 2.4 [LOW] fold_predictions が空になる可能性
+### 2.3 [LOW] fold_predictions が空になる可能性
 
 **箇所**: L279-295
 
@@ -155,20 +138,7 @@ signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボ
 
 ## 4. `src/backtest.py`
 
-### 4.1 [HIGH] 閾値最適化の過学習リスク
-
-**箇所**: L121-148 (`_build_threshold_candidates`)
-
-**問題**: 1500候補の閾値を OOS データで探索し、同じ OOS データで KPI 評価を行う。閾値最適化自体にクロスバリデーションがないため、OOS データに過学習するリスクがある。
-
-**修正方針**:
-- 閾値最適化用の内部 CV を追加
-- 候補数を削減 (ベイズ最適化等を検討)
-- 最低限、最適化と評価のデータを分離
-
----
-
-### 4.2 [MEDIUM] `_simulate_strategy` のパフォーマンス
+### 4.1 [MEDIUM] `_simulate_strategy` のパフォーマンス
 
 **箇所**: L159-166
 
@@ -178,7 +148,7 @@ signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボ
 
 ---
 
-### 4.3 [LOW] `max_drawdown` の符号規約が不統一
+### 4.2 [LOW] `max_drawdown` の符号規約が不統一
 
 **箇所**: L204 (負値) vs L237 (abs で比較)
 
@@ -186,7 +156,7 @@ signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボ
 
 ---
 
-### 4.4 [LOW] `write_backtest_report` のタイムゾーン未指定
+### 4.3 [LOW] `write_backtest_report` のタイムゾーン未指定
 
 **箇所**: L397
 
