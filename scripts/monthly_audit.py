@@ -61,6 +61,8 @@ def run_audit(output_path: Path) -> int:
             "reason": gate.get("reason"),
             "failures": gate.get("failures", []),
             "metrics": gate.get("metrics", {}),
+            "metrics_tuning": gate.get("metrics_tuning", {}),
+            "metrics_holdout": gate.get("metrics_holdout", {}),
             "thresholds": gate.get("thresholds", {}),
             "threshold_optimization": gate.get("threshold_optimization", {}),
         })

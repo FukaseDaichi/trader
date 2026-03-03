@@ -198,6 +198,14 @@ _LGB_PARAMS = {
 _MIN_BOOST_ROUND = 50
 
 
+def _config_int(config, key, default, minimum=0):
+    try:
+        value = int(config.get(key, default))
+    except (TypeError, ValueError):
+        value = int(default)
+    return max(minimum, value)
+
+
 def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     """Train a single LightGBM model with early stopping + minimum round guard."""
     params = {**_LGB_PARAMS, 'seed': seed}
@@ -226,19 +234,19 @@ def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     return model
 
 
-def train_and_predict(df):
+def train_and_predict(df, runtime_config=None):
     """
     Train a LightGBM ensemble via walk-forward cross-validation and predict
     whether tomorrow's close > today's close.
 
     Strategy
     --------
-    1. **Walk-forward CV (3 folds)**: Train on expanding windows, validate on
-       successive 60-day blocks. This mirrors real deployment (train on past,
+    1. **Walk-forward CV**: Train on expanding windows, validate on
+       successive blocks. This mirrors real deployment (train on past,
        predict future) and avoids look-ahead bias.
-    2. **Purge gap**: 5-day gap between train and validation prevents label
+    2. **Purge gap**: Gap between train and validation prevents label
        leakage from overlapping return windows.
-    3. **Ensemble**: Average predictions from 3 fold-models + 1 full-data
+    3. **Ensemble**: Average predictions from fold-models + 1 full-data
        model for the final probability. This reduces variance and provides
        more stable signals.
     4. **Regularised LightGBM**: Shallow trees (depth 4, 15 leaves), strong
@@ -249,6 +257,13 @@ def train_and_predict(df):
     """
 
     df = df.copy()
+    config = runtime_config or {}
+
+    validation_years = _config_int(config, "validation_years", 4, minimum=1)
+    val_size = _config_int(config, "val_size", 60, minimum=1)
+    purge_gap = _config_int(config, "purge_gap", 5, minimum=0)
+    n_folds = _config_int(config, "n_folds", 3, minimum=1)
+    min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
 
     # Target: did price go up NEXT day?
     df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
@@ -256,12 +271,13 @@ def train_and_predict(df):
     # Drop the last row (target unknown)
     labelled = df.dropna(subset=['target']).copy()
 
-    # Use last 4 years if available
+    # Use recent history window (default: last 4 years)
     max_date = labelled['date'].max()
-    start_date = max_date - timedelta(days=365 * 4)
+    start_date = max_date - timedelta(days=365 * validation_years)
     labelled = labelled[labelled['date'] >= start_date].reset_index(drop=True)
 
-    if len(labelled) < 200:
+    min_required = min_train_rows + val_size + purge_gap
+    if len(labelled) < min_required:
         print("Not enough data to train model.")
         return None, 0.5
 
@@ -272,20 +288,21 @@ def train_and_predict(df):
     fold_predictions = []
 
     n = len(labelled)
-    val_size = 60       # ~3 months per fold
-    purge_gap = 5       # avoid leakage from overlapping return windows
-    n_folds = 3
 
     for fold_idx in range(n_folds):
         val_end = n - fold_idx * val_size
         val_start = val_end - val_size
         train_end = val_start - purge_gap
 
-        if train_end < 200:
+        if val_start < 0:
             break
+        if train_end < min_train_rows:
+            continue
 
         train_fold = labelled.iloc[:train_end]
         val_fold = labelled.iloc[val_start:val_end]
+        if val_fold.empty:
+            continue
 
         model_fold = _train_single_fold(
             train_fold[FEATURE_COLS], train_fold['target'],
@@ -301,6 +318,9 @@ def train_and_predict(df):
     # ------------------------------------------------------------------
     train_all = labelled.iloc[:-val_size]
     val_all = labelled.iloc[-val_size:]
+    if train_all.empty or val_all.empty or len(train_all) < min_train_rows:
+        print("Not enough data to train final model.")
+        return None, 0.5
 
     final_model = _train_single_fold(
         train_all[FEATURE_COLS], train_all['target'],

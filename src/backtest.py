@@ -92,6 +92,75 @@ def _collect_oos_predictions(labelled, config):
     return oos
 
 
+def _split_oos_for_thresholding(oos, config):
+    """
+    Split OOS chronologically into:
+    - tuning_oos: used to select thresholds
+    - holdout_oos: used for final KPI gate evaluation
+
+    Fallback to all-OOS mode if chronological split is not feasible.
+    """
+    if oos.empty:
+        return oos.copy(), oos.copy(), {
+            "data_split": "empty",
+            "tuning_rows": 0,
+            "holdout_rows": 0,
+            "holdout_used": False,
+        }
+
+    val_size = max(1, int(config.get("val_size", 60)))
+    n_folds = max(1, int(config.get("n_folds", 3)))
+    holdout_folds = 1 if n_folds >= 2 else 0
+
+    if holdout_folds == 0:
+        rows = len(oos)
+        return oos.copy(), oos.copy(), {
+            "data_split": "all_oos",
+            "tuning_rows": rows,
+            "holdout_rows": rows,
+            "holdout_used": False,
+        }
+
+    min_rows_for_split = val_size * (holdout_folds + 1)
+    if len(oos) < min_rows_for_split:
+        rows = len(oos)
+        return oos.copy(), oos.copy(), {
+            "data_split": "all_oos",
+            "tuning_rows": rows,
+            "holdout_rows": rows,
+            "holdout_used": False,
+        }
+
+    holdout_rows = min(val_size * holdout_folds, max(len(oos) - 1, 0))
+    split_index = len(oos) - holdout_rows
+    if holdout_rows <= 0 or split_index <= 0:
+        rows = len(oos)
+        return oos.copy(), oos.copy(), {
+            "data_split": "all_oos",
+            "tuning_rows": rows,
+            "holdout_rows": rows,
+            "holdout_used": False,
+        }
+
+    tuning_oos = oos.iloc[:split_index].reset_index(drop=True)
+    holdout_oos = oos.iloc[split_index:].reset_index(drop=True)
+    if tuning_oos.empty or holdout_oos.empty:
+        rows = len(oos)
+        return oos.copy(), oos.copy(), {
+            "data_split": "all_oos",
+            "tuning_rows": rows,
+            "holdout_rows": rows,
+            "holdout_used": False,
+        }
+
+    return tuning_oos, holdout_oos, {
+        "data_split": "chronological_holdout",
+        "tuning_rows": int(len(tuning_oos)),
+        "holdout_rows": int(len(holdout_oos)),
+        "holdout_used": True,
+    }
+
+
 def _to_position(action, allow_short):
     if allow_short:
         return _LONG_SHORT_POSITION.get(action, 0.0)
@@ -252,13 +321,13 @@ def _score_for_objective(metrics, objective):
     return float(metrics["expectancy"])
 
 
-def _optimize_thresholds(oos, config):
+def _optimize_thresholds(tuning_oos, config):
     default_thresholds = resolve_thresholds()
     enabled = bool(config.get("auto_threshold_enabled", True))
     objective = str(config.get("auto_threshold_objective", "expectancy")).strip().lower()
     min_trades = int(config.get("auto_threshold_min_trades", 8))
 
-    if oos.empty or not enabled:
+    if tuning_oos.empty or not enabled:
         return default_thresholds, {
             "enabled": enabled,
             "optimized": False,
@@ -273,7 +342,7 @@ def _optimize_thresholds(oos, config):
     best_feasible = None
 
     for threshold in candidates:
-        sim = _simulate_strategy(oos, config, thresholds=threshold)
+        sim = _simulate_strategy(tuning_oos, config, thresholds=threshold)
         metrics = _compute_metrics(sim)
         score = _score_for_objective(metrics, objective)
         rank = (score, metrics["sharpe"], metrics["cagr"], metrics["net_return_total"])
@@ -316,6 +385,7 @@ def _optimize_thresholds(oos, config):
         "selection": selection,
         "selected_score": float(selected["score"]),
         "selected_trades": int(selected["trades"]),
+        "selected_metrics": selected["metrics"],
     }
 
 
@@ -327,6 +397,8 @@ def evaluate_kpi_gate(df, config):
             "skipped": True,
             "reason": "gate_disabled",
             "metrics": _compute_metrics(pd.DataFrame()),
+            "metrics_tuning": _compute_metrics(pd.DataFrame()),
+            "metrics_holdout": _compute_metrics(pd.DataFrame()),
             "failures": [],
             "thresholds": default_thresholds,
             "threshold_optimization": {
@@ -336,6 +408,10 @@ def evaluate_kpi_gate(df, config):
                 "min_trades": int(config.get("auto_threshold_min_trades", 8)),
                 "candidate_count": 1,
                 "selection": "default",
+                "data_split": "disabled",
+                "tuning_rows": 0,
+                "holdout_rows": 0,
+                "holdout_used": False,
             },
         }
 
@@ -347,6 +423,8 @@ def evaluate_kpi_gate(df, config):
             "skipped": False,
             "reason": "insufficient_rows",
             "metrics": _compute_metrics(pd.DataFrame()),
+            "metrics_tuning": _compute_metrics(pd.DataFrame()),
+            "metrics_holdout": _compute_metrics(pd.DataFrame()),
             "failures": [f"rows<{min_required}"],
             "thresholds": default_thresholds,
             "threshold_optimization": {
@@ -356,20 +434,37 @@ def evaluate_kpi_gate(df, config):
                 "min_trades": int(config.get("auto_threshold_min_trades", 8)),
                 "candidate_count": 1,
                 "selection": "default",
+                "data_split": "insufficient_rows",
+                "tuning_rows": 0,
+                "holdout_rows": 0,
+                "holdout_used": False,
             },
         }
 
     oos = _collect_oos_predictions(labelled, config)
-    thresholds, threshold_optimization = _optimize_thresholds(oos, config)
-    sim = _simulate_strategy(oos, config, thresholds=thresholds)
-    metrics = _compute_metrics(sim)
-    failures = _evaluate_gate_rules(metrics, config)
+    tuning_oos, holdout_oos, split_info = _split_oos_for_thresholding(oos, config)
+    thresholds, threshold_optimization = _optimize_thresholds(tuning_oos, config)
+
+    sim_tuning = _simulate_strategy(tuning_oos, config, thresholds=thresholds)
+    metrics_tuning = _compute_metrics(sim_tuning)
+
+    sim_holdout = _simulate_strategy(holdout_oos, config, thresholds=thresholds)
+    metrics_holdout = _compute_metrics(sim_holdout)
+
+    metrics_for_gate = metrics_holdout
+    failures = _evaluate_gate_rules(metrics_for_gate, config)
+    threshold_optimization = {
+        **threshold_optimization,
+        **split_info,
+    }
 
     return {
         "passed": len(failures) == 0,
         "skipped": False,
         "reason": "ok" if not failures else "kpi_failed",
-        "metrics": metrics,
+        "metrics": metrics_for_gate,
+        "metrics_tuning": metrics_tuning,
+        "metrics_holdout": metrics_holdout,
         "failures": failures,
         "thresholds": thresholds,
         "threshold_optimization": threshold_optimization,

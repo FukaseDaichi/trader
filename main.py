@@ -54,6 +54,8 @@ def main():
             "reason": gate_result["reason"],
             "failures": gate_result["failures"],
             "metrics": gate_result["metrics"],
+            "metrics_tuning": gate_result.get("metrics_tuning"),
+            "metrics_holdout": gate_result.get("metrics_holdout"),
             "thresholds": gate_result.get("thresholds"),
             "threshold_optimization": gate_result.get("threshold_optimization"),
         })
@@ -76,7 +78,7 @@ def main():
             continue
             
         # 5. Train & Predict
-        model, prob_up = train_and_predict(df)
+        model, prob_up = train_and_predict(df, runtime_config=BACKTEST_GATE_CONFIG)
         if model is None:
             print(f"Model training failed for {code}. Skipping.")
             continue

@@ -52,6 +52,8 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
             "reason": gate["reason"],
             "failures": gate["failures"],
             "metrics": gate["metrics"],
+            "metrics_tuning": gate.get("metrics_tuning", {}),
+            "metrics_holdout": gate.get("metrics_holdout", {}),
         })
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]
