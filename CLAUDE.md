@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Automated stock prediction and trading signal system for Japanese equities. Fetches daily price data from Stooq, trains LightGBM ensembles, generates 5-level signals (BUY/MILD_BUY/HOLD/MILD_SELL/SELL), notifies via LINE, and displays results on a Next.js dashboard hosted on GitHub Pages.
+Automated stock prediction and trading signal system for Japanese equities. Fetches daily price data from Stooq with automatic yfinance fallback when stale, trains LightGBM ensembles, generates 5-level signals (BUY/MILD_BUY/HOLD/MILD_SELL/SELL), notifies via LINE, and displays results on a Next.js dashboard hosted on GitHub Pages.
 
 Runs autonomously via GitHub Actions at 06:00 JST on JPX trading days.
 
@@ -38,7 +38,7 @@ cd web && npm run build:prod && cp -r out/* ../docs/
 
 For each enabled ticker in `tickers.yml`:
 
-1. **Data sync** (`src/data_loader.py`) — Download CSV from Stooq, merge into per-ticker parquet files in `data/`
+1. **Data sync** (`src/data_loader.py`) — Download CSV from Stooq and auto-fallback to yfinance if data is stale; merge into per-ticker parquet files in `data/`
 2. **Feature engineering** (`src/model.py`) — 35 technical indicators (returns, MA, RSI, MACD, BBands, ATR, volume, candlestick, calendar)
 3. **KPI gate** (`src/backtest.py`) — Walk-forward 3-fold OOS backtest with cost/slippage. Blocks signals if CAGR, MaxDD, Sharpe, or Expectancy fail thresholds. Auto-optimizes signal thresholds per ticker
 4. **Train & predict** (`src/model.py`) — 4-model LightGBM ensemble (3 folds + full data), outputs `prob_up`
