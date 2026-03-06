@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-03-05 01:03:36",
+  "generated_at": "2026-03-06 01:07:58",
   "summary": {
     "total_tickers": 6,
     "ok_tickers": 6,
-    "passed_tickers": 1,
-    "failed_tickers": 5,
-    "avg_cagr": 0.02331751058412518,
-    "avg_max_drawdown": -0.03374801851203346,
-    "avg_sharpe": 0.05869039174812888,
-    "avg_expectancy": -0.0008043197284999928,
-    "avg_turnover": 0.10972222222222221
+    "passed_tickers": 0,
+    "failed_tickers": 6,
+    "avg_cagr": -0.04650761973934201,
+    "avg_max_drawdown": -0.044364501592669504,
+    "avg_sharpe": -0.39092858153921584,
+    "avg_expectancy": -0.0005415799185716764,
+    "avg_turnover": 0.11527777777777777
   },
   "entries": [
     {
@@ -19,37 +19,186 @@
       "passed": false,
       "reason": "kpi_failed",
       "failures": [
-        "expectancy<0.010%"
+        "trades<10",
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
       ],
       "metrics": {
         "oos_days": 60,
-        "trades": 21,
-        "cagr": 0.11027549895545974,
-        "max_drawdown": -0.06061486675289951,
-        "sharpe": 0.5590774687564691,
-        "expectancy": -0.002925888282223606,
-        "turnover": 0.175,
-        "net_return_total": 0.02521947328602514
+        "trades": 8,
+        "cagr": 0.0062300074784313875,
+        "max_drawdown": -0.027870536151241243,
+        "sharpe": 0.1485156102706891,
+        "expectancy": -4.3567644505297e-05,
+        "turnover": 0.06666666666666667,
+        "net_return_total": 0.0014798274868261796
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 52,
-        "cagr": 0.6896464001086524,
-        "max_drawdown": -0.06546290363897411,
-        "sharpe": 2.9989276801787197,
-        "expectancy": 0.002948811419165911,
-        "turnover": 0.21666666666666667,
-        "net_return_total": 0.28373151632823057
+        "trades": 29,
+        "cagr": 0.0063080128966988,
+        "max_drawdown": -0.07552497083431153,
+        "sharpe": 0.11257076983968255,
+        "expectancy": 0.001023572778711316,
+        "turnover": 0.12083333333333333,
+        "net_return_total": 0.0029988689029043503
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 21,
-        "cagr": 0.11027549895545974,
-        "max_drawdown": -0.06061486675289951,
-        "sharpe": 0.5590774687564691,
-        "expectancy": -0.002925888282223606,
-        "turnover": 0.175,
-        "net_return_total": 0.02521947328602514
+        "trades": 8,
+        "cagr": 0.0062300074784313875,
+        "max_drawdown": -0.027870536151241243,
+        "sharpe": 0.1485156102706891,
+        "expectancy": -4.3567644505297e-05,
+        "turnover": 0.06666666666666667,
+        "net_return_total": 0.0014798274868261796
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": 0.001023572778711316,
+        "selected_trades": 29,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 29,
+          "cagr": 0.0063080128966988,
+          "max_drawdown": -0.07552497083431153,
+          "sharpe": 0.11257076983968255,
+          "expectancy": 0.001023572778711316,
+          "turnover": 0.12083333333333333,
+          "net_return_total": 0.0029988689029043503
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      }
+    },
+    {
+      "ticker": "6857.JP",
+      "name": "アドバンテスト",
+      "status": "ok",
+      "passed": false,
+      "reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 18,
+        "cagr": -0.2460499768413572,
+        "max_drawdown": -0.0711679139360214,
+        "sharpe": -3.253183680121826,
+        "expectancy": -0.0035027152249774585,
+        "turnover": 0.15,
+        "net_return_total": -0.06503393693248327
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 10,
+        "cagr": -0.009042326704850279,
+        "max_drawdown": -0.036422880075469566,
+        "sharpe": -0.12988375382324097,
+        "expectancy": -0.00035398887712115285,
+        "turnover": 0.041666666666666664,
+        "net_return_total": -0.004316114247148395
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 18,
+        "cagr": -0.2460499768413572,
+        "max_drawdown": -0.0711679139360214,
+        "sharpe": -3.253183680121826,
+        "expectancy": -0.0035027152249774585,
+        "turnover": 0.15,
+        "net_return_total": -0.06503393693248327
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": -0.00035398887712115285,
+        "selected_trades": 10,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 10,
+          "cagr": -0.009042326704850279,
+          "max_drawdown": -0.036422880075469566,
+          "sharpe": -0.12988375382324097,
+          "expectancy": -0.00035398887712115285,
+          "turnover": 0.041666666666666664,
+          "net_return_total": -0.004316114247148395
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      }
+    },
+    {
+      "ticker": "7011.JP",
+      "name": "三菱重工業",
+      "status": "ok",
+      "passed": false,
+      "reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 32,
+        "cagr": -0.01461101508647622,
+        "max_drawdown": -0.052558951760591666,
+        "sharpe": -0.030805168027664715,
+        "expectancy": -0.0006046529464655971,
+        "turnover": 0.26666666666666666,
+        "net_return_total": -0.0034983443948395365
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 39,
+        "cagr": -0.01981687130113463,
+        "max_drawdown": -0.03848917456486267,
+        "sharpe": -0.13967123723402103,
+        "expectancy": 0.0010294891480502955,
+        "turnover": 0.1625,
+        "net_return_total": -0.009486081860397344
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 32,
+        "cagr": -0.01461101508647622,
+        "max_drawdown": -0.052558951760591666,
+        "sharpe": -0.030805168027664715,
+        "expectancy": -0.0006046529464655971,
+        "turnover": 0.26666666666666666,
+        "net_return_total": -0.0034983443948395365
       },
       "thresholds": {
         "buy": 0.7,
@@ -65,160 +214,17 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": 0.002948811419165911,
-        "selected_trades": 52,
+        "selected_score": 0.0010294891480502955,
+        "selected_trades": 39,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 52,
-          "cagr": 0.6896464001086524,
-          "max_drawdown": -0.06546290363897411,
-          "sharpe": 2.9989276801787197,
-          "expectancy": 0.002948811419165911,
-          "turnover": 0.21666666666666667,
-          "net_return_total": 0.28373151632823057
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      }
-    },
-    {
-      "ticker": "6857.JP",
-      "name": "アドバンテスト",
-      "status": "ok",
-      "passed": true,
-      "reason": "ok",
-      "failures": [],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 22,
-        "cagr": 0.08015204336705684,
-        "max_drawdown": -0.045337176211262875,
-        "sharpe": 0.594730757845625,
-        "expectancy": 0.0011166049841952186,
-        "turnover": 0.18333333333333332,
-        "net_return_total": 0.01852711041720645
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 11,
-        "cagr": 0.10730140217393269,
-        "max_drawdown": -0.004306228343350815,
-        "sharpe": 2.3228612667177986,
-        "expectancy": 0.0044552293219734355,
-        "turnover": 0.04583333333333333,
-        "net_return_total": 0.04973330450812363
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 22,
-        "cagr": 0.08015204336705684,
-        "max_drawdown": -0.045337176211262875,
-        "sharpe": 0.594730757845625,
-        "expectancy": 0.0011166049841952186,
-        "turnover": 0.18333333333333332,
-        "net_return_total": 0.01852711041720645
-      },
-      "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.6,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": true,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.0044552293219734355,
-        "selected_trades": 11,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 11,
-          "cagr": 0.10730140217393269,
-          "max_drawdown": -0.004306228343350815,
-          "sharpe": 2.3228612667177986,
-          "expectancy": 0.0044552293219734355,
-          "turnover": 0.04583333333333333,
-          "net_return_total": 0.04973330450812363
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      }
-    },
-    {
-      "ticker": "7011.JP",
-      "name": "三菱重工業",
-      "status": "ok",
-      "passed": false,
-      "reason": "kpi_failed",
-      "failures": [
-        "trades<10",
-        "cagr<3.0%",
-        "expectancy<0.010%",
-        "sharpe<0.20"
-      ],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 8,
-        "cagr": -0.16898625270176348,
-        "max_drawdown": -0.045490775792526694,
-        "sharpe": -3.260480988872354,
-        "expectancy": -0.005459431571040521,
-        "turnover": 0.06666666666666667,
-        "net_return_total": -0.043116431007083844
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 33,
-        "cagr": 0.08679928529859149,
-        "max_drawdown": -0.022405442541184484,
-        "sharpe": 1.1043317158328114,
-        "expectancy": 0.0011537947521059804,
-        "turnover": 0.1375,
-        "net_return_total": 0.04043265237935367
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 8,
-        "cagr": -0.16898625270176348,
-        "max_drawdown": -0.045490775792526694,
-        "sharpe": -3.260480988872354,
-        "expectancy": -0.005459431571040521,
-        "turnover": 0.06666666666666667,
-        "net_return_total": -0.043116431007083844
-      },
-      "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.6,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": true,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.0011537947521059804,
-        "selected_trades": 33,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 33,
-          "cagr": 0.08679928529859149,
-          "max_drawdown": -0.022405442541184484,
-          "sharpe": 1.1043317158328114,
-          "expectancy": 0.0011537947521059804,
-          "turnover": 0.1375,
-          "net_return_total": 0.04043265237935367
+          "trades": 39,
+          "cagr": -0.01981687130113463,
+          "max_drawdown": -0.03848917456486267,
+          "sharpe": -0.13967123723402103,
+          "expectancy": 0.0010294891480502955,
+          "turnover": 0.1625,
+          "net_return_total": -0.009486081860397344
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
@@ -237,33 +243,33 @@
       ],
       "metrics": {
         "oos_days": 60,
-        "trades": 8,
-        "cagr": 0.21209077567197876,
-        "max_drawdown": -0.0022444341946585844,
-        "sharpe": 3.1123978629439386,
-        "expectancy": 0.004480395910922752,
-        "turnover": 0.06666666666666667,
-        "net_return_total": 0.04686172245146003
+        "trades": 6,
+        "cagr": 0.06658642069827181,
+        "max_drawdown": -0.008060537828515568,
+        "sharpe": 1.2667073138544762,
+        "expectancy": 0.002577623669746917,
+        "turnover": 0.05,
+        "net_return_total": 0.015466793487745711
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 14,
-        "cagr": 0.033068133403513,
-        "max_drawdown": -0.01326530614453647,
-        "sharpe": 1.0827149152312192,
-        "expectancy": 0.0006880205264575603,
-        "turnover": 0.058333333333333334,
-        "net_return_total": 0.015612596424190883
+        "trades": 18,
+        "cagr": 0.1036294734673251,
+        "max_drawdown": -0.012899685804005245,
+        "sharpe": 2.4295050883199116,
+        "expectancy": 0.0020523820711050396,
+        "turnover": 0.075,
+        "net_return_total": 0.048074230609523205
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 8,
-        "cagr": 0.21209077567197876,
-        "max_drawdown": -0.0022444341946585844,
-        "sharpe": 3.1123978629439386,
-        "expectancy": 0.004480395910922752,
-        "turnover": 0.06666666666666667,
-        "net_return_total": 0.04686172245146003
+        "trades": 6,
+        "cagr": 0.06658642069827181,
+        "max_drawdown": -0.008060537828515568,
+        "sharpe": 1.2667073138544762,
+        "expectancy": 0.002577623669746917,
+        "turnover": 0.05,
+        "net_return_total": 0.015466793487745711
       },
       "thresholds": {
         "buy": 0.7,
@@ -279,17 +285,17 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": 0.0006880205264575603,
-        "selected_trades": 14,
+        "selected_score": 0.0020523820711050396,
+        "selected_trades": 18,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 14,
-          "cagr": 0.033068133403513,
-          "max_drawdown": -0.01326530614453647,
-          "sharpe": 1.0827149152312192,
-          "expectancy": 0.0006880205264575603,
-          "turnover": 0.058333333333333334,
-          "net_return_total": 0.015612596424190883
+          "trades": 18,
+          "cagr": 0.1036294734673251,
+          "max_drawdown": -0.012899685804005245,
+          "sharpe": 2.4295050883199116,
+          "expectancy": 0.0020523820711050396,
+          "turnover": 0.075,
+          "net_return_total": 0.048074230609523205
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
@@ -321,13 +327,13 @@
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 24,
-        "cagr": 0.05540328062388067,
-        "max_drawdown": -0.017632764928584788,
-        "sharpe": 1.375544598952061,
-        "expectancy": 0.00031265937153552507,
-        "turnover": 0.1,
-        "net_return_total": 0.026010104796482247
+        "trades": 12,
+        "cagr": 0.08639083036416428,
+        "max_drawdown": -0.0022483129218748843,
+        "sharpe": 2.1488042133844725,
+        "expectancy": 0.0012103165574070083,
+        "turnover": 0.05,
+        "net_return_total": 0.04024642984351168
       },
       "metrics_holdout": {
         "oos_days": 60,
@@ -340,30 +346,30 @@
         "net_return_total": 0.0
       },
       "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.6,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
+        "buy": 0.8,
+        "mild_buy": 0.65,
+        "mild_sell": 0.25,
+        "sell": 0.1,
+        "volatility_limit": 0.04
       },
       "threshold_optimization": {
         "enabled": true,
-        "optimized": true,
+        "optimized": false,
         "objective": "expectancy",
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": 0.00031265937153552507,
-        "selected_trades": 24,
+        "selected_score": 0.0012103165574070083,
+        "selected_trades": 12,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 24,
-          "cagr": 0.05540328062388067,
-          "max_drawdown": -0.017632764928584788,
-          "sharpe": 1.375544598952061,
-          "expectancy": 0.00031265937153552507,
-          "turnover": 0.1,
-          "net_return_total": 0.026010104796482247
+          "trades": 12,
+          "cagr": 0.08639083036416428,
+          "max_drawdown": -0.0022483129218748843,
+          "sharpe": 2.1488042133844725,
+          "expectancy": 0.0012103165574070083,
+          "turnover": 0.05,
+          "net_return_total": 0.04024642984351168
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
@@ -384,33 +390,33 @@
       ],
       "metrics": {
         "oos_days": 60,
-        "trades": 20,
-        "cagr": -0.09362700178798078,
-        "max_drawdown": -0.04880085812085311,
-        "sharpe": -0.6535827501849054,
-        "expectancy": -0.0020375994128537995,
-        "turnover": 0.16666666666666666,
-        "net_return_total": -0.023134008855735466
+        "trades": 19,
+        "cagr": -0.09120115468492185,
+        "max_drawdown": -0.10652906987964716,
+        "sharpe": -0.47680556521097,
+        "expectancy": -0.001676167365228624,
+        "turnover": 0.15833333333333333,
+        "net_return_total": -0.02251213853384315
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 39,
-        "cagr": 0.05934092976259997,
-        "max_drawdown": -0.04565873945486121,
-        "sharpe": 0.7852863240952398,
-        "expectancy": -0.0005621266654177914,
-        "turnover": 0.1625,
-        "net_return_total": 0.027831176908327038
+        "trades": 36,
+        "cagr": 0.032651071570209744,
+        "max_drawdown": -0.034022053210993164,
+        "sharpe": 0.4981602509187457,
+        "expectancy": -0.0003209082841987698,
+        "turnover": 0.15,
+        "net_return_total": 0.015417330620460135
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 20,
-        "cagr": -0.09362700178798078,
-        "max_drawdown": -0.04880085812085311,
-        "sharpe": -0.6535827501849054,
-        "expectancy": -0.0020375994128537995,
-        "turnover": 0.16666666666666666,
-        "net_return_total": -0.023134008855735466
+        "trades": 19,
+        "cagr": -0.09120115468492185,
+        "max_drawdown": -0.10652906987964716,
+        "sharpe": -0.47680556521097,
+        "expectancy": -0.001676167365228624,
+        "turnover": 0.15833333333333333,
+        "net_return_total": -0.02251213853384315
       },
       "thresholds": {
         "buy": 0.7,
@@ -426,17 +432,17 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": -0.0005621266654177914,
-        "selected_trades": 39,
+        "selected_score": -0.0003209082841987698,
+        "selected_trades": 36,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 39,
-          "cagr": 0.05934092976259997,
-          "max_drawdown": -0.04565873945486121,
-          "sharpe": 0.7852863240952398,
-          "expectancy": -0.0005621266654177914,
-          "turnover": 0.1625,
-          "net_return_total": 0.027831176908327038
+          "trades": 36,
+          "cagr": 0.032651071570209744,
+          "max_drawdown": -0.034022053210993164,
+          "sharpe": 0.4981602509187457,
+          "expectancy": -0.0003209082841987698,
+          "turnover": 0.15,
+          "net_return_total": 0.015417330620460135
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
