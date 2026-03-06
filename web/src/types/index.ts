@@ -11,16 +11,22 @@ export interface TickerData {
   rsi?: number | null;
 }
 
+export type SignalAction = "BUY" | "MILD_BUY" | "HOLD" | "MILD_SELL" | "SELL";
+
 export interface Signal {
   ticker: string;
   name: string;
   date: string;
   close: number;
   prob_up: number;
-  action: "BUY" | "MILD_BUY" | "HOLD" | "MILD_SELL" | "SELL";
+  action: SignalAction;
   reason: string;
   limit_price?: number | null;
   stop_loss?: number | null;
+  raw_action?: SignalAction;
+  gate_passed?: boolean;
+  confidence_label?: string;
+  confidence_reason?: string;
 }
 
 export interface TickerSignalHistoryEntry {

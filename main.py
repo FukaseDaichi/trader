@@ -6,6 +6,42 @@ from src.notifier import send_notification
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
 
+
+def _attach_confidence_fields(signal, gate_result, model_ready):
+    gate_passed = bool(gate_result.get("passed", False))
+    failures = gate_result.get("failures") or []
+    fail_summary = ", ".join(failures) if failures else str(gate_result.get("reason", "unknown"))
+
+    signal["raw_action"] = signal.get("action", "HOLD")
+    signal["gate_passed"] = gate_passed
+    signal["confidence_label"] = "自信あり" if gate_passed else "自信なし"
+    signal["confidence_reason"] = (
+        "過去検証で基準をクリア"
+        if gate_passed
+        else f"過去検証で基準未達 ({fail_summary})"
+    )
+
+    # Guard rail: if model inference failed, force non-actionable output.
+    if not model_ready:
+        signal["gate_passed"] = False
+        signal["confidence_label"] = "自信なし"
+        signal["confidence_reason"] = "当日の予測計算に失敗"
+        signal["action"] = "HOLD"
+        signal["reason"] = "自信なしのため見送り（当日の予測計算に失敗）"
+        signal["limit_price"] = None
+        signal["stop_loss"] = None
+        return signal
+
+    # Even when probability is available, block actionable output on gate failure.
+    if not gate_passed:
+        signal["action"] = "HOLD"
+        signal["reason"] = "自信なしのため見送り（過去検証で基準未達）"
+        signal["limit_price"] = None
+        signal["stop_loss"] = None
+
+    return signal
+
+
 def main():
     print("Starting daily stock prediction job...")
 
@@ -17,24 +53,24 @@ def main():
 
     signals = []
     backtest_entries = []
-    
+
     for ticker_info in TICKERS:
         code = ticker_info['code']
         print(f"\nProcessing {code} ({ticker_info['name']})...")
-        
+
         # 1. Update Data
         # In B-unyo, we run at 06:00 JST, so we should have data up to yesterday.
         # Stooq usually updates around midnight UTC or later?
         # Actually Stooq data for JP market closes at 15:00 JST, available shortly after.
         # 06:00 JST next day is safe.
         update_data(code)
-        
+
         # 2. Load Data
         df = load_data(code)
-        if df is None or len(df) < 60: # Need 60 for MA60
+        if df is None or len(df) < 60:  # Need 60 for MA60
             print(f"Insufficient data for {code}. Skipping.")
             continue
-            
+
         # 3. Feature Engineering
         df = add_features(df)
         if df.empty:
@@ -60,39 +96,29 @@ def main():
             "threshold_optimization": gate_result.get("threshold_optimization"),
         })
 
-        if not gate_result["passed"]:
-            latest = df.iloc[-1]
-            fail_summary = ", ".join(gate_result["failures"]) if gate_result["failures"] else gate_result["reason"]
-            print(f"KPI gate blocked actionable signal for {code}: {fail_summary}")
-            signals.append({
-                "ticker": ticker_info["code"],
-                "name": ticker_info["name"],
-                "date": latest["date"].strftime("%Y-%m-%d"),
-                "close": float(latest["close"]),
-                "prob_up": 0.5,
-                "action": "HOLD",
-                "reason": f"KPIゲート未達のため見送り ({fail_summary})",
-                "limit_price": None,
-                "stop_loss": None,
-            })
-            continue
-            
-        # 5. Train & Predict
+        # 5. Train & Predict (always run so dashboard can show raw probability)
         model, prob_up = train_and_predict(df, runtime_config=BACKTEST_GATE_CONFIG)
-        if model is None:
-            print(f"Model training failed for {code}. Skipping.")
-            continue
-            
+        model_ready = model is not None
+        if not model_ready:
+            print(f"Model training failed for {code}. Falling back to neutral probability.")
+            prob_up = 0.5
+
         print(f"Prediction for {code}: Up Probability = {prob_up:.2%}")
         thresholds = gate_result.get("thresholds")
-        
+
         # 6. Generate Signal
         signal = generate_signal(df, prob_up, ticker_info, thresholds=thresholds)
+        signal = _attach_confidence_fields(signal, gate_result, model_ready=model_ready)
+
+        if not signal["gate_passed"]:
+            print(f"Actionable signal blocked for {code}: {signal.get('confidence_reason', 'gate failed')}")
+
         signals.append(signal)
-        
+
         # 7. Notify
-        send_notification(signal)
-        
+        if signal["gate_passed"]:
+            send_notification(signal)
+
     report_path = write_backtest_report(backtest_entries)
     print(f"Backtest KPI report exported to {report_path}")
 
@@ -100,8 +126,9 @@ def main():
     update_dashboard(signals)
     if not signals:
         print("No signals generated. Dashboard data was still refreshed.")
-        
+
     print("\nDaily job completed.")
+
 
 if __name__ == "__main__":
     main()

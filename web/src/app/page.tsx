@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardIndexData } from "../types";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { actionLabel, actionBadgeClass, probTextClass } from "../lib/signal";
+import { actionLabel, actionBadgeClass, probTextClass, confidenceLabel, confidenceBadgeClass } from "../lib/signal";
 
 function ActionIcon({ action }: { action: string }) {
   switch (action) {
@@ -156,6 +156,9 @@ export default function Home() {
             <RefreshCw size={20} className="text-blue-400" />
             監視銘柄一覧
         </h2>
+        <p className="text-sm text-slate-400 mb-6">
+          「自信あり」は過去検証をクリアした状態、「自信なし」は予測値は表示するが売買は見送りの状態です。
+        </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
           <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5">
@@ -253,9 +256,14 @@ export default function Home() {
                                 <div className="text-sm text-slate-500 font-mono">{code}</div>
                             </div>
                             {latestSignal && (
-                                <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${actionBadgeClass(latestSignal.action)}`}>
-                                    <ActionIcon action={latestSignal.action} />
-                                    {actionLabel(latestSignal.action)}
+                                <div className="flex flex-col items-end gap-2">
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${actionBadgeClass(latestSignal.action)}`}>
+                                        <ActionIcon action={latestSignal.action} />
+                                        {actionLabel(latestSignal.action)}
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold border ${confidenceBadgeClass(latestSignal)}`}>
+                                        {confidenceLabel(latestSignal)}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -269,7 +277,7 @@ export default function Home() {
                             </div>
                             {latestSignal && (
                                 <div className="text-right">
-                                    <div className="text-xs text-slate-500 uppercase mb-1">上昇確率</div>
+                                    <div className="text-xs text-slate-500 uppercase mb-1">上昇確率（予測値）</div>
                                     <div className={`text-lg font-bold ${probTextClass(latestSignal.prob_up)}`}>
                                         {(latestSignal.prob_up * 100).toFixed(1)}%
                                     </div>
