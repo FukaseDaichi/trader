@@ -1,91 +1,65 @@
-# 修正優先度マトリクス
+# 問題点・改善点・今後の修正箇所
 
-## 凡例
+更新日: 2026-05-03 JST
 
-- **影響度**: 障害時のビジネスインパクト (HIGH = シグナル配信停止/データ破損, MEDIUM = 表示不正/性能劣化, LOW = 保守性低下)
-- **発生頻度**: 問題が顕在化する頻度 (HIGH = 毎日/毎回, MEDIUM = 条件付き/週次, LOW = まれ)
-- **修正コスト**: 修正にかかる工数 (S = 数行, M = 数十行, L = 設計変更必要)
+ソースコードを正として確認した、現時点の残課題一覧です。過去文書にあった「HTTPタイムアウト未設定」など、すでに実装済みの内容は除外しています。
 
----
+## P0: 運用停止・誤運用につながる課題
 
-## Phase 1: 緊急対応 (半日-1日)
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| 銘柄単位の例外ハンドリング不足 | `main.py` | 1銘柄の例外で日次処理全体が止まり、ダッシュボード更新まで到達しない可能性 | ticker loopを`try/except`で囲み、失敗銘柄をレポートへ記録 |
+| GitHub Actionsのpush競合 | `.github/workflows/*.yml` | 複数workflowがpull/rebaseなしでpushする | push前に`git pull --rebase`、またはpush専用concurrencyを追加 |
+| 週次再学習が専用処理ではない | `weekly-model-retrain.yml`, `main.py` | 土曜に`main.py`をそのまま実行し、`state.json`やdocsを週末日付で更新し得る | retrain専用スクリプト化、または`RUN_DATE_JST`/dashboard更新の扱いを分離 |
+| feature precomputeが未活用 | `feature_precompute.py`, workflow | `data/features/*.parquet`を生成するがcommitも参照もされない | 活用するなら日次処理を読み取り対応、不要ならworkflow削除 |
 
-| # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
-|---|------|---------|--------|------|--------|------|
-| 1 | git push 前に pull --rebase 追加 | 全 10 ワークフロー | HIGH | MEDIUM | M | 03-1.1 |
-| 2 | HTTP タイムアウト未設定 | `data_loader.py` | HIGH | MEDIUM | S | 01-1.1 |
-| 4 | `Math.min/max` 空配列クラッシュ | `StockChart.tsx` | HIGH | LOW | S | 02-3.1 |
-| 5 | volatility NaN 時の表示崩れ | `predictor.py` | HIGH | MEDIUM | S | 01-3.1 |
-| 6 | ティッカー毎の例外ハンドリング | `main.py` | MEDIUM | MEDIUM | S | 01-7.1 |
+## P1: データ品質・シグナル品質
 
-**推定工数**: 4-8 時間
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| OHLCV整合性検証が弱い | `src/data_loader.py` | 必須列と数値変換は見るが、価格の正値・OHLC関係・異常値は見ない | `_validate_ohlcv()`を追加し、異常データは警告/除外 |
+| parquet同期が削除固定 | `sync_data_files()` | `tickers.yml`から外れた銘柄のparquetを即削除 | バックアップ移動またはdry-run/confirmオプションを追加 |
+| Stooq/yfinance差分の履歴上書き | `update_data()` | 同一日付は新データ後勝ち | 旧値との差分が大きい場合に警告し、監査レポートに残す |
+| KPIゲート失敗理由の粒度 | `backtest.py`, `main.py` | 失敗理由は文字列リスト中心 | UI表示用に構造化した失敗コード/説明へ分離 |
+| `tickers.yml`の構造検証不足 | `src/config.py` | `code`/`name`欠落時に後段で壊れる | `load_tickers()`で必須キー、型、重複tickerを検証 |
 
----
+## P2: フロントエンド品質
 
-## Phase 2: 安定性向上 (3-5 日)
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| チャート空データ時のガード不足 | `StockChart.tsx` | `Math.min(...[])`や`Math.max(...[])`で不正domainになり得る | 空データ時のプレースホルダー表示を追加 |
+| JSONのランタイム検証なし | `page.tsx`, `StockDetailContent.tsx` | TypeScript型のみ | 軽量validatorまたはzod導入 |
+| 自動閾値と説明文がズレる | `page.tsx` | 固定閾値80/65/25/10/4を説明 | 実際の`thresholds`をJSONへ出して表示、または説明を「既定値」に変更 |
+| エラー/404/loading境界が少ない | `web/src/app/` | クライアント内の簡易loading/errorのみ | `error.tsx`, `not-found.tsx`, `loading.tsx`を追加 |
+| アクセシビリティ不足 | `StockChart.tsx`, `StockDetailContent.tsx` | chartの代替情報、アイコンリンクのariaが限定的 | `aria-label`, `aria-pressed`, 代替サマリを追加 |
 
-| # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
-|---|------|---------|--------|------|--------|------|
-| 7 | retry ワークフローの stale checkout | `daily-preopen-retry.yml` | MEDIUM | MEDIUM | S | 03-3.1 |
-| 10 | LINE API のリトライロジック | `notifier.py` | MEDIUM | MEDIUM | M | 01-5.1 |
-| 11 | nightly ワークフローのコンカレンシーグループ | 2 ワークフロー | MEDIUM | MEDIUM | S | 03-7.1, 03-8.2 |
-| 12 | `cmd_sync` のエラーハンドリング | `jpx_calendar.py` | MEDIUM | LOW | S | 03-9.2 |
+## P3: 監視・保守性
 
-**推定工数**: 1-2 日
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| watchdogが通知しない | `workflow_watchdog.py`, workflow | exit code 1のみ | LINE/Issue/メール通知を追加 |
+| LINE通知のリトライなし | `src/notifier.py` | 一時失敗で通知が失われる | exponential backoffで数回リトライ |
+| timezone naiveなレポート時刻 | `src/backtest.py`, `scripts/*.py` | `datetime.now()`が混在 | `ZoneInfo("Asia/Tokyo")`へ統一 |
+| `print()`中心のログ | 全Python | ログレベル・構造化なし | `logging`を導入 |
+| 型ヒント不足 | `src/model.py`, `src/data_loader.py`, `src/backtest.py` | 一部のみ型あり | 変更頻度の高い関数から型付け |
+| テスト基盤なし | リポジトリ全体 | `tests/`なし、pytest/vitestなし | predictor/config/backtest/data_loaderからユニットテスト追加 |
+| `numpy`直接依存未宣言 | `pyproject.toml` | 複数ファイルでimportするが依存にない | `numpy`を直接dependencyへ追加 |
+| `.gitignore`不足 | `.gitignore` | `data/features/`, `web/.next/`などのトップレベル除外が弱い | 生成物除外を追加 |
 
----
+## 中期改善
 
-## Phase 3: データ品質・性能改善 (1-2 週間)
+1. 銘柄横断ポートフォリオ層を追加する
+- 現状は銘柄ごとの独立判定です。
+- `prob_up`, `gate_passed`, `volatility`, `thresholds`を使って採用順位とウェイトを決める`src/portfolio.py`を追加すると、売買回転率や集中リスクを制御しやすくなります。
 
-| # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
-|---|------|---------|--------|------|--------|------|
-| 16 | ダウンロードデータの整合性検証 | `data_loader.py` | MEDIUM | MEDIUM | M | 01-1.3 |
-| 17 | Stooq エラー検知の改善 | `data_loader.py` | MEDIUM | LOW | M | 01-1.2 |
-| 18 | 全ワークフロー失敗通知の追加 | 全ワークフロー | MEDIUM | MEDIUM | M | 03-1.2 |
+2. 予測ターゲットを拡張する
+- 現状は翌日上昇/下落の二値分類です。
+- 期待リターン、下方リスク、値幅を直接見るモデルを追加すると、上昇確率だけでは拾えない期待値改善が可能です。
 
-**推定工数**: 3-7 日
+3. ユニバース更新を実装化する
+- `scripts/universe_refresh.py`は現状スナップショットです。
+- 候補抽出、除外理由、流動性フィルタ、ファンダメンタル根拠を持つ実運用ロジックに拡張できます。
 
----
-
-## Phase 4: コード品質・保守性 (2-4 週間)
-
-| # | 問題 | ファイル | 影響度 | 頻度 | コスト | 参照 |
-|---|------|---------|--------|------|--------|------|
-| 20 | `logging` モジュール導入 | 全 Python ファイル | MEDIUM | — | M | 05-1 |
-| 21 | タイムゾーン処理の統一 | 全スクリプト | MEDIUM | — | M | 05-5 |
-| 22 | 型ヒントの追加 | 全 src/ | LOW | — | L | 05-2 |
-| 23 | ユニットテスト基盤の構築 | 新規 `tests/` | LOW | — | L | 05-3 |
-| 25 | signal.ts の default ケース追加 | `signal.ts` | MEDIUM | — | S | 02-2.2 |
-| 26 | `error.tsx` / `not-found.tsx` 追加 | `web/src/app/` | MEDIUM | — | M | 02-6.2, 6.3 |
-| 27 | FOUC 対策 (CSS 修正) | `globals.css` | MEDIUM | — | S | 02-5.1 |
-| 28 | `config.py` 遅延初期化 | `config.py` | LOW | — | M | 05-8 |
-| 29 | `numpy` 直接依存追加 | `pyproject.toml` | LOW | — | S | 05-4 |
-| 30 | `.gitignore` 更新 | `.gitignore` | LOW | — | S | 05-6 |
-| 31 | 未使用フォント/依存関係の削除 | `layout.tsx`, `package.json` | LOW | — | S | 02-5.2, 5.3 |
-| 32 | feature_precompute の活用/削除判断 | ワークフロー, スクリプト | LOW | — | M | 04-7.1 |
-| 33 | データフェッチ共通フック化 | `web/src/hooks/` | LOW | — | M | 02-1.3 |
-| 34 | アクセシビリティ改善 | 複数コンポーネント | LOW | — | M | 02-4.x |
-
-**推定工数**: 2-3 週間
-
----
-
-## 修正しない/保留項目
-
-| 問題 | 理由 |
-|------|------|
-| ティッカー処理の並列化 (`main.py`) | 現行6ティッカーでは不要。将来ティッカー数増加時に検討 |
-| `int()` → `round()` (指値計算) | 実影響が1円以内。優先度最低 |
-| Parquet マージの `keep='last'` | 代替策の複雑さに対して発生頻度が極めて低い。Phase 3 のデータ検証で間接的に対処 |
-| `dynamicParams = false` 明示 | 静的エクスポートのデフォルト動作で問題なし |
-
----
-
-## 全体の推定工数
-
-| フェーズ | 工数 | 累計 |
-|---------|------|------|
-| Phase 1: 緊急対応 | 4-8h | 4-8h |
-| Phase 2: 安定性向上 | 1-2日 | 2-3日 |
-| Phase 3: データ品質 | 3-7日 | 1-2週 |
-| Phase 4: コード品質 | 2-3週 | 3-4週 |
+4. ダッシュボードにバックテスト/閾値情報を表示する
+- 現在UIに表示されるのは主に最新シグナルと価格指標です。
+- 銘柄別のゲート失敗理由、最適化閾値、holdout KPIを表示すると、なぜ見送りになったかを理解しやすくなります。

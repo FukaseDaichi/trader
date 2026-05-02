@@ -1,233 +1,102 @@
-# フロントエンド (web/) 問題一覧
+# フロントエンド仕様
 
-## 1. データフェッチ
+更新日: 2026-05-03 JST
 
-### 1.2 [MEDIUM] フェッチデータのランタイムバリデーション未実装
+## 技術スタック
 
-**箇所**: `page.tsx` L124, `StockDetailContent.tsx` L27
+- Next.js 16.1
+- React 19.2
+- TypeScript
+- Tailwind CSS 4
+- Recharts
+- lucide-react
+- 静的エクスポート: `output: "export"`
 
-**問題**: TypeScript の型キャストはコンパイル時のみ有効。JSON の構造が型定義と一致しない場合、ランタイムでクラッシュする。
+本番ビルドでは`NEXT_PUBLIC_BASE_PATH=/trader`を指定し、GitHub Pagesの`/trader`配下で動くようにします。
 
-**修正方針**: `zod` や手動バリデーション関数で JSON 構造を検証。
+## データ取得
 
----
+フロントエンドは静的JSONをクライアント側でfetchします。
 
-### 1.3 [MEDIUM] データフェッチロジックの重複
+| 画面 | 読み込み先 |
+|---|---|
+| 一覧画面 `web/src/app/page.tsx` | `${basePath}/dashboard_index.json` |
+| 銘柄詳細 `web/src/app/stocks/[ticker]/StockDetailContent.tsx` | `${basePath}/tickers/{ticker}.json` |
 
-**箇所**: `page.tsx`, `StockDetailContent.tsx`
+`basePath`は`process.env.NEXT_PUBLIC_BASE_PATH`から取得します。
 
-**問題**: 両ファイルが同一の fetch パターンを独立実装。バグ修正が一方にのみ適用されるリスク。
+## 一覧画面
 
-**修正方針**: `useHistoryData()` カスタムフックに共通化。
+`page.tsx`は`DashboardIndexData`を読み込み、監視銘柄一覧を表示します。
 
----
+表示内容:
 
-### 1.4 [LOW] キャッシュ戦略の欠如
+- 銘柄名とコード
+- 最新終値
+- 最新シグナル
+- KPIゲート由来の自信度
+- 上昇確率
+- RSI(14)の状態説明
+- 出来高の20日平均比
+- RSI、出来高、アルゴリズム条件の初心者向け説明
 
-**問題**: `dashboard_index.json` / `tickers/{code}.json` のフェッチに Cache-Control, ETag, stale-while-revalidate なし。ページ遷移のたびに再取得が発生する。
+注意: 一覧画面のアルゴリズム説明には固定閾値が書かれていますが、バックエンドは銘柄ごとの自動閾値最適化を行うため、説明と実シグナル閾値が一致しない場合があります。
 
-**修正方針**: `useSWR` や `react-query` の導入でキャッシュ・重複排除・再検証を実現。
+## 銘柄詳細画面
 
----
+`stocks/[ticker]/page.tsx`は静的エクスポート用に`generateStaticParams()`を実装しています。
 
-## 2. TypeScript 型定義
+生成順:
 
-### 2.2 [MEDIUM] `signal.ts` の switch 文に default ケース未設定
+1. `../docs/dashboard_index.json`からticker一覧を読む
+2. 読めない場合は`../tickers.yml`を正規表現で読み、`code`を抽出
+3. それも失敗した場合は空配列
 
-**箇所**: `signal.ts` 全4関数
+`StockDetailContent.tsx`は銘柄別JSONをfetchして以下を表示します。
 
-**問題**: TypeScript のコンパイル時網羅チェックは有効だが、ランタイムで未知のアクション文字列 (将来のバックエンド変更等) が来た場合、`undefined` を返す。
+- ローソク足チャート
+- 終値ライン
+- MA5/MA20/MA60トグル
+- 出来高サブチャート
+- RSIサブチャート
+- 最新予測カード
+- シグナル履歴
 
-**修正方針**: 全 switch 文に `default: return "不明";` を追加。
+## コンポーネント
 
----
+| ファイル | 役割 |
+|---|---|
+| `components/StockChart.tsx` | Rechartsで価格、出来高、RSIを描画 |
+| `components/SignalCard.tsx` | 最新シグナルと自信度を表示 |
+| `lib/signal.ts` | アクション表記、色、信頼度ラベルの共通関数 |
+| `types/index.ts` | ダッシュボードJSONのTypeScript型 |
 
-## 3. コンポーネント
+## ビルド
 
-### 3.1 [HIGH] `StockChart.tsx` — 空配列での Math.min/max がクラッシュ
+開発:
 
-**箇所**: L183-184
-
-```typescript
-const min = Math.min(...prices);
-const max = Math.max(...prices);
+```bash
+npm run dev --prefix web
 ```
 
-**問題**: `prices` が空配列の場合、`Math.min()` は `Infinity`、`Math.max()` は `-Infinity` を返す。Y軸のドメインが NaN となりチャート描画が破壊される。
+通常ビルド:
 
-**修正方針**:
-```typescript
-const min = prices.length > 0 ? Math.min(...prices) : 0;
-const max = prices.length > 0 ? Math.max(...prices) : 100;
+```bash
+npm run build --prefix web
 ```
 
----
+GitHub Pages向け:
 
-### 3.2 [MEDIUM] `StockChart.tsx` — 冗長な fill 三項演算子
-
-**箇所**: L101
-
-```typescript
-fill={isUp ? color : color}
+```bash
+npm run build:prod --prefix web
 ```
 
-**問題**: 条件に関わらず同一値。陽線/陰線の塗り分けが機能していない。
-
-**修正方針**: 意図確認の上、`fill={isUp ? color : "transparent"}` 等に修正。
-
----
-
-### 3.3 [MEDIUM] `SignalCard.tsx` — `limit_price` にカンマ区切り未適用
-
-**箇所**: L66-67
-
-```typescript
-<span className="text-slate-200 font-mono">¥{signal.limit_price}</span>
-```
-
-**問題**: `close` には `.toLocaleString()` を使用しているが、`limit_price` と `stop_loss` にはフォーマットなし。`¥15000` と `¥15,000` が混在する。
-
-**修正方針**: `signal.limit_price?.toLocaleString()` に統一。
-
----
-
-### 3.4 [LOW] `StockDetailContent.tsx` — 配列インデックスを React key に使用
-
-**箇所**: L93
-
-```typescript
-<div key={idx} className="p-3 ...">
-```
-
-**修正方針**: `key={entry.date}` を使用。
-
----
-
-## 4. アクセシビリティ
-
-### 4.1 [MEDIUM] 戻るボタンに aria-label 未設定
-
-**箇所**: `StockDetailContent.tsx` L57-59
-
-```typescript
-<Link href="/" className="p-2 ...">
-    <ArrowLeft size={24} />
-</Link>
-```
-
-**問題**: アイコンのみのリンクにテキストや aria-label がなく、スクリーンリーダーで目的が不明。
-
-**修正方針**: `aria-label="ダッシュボードに戻る"` を追加。
-
----
-
-### 4.2 [MEDIUM] チャートがスクリーンリーダー非対応
-
-**箇所**: `StockChart.tsx` 全体
-
-**問題**: SVG チャートに `aria-label`、`role="img"`、代替テキストなし。
-
-**修正方針**: チャートコンテナに `aria-label` と `role="img"` を追加。
-
----
-
-### 4.3 [LOW] インジケータートグルに `aria-pressed` 未設定
-
-**箇所**: `StockChart.tsx` トグルボタン群
-
-**修正方針**: 選択状態に応じて `aria-pressed={true/false}` を付与。
-
----
-
-## 5. CSS / UI
-
-### 5.1 [MEDIUM] ダークテーマの FOUC (白フラッシュ)
-
-**箇所**: `globals.css` L3-6
-
-```css
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-```
-
-**問題**: `:root` のデフォルト背景が白。React ハイドレーション前にダークテーマの `bg-slate-950` と白背景が同時に表示される。
-
-**修正方針**: `:root` の `--background` を `#0a0a0a` (slate-950 相当) に変更。
-
----
-
-### 5.2 [LOW] Geist フォントが未使用
-
-**箇所**: `layout.tsx` L5-13, `globals.css` L25-26
-
-**問題**: `next/font/google` で Geist をロードしているが、`globals.css` が `font-family: Arial` でハードコード上書き。日本語テキストは全てシステムフォントにフォールバック。
-
-**修正方針**: Geist フォントの読み込みを削除し、日本語対応フォントスタック (`"Noto Sans JP", "Hiragino Sans", sans-serif` 等) に統一。
-
----
-
-### 5.3 [LOW] `tailwind-merge` が未使用依存関係
-
-**箇所**: `package.json`
-
-**問題**: インポートされていない依存関係。
-
-**修正方針**: `npm uninstall tailwind-merge`
-
----
-
-## 6. Next.js 設定
-
-### 6.1 [MEDIUM] `trailingSlash` 未設定
-
-**箇所**: `next.config.ts`
-
-**問題**: GitHub Pages の静的ホスティングでは `trailingSlash: true` が必要な場合がある。未設定だと `/trader/stocks/1234` で 404 が発生する可能性。
-
-**修正方針**: `trailingSlash: true` を追加して動作検証。
-
----
-
-### 6.2 [MEDIUM] エラーバウンダリ (`error.tsx`) 未実装
-
-**問題**: ランタイムエラーでページ全体が白画面化する。`error.tsx` がないため、回復手段がない。
-
-**修正方針**: `src/app/error.tsx` と `src/app/stocks/[ticker]/error.tsx` を追加。
-
----
-
-### 6.3 [LOW] `not-found.tsx` 未実装
-
-**問題**: 存在しないティッカー URL へのアクセスでカスタム 404 ページが表示されない。
-
----
-
-### 6.4 [LOW] `loading.tsx` 未実装
-
-**問題**: ルートレベルの Suspense バウンダリがなく、ローディング中に何も表示されない。
-
----
-
-## 7. ハードコード
-
-### 7.1 [LOW] 教育セクションの閾値がハードコード
-
-**箇所**: `page.tsx` L197-198
-
-```tsx
-上昇確率 <span>80%以上</span> かつ ボラティリティ <span>4%以下</span>
-```
-
-**問題**: バックエンドの閾値変更時にフロントエンドの表示が追従しない。
-
-**修正方針**: 設定 JSON からの動的読み取り、または同期必要な旨のコメント追加。
-
----
-
-### 7.2 [LOW] `dynamicParams` 未設定
-
-**箇所**: `stocks/[ticker]/page.tsx`
-
-**修正方針**: `export const dynamicParams = false;` を明示的に追加。
+`build:prod`は`cross-env NEXT_PUBLIC_BASE_PATH=/trader next build`です。
+
+## 現行制約
+
+- JSONレスポンスのランタイムバリデーションは未実装
+- エラーバウンダリ、専用404、専用loadingページは未実装
+- チャートのアクセシビリティ対応は限定的
+- チャート入力が空の場合の描画ガードは十分ではない
+- `tailwind-merge`は依存にあるが現時点では使われていない

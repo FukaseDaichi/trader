@@ -1,38 +1,41 @@
-# 全体調査レポート — 概要
+# 現行仕様概要
 
-## 調査日
+更新日: 2026-05-03 JST
 
-2026-03-04
+このディレクトリの仕様は、ソースコードを正として再整理したものです。過去の問題一覧や将来設計メモは、現行仕様と混ざらないように整理し、残課題は`06_priority_matrix.md`へ集約しました。
 
-## 対象リポジトリ
+## 対象
 
-`trader` — 日本株式自動予測・売買シグナルシステム
+| 領域 | 対象 | 詳細 |
+|---|---|---|
+| バックエンド | `main.py`, `src/*.py` | `01_backend_python.md` |
+| フロントエンド | `web/` | `02_frontend_web.md` |
+| GitHub Actions | `.github/workflows/*.yml` | `03_cicd_workflows.md` |
+| 補助スクリプト | `scripts/*.py` | `04_scripts.md` |
+| データ契約・横断仕様 | `tickers.yml`, `data/`, `docs/`, env | `05_cross_cutting.md` |
+| 問題点・改善点 | 実装レビュー結果 | `06_priority_matrix.md` |
 
-## 調査範囲
+## システムの現在地
 
-| 領域 | 対象ファイル数 | ドキュメント |
-|------|-------------|-------------|
-| Python バックエンド (`src/`, `main.py`) | 8 | `01_backend_python.md` |
-| フロントエンド (`web/`) | 12 | `02_frontend_web.md` |
-| CI/CD ワークフロー (`.github/workflows/`) | 11 | `03_cicd_workflows.md` |
-| スクリプト (`scripts/`) | 7 | `04_scripts.md` |
-| 横断的課題 | — | `05_cross_cutting.md` |
-| 修正優先度マトリクス | — | `06_priority_matrix.md` |
+このプロジェクトは、日本株の監視銘柄に対して日次で以下を実行します。
 
-## 検出された問題の概要
+1. `tickers.yml`から有効銘柄を読み込む
+2. Stooqまたはyfinanceから日足OHLCVを取得する
+3. 価格・出来高・テクニカル特徴量を生成する
+4. LightGBMで翌日の上昇確率を推定する
+5. OOSバックテストとコスト/スリッページ込みのKPIゲートで売買可能性を制御する
+6. ゲートを通過した非`HOLD`シグナルだけLINE通知する
+7. `docs/`配下にダッシュボード用JSONと監査レポートを出力する
+8. Next.jsの静的エクスポートをGitHub Pages用に`docs/`へ同期する
 
-| 重大度 | 件数 |
-|--------|------|
-| CRITICAL | 4 |
-| HIGH | 11 |
-| MEDIUM | 21 |
-| LOW | 18 |
-| **合計** | **54** |
+## 正とするデータ契約
 
-※ 合計54件は、領域別ドキュメント間の再掲を含む集計値。
+現行フロントエンドは`docs/dashboard_index.json`と`docs/tickers/*.json`を読む構成です。旧来の`docs/history_data.json`は主要契約ではなく、存在する場合はダッシュボード出力やpublish workflowで削除されます。
 
-## 最も影響が大きい問題 (TOP 3)
+## 今回整理した古い文書
 
-1. **git push 競合** — 10のワークフローが `git pull --rebase` なしで `main` にプッシュ。同時実行で non-fast-forward エラーが発生する
-2. **HTTP リクエストにタイムアウト未設定** — `data_loader.py` の Stooq API 呼び出しが無制限にハングする可能性
-3. **volatility NaN 時の表示崩れ** — `predictor.py` で通知文言が `nan%` になる可能性
+以下の旧メモは、内容を現行仕様または課題一覧に統合したため削除対象です。
+
+- `github-actions-frequency-design.md`
+- `portfolio-optimization-strategy.md`
+- `profitability-roadmap.md`

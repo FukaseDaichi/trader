@@ -1,148 +1,164 @@
-# 横断的課題
+# データ契約・横断仕様
 
-## 1. [MEDIUM] ログ基盤の欠如
+更新日: 2026-05-03 JST
 
-**影響**: 全 Python ファイル
+## `tickers.yml`
 
-**現状**: 全モジュールが `print()` を使用。
-
-**問題点**:
-- ログレベル (INFO/WARNING/ERROR) の区別なし
-- 構造化ログ非対応。自動監視ツールでのフィルタリング困難
-- タイムスタンプなし (GitHub Actions が付与するが、ローカル実行時は未付与)
-- エラーと情報メッセージが同一ストリームに混在
-
-**修正方針**:
-```python
-import logging
-logger = logging.getLogger(__name__)
-
-# main.py で初期設定
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+```yaml
+tickers:
+  - code: "7011.JP"
+    name: "三菱重工業"
+    enabled: true
+settings:
+  max_tickers: null
 ```
 
----
+仕様:
 
-## 2. [MEDIUM] 型ヒントの欠如
+- `tickers`は配列
+- 各要素は`code`, `name`, `enabled`を持つ想定
+- `enabled`省略時は有効扱い
+- `settings.max_tickers`が`null`または未指定なら全有効銘柄
+- `settings.max_tickers`が整数なら先頭から件数制限
+- `max_tickers < 1`はエラー
 
-**影響**: `src/model.py`, `src/data_loader.py`, `src/predictor.py`, `src/backtest.py`
+現状、`code`/`name`必須チェックは明示的には行われず、後段で`KeyError`になる可能性があります。
 
-**現状**: `dashboard.py` の一部関数のみ型ヒント付き。他モジュールは未実装。
+## `data/{ticker}.parquet`
 
-**問題点**:
-- IDE / linter による型エラー検知が機能しない
-- 関数シグネチャからの仕様理解が困難
-- リファクタリング時の安全性が低い
+必須列:
 
-**修正方針**: 段階的に型ヒントを追加。`mypy --strict` での検証を目標。
+- `date`
+- `open`
+- `high`
+- `low`
+- `close`
+- `volume`
 
----
+`date`はtimezoneなしdatetimeへ正規化されます。価格と出来高は数値化できない行を削除します。
 
-## 3. [MEDIUM] テストの完全欠如
+## `data/jpx_holidays.json`
 
-**影響**: プロジェクト全体
+`jpx_calendar.py sync`と`data_loader.py`の鮮度判定で使います。
 
-**現状**: Python 側に `tests/` ディレクトリなし。`pytest` が依存関係に未追加。Frontend にもテストフレームワーク未導入。
+対応形式:
 
-**問題点**:
-- コード変更が既存機能を壊さないことを保証する手段がない
-- リファクタリングの安全性が極めて低い
-- バグの再発防止が不可能
-
-**修正方針**:
-1. `pyproject.toml` に `pytest` を追加
-2. 最優先のユニットテスト対象:
-   - `src/predictor.py` — `action_from_probability()` のエッジケース
-   - `src/model.py` — `add_features()` の出力カラム検証
-   - `src/config.py` — `load_tickers()` のバリデーション
-   - `src/backtest.py` — `_compute_metrics()` の境界値
-3. Frontend: `vitest` + `@testing-library/react` の導入
-
----
-
-## 4. [MEDIUM] `numpy` の直接依存関係未宣言
-
-**影響**: `pyproject.toml`
-
-**現状**: `numpy` を直接 import するファイルが 5 つ以上あるが、`pyproject.toml` に未記載。pandas / lightgbm からの間接依存に依存。
-
-**修正方針**: `pyproject.toml` の `dependencies` に `"numpy>=1.26.0"` を追加。
-
----
-
-## 5. [MEDIUM] タイムゾーン処理の不統一
-
-**影響**: 全スクリプト、バックエンドモジュール
-
-**パターン一覧**:
-
-| ファイル | 方式 |
-|---------|------|
-| `src/dashboard.py` | `datetime.now(ZoneInfo("Asia/Tokyo"))` |
-| `src/backtest.py` | `datetime.now()` (タイムゾーンなし) |
-| `scripts/jpx_calendar.py` | `datetime.now(UTC) + timedelta(hours=9)` |
-| `scripts/*.py` (5ファイル) | `datetime.now()` (タイムゾーンなし) |
-| `.github/workflows/*.yml` | `TZ=Asia/Tokyo date +%F` |
-
-**問題点**: GitHub Actions (UTC) では `datetime.now()` が UTC を返す。レポートの `generated_at` が UTC タイムスタンプとなり、JST 表記の他データと不整合。
-
-**修正方針**: `dashboard.py` のパターンに全箇所を統一:
-```python
-from zoneinfo import ZoneInfo
-JST = ZoneInfo("Asia/Tokyo")
-now = datetime.now(JST)
+```json
+{
+  "updated_at": "2026-05-03T00:00:00Z",
+  "source_url": "https://holidays-jp.github.io/api/v1/date.json",
+  "holidays": {
+    "2026-01-01": "元日"
+  }
+}
 ```
 
----
+`data_loader.py`は`{"holidays": {...}}`形式と、日付キー直下の辞書形式の両方を読めます。
 
-## 6. [LOW] `.gitignore` の不備
+## `docs/state.json`
 
-**現状の問題**:
-- `data/features/` (feature_precompute 生成物) が未除外
-- `web/node_modules/`, `web/.next/` のトップレベル保護なし
+シグナル履歴です。
 
-**修正方針**:
-```gitignore
-# Feature precompute output (not committed)
-data/features/
-
-# Web build artifacts (handled by web/.gitignore or here)
-web/node_modules/
-web/.next/
-web/out/
+```json
+{
+  "last_update": "2026-05-03 06:05:00",
+  "history": [
+    {
+      "date": "2026-05-03",
+      "signals": []
+    }
+  ]
+}
 ```
 
----
+仕様:
 
-## 7. [LOW] 機密情報のログ漏洩リスク
+- `history`は最大30日
+- 1日1エントリ
+- 同日再実行時は当日エントリを置換
+- `RUN_DATE_JST`で`date`を上書き可能
+- `signals`は`tickers.yml`の有効銘柄だけにフィルタされる
 
-**影響**: `src/notifier.py`, `src/config.py`
+## `docs/dashboard_index.json`
 
-**問題**: LINE トークン等の機密情報がエラーメッセージに含まれた場合、`print()` で GitHub Actions ログに出力される可能性。
+一覧画面用の軽量インデックスです。
 
-**修正方針**:
-- `logging` 導入後、機密値を含む変数のログ出力を回避
-- GitHub Actions の `::add-mask::` コマンドで動的マスキングを追加
-
----
-
-## 8. [LOW] `config.py` のモジュールレベル副作用
-
-**影響**: テスタビリティ、エラーメッセージの品質
-
-**問題**: `TICKERS`, `LINE_CONFIG`, `BACKTEST_GATE_CONFIG` がインポート時に即座に評価される。`tickers.yml` が不正な場合、import 文のトレースバックが出力される。
-
-**修正方針**: 遅延初期化パターンの導入:
-```python
-_tickers = None
-
-def get_tickers():
-    global _tickers
-    if _tickers is None:
-        _tickers = load_tickers()
-    return _tickers
+```json
+{
+  "last_update": "2026-05-03 06:05:00",
+  "tickers": {
+    "7011.JP": {
+      "ticker": "7011.JP",
+      "name": "三菱重工業",
+      "latest_data": {},
+      "avg_volume_20": 1234567.0,
+      "latest_signal": {},
+      "data_file": "tickers/7011.JP.json",
+      "rows": 500
+    }
+  }
+}
 ```
+
+## `docs/tickers/{code}.json`
+
+銘柄詳細画面用です。
+
+```json
+{
+  "last_update": "2026-05-03 06:05:00",
+  "ticker": "7011.JP",
+  "name": "三菱重工業",
+  "latest_signal": {},
+  "signals": [],
+  "data": []
+}
+```
+
+`data`は最大500行で、列は`date`, `open`, `high`, `low`, `close`, `volume`, `ma_5`, `ma_20`, `ma_60`, `rsi`です。
+
+## Signalオブジェクト
+
+```json
+{
+  "ticker": "7011.JP",
+  "name": "三菱重工業",
+  "date": "2026-05-01",
+  "close": 4586.0,
+  "prob_up": 0.72,
+  "action": "HOLD",
+  "raw_action": "MILD_BUY",
+  "gate_passed": false,
+  "confidence_label": "自信なし",
+  "confidence_reason": "過去検証で基準未達 (...)",
+  "reason": "自信なしのため見送り（過去検証で基準未達）",
+  "limit_price": null,
+  "stop_loss": null
+}
+```
+
+`action`は`BUY`, `MILD_BUY`, `HOLD`, `MILD_SELL`, `SELL`のいずれかです。KPIゲート未達時は`raw_action`に予測上のアクションを残し、`action`は`HOLD`になります。
+
+## `docs/backtest_report.json`
+
+日次KPIゲート結果です。
+
+主なフィールド:
+
+- `generated_at`
+- `entries[].ticker`
+- `entries[].passed`
+- `entries[].reason`
+- `entries[].failures`
+- `entries[].metrics`
+- `entries[].metrics_tuning`
+- `entries[].metrics_holdout`
+- `entries[].thresholds`
+- `entries[].threshold_optimization`
+
+## 横断的な注意
+
+- `docs/history_data.json`は現行契約ではありません
+- `web/public/`はローカル開発用同期先であり、公開元は`docs/`
+- `data/features/*.parquet`は生成されますが、現状では主要処理の入力ではありません
+- レポート類の時刻はJSTに統一されていません

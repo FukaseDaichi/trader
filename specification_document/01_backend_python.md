@@ -1,239 +1,122 @@
-# Python バックエンド 問題一覧
+# Pythonバックエンド仕様
 
-## 1. `src/data_loader.py`
+更新日: 2026-05-03 JST
 
-### 1.1 [HIGH] HTTP リクエストにタイムアウト未設定
+## 実行入口
 
-**箇所**: `download_stooq_data()` L15
+`main.py`が日次処理の入口です。処理単位は`tickers.yml`の`enabled: true`銘柄です。
 
-```python
-response = requests.get(url, headers=headers)
-```
+実行順:
 
-**問題**: `timeout` パラメータが未指定。Stooq が応答しない場合、無制限にハングする。GitHub Actions ではジョブ全体がタイムアウトまでスタックし、有用なログが残らない。
+1. `src.config.TICKERS`から有効銘柄を取得
+2. `src.data_loader.sync_data_files()`で無効銘柄の`data/*.parquet`を削除
+3. 銘柄ごとに`update_data()`で日足データを更新
+4. `load_data()`でparquetを読み込み
+5. `add_features()`で特徴量を生成
+6. `evaluate_kpi_gate()`でKPIゲートと閾値最適化を実行
+7. `train_and_predict()`で上昇確率を推定
+8. `generate_signal()`で5段階アクションを作成
+9. `_attach_confidence_fields()`でゲート結果を反映し、未達なら`HOLD`へ強制
+10. ゲート通過時のみ`send_notification()`を実行
+11. `write_backtest_report()`と`update_dashboard()`で成果物を出力
 
-**修正方針**: `requests.get(url, headers=headers, timeout=30)` を設定。リトライロジック (exponential backoff) の導入も推奨。
+## 設定
 
----
+`src/config.py`は以下をモジュールロード時に初期化します。
 
-### 1.2 [MEDIUM] Stooq エラー検知が脆弱
+- `BASE_DIR`, `DATA_DIR`, `DOCS_DIR`, `TICKERS_FILE`, `STATE_FILE`
+- `.env`の読み込み
+- `TICKERS = load_tickers()`
+- `LINE_CONFIG = get_line_config()`
+- `BACKTEST_GATE_CONFIG = get_backtest_gate_config()`
 
-**箇所**: L19
+`load_tickers()`は`tickers.yml`の`enabled`銘柄を抽出し、`settings.max_tickers`が整数なら先頭から制限します。`max_tickers`が`null`または未指定なら全件処理します。
 
-```python
-if "Preceded by" in response.text:
-```
+## データ取得
 
-**問題**: 英語の特定フレーズに依存。Stooq がエラー形式を変更すると検知できない。
+`src/data_loader.py`が担当します。
 
-**修正方針**: Content-Type の検証 (`text/csv`)、レスポンスコード検証、CSV パースの成功/失敗で判断する。
+- 必須列: `date`, `open`, `high`, `low`, `close`, `volume`
+- Stooq URL: `https://stooq.com/q/d/l/?s={ticker_code}&i=d`
+- yfinanceシンボル: `NNNN.JP`を`NNNN.T`へ変換
+- HTTPタイムアウト: `TRADER_DATA_HTTP_TIMEOUT_SEC`、既定20秒
+- 鮮度判定: `data/jpx_holidays.json`を使い、JSTの直近完了営業日と最新データ日を比較
+- フォールバック: Stooq失敗または鮮度不足時、`TRADER_YF_FALLBACK_ENABLED=true`ならyfinanceを試す
+- 保存: 既存parquetと新規データを結合し、`date`重複は後勝ちで保存
 
----
+`sync_data_files(active_ticker_codes)`は、`data/*.parquet`のうち有効銘柄に含まれないものを削除します。
 
-### 1.3 [MEDIUM] ダウンロードデータの整合性チェック未実装
+## 特徴量
 
-**箇所**: L23-36
+`src/model.py`の`add_features()`が35特徴量を生成します。
 
-**問題**: 以下を検証していない:
-- 価格が正の値であること
-- OHLC 関係 (high >= low, high >= open 等)
-- 出来高が非負であること
-- 異常データ (全ゼロ、同一値の繰り返し)
+- リターン: 1/2/3/5/10/20日
+- 移動平均: MA5/10/20/60と乖離率
+- MAクロス: MA5/20、MA20/60
+- RSIとRSI変化
+- MACD、signal、histogram、histogram変化
+- Bollinger Bandの%位置とbandwidth
+- ATR%と20日ボラティリティ
+- 出来高変化、5日/20日出来高比率
+- ローソク足実体・上ヒゲ・下ヒゲ
+- 曜日、月、月末、月初
+- 連騰/連落ストリーク
+- 寄り付きギャップ
+- 20日高値安値内の価格位置
 
-**修正方針**: `_validate_ohlcv(df)` バリデーション関数を追加。
+`dropna=True`が既定で、学習・ゲートでは欠損行を落とします。ダッシュボード出力では`dropna=False`を使い、チャート継続性を優先します。
 
----
+## モデル
 
-### 1.4 [MEDIUM] Parquet マージで履歴データが上書きされるリスク
+`train_and_predict()`はLightGBMの二値分類です。
 
-**箇所**: L59-63
+- 目的変数: 翌日の終値が当日終値より高いか
+- 期間: 既定で直近4年
+- walk-forward CV: 既定3 fold
+- validation size: 60営業日相当
+- purge gap: 5行
+- 最小学習行数: 200
+- 予測値: foldモデルと最終モデルの平均
+- 学習不可時: `(None, 0.5)`を返す
 
-```python
-combined_df = pd.concat([old_df, new_df]).drop_duplicates(subset=['date'], keep='last')
-```
+## KPIゲート
 
-**問題**: `keep='last'` により、新データが常に旧データを上書き。Stooq が不正確な過去日データを返した場合、正しい履歴が無警告で破壊される。
+`src/backtest.py`が担当します。
 
-**修正方針**: 新旧データの差分を検知し、一定以上の乖離 (例: 終値 5% 以上) がある場合は警告を出す。
+1. OOS予測をwalk-forwardで収集
+2. OOSを閾値チューニング用とholdout評価用に時系列分割
+3. 閾値グリッドから目的関数最大の組み合わせを選択
+4. コスト/スリッページ込みで売買シミュレーション
+5. `trades`, `cagr`, `expectancy`, `max_drawdown`, `sharpe`でゲート判定
 
----
+既定の基本閾値は`BUY=0.80`, `MILD_BUY=0.65`, `MILD_SELL=0.25`, `SELL=0.10`, `volatility_limit=0.04`です。ただしKPIゲートの自動閾値探索が有効な場合、銘柄ごとの実シグナルには最適化後の閾値が使われます。
 
-### 1.5 [LOW] `sync_data_files` がバックアップなしでデータを削除
+## シグナル
 
-**箇所**: L92
+`src/predictor.py`の`generate_signal()`が以下のアクションを返します。
 
-**問題**: `tickers.yml` からティッカーを除外した瞬間に parquet ファイルが永久削除される。
+- `BUY`
+- `MILD_BUY`
+- `HOLD`
+- `MILD_SELL`
+- `SELL`
 
-**修正方針**: 削除前にバックアップディレクトリへ移動、または `--dry-run` モードを追加。
+`main.py`はKPIゲート未達またはモデル失敗時に、`raw_action`を保持したまま表示用`action`を`HOLD`へ変更し、`confidence_label`を`自信なし`にします。
 
----
+## 通知
 
-## 2. `src/model.py`
+`src/notifier.py`はLINE Messaging API v3を使います。
 
-### 2.1 [MEDIUM] `vol_ratio` でゼロ除算の可能性
+- `HOLD`は通知しない
+- `LINE_CHANNEL_ACCESS_TOKEN`と`LINE_USER_ID`が未設定なら通知をスキップ
+- `TRADER_DASHBOARD_URL`があれば銘柄詳細ページURLを本文に追加
 
-**箇所**: L106
+## ダッシュボード出力
 
-```python
-df['vol_ratio'] = df['vol_ma_5'] / df['vol_ma_20']
-```
+`src/dashboard.py`は以下を出力します。
 
-**問題**: 20日間の出来高が全てゼロの場合、`vol_ma_20` がゼロとなり `inf` が発生する。
+- `docs/state.json`
+- `docs/dashboard_index.json`
+- `docs/tickers/{code}.json`
 
-**修正方針**: `df['vol_ma_20'].replace(0, np.nan)` でガードする。
-
----
-
-### 2.2 [LOW] ストリーク計算が O(n) の iloc ループ
-
-**箇所**: L122-128
-
-**問題**: `.iloc[i]` による代入ループは大規模データで低速。
-
-**修正方針**: vectorized な実装 (`groupby + cumcount` パターン) に置換。
-
----
-
-### 2.3 [LOW] fold_predictions が空になる可能性
-
-**箇所**: L279-295
-
-**問題**: 全3フォールドが最小データ要件を満たさない場合、アンサンブルが最終モデル1つのみとなるが、警告なし。
-
-**修正方針**: `len(fold_predictions) < n_folds` の場合に warning ログを出力。
-
----
-
-## 3. `src/predictor.py`
-
-### 3.1 [HIGH] volatility が NaN 時の表示崩れ
-
-**箇所**: L113, L116
-
-```python
-signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボラティリティ低 ({volatility:.1%})"
-```
-
-**問題**: `volatility` が NaN の場合、`{volatility:.1%}` が `"nan%"` と表示される。LINE 通知で不正な文字列がユーザーに送信される。
-
-**修正方針**: NaN チェックを追加し、`"N/A"` 等のフォールバック表示を使用。
-
----
-
-### 3.2 [LOW] `int()` 切り捨てによる指値のずれ
-
-**箇所**: L111-112
-
-**問題**: `int()` は切り捨て。`round()` がより正確。
-
----
-
-### 3.3 [LOW] `resolve_thresholds` の二重呼び出し
-
-**箇所**: L106-107 → L58
-
-**問題**: `generate_signal` 内で一度解決した閾値を `action_from_probability` 内で再度解決。無駄な処理。
-
----
-
-## 4. `src/backtest.py`
-
-### 4.1 [MEDIUM] `_simulate_strategy` のパフォーマンス
-
-**箇所**: L159-166
-
-**問題**: 各閾値候補 × 全 OOS 行で `resolve_thresholds` を繰り返し呼び出し。数万回の不要な辞書生成。
-
-**修正方針**: 閾値を事前解決し、内部ループでは直接値を使用。
-
----
-
-### 4.2 [LOW] `max_drawdown` の符号規約が不統一
-
-**箇所**: L204 (負値) vs L237 (abs で比較)
-
-**修正方針**: `max_drawdown_abs` 等のフィールド名で意図を明示。
-
----
-
-### 4.3 [LOW] `write_backtest_report` のタイムゾーン未指定
-
-**箇所**: L397
-
-```python
-"generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-```
-
-**修正方針**: `datetime.now(ZoneInfo("Asia/Tokyo"))` に統一。
-
----
-
-## 5. `src/notifier.py`
-
-### 5.1 [MEDIUM] LINE API 呼び出しにリトライなし
-
-**箇所**: L61-72
-
-**問題**: 一時的なネットワークエラーやレートリミットで通知が消失する。トレーディングシグナルの通知が失われるため影響大。
-
-**修正方針**: `tenacity` ライブラリ等で 3 回リトライ (exponential backoff) を追加。
-
----
-
-### 5.2 [LOW] `quote()` のピリオドエンコード懸念は誤検知
-
-**箇所**: L52
-
-**検証結果**: `urllib.parse.quote("6758.jp")` は `6758.jp` のままで、`.` はエンコードされない。
-
-**対応方針**: 本項目は不具合修正対象から除外し、将来 `quote(..., safe=...)` を変更する場合に再評価する。
-
----
-
-## 7. `main.py`
-
-### 7.1 [MEDIUM] ティッカー毎の例外ハンドリング未実装
-
-**箇所**: L21-93 (メインループ)
-
-**問題**: 1つのティッカーで例外が発生すると、パイプライン全体が中断。それまでに生成されたシグナルは `update_dashboard()` に到達せず消失。
-
-**修正方針**: ティッカー毎に `try/except` で囲み、個別失敗を記録して残りを続行。
-
----
-
-### 7.2 [LOW] 全ティッカー失敗時にダッシュボードが空更新
-
-**箇所**: L98-100
-
-**問題**: `signals` が空リストでも `update_dashboard()` を実行。前日のシグナルが空データで上書きされる。
-
-**修正方針**: 全ティッカー失敗時は明示的な警告ログを出力し、ダッシュボード更新をスキップするオプションを追加。
-
----
-
-## 8. `src/config.py`
-
-### 8.1 [MEDIUM] モジュールレベルの副作用
-
-**箇所**: L124-126
-
-```python
-TICKERS = load_tickers()
-LINE_CONFIG = get_line_config()
-BACKTEST_GATE_CONFIG = get_backtest_gate_config()
-```
-
-**問題**: インポート時に実行される。`tickers.yml` が不正な場合、`import config` でクラッシュ。テスト時に孤立したインポートが不可能。
-
-**修正方針**: 遅延初期化パターン (関数呼び出し or lazy loading) に変更。
-
----
-
-### 8.2 [LOW] ティッカー構造のバリデーション未実装
-
-**箇所**: L27-28
-
-**問題**: `code` や `name` キーの存在を検証しない。不正な YAML でも後段で `KeyError` として表面化。
-
-**修正方針**: `load_tickers()` 内で必須キーの存在チェックを追加。
+また、`web/public/`が存在する場合は`dashboard_index.json`と`ticker` JSONを同期します。`docs/history_data.json`や`web/public/history_data.json`は現行契約ではないため、存在すれば削除されます。

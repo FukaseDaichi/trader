@@ -1,191 +1,53 @@
-# CI/CD ワークフロー 問題一覧
+# GitHub Actions仕様
 
-## 1. 全ワークフロー共通
+更新日: 2026-05-03 JST
 
-### 1.1 [CRITICAL] git push 競合 — pull/rebase なしで main にプッシュ
+## ワークフロー一覧
 
-**影響ワークフロー**: 10 (core, retry, publish, retrain, universe, calendar, audit, rotating, feature, stress)
+| Workflow | ファイル | JST | 主処理 | commit対象 |
+|---|---|---:|---|---|
+| Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | JPX営業日なら`main.py` | `data/`, `docs/` |
+| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら`main.py` | `data/`, `docs/` |
+| Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js静的ビルドを`docs/`へ同期 | `docs/` |
+| Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 日次成果物チェック | なし |
+| Weekly Model Retrain | `weekly-model-retrain.yml` | 土曜 08:00 | 通知なしで`main.py` | `data/`, `docs/` |
+| Weekly Universe Refresh | `weekly-universe-refresh.yml` | 日曜 07:00 | ユニバーススナップショット | `docs/universe_refresh_report.json` |
+| Monthly Calendar Sync | `monthly-calendar-sync.yml` | 毎月1日 09:15 | JPX休日キャッシュ更新 | `data/jpx_holidays.json` |
+| Monthly Full Audit | `monthly-full-audit.yml` | 第1日曜 09:00 | KPI月次監査 | `docs/monthly_audit.json` |
+| Nightly Rotating Refresh | `nightly-rotating-refresh.yml` | 平日 19:30 | 銘柄をバケット分割して更新 | `data/`, `docs/rotating_refresh_report.json` |
+| Nightly Feature Precompute | `nightly-feature-precompute.yml` | 平日 20:00 | 特徴量parquet生成、レポート | `docs/feature_precompute_report.json` |
+| Quarterly Stress Test | `quarterly-stress-test.yml` | 四半期初日 10:00 | 高コスト前提KPI評価 | `docs/stress_test_report.json` |
 
-**問題**: 全ワークフローが `git push` 前に `git pull --rebase` を実行しない。2つのワークフローが同時実行され、両方が push すると、後発が `non-fast-forward` エラーで失敗する。
+## 日次処理
 
-**同時実行リスクの高い組み合わせ**:
-- `nightly-rotating-refresh` (19:30 JST) vs `nightly-feature-precompute` (20:00 JST) — 30分差でコンカレンシーグループも未設定
-- `daily-preopen-core` + `daily-publish-dashboard` — publish は core 完了後にトリガーされるが、別ワークフローの push と衝突可能
-- `weekly-model-retrain` (土曜) + `workflow_dispatch` の手動実行
+`daily-preopen-core`、`daily-preopen-retry`、`daily-watchdog`は`jpx_calendar.py is-open`でJPX営業日を確認します。休場日は処理をスキップします。
 
-**修正方針**:
-```yaml
-- name: Push changes
-  run: |
-    git pull --rebase origin main
-    git push
-```
-全ワークフローに `git pull --rebase` を追加。加えて、push 操作用のグローバルコンカレンシーグループを検討:
-```yaml
-concurrency:
-  group: git-push-main
-  cancel-in-progress: false
-```
+`daily-preopen-retry`は`run_guard.py needs-core-run`で`docs/state.json`の当日エントリを確認し、すでに更新済みなら実行しません。
 
----
+`daily-publish-dashboard`は`workflow_run`でcore/retry成功後に起動します。手動実行時は`force_publish=true`で当日更新チェックを回避できます。
 
-### 1.2 [MEDIUM] ワークフロー失敗時の通知機構なし
+## publishの同期仕様
 
-**問題**: いずれのワークフローにも失敗時のアラート (LINE, email, Slack) がない。watchdog は 12:30 JST に日次データの鮮度のみチェックし、exit code 1 を返すだけ。週次・月次・夜間ワークフローの失敗は完全に検出されない。
+publish workflowは以下を行います。
 
-**修正方針**:
-- 全ワークフローに失敗時の通知ステップを追加:
-```yaml
-- name: Notify failure
-  if: failure()
-  run: |
-    curl -X POST "$LINE_NOTIFY_URL" ...
-```
-- watchdog にも LINE 通知を組み込む
+1. `docs/dashboard_index.json`を`web/public/dashboard_index.json`へコピー
+2. `docs/tickers/`を`web/public/tickers/`へコピー
+3. `web/public/history_data.json`を削除
+4. `npm ci --prefix web`
+5. `npm run build:prod --prefix web`
+6. `web/out/`を`docs/`へ`rsync --delete`
 
----
+`rsync`では`state.json`、`backtest_report.json`、監査系JSON、`CNAME`、`.nojekyll`などを除外します。
 
-## 2. `daily-preopen-core.yml`
+## 権限と排他
 
-### 2.1 [MEDIUM] `git add -A data/` が意図しないファイルをステージ
+書き込み系workflowは`contents: write`です。日次core/retryは同じ`daily-core-main`で直列化されます。publishは`daily-publish-main`で最新実行を優先します。
 
-**箇所**: L61
+一方、夜間、月次、四半期などの一部workflowには横断的なgit push排他がありません。複数workflowが近いタイミングでpushするとnon-fast-forwardで失敗する可能性があります。
 
-**問題**: `data/` ディレクトリ内の全変更をステージ。`data/features/` (feature_precompute が生成) や一時ファイルが含まれる可能性。
+## 現行制約
 
-**修正方針**: 明示的にファイルを指定:
-```yaml
-git add data/*.parquet data/jpx_holidays.json docs/
-```
-
----
-
-### 2.2 [LOW] 即座の失敗通知なし
-
-**問題**: core が 06:00 JST に失敗しても、次のアクションは 06:20 JST のリトライか 12:30 JST の watchdog まで発生しない。
-
----
-
-## 3. `daily-preopen-retry.yml`
-
-### 3.1 [MEDIUM] stale checkout で run_guard が誤判定
-
-**箇所**: L24 (checkout) → L49-52 (run_guard)
-
-**問題**: core/retry は同一 `concurrency` グループで直列化されるため頻度は高くないが、チェックアウト後に `docs/state.json` が更新された場合は stale 状態を読む。`run_guard` が `needs_run=true` と誤判定し、不要な重複実行が発生する余地がある。
-
-**修正方針**: run_guard チェックの直前に `git pull` を追加:
-```yaml
-- name: Fetch latest state
-  run: git pull origin main
-- name: Check guard
-  run: uv run python scripts/run_guard.py ...
-```
-
----
-
-## 5. `daily-watchdog.yml`
-
-### 5.1 [MEDIUM] watchdog がアラートを送信しない
-
-**箇所**: `scripts/workflow_watchdog.py`
-
-**問題**: 失敗検知時に exit code 1 を返すのみ。開発者が Actions タブを見ない限り、失敗に気づかない。
-
----
-
-## 6. `weekly-model-retrain.yml`
-
-### 6.1 [LOW] JPX カレンダーチェック未実装
-
-**問題**: 土曜日に実行されるが、JPX ガードがない。祝日等の影響は受けないが、不要な Stooq API リクエストが発生する。
-
----
-
-### 6.2 [LOW] 空の LINE トークンによるログノイズ
-
-**箇所**: L36-37
-
-**問題**: `LINE_CHANNEL_ACCESS_TOKEN: ""` で通知を抑制するが、各ティッカーに対して "LINE configuration missing" のログが出力される。
-
-**修正方針**: 環境変数 `TRADER_SKIP_NOTIFY=true` 等で明示的にスキップ。
-
----
-
-## 7. `nightly-rotating-refresh.yml`
-
-### 7.1 [MEDIUM] コンカレンシーグループ未設定
-
-**問題**: 19:30 JST 実行。30分後の nightly-feature-precompute (20:00 JST) と重複する可能性。両方が `data/` に書き込み・push するため、git 競合が発生する。
-
-**修正方針**: コンカレンシーグループを追加:
-```yaml
-concurrency:
-  group: nightly-data-main
-  cancel-in-progress: false
-```
-
----
-
-### 7.2 [LOW] JPX カレンダーチェック未実装
-
-**問題**: 平日のみ実行だが、JPX 祝日 (平日) にも実行される。データ更新なしで無駄な処理。
-
----
-
-## 8. `nightly-feature-precompute.yml`
-
-### 8.1 [HIGH] プリコンピュート結果がコミットされない
-
-**箇所**: L37-39
-
-```yaml
-git add -A docs/feature_precompute_report.json
-```
-
-**問題**: `data/features/*.parquet` がワークフローでコミットされない。プリコンピュートの成果物が永続化されず、毎回再計算される。本スクリプトの結果は他のどのスクリプトからも参照されておらず、実質的にデッドコードとなっている。
-
-**修正方針**:
-- (A案) `data/features/` をコミット対象に追加し、daily pipeline から参照する
-- (B案) ワークフロー自体を無効化/削除
-
----
-
-### 8.2 [MEDIUM] コンカレンシーグループ未設定
-
-rotating-refresh と同じ問題。
-
----
-
-## 9. `monthly-calendar-sync.yml`
-
-### 9.1 [MEDIUM] コンカレンシーグループ未設定
-
-**問題**: 手動ディスパッチとスケジュール実行が重複する可能性。
-
----
-
-### 9.2 [MEDIUM] `cmd_sync` のエラーハンドリング未実装
-
-**箇所**: `scripts/jpx_calendar.py` L145
-
-**問題**: `_fetch_public_holidays()` が例外を投げた場合、`cmd_sync` はハンドルせずにクラッシュ。`cmd_is_open` にはフォールバックがあるが、`cmd_sync` にはない。
-
-**修正方針**: try/except を追加し、フェッチ失敗時はキャッシュファイルを維持。
-
----
-
-## 10. `quarterly-stress-test.yml`
-
-### 10.1 [LOW] コスト/スリッページがハードコード
-
-**箇所**: L32-34
-
-```yaml
---cost-bps 20.0
---slippage-bps 10.0
-```
-
-**問題**: daily pipeline の環境変数設定 (10.0 / 5.0) との関係が不明示。
-
-**修正方針**: リポジトリ変数またはコメントで関係性を文書化。
+- push前の`git pull --rebase`は未実装
+- 失敗時のLINE/Slack/Issue通知は未実装
+- `weekly-model-retrain`は専用再学習ではなく、通知を無効化した`main.py`再実行
+- `nightly-feature-precompute`が生成する`data/features/*.parquet`はcommit対象にも日次処理の入力にもなっていない
