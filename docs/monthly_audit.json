@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-05-04 01:29:11",
+  "generated_at": "2026-05-05 01:29:18",
   "summary": {
     "total_tickers": 7,
-    "ok_tickers": 2,
+    "ok_tickers": 3,
     "passed_tickers": 0,
-    "failed_tickers": 2,
-    "avg_cagr": -0.000620363610678909,
-    "avg_max_drawdown": -0.024834332571856466,
-    "avg_sharpe": 0.6426761515978208,
-    "avg_expectancy": 0.0014439700841160047,
-    "avg_turnover": 0.075
+    "failed_tickers": 3,
+    "avg_cagr": -0.00686820908779906,
+    "avg_max_drawdown": -0.0381498467954523,
+    "avg_sharpe": 0.40468537170599245,
+    "avg_expectancy": 0.0010407532059978526,
+    "avg_turnover": 0.08888888888888889
   },
   "entries": [
     {
@@ -174,7 +174,74 @@
     {
       "ticker": "8725.JP",
       "name": "MS&ADインシュアランスグループホールディングス",
-      "status": "missing_data"
+      "status": "ok",
+      "passed": false,
+      "reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 14,
+        "cagr": -0.01936390004203936,
+        "max_drawdown": -0.06478087524264398,
+        "sharpe": -0.0712961880776641,
+        "expectancy": 0.00023431944976154857,
+        "turnover": 0.11666666666666667,
+        "net_return_total": -0.0046448544501979105
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 35,
+        "cagr": 0.04491552286232103,
+        "max_drawdown": -0.07246230022446487,
+        "sharpe": 0.5876651864496159,
+        "expectancy": -6.40766815092304e-05,
+        "turnover": 0.14583333333333334,
+        "net_return_total": 0.021142322975861383
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 14,
+        "cagr": -0.01936390004203936,
+        "max_drawdown": -0.06478087524264398,
+        "sharpe": -0.0712961880776641,
+        "expectancy": 0.00023431944976154857,
+        "turnover": 0.11666666666666667,
+        "net_return_total": -0.0046448544501979105
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.55,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": -6.40766815092304e-05,
+        "selected_trades": 35,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 35,
+          "cagr": 0.04491552286232103,
+          "max_drawdown": -0.07246230022446487,
+          "sharpe": 0.5876651864496159,
+          "expectancy": -6.40766815092304e-05,
+          "turnover": 0.14583333333333334,
+          "net_return_total": 0.021142322975861383
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      }
     },
     {
       "ticker": "1802.JP",
