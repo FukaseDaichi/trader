@@ -5,31 +5,38 @@ Use this framework to score fundamentally driven JP stock candidates before edit
 ## Scoring Model (100 points)
 
 1. Earnings momentum and quality (30 points)
+
 - Check the latest quarterly YoY revenue, operating profit, ordinary profit, and EPS trends.
 - Reward acceleration, broad-based growth, and strong progress versus the full-year plan.
 - Penalize one-off gains, low-quality margin spikes, or backlog growth that is not converting into profits.
 
 2. Guidance and revision trend (20 points)
+
 - Check current company guidance and any recent upward revisions.
 - Reward firms with improving guidance credibility, conservative targets that are repeatedly beaten, or explicit upgrades after strong execution.
 
 3. Valuation rerating room (15 points)
+
 - Compare forward multiples against own history or close peers.
 - Reward growth not fully priced in; penalize crowded valuations.
 
 4. Balance sheet and cash generation (15 points)
+
 - Check balance sheet resilience, operating cash flow, free cash flow, leverage, and working-capital quality.
 - Reward sustainable capital structure and improving cash conversion.
 
 5. Shareholder return and governance (10 points)
+
 - Check buybacks, dividend policy, payout visibility, and TSE-oriented capital efficiency actions.
 - Reward stable or improving return policy and credible governance signals.
 
 6. Fundamental catalyst strength (5 points)
+
 - Check concrete business catalysts: price hikes, capacity additions, contract wins, launches, backlog conversion, capex cycles, or regulation with clear earnings impact.
 - Reward catalysts with clear timelines and a direct path into revenue, margin, or cash flow.
 
-7. Risk and liquidity penalty (5 points)
+7. Risk and liquidity penalty (-5 points)
+
 - Penalize customer concentration, regulatory overhang, weak liquidity, heavy cyclical sensitivity, accounting concerns, or event-binary risk.
 
 ## Hard Filters
