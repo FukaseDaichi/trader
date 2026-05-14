@@ -6,14 +6,14 @@
 
 ## 対象
 
-| 領域 | 対象 | 詳細 |
-|---|---|---|
-| バックエンド | `main.py`, `src/*.py` | `01_backend_python.md` |
-| フロントエンド | `web/` | `02_frontend_web.md` |
-| GitHub Actions | `.github/workflows/*.yml` | `03_cicd_workflows.md` |
-| 補助スクリプト | `scripts/*.py` | `04_scripts.md` |
-| データ契約・横断仕様 | `tickers.yml`, `data/`, `docs/`, env | `05_cross_cutting.md` |
-| 問題点・改善点 | 実装レビュー結果 | `06_priority_matrix.md` |
+| 領域                 | 対象                                 | 詳細                    |
+| -------------------- | ------------------------------------ | ----------------------- |
+| バックエンド         | `main.py`, `src/*.py`                | `01_backend_python.md`  |
+| フロントエンド       | `web/`                               | `02_frontend_web.md`    |
+| GitHub Actions       | `.github/workflows/*.yml`            | `03_cicd_workflows.md`  |
+| 補助スクリプト       | `scripts/*.py`                       | `04_scripts.md`         |
+| データ契約・横断仕様 | `tickers.yml`, `data/`, `docs/`, env | `05_cross_cutting.md`   |
+| 問題点・改善点       | 実装レビュー結果                     | `06_priority_matrix.md` |
 
 ## システムの現在地
 
@@ -31,11 +31,3 @@
 ## 正とするデータ契約
 
 現行フロントエンドは`docs/dashboard_index.json`と`docs/tickers/*.json`を読む構成です。旧来の`docs/history_data.json`は主要契約ではなく、存在する場合はダッシュボード出力やpublish workflowで削除されます。
-
-## 今回整理した古い文書
-
-以下の旧メモは、内容を現行仕様または課題一覧に統合したため削除対象です。
-
-- `github-actions-frequency-design.md`
-- `portfolio-optimization-strategy.md`
-- `profitability-roadmap.md`
