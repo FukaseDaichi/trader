@@ -1,6 +1,6 @@
 # GitHub Actions仕様
 
-更新日: 2026-05-03 JST
+更新日: 2026-05-14 JST
 
 ## ワークフロー一覧
 
@@ -43,7 +43,7 @@ publish workflowは以下を行います。
 
 書き込み系workflowは`contents: write`です。日次core/retryは同じ`daily-core-main`で直列化されます。publishは`daily-publish-main`で最新実行を優先します。
 
-一方、夜間、月次、四半期などの一部workflowには横断的なgit push排他がありません。複数workflowが近いタイミングでpushするとnon-fast-forwardで失敗する可能性があります。
+一方、夜間、月次、四半期などの一部workflowには横断的なgit push排他がありません。複数workflowが近いタイミングでpushするとnon-fast-forwardで失敗する可能性があります。各workflowのpush処理は、現状ではpush直前に最新`main`を取り込む処理を持ちません。
 
 ## 現行制約
 

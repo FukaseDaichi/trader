@@ -1,68 +1,30 @@
-# 問題点・改善点・今後の修正箇所
+# 重要修正項目
 
-更新日: 2026-05-03 JST
+更新日: 2026-05-14 JST
 
-ソースコードを正として確認した、現時点の残課題一覧です。過去文書にあった「HTTPタイムアウト未設定」など、すでに実装済みの内容は除外しています。
+この一覧は、ソースコードを正として確認した残課題のうち、運用停止、誤運用、データ損失、シグナル品質低下、ユーザーへの誤表示につながるものだけに絞っています。単なるリファクタ、型ヒント追加、ログ整備、未使用依存、`.gitignore`整理などは、この優先表からは外します。
 
-## P0: 運用停止・誤運用につながる課題
+## P0: 最優先で直す
 
-| 課題                           | 対象                                  | 現状                                                                      | 推奨対応                                                                |
-| ------------------------------ | ------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 銘柄単位の例外ハンドリング不足 | `main.py`                             | 1銘柄の例外で日次処理全体が止まり、ダッシュボード更新まで到達しない可能性 | ticker loopを`try/except`で囲み、失敗銘柄をレポートへ記録               |
-| GitHub Actionsのpush競合       | `.github/workflows/*.yml`             | 複数workflowがpull/rebaseなしでpushする                                   | push前に`git pull --rebase`、またはpush専用concurrencyを追加            |
-| 週次再学習が専用処理ではない   | `weekly-model-retrain.yml`, `main.py` | 土曜に`main.py`をそのまま実行し、`state.json`やdocsを週末日付で更新し得る | retrain専用スクリプト化、または`RUN_DATE_JST`/dashboard更新の扱いを分離 |
-| feature precomputeが未活用     | `feature_precompute.py`, workflow     | `data/features/*.parquet`を生成するがcommitも参照もされない               | 活用するなら日次処理を読み取り対応、不要ならworkflow削除                |
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| 銘柄単位の例外分離がない | `main.py` | 1銘柄の`update_data()`、`add_features()`、`evaluate_kpi_gate()`、`train_and_predict()`などで例外が出ると、以降の銘柄処理、KPIレポート出力、ダッシュボード更新まで止まる | ticker loopを銘柄単位の`try/except`で囲み、失敗銘柄は`backtest_report.json`と`state.json`へ失敗状態として残す |
+| GitHub Actionsのpush競合 | `.github/workflows/*.yml` | 書き込み系workflowはそれぞれcommit/pushするが、横断的な排他やpush直前の`git pull --rebase`がない | push処理を共通化し、rebase/retryを入れる。必要なら書き込み系workflowを同一concurrency groupで直列化する |
+| 週次再学習が日次処理をそのまま実行している | `weekly-model-retrain.yml`, `main.py`, `src/dashboard.py` | 土曜の`weekly-model-retrain`が通知だけ無効にして`main.py`を実行するため、週末日付の`state.json`や`dashboard_index.json`を生成し得る | 再学習専用スクリプトを分け、週次実行では`state.json`とダッシュボードJSONを更新しない。日次処理を使う場合はrun modeを追加する |
+| 非有効銘柄のparquetを日次開始時に即削除する | `src/data_loader.py`, `main.py` | `sync_data_files(active_codes)`が`tickers.yml`から外れた`data/*.parquet`を即削除する。設定ミスや一時的な無効化で履歴データを失う | 日次処理では削除せず、`data/archive/`へ移動するか、明示的なcleanupコマンドだけで削除する |
 
-## P1: データ品質・シグナル品質
+## P1: シグナル品質と表示信頼性を守る
 
-| 課題                           | 対象                     | 現状                                                           | 推奨対応                                              |
-| ------------------------------ | ------------------------ | -------------------------------------------------------------- | ----------------------------------------------------- |
-| OHLCV整合性検証が弱い          | `src/data_loader.py`     | 必須列と数値変換は見るが、価格の正値・OHLC関係・異常値は見ない | `_validate_ohlcv()`を追加し、異常データは警告/除外    |
-| parquet同期が削除固定          | `sync_data_files()`      | `tickers.yml`から外れた銘柄のparquetを即削除                   | バックアップ移動またはdry-run/confirmオプションを追加 |
-| Stooq/yfinance差分の履歴上書き | `update_data()`          | 同一日付は新データ後勝ち                                       | 旧値との差分が大きい場合に警告し、監査レポートに残す  |
-| KPIゲート失敗理由の粒度        | `backtest.py`, `main.py` | 失敗理由は文字列リスト中心                                     | UI表示用に構造化した失敗コード/説明へ分離             |
-| `tickers.yml`の構造検証不足    | `src/config.py`          | `code`/`name`欠落時に後段で壊れる                              | `load_tickers()`で必須キー、型、重複tickerを検証      |
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| OHLCV整合性検証が弱い | `src/data_loader.py` | `_normalize_ohlcv()`は必須列、日付、数値変換までは見るが、正値、`low <= open/close <= high`、異常な日次変化は検証しない | `_validate_ohlcv()`を追加し、異常行の除外または警告を`backtest_report.json`や監査レポートに残す |
+| `tickers.yml`の構造検証が不足 | `src/config.py` | `code`/`name`欠落、型違い、重複tickerを明示検証しないため、後段で`KeyError`や重複出力が起き得る | `load_tickers()`で必須キー、型、重複、`settings.max_tickers`をまとめて検証し、起動時に分かるエラーにする |
+| 自動最適化後の閾値がUIに出ない | `src/backtest.py`, `src/dashboard.py`, `web/src/app/page.tsx` | バックエンドは銘柄ごとに閾値を最適化するが、シグナルJSONには使用閾値がなく、一覧画面は既定閾値を「現行ロジック」として説明している | `signal`またはticker JSONに実際の`thresholds`を出力し、UI説明を銘柄別の値または「既定値」に合わせる |
+| watchdog失敗が外部通知されない | `scripts/workflow_watchdog.py`, `daily-watchdog.yml` | 日次成果物チェックはexit code 1で失敗するだけで、LINE、Issue、メールなどの通知がない | watchdog失敗時に通知する。最低限GitHub Issue作成またはLINE通知を追加し、日次停止を見落とさないようにする |
 
-## P2: フロントエンド品質
+## P2: 次に見る運用品質
 
-| 課題                           | 対象                                       | 現状                                                       | 推奨対応                                                           |
-| ------------------------------ | ------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| チャート空データ時のガード不足 | `StockChart.tsx`                           | `Math.min(...[])`や`Math.max(...[])`で不正domainになり得る | 空データ時のプレースホルダー表示を追加                             |
-| JSONのランタイム検証なし       | `page.tsx`, `StockDetailContent.tsx`       | TypeScript型のみ                                           | 軽量validatorまたはzod導入                                         |
-| 自動閾値と説明文がズレる       | `page.tsx`                                 | 固定閾値80/65/25/10/4を説明                                | 実際の`thresholds`をJSONへ出して表示、または説明を「既定値」に変更 |
-| エラー/404/loading境界が少ない | `web/src/app/`                             | クライアント内の簡易loading/errorのみ                      | `error.tsx`, `not-found.tsx`, `loading.tsx`を追加                  |
-| アクセシビリティ不足           | `StockChart.tsx`, `StockDetailContent.tsx` | chartの代替情報、アイコンリンクのariaが限定的              | `aria-label`, `aria-pressed`, 代替サマリを追加                     |
-
-## P3: 監視・保守性
-
-| 課題                         | 対象                                                    | 現状                                                       | 推奨対応                                                    |
-| ---------------------------- | ------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| watchdogが通知しない         | `workflow_watchdog.py`, workflow                        | exit code 1のみ                                            | LINE/Issue/メール通知を追加                                 |
-| LINE通知のリトライなし       | `src/notifier.py`                                       | 一時失敗で通知が失われる                                   | exponential backoffで数回リトライ                           |
-| timezone naiveなレポート時刻 | `src/backtest.py`, `scripts/*.py`                       | `datetime.now()`が混在                                     | `ZoneInfo("Asia/Tokyo")`へ統一                              |
-| `print()`中心のログ          | 全Python                                                | ログレベル・構造化なし                                     | `logging`を導入                                             |
-| 型ヒント不足                 | `src/model.py`, `src/data_loader.py`, `src/backtest.py` | 一部のみ型あり                                             | 変更頻度の高い関数から型付け                                |
-| テスト基盤なし               | リポジトリ全体                                          | `tests/`なし、pytest/vitestなし                            | predictor/config/backtest/data_loaderからユニットテスト追加 |
-| `numpy`直接依存未宣言        | `pyproject.toml`                                        | 複数ファイルでimportするが依存にない                       | `numpy`を直接dependencyへ追加                               |
-| `.gitignore`不足             | `.gitignore`                                            | `data/features/`, `web/.next/`などのトップレベル除外が弱い | 生成物除外を追加                                            |
-
-## 中期改善
-
-1. 銘柄横断ポートフォリオ層を追加する
-
-- 現状は銘柄ごとの独立判定です。
-- `prob_up`, `gate_passed`, `volatility`, `thresholds`を使って採用順位とウェイトを決める`src/portfolio.py`を追加すると、売買回転率や集中リスクを制御しやすくなります。
-
-2. 予測ターゲットを拡張する
-   - 現状は翌日上昇/下落の二値分類です。
-   - 期待リターン、下方リスク、値幅を直接見るモデルを追加すると、上昇確率だけでは拾えない期待値改善が可能です。
-
-3. ユニバース更新を実装化する
-
-- `scripts/universe_refresh.py`は現状スナップショットです。
-- 候補抽出、除外理由、流動性フィルタ、ファンダメンタル根拠を持つ実運用ロジックに拡張できます。
-
-4. ダッシュボードにバックテスト/閾値情報を表示する
-
-- 現在UIに表示されるのは主に最新シグナルと価格指標です。
-- 銘柄別のゲート失敗理由、最適化閾値、holdout KPIを表示すると、なぜ見送りになったかを理解しやすくなります。
+| 課題 | 対象 | 現状 | 推奨対応 |
+|---|---|---|---|
+| チャート空データ時のガード不足 | `web/src/components/StockChart.tsx` | 空配列または価格欠損だけの配列で`Math.min(...[])`/`Math.max(...[])`が不正なdomainを作る | 空データ時はチャートを描画せず、銘柄名と「価格データなし」を表示する |
+| LINE通知のリトライがない | `src/notifier.py` | LINE Push APIの一時失敗は`print()`して終了し、シグナル通知が失われる | 429/5xx/timeoutに限定して短いbackoff retryを入れ、最終失敗をレポートへ残す |

@@ -1,6 +1,6 @@
 # データ契約・横断仕様
 
-更新日: 2026-05-03 JST
+更新日: 2026-05-14 JST
 
 ## `tickers.yml`
 
@@ -161,4 +161,4 @@ settings:
 - `docs/history_data.json`は現行契約ではありません
 - `web/public/`はローカル開発用同期先であり、公開元は`docs/`
 - `data/features/*.parquet`は生成されますが、現状では主要処理の入力ではありません
-- レポート類の時刻はJSTに統一されていません
+- `state.json`の`last_update`はJSTですが、監査系・バックテスト系レポートの`generated_at`はJSTに統一されていません
