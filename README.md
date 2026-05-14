@@ -2,7 +2,15 @@
 
 日本株の株価データを毎日取得し、LightGBMで翌営業日の上昇確率を推定するシステムです。予測結果はKPIゲートで検証し、基準未達なら売買シグナルを`HOLD`に強制します。成果物は`docs/`にJSONと静的ダッシュボードとして出力されます。
 
-このREADMEは2026-05-03時点のソースコードを正として更新しています。
+このREADMEは2026-05-14時点のソースコードを正として更新しています。
+
+## 公開ダッシュボード
+
+デプロイ後の画面は以下で確認できます。
+
+- [AI株式トレーダー 公開ダッシュボード](https://fukasedaichi.github.io/trader/)
+
+GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの本番ビルドは`/trader`ベースパスで静的エクスポートされるため、公開URLは必ず上記の末尾スラッシュ付きURLを使ってください。
 
 ## 現行機能
 
@@ -149,6 +157,16 @@ npm run build:prod --prefix web
 ```
 
 `build:prod`は`NEXT_PUBLIC_BASE_PATH=/trader`を付けてNext.jsを静的エクスポートします。GitHub Actionsでは`web/out/`を`docs/`へ同期します。
+
+## push後に画面を更新する手順
+
+`tickers.yml`やフロントエンドをpushしただけでは、公開画面のJSONと静的HTMLがすぐ更新されない場合があります。手動で最新化する場合は以下を実行してください。
+
+1. GitHub Actionsの`Daily Preopen Core`を`Run workflow`で実行し、`main.py`で`data/`と`docs/`のJSONを更新する。
+2. JPX休業日で`Daily Preopen Core`がスキップされる場合や、銘柄変更を即時反映したい場合は、ローカルで`uv run python main.py`を実行し、生成された`data/`と`docs/`をpushする。
+3. `Daily Publish Dashboard`が自動起動して`web/out/`を`docs/`へ同期することを確認する。自動起動しない場合は、同workflowを手動実行し、`force_publish`を`true`にする。
+4. Actions完了後、GitHub Pagesの反映を数分待ち、[公開ダッシュボード](https://fukasedaichi.github.io/trader/)を開く。
+5. 古い表示が残る場合は、ブラウザで強制再読み込みするかキャッシュを削除する。
 
 ## GitHub Actions
 
