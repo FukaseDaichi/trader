@@ -37,7 +37,4 @@ jobs:
       - name: Commit and push stress test report
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A docs/stress_test_report.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Quarterly stress test ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Quarterly stress test ($TODAY_JST)" docs/stress_test_report.json

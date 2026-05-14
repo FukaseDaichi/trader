@@ -30,15 +30,24 @@ def send_notification(signal):
         return
 
     label = ACTION_LABELS.get(action, action)
+    close = signal.get("close")
 
     # --- Build message ---
     lines = [
         f"【{label}】{signal['name']}",
         f"({signal['ticker']})",
         f"────────────",
-        f"現在値: {signal['close']:,.0f}円",
-        f"上昇確率: {signal['prob_up']:.1%}",
     ]
+
+    if close is not None:
+        lines.append(f"現在値: {close:,.0f}円")
+    else:
+        lines.append("現在値: 算出不可")
+
+    if signal.get("prob_up") is not None:
+        lines.append(f"上昇確率: {signal['prob_up']:.1%}")
+    else:
+        lines.append("上昇確率: 算出不可")
 
     if signal.get('limit_price') is not None:
         lines.append(f"指値目安: {signal['limit_price']:,.0f}円")

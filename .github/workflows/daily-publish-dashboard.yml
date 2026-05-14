@@ -100,6 +100,7 @@ jobs:
             --exclude 'portfolio_report.json' \
             --exclude 'monthly_audit.json' \
             --exclude 'universe_refresh_report.json' \
+            --exclude 'weekly_retrain_report.json' \
             --exclude 'feature_precompute_report.json' \
             --exclude 'rotating_refresh_report.json' \
             --exclude 'stress_test_report.json' \
@@ -110,7 +111,4 @@ jobs:
         if: ${{ steps.guard.outputs.has_today_update == 'true' }}
         run: |
           TODAY_JST="${{ steps.guard.outputs.today_jst }}"
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A docs/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Publish dashboard ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Publish dashboard ($TODAY_JST)" docs/

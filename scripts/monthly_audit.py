@@ -35,11 +35,13 @@ def run_audit(output_path: Path) -> int:
         code = ticker["code"]
         name = ticker["name"]
         df = load_data(code)
+        warnings = df.attrs.get("validation_warnings", []) if df is not None else []
         if df is None or df.empty:
             entries.append({
                 "ticker": code,
                 "name": name,
                 "status": "missing_data",
+                "data_validation_warnings": warnings,
             })
             continue
 
@@ -49,6 +51,7 @@ def run_audit(output_path: Path) -> int:
                 "ticker": code,
                 "name": name,
                 "status": "empty_features",
+                "data_validation_warnings": warnings,
             })
             continue
 
@@ -65,6 +68,7 @@ def run_audit(output_path: Path) -> int:
             "metrics_holdout": gate.get("metrics_holdout", {}),
             "thresholds": gate.get("thresholds", {}),
             "threshold_optimization": gate.get("threshold_optimization", {}),
+            "data_validation_warnings": warnings,
         })
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]

@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   watchdog:
@@ -42,6 +43,49 @@ jobs:
         run: echo "JPX closed. Watchdog skipped."
 
       - name: Run watchdog checks
+        id: watchdog
         if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
         run: |
-          uv run python scripts/workflow_watchdog.py --today "${{ steps.market.outputs.today_jst }}"
+          set +e
+          OUTPUT=$(uv run python scripts/workflow_watchdog.py --today "${{ steps.market.outputs.today_jst }}" 2>&1)
+          STATUS=$?
+          printf '%s\n' "$OUTPUT"
+          {
+            echo "status=$STATUS"
+            echo "output<<EOF"
+            printf '%s\n' "$OUTPUT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit "$STATUS"
+
+      - name: Create watchdog failure issue
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.watchdog.outcome == 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WATCHDOG_OUTPUT: ${{ steps.watchdog.outputs.output }}
+        run: |
+          TODAY_JST="${{ steps.market.outputs.today_jst }}"
+          TITLE="Daily watchdog failed ($TODAY_JST)"
+          BODY=$(cat <<EOF
+          Daily watchdog failed for $TODAY_JST.
+
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Output:
+          \`\`\`
+          $WATCHDOG_OUTPUT
+          \`\`\`
+          EOF
+          )
+
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq 'length')
+          if [ "$EXISTING" -eq 0 ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          else
+            echo "Open watchdog issue already exists for $TODAY_JST."
+          fi
+
+      - name: Fail after watchdog notification
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.watchdog.outcome == 'failure' }}
+        run: exit 1

@@ -57,7 +57,4 @@ jobs:
         if: ${{ steps.market.outputs.is_open == 'true' }}
         run: |
           TODAY_JST="${{ steps.market.outputs.today_jst }}"
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A data/ docs/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Core daily update ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Core daily update ($TODAY_JST)" data/ docs/

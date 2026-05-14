@@ -35,7 +35,7 @@ settings:
 - `close`
 - `volume`
 
-`date`はtimezoneなしdatetimeへ正規化されます。価格と出来高は数値化できない行を削除します。
+`date`はtimezoneなしdatetimeへ正規化されます。価格と出来高は数値化できない行を削除します。さらに、価格の正値、`low <= open/close <= high`、異常な終値変化を検証します。異常行は除外され、警告は`data_validation_warnings`として日次・監査系レポートに残ります。
 
 ## `data/jpx_holidays.json`
 
@@ -129,15 +129,25 @@ settings:
   "action": "HOLD",
   "raw_action": "MILD_BUY",
   "gate_passed": false,
+  "status": "ok",
   "confidence_label": "自信なし",
   "confidence_reason": "過去検証で基準未達 (...)",
   "reason": "自信なしのため見送り（過去検証で基準未達）",
+  "thresholds": {
+    "buy": 0.8,
+    "mild_buy": 0.65,
+    "mild_sell": 0.25,
+    "sell": 0.1,
+    "volatility_limit": 0.04
+  },
   "limit_price": null,
   "stop_loss": null
 }
 ```
 
 `action`は`BUY`, `MILD_BUY`, `HOLD`, `MILD_SELL`, `SELL`のいずれかです。KPIゲート未達時は`raw_action`に予測上のアクションを残し、`action`は`HOLD`になります。
+
+銘柄単位の処理失敗時は`status: "failed"`、`action: "HOLD"`になり、`prob_up`や`close`は`null`になり得ます。
 
 ## `docs/backtest_report.json`
 
@@ -155,10 +165,13 @@ settings:
 - `entries[].metrics_holdout`
 - `entries[].thresholds`
 - `entries[].threshold_optimization`
+- `entries[].status`
+- `entries[].data_validation_warnings`
 
 ## 横断的な注意
 
 - `docs/history_data.json`は現行契約ではありません
 - `web/public/`はローカル開発用同期先であり、公開元は`docs/`
 - `data/features/*.parquet`は生成されますが、現状では主要処理の入力ではありません
+- 無効化された銘柄の`data/*.parquet`は削除せず、`data/archive/`へ移動します
 - `state.json`の`last_update`はJSTですが、監査系・バックテスト系レポートの`generated_at`はJSTに統一されていません

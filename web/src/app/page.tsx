@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import { DashboardIndexData } from "../types";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { actionLabel, actionBadgeClass, probTextClass, confidenceLabel, confidenceBadgeClass } from "../lib/signal";
+import {
+  actionLabel,
+  actionBadgeClass,
+  probTextClass,
+  confidenceLabel,
+  confidenceBadgeClass,
+  formatProbability,
+  formatThresholds,
+} from "../lib/signal";
 
 function ActionIcon({ action }: { action: string }) {
   switch (action) {
@@ -188,7 +196,7 @@ export default function Home() {
           </section>
 
           <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 lg:col-span-2">
-            <h3 className="text-lg font-bold text-white mb-2">アルゴリズムで「買い」になる条件（現行ロジック）</h3>
+            <h3 className="text-lg font-bold text-white mb-2">アルゴリズムで「買い」になる条件（既定ルール）</h3>
             <p className="text-sm text-slate-300 leading-relaxed">
               このシステムは、過去の値動き・テクニカル指標・出来高など複数の特徴量から
               「翌営業日に上がる確率（上昇確率）」を算出し、その確率とボラティリティで売買アクションを決めています。
@@ -196,7 +204,7 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="rounded-lg border border-slate-700/80 bg-slate-950/40 p-4">
-                <h4 className="text-sm font-semibold text-slate-100 mb-2">買い判定のしきい値</h4>
+                <h4 className="text-sm font-semibold text-slate-100 mb-2">既定の買い判定しきい値</h4>
                 <div className="space-y-2 text-xs text-slate-300">
                   <p>
                     <span className="font-semibold text-emerald-300">BUY:</span>{" "}
@@ -228,7 +236,7 @@ export default function Home() {
             </div>
 
             <p className="mt-3 text-xs text-slate-400">
-              注: これは現在の実装ルールの説明です。相場急変時は条件を満たしても外れることがあります。
+              注: 実際のしきい値は銘柄ごとの過去検証で自動調整される場合があります。各カードには最新判定で使ったしきい値を表示します。
             </p>
           </section>
         </div>
@@ -279,7 +287,7 @@ export default function Home() {
                                 <div className="text-right">
                                     <div className="text-xs text-slate-500 uppercase mb-1">上昇確率（予測値）</div>
                                     <div className={`text-lg font-bold ${probTextClass(latestSignal.prob_up)}`}>
-                                        {(latestSignal.prob_up * 100).toFixed(1)}%
+                                        {formatProbability(latestSignal.prob_up)}
                                     </div>
                                 </div>
                             )}
@@ -309,6 +317,15 @@ export default function Home() {
                             </div>
                             <p className="text-xs text-slate-400 mt-1">{volumeInfo.note}</p>
                           </div>
+
+                          {latestSignal && (
+                            <div>
+                              <div className="text-xs text-slate-500 uppercase mb-1">使用しきい値</div>
+                              <div className="text-xs text-slate-300 leading-relaxed">
+                                {formatThresholds(latestSignal.thresholds)}
+                              </div>
+                            </div>
+                          )}
                         </div>
                     </Link>
                 );

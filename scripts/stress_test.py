@@ -34,13 +34,14 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
         code = item["code"]
         name = item["name"]
         df = load_data(code)
+        warnings = df.attrs.get("validation_warnings", []) if df is not None else []
         if df is None or df.empty:
-            entries.append({"ticker": code, "name": name, "status": "missing_data"})
+            entries.append({"ticker": code, "name": name, "status": "missing_data", "data_validation_warnings": warnings})
             continue
 
         featured = add_features(df)
         if featured.empty:
-            entries.append({"ticker": code, "name": name, "status": "empty_features"})
+            entries.append({"ticker": code, "name": name, "status": "empty_features", "data_validation_warnings": warnings})
             continue
 
         gate = evaluate_kpi_gate(featured, stressed_config)
@@ -54,6 +55,7 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
             "metrics": gate["metrics"],
             "metrics_tuning": gate.get("metrics_tuning", {}),
             "metrics_holdout": gate.get("metrics_holdout", {}),
+            "data_validation_warnings": warnings,
         })
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]

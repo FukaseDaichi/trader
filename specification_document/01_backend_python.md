@@ -9,7 +9,7 @@
 実行順:
 
 1. `src.config.TICKERS`から有効銘柄を取得
-2. `src.data_loader.sync_data_files()`で無効銘柄の`data/*.parquet`を削除
+2. `src.data_loader.sync_data_files()`で無効銘柄の`data/*.parquet`を`data/archive/`へ退避
 3. 銘柄ごとに`update_data()`で日足データを更新
 4. `load_data()`でparquetを読み込み
 5. `add_features()`で特徴量を生成
@@ -43,8 +43,9 @@
 - 鮮度判定: `data/jpx_holidays.json`を使い、JSTの直近完了営業日と最新データ日を比較
 - フォールバック: Stooq失敗または鮮度不足時、`TRADER_YF_FALLBACK_ENABLED=true`ならyfinanceを試す
 - 保存: 既存parquetと新規データを結合し、`date`重複は後勝ちで保存
+- 検証: 正値、OHLC関係、異常な終値変化を検証し、異常行は除外または警告としてレポートへ残す
 
-`sync_data_files(active_ticker_codes)`は、`data/*.parquet`のうち有効銘柄に含まれないものを削除します。
+`sync_data_files(active_ticker_codes)`は、`data/*.parquet`のうち有効銘柄に含まれないものを削除せず、`data/archive/`へ移動します。
 
 ## 特徴量
 
@@ -101,7 +102,9 @@
 - `MILD_SELL`
 - `SELL`
 
-`main.py`はKPIゲート未達またはモデル失敗時に、`raw_action`を保持したまま表示用`action`を`HOLD`へ変更し、`confidence_label`を`自信なし`にします。
+`main.py`はKPIゲート未達またはモデル失敗時に、`raw_action`を保持したまま表示用`action`を`HOLD`へ変更し、`confidence_label`を`自信なし`にします。銘柄単位の処理失敗時も日次処理全体は継続し、失敗銘柄は`status: "failed"`の`HOLD`シグナルと`backtest_report.json`エントリとして記録します。
+
+シグナルには実際に判定で使った`thresholds`と`threshold_optimization`を含めます。
 
 ## 通知
 

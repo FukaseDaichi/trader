@@ -37,7 +37,4 @@ jobs:
       - name: Commit and push universe report
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A docs/universe_refresh_report.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Weekly universe refresh ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Weekly universe refresh ($TODAY_JST)" docs/universe_refresh_report.json

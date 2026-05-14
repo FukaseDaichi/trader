@@ -13,6 +13,7 @@ REQUIRED_COLS = ["date", "open", "high", "low", "close", "volume"]
 DEFAULT_HTTP_TIMEOUT_SEC = 20
 DEFAULT_STALE_OPEN_DAYS = 0
 DEFAULT_YF_FALLBACK_ENABLED = True
+DEFAULT_MAX_DAILY_MOVE = 0.50
 JPX_HOLIDAY_CACHE = DATA_DIR / "jpx_holidays.json"
 
 
@@ -38,6 +39,17 @@ def _get_env_bool(name: str, default: bool) -> bool:
         return False
     print(f"Invalid {name}={raw!r}. Falling back to {default}.")
     return bool(default)
+
+
+def _get_env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw in (None, ""):
+        return float(default)
+    try:
+        return float(raw)
+    except ValueError:
+        print(f"Invalid {name}={raw!r}. Falling back to {default}.")
+        return float(default)
 
 
 def _today_jst() -> date:
@@ -145,6 +157,55 @@ def _normalize_ohlcv(df):
     return normalized
 
 
+def _validate_ohlcv(df, ticker_code=None, source=None):
+    if df is None or df.empty:
+        return df
+
+    label = f"{ticker_code or 'unknown'}"
+    if source:
+        label = f"{label}/{source}"
+
+    validated = df.copy()
+    warnings = []
+
+    price_cols = ["open", "high", "low", "close"]
+    positive_mask = (validated[price_cols] > 0).all(axis=1) & (validated["volume"] >= 0)
+    invalid_positive = int((~positive_mask).sum())
+    if invalid_positive:
+        warnings.append(f"invalid_non_positive_ohlcv:{invalid_positive}")
+        validated = validated.loc[positive_mask].copy()
+
+    if not validated.empty:
+        relation_mask = (
+            (validated["high"] >= validated["open"])
+            & (validated["high"] >= validated["close"])
+            & (validated["high"] >= validated["low"])
+            & (validated["low"] <= validated["open"])
+            & (validated["low"] <= validated["close"])
+            & (validated["low"] <= validated["high"])
+        )
+        invalid_relation = int((~relation_mask).sum())
+        if invalid_relation:
+            warnings.append(f"invalid_ohlc_relation:{invalid_relation}")
+            validated = validated.loc[relation_mask].copy()
+
+    if not validated.empty:
+        max_daily_move = max(0.0, _get_env_float("TRADER_DATA_MAX_DAILY_MOVE", DEFAULT_MAX_DAILY_MOVE))
+        if max_daily_move > 0:
+            daily_moves = validated["close"].pct_change().abs()
+            extreme_moves = daily_moves[daily_moves > max_daily_move]
+            if not extreme_moves.empty:
+                max_move = float(extreme_moves.max())
+                warnings.append(f"extreme_close_move:{len(extreme_moves)} max={max_move:.1%}")
+
+    if warnings:
+        print(f"OHLCV validation warnings for {label}: {', '.join(warnings)}")
+
+    validated = validated.reset_index(drop=True)
+    validated.attrs["validation_warnings"] = warnings
+    return validated
+
+
 def _to_yfinance_symbol(ticker_code):
     code = str(ticker_code).strip().upper()
     if code.endswith(".JP"):
@@ -178,6 +239,11 @@ def download_stooq_data(ticker_code):
         normalized = _normalize_ohlcv(df)
         if normalized is None:
             print(f"Error: Missing columns in Stooq data for {ticker_code}")
+            return None
+
+        normalized = _validate_ohlcv(normalized, ticker_code=ticker_code, source="stooq")
+        if normalized is None or normalized.empty:
+            print(f"Error: No valid OHLCV rows in Stooq data for {ticker_code}")
             return None
 
         return normalized
@@ -215,6 +281,11 @@ def download_yfinance_data(ticker_code):
         normalized = _normalize_ohlcv(df.reset_index())
         if normalized is None:
             print(f"Error: Missing columns in yfinance data for {ticker_code} ({symbol})")
+            return None
+
+        normalized = _validate_ohlcv(normalized, ticker_code=ticker_code, source="yfinance")
+        if normalized is None or normalized.empty:
+            print(f"Error: No valid OHLCV rows in yfinance data for {ticker_code} ({symbol})")
             return None
 
         return normalized
@@ -302,6 +373,21 @@ def update_data(ticker_code):
         combined_df = combined_df.sort_values('date').reset_index(drop=True)
     else:
         combined_df = new_df
+
+    combined_df = _normalize_ohlcv(combined_df)
+    if combined_df is None or combined_df.empty:
+        print(f"No normalizable data remains for {ticker_code}.")
+        return None
+
+    combined_df = _validate_ohlcv(combined_df, ticker_code=ticker_code, source=source)
+    if combined_df is None or combined_df.empty:
+        print(f"No valid data remains for {ticker_code} after OHLCV validation.")
+        return None
+
+    validation_warnings = []
+    validation_warnings.extend(new_df.attrs.get("validation_warnings", []))
+    validation_warnings.extend(combined_df.attrs.get("validation_warnings", []))
+    combined_df.attrs["validation_warnings"] = list(dict.fromkeys(validation_warnings))
         
     # Save to parquet
     combined_df.to_parquet(file_path)
@@ -320,27 +406,45 @@ def update_data(ticker_code):
 def load_data(ticker_code):
     file_path = DATA_DIR / f"{ticker_code}.parquet"
     if file_path.exists():
-        return pd.read_parquet(file_path)
+        df = pd.read_parquet(file_path)
+        normalized = _normalize_ohlcv(df)
+        if normalized is None:
+            print(f"Local data for {ticker_code} is missing required OHLCV columns.")
+            return None
+        return _validate_ohlcv(normalized, ticker_code=ticker_code, source="local")
     return None
+
+
+def _archive_target_path(file_path):
+    archive_dir = DATA_DIR / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    target_path = archive_dir / file_path.name
+    if not target_path.exists():
+        return target_path
+
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    return archive_dir / f"{file_path.stem}.{stamp}{file_path.suffix}"
 
 
 def sync_data_files(active_ticker_codes):
     """
-    Remove local parquet files that are not in the active ticker list.
+    Move parquet files that are not in the active ticker list to data/archive/.
     """
     active_codes = {code for code in active_ticker_codes if isinstance(code, str) and code}
-    removed_codes = []
+    archived_codes = []
 
     for file_path in DATA_DIR.glob("*.parquet"):
         ticker_code = file_path.stem
         if ticker_code in active_codes:
             continue
 
-        file_path.unlink(missing_ok=True)
-        removed_codes.append(ticker_code)
+        target_path = _archive_target_path(file_path)
+        file_path.replace(target_path)
+        archived_codes.append(ticker_code)
 
-    if removed_codes:
-        removed_codes.sort()
-        print(f"Removed stale data files: {', '.join(removed_codes)}")
+    if archived_codes:
+        archived_codes.sort()
+        print(f"Archived inactive data files: {', '.join(archived_codes)}")
 
-    return removed_codes
+    return archived_codes

@@ -99,11 +99,12 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
         "action": "HOLD",
         "reason": "",
         "limit_price": None,
-        "stop_loss": None
+        "stop_loss": None,
     }
 
     # --- Decision logic ---
     t = resolve_thresholds(thresholds)
+    signal["thresholds"] = t
     action = action_from_probability(prob_up, volatility=volatility, thresholds=t)
     signal["action"] = action
 

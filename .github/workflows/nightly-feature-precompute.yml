@@ -33,7 +33,4 @@ jobs:
       - name: Commit and push feature snapshots
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A docs/feature_precompute_report.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Nightly feature precompute ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Nightly feature precompute ($TODAY_JST)" docs/feature_precompute_report.json

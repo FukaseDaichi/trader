@@ -33,7 +33,4 @@ jobs:
       - name: Commit and push rotating refresh outputs
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A data/ docs/rotating_refresh_report.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Nightly rotating refresh ($TODAY_JST)" && git push)
+          bash .github/scripts/commit-and-push.sh "Nightly rotating refresh ($TODAY_JST)" data/ docs/rotating_refresh_report.json

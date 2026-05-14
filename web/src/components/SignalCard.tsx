@@ -16,6 +16,8 @@ import {
   actionCardClass,
   confidenceBadgeClass,
   confidenceLabel,
+  formatProbability,
+  formatThresholds,
 } from "../lib/signal";
 
 interface SignalCardProps {
@@ -74,7 +76,7 @@ export default function SignalCard({ signal }: SignalCardProps) {
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <p className="text-xs text-slate-400 uppercase">上昇確率（予測値）</p>
-          <p className="text-2xl font-bold text-slate-100">{(signal.prob_up * 100).toFixed(1)}%</p>
+          <p className="text-2xl font-bold text-slate-100">{formatProbability(signal.prob_up)}</p>
         </div>
 
         <div>
@@ -86,8 +88,14 @@ export default function SignalCard({ signal }: SignalCardProps) {
 
         <div>
           <p className="text-xs text-slate-400 uppercase">終値</p>
-          <p className="text-2xl font-bold text-slate-100">¥{signal.close.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-100">
+            {signal.close != null ? `¥${signal.close.toLocaleString()}` : "---"}
+          </p>
         </div>
+      </div>
+
+      <div className="mt-4 rounded bg-slate-900/50 p-3 text-xs text-slate-300">
+        使用しきい値: {formatThresholds(signal.thresholds)}
       </div>
 
       {rawActionLabel && (

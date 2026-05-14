@@ -1,4 +1,4 @@
-import type { Signal, SignalAction } from "../types";
+import type { Signal, SignalAction, SignalThresholds } from "../types";
 
 /** 5-level action → Japanese label */
 export function actionLabel(action: SignalAction): string {
@@ -65,7 +65,8 @@ export function actionCardClass(action: SignalAction): string {
 }
 
 /** Probability colour for the overview card */
-export function probTextClass(prob: number): string {
+export function probTextClass(prob: number | null | undefined): string {
+  if (prob == null) return "text-slate-400";
   if (prob >= 0.80) return "text-red-400";
   if (prob >= 0.65) return "text-orange-400";
   if (prob <= 0.10) return "text-green-400";
@@ -86,4 +87,19 @@ export function confidenceBadgeClass(signal: Signal): string {
   if (label === "自信あり") return "bg-emerald-500/20 text-emerald-300 border-emerald-500/40";
   if (label === "自信なし") return "bg-amber-500/20 text-amber-300 border-amber-500/40";
   return "bg-slate-700 text-slate-300 border-slate-600";
+}
+
+export function formatProbability(prob: number | null | undefined): string {
+  return prob == null ? "---" : `${(prob * 100).toFixed(1)}%`;
+}
+
+export function formatThresholds(thresholds: SignalThresholds | null | undefined): string {
+  if (!thresholds) return "---";
+  return [
+    `B ${(thresholds.buy * 100).toFixed(0)}%`,
+    `MB ${(thresholds.mild_buy * 100).toFixed(0)}%`,
+    `MS ${(thresholds.mild_sell * 100).toFixed(0)}%`,
+    `S ${(thresholds.sell * 100).toFixed(0)}%`,
+    `Vol ${(thresholds.volatility_limit * 100).toFixed(1)}%`,
+  ].join(" / ");
 }

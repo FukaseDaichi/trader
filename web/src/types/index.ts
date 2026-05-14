@@ -13,12 +13,20 @@ export interface TickerData {
 
 export type SignalAction = "BUY" | "MILD_BUY" | "HOLD" | "MILD_SELL" | "SELL";
 
+export interface SignalThresholds {
+  buy: number;
+  mild_buy: number;
+  mild_sell: number;
+  sell: number;
+  volatility_limit: number;
+}
+
 export interface Signal {
   ticker: string;
   name: string;
   date: string;
-  close: number;
-  prob_up: number;
+  close: number | null;
+  prob_up: number | null;
   action: SignalAction;
   reason: string;
   limit_price?: number | null;
@@ -27,6 +35,10 @@ export interface Signal {
   gate_passed?: boolean;
   confidence_label?: string;
   confidence_reason?: string;
+  thresholds?: SignalThresholds | null;
+  threshold_optimization?: Record<string, unknown> | null;
+  status?: "ok" | "failed";
+  error?: string | null;
 }
 
 export interface TickerSignalHistoryEntry {

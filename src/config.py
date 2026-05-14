@@ -24,9 +24,51 @@ def load_tickers():
     with open(TICKERS_FILE, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
 
-    enabled_tickers = [t for t in config.get("tickers", []) if t.get("enabled", True)]
+    if not isinstance(config, dict):
+        raise ValueError("tickers.yml must contain a YAML mapping")
+
+    raw_tickers = config.get("tickers", [])
+    if raw_tickers is None:
+        raw_tickers = []
+    if not isinstance(raw_tickers, list):
+        raise ValueError("tickers.yml field 'tickers' must be a list")
+
+    enabled_tickers = []
+    seen_codes = set()
+    for idx, ticker in enumerate(raw_tickers):
+        label = f"tickers[{idx}]"
+        if not isinstance(ticker, dict):
+            raise ValueError(f"{label} must be a mapping")
+
+        code = ticker.get("code")
+        name = ticker.get("name")
+        enabled = ticker.get("enabled", True)
+
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError(f"{label}.code must be a non-empty string")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"{label}.name must be a non-empty string")
+        if not isinstance(enabled, bool):
+            raise ValueError(f"{label}.enabled must be a boolean when specified")
+
+        normalized = {
+            **ticker,
+            "code": code.strip(),
+            "name": name.strip(),
+            "enabled": enabled,
+        }
+
+        if normalized["code"] in seen_codes:
+            raise ValueError(f"Duplicate ticker code in tickers.yml: {normalized['code']}")
+        seen_codes.add(normalized["code"])
+
+        if enabled:
+            enabled_tickers.append(normalized)
 
     settings = config.get("settings", {}) or {}
+    if not isinstance(settings, dict):
+        raise ValueError("tickers.yml field 'settings' must be a mapping when specified")
+
     max_tickers = settings.get("max_tickers")
 
     # max_tickers: null or omitted means "no upper limit".
