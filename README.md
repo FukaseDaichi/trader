@@ -2,7 +2,7 @@
 
 日本株の株価データを毎日取得し、LightGBMで翌営業日の上昇確率を推定するシステムです。予測結果はKPIゲートで検証し、基準未達なら売買シグナルを`HOLD`に強制します。成果物は`docs/`にJSONと静的ダッシュボードとして出力されます。
 
-このREADMEは2026-05-14時点のソースコードを正として更新しています。
+このREADMEは2026-06-06時点のソースコードを正として更新しています。テクニカル/ファンダメンタル分析で`tickers.yml`を自動更新する「AI銘柄キュレーション（自動）」については後述します。
 
 ## 公開ダッシュボード
 
@@ -25,6 +25,8 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 - `docs/state.json`、`docs/dashboard_index.json`、`docs/tickers/*.json`、`docs/backtest_report.json`を出力する
 - LINE Messaging APIで、KPIゲートを通過した非`HOLD`シグナルのみ通知する
 - Next.js静的エクスポートを`docs/`に配置し、GitHub Pagesで表示する
+- AI銘柄キュレーション（自動）で、テクニカル（日次）とファンダメンタル（週次）の分析からガード通過時のみ`tickers.yml`の有効ユニバースを少数入替する
+- 週次でファンダ＋テクニカルを総合した解説レポート（`reports/`）を生成し、GitHub URLをLINE通知する
 
 ## 構成
 
@@ -41,6 +43,8 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 | 補助スクリプト | `scripts/*.py` | 営業日判定、監視、監査、ローテ更新、ストレステスト |
 | フロントエンド | `web/` | Next.js 16 + React 19 + Rechartsの静的ダッシュボード |
 | 公開成果物 | `docs/` | GitHub Pages公開ディレクトリ |
+| AI銘柄キュレーション | `scripts/curation_*.py`, `scripts/technical_screen.py`, `.claude/skills/*`, `curation_pool.yml` | 日次テクニカル・週次ファンダ分析、決定論マージ、週次レポート、LINE通知 |
+| commit/push共通 | `.github/scripts/commit-and-push.sh` | 全workflow共通の`git pull --rebase --autostash`＋最大3回リトライ |
 
 ## セットアップ
 
@@ -124,6 +128,8 @@ settings:
 
 銘柄を変更したら、`uv run python main.py`を実行して`data/`と`docs/`を更新してください。`data/*.parquet`のうち有効銘柄に含まれないファイルは、`main.py`実行時に削除されます。
 
+`settings.curation`はAI銘柄キュレーション（自動）の動作パラメータです。`load_tickers()`は`tickers`と`settings.max_tickers`のみ参照するため、`watchlist`や`settings.curation`を追加しても既存の日次予測には影響しません。各パラメータの詳細は`specification_document/ai_ticker_curation/`を参照してください。
+
 ## 出力ファイル
 
 | ファイル | 内容 |
@@ -139,6 +145,12 @@ settings:
 | `docs/rotating_refresh_report.json` | 夜間ローテ更新結果 |
 | `docs/feature_precompute_report.json` | 特徴量事前計算レポート |
 | `docs/stress_test_report.json` | 高コスト前提の四半期ストレステスト |
+| `docs/curation/decision_*.json` | AI銘柄キュレーションの日次判断（監査ログ） |
+| `docs/curation/technical_*.json` | テクニカル候補スコア（baseline/agent精査後） |
+| `docs/curation/fundamental_latest.json` | 週次ファンダ候補スコア（日次mergeのキャッシュ） |
+| `reports/weekly_*.md` | 週次の総合解説レポート（LINE通知対象） |
+
+`data/watchlist/*.parquet`（候補のwarmupデータ）は`.gitignore`対象で、毎回再取得されるためコミットされません。
 
 `docs/history_data.json`は現行の主要データ契約ではありません。存在する場合、`src/dashboard.py`やpublish workflowが削除します。
 
@@ -175,6 +187,11 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 - `LINE_CHANNEL_ACCESS_TOKEN`
 - `LINE_USER_ID`
 
+AI銘柄キュレーション（自動）を使う場合は追加で以下を設定します。
+
+- `CLAUDE_CODE_OAUTH_TOKEN`（secret。Claude Pro/Max契約で`claude setup-token`を実行して発行）
+- `TRADER_REPO_SLUG`（variable、任意。週次レポートのGitHub URL生成用。未設定時は`git remote`から導出）
+
 主なワークフロー:
 
 | Workflow | JST | 役割 |
@@ -183,17 +200,42 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 | `Daily Preopen Retry` | 平日 06:20/06:40 | 当日未更新なら再実行 |
 | `Daily Publish Dashboard` | core/retry成功後 | `web/out`を`docs/`へ同期 |
 | `Daily Watchdog` | 平日 12:30 | 日次成果物の鮮度と整合性を検証 |
+| `Daily Ticker Curation` | 平日 04:30 | テクニカル分析→ガード付きで`tickers.yml`を少数入替 |
 | `Weekly Model Retrain` | 土曜 08:00 | 通知なしで`main.py`を週次実行 |
 | `Weekly Universe Refresh` | 日曜 07:00 | 有効銘柄のスナップショットレポート |
+| `Weekly Fundamental & Report` | 土曜 07:00 | ファンダ分析→週次レポート生成→LINE通知 |
 | `Monthly Calendar Sync` | 毎月1日 09:15 | JPX休日キャッシュ更新 |
 | `Monthly Full Audit` | 第1日曜 09:00 | 月次KPI監査 |
 | `Nightly Rotating Refresh` | 平日 19:30 | 有効銘柄を分割して夜間更新 |
 | `Nightly Feature Precompute` | 平日 20:00 | 特徴量ファイル生成とレポート |
 | `Quarterly Stress Test` | 四半期初日 10:00 | 高コスト前提のKPI確認 |
 
-## 銘柄選定スキル
+すべての書き込み系workflowは、commit/pushを共通ヘルパ`.github/scripts/commit-and-push.sh`（`git pull --rebase --autostash`＋最大3回リトライ）に集約しています。
 
-このリポジトリには、`tickers.yml`を更新するための`jp-stock-ticker-curation`スキルがあります。依頼例:
+## AI銘柄キュレーション（自動）
+
+Claudeをサブスク（`CLAUDE_CODE_OAUTH_TOKEN`）でGitHub Actions上で実行し、トレンド分析から`tickers.yml`の有効ユニバースを自動更新します。詳細仕様は`specification_document/ai_ticker_curation/`にあります。
+
+- **日次**（平日 04:30 JST / `Daily Ticker Curation`）: 候補データのwarmup → `technical_screen.py`の決定論スコア → テクニカルagent（任意精査）→ `curation_merge.py`が「当日テクニカル＋直近週ファンダ（キャッシュ）」を合成し、ガード通過時のみ`tickers.yml`を少数入替。06:00の`Daily Preopen Core`が更新後ユニバースで予測します。
+- **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: ファンダagent（Web一次情報・Opus）が`fundamental_latest.json`を更新 → レポートagentが女の子ナビ文体の週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
+
+### 安全設計
+
+- 3つのClaude agentは`docs/curation/*.json`または`reports/*.md`を書くだけで、`tickers.yml`の編集や`git push`は行いません。不可逆変更は決定論の`curation_merge.py`と共通ヘルパ`commit-and-push.sh`に限定されます。
+- ガードレール: tech/fundの両軸必須、`min_combined_to_promote`、`min_gap`、churn上限（`max_daily_swaps`/`max_daily_adds`）、`sector_cap_pct`、`min_warmup_rows`、`cooldown_days`、`max_fundamental_age_days`（ファンダ鮮度切れで新規昇格を停止）。
+- 新規候補は`data/watchlist/`（gitignore）で履歴をwarmupし、十分な履歴がある場合のみ昇格します。
+- すべての判断は`docs/curation/decision_*.json`に監査ログとして残ります。巻き戻しは`git revert`、緊急停止は`settings.curation.enabled: false`。
+
+### 設定と運用
+
+- パラメータは`tickers.yml`の`settings.curation`で調整します。
+- `Daily Ticker Curation`は`workflow_dispatch`の`apply=false`でdry-run（`tickers.yml`を変更せず`decision_*.json`のみ生成）できます。
+- ファンダ未取得の初回は安全側に「現状維持」で動作します。最初に`Weekly Fundamental & Report`を手動実行するとファンダが生成され、以降の日次で昇格が有効になります。
+- 決定ロジックの純粋関数`compute_decision()`は`tests/test_curation_merge.py`で検証できます（`uv run python tests/test_curation_merge.py`）。
+
+## 銘柄選定スキル（対話実行）
+
+このリポジトリには、対話的に`tickers.yml`を更新するための`jp-stock-ticker-curation`スキルがあります。依頼例:
 
 ```text
 jp-stock-ticker-curation を使って、最新情報で有望な日本株を選んで tickers.yml を更新して
