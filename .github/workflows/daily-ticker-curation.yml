@@ -1,0 +1,99 @@
+name: Daily Ticker Curation
+
+on:
+  schedule:
+    # 19:30 UTC = 04:30 JST (Mon-Fri JST). Runs before Daily Preopen Core (06:00 JST).
+    - cron: "30 19 * * 0-4"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "apply to tickers.yml (true) or dry-run (false)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-curation-main
+  cancel-in-progress: false
+
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Check JPX open day
+        id: market
+        run: |
+          TODAY_JST=$(TZ=Asia/Tokyo date +%F)
+          echo "today_jst=$TODAY_JST" >> "$GITHUB_OUTPUT"
+          uv run python scripts/jpx_calendar.py is-open \
+            --date "$TODAY_JST" --cache-path data/jpx_holidays.json --github-output
+
+      - name: Idempotency guard
+        id: guard
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        run: |
+          uv run python scripts/curation_guard.py needs-run \
+            --date "${{ steps.market.outputs.today_jst }}" --github-output
+
+      - name: Warm up candidate data
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: uv run python scripts/curation_warmup.py --pool curation_pool.yml --out-dir data/watchlist
+
+      # Deterministic technical baseline (always produces a valid technical_latest.json)
+      - name: Technical screen (baseline)
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: uv run python scripts/technical_screen.py --pool curation_pool.yml --date "${{ steps.market.outputs.today_jst }}"
+
+      # Technical agent refines technical_latest.json (optional; baseline is the safety net)
+      - name: Technical analysis agent
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "/jp-stock-technical-screen as_of=${{ steps.market.outputs.today_jst }}"
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 20
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash"
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(rm:*),WebSearch,WebFetch"
+
+      # Deterministic merge: technical(today) + fundamental(cached weekly) -> tickers.yml
+      - name: Merge & apply (guarded)
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: |
+          APPLY_FLAG="--apply"
+          if [ "${{ github.event.inputs.apply }}" = "false" ]; then APPLY_FLAG="--dry-run"; fi
+          uv run python scripts/curation_merge.py \
+            --technical docs/curation/technical_latest.json \
+            --date "${{ steps.market.outputs.today_jst }}" \
+            $APPLY_FLAG
+
+      - name: Validate tickers.yml
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: uv run python -c "from src.config import load_tickers; print('enabled:', len(load_tickers()))"
+
+      # Shared rebase-safe helper: git pull --rebase --autostash + retry (3x).
+      - name: Commit & push (shared helper)
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        run: |
+          TODAY_JST="${{ steps.market.outputs.today_jst }}"
+          mkdir -p docs/curation
+          # data/watchlist is gitignored; promoted candidates are moved into data/.
+          bash .github/scripts/commit-and-push.sh "AI ticker curation ($TODAY_JST)" tickers.yml data docs/curation

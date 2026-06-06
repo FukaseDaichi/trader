@@ -1,0 +1,87 @@
+name: Weekly Fundamental & Report
+
+on:
+  schedule:
+    # 22:00 UTC Friday = 07:00 JST Saturday.
+    - cron: "0 22 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-fundamental-main
+  cancel-in-progress: false
+
+jobs:
+  fundamental-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Resolve date
+        id: dt
+        run: echo "today_jst=$(TZ=Asia/Tokyo date +%F)" >> "$GITHUB_OUTPUT"
+
+      # Refresh technical_latest.json so the report reflects the latest data
+      - name: Refresh technical features
+        run: |
+          uv run python scripts/technical_screen.py \
+            --pool curation_pool.yml --date "${{ steps.dt.outputs.today_jst }}" || true
+
+      # Fundamental agent (Opus / web research) -> fundamental_latest.json (weekly cache)
+      - name: Fundamental analysis agent
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "/jp-stock-fundamental-screen as_of=${{ steps.dt.outputs.today_jst }}"
+          claude_args: |
+            --model claude-opus-4-8
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash"
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(rm:*)"
+
+      # Report writer agent (Sonnet / girl persona) -> reports/weekly_<DATE>.md
+      - name: Weekly report writer agent
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "/weekly-stock-report as_of=${{ steps.dt.outputs.today_jst }}"
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 15
+            --allowedTools "Read,Write,Glob,Grep"
+            --disallowedTools "Bash,WebSearch,WebFetch"
+
+      # Shared rebase-safe helper: git pull --rebase --autostash + retry (3x).
+      - name: Commit & push (shared helper)
+        run: |
+          TODAY_JST="${{ steps.dt.outputs.today_jst }}"
+          mkdir -p reports docs/curation
+          bash .github/scripts/commit-and-push.sh "Weekly fundamental & report ($TODAY_JST)" reports docs/curation
+
+      # Notify the GitHub URL of the report via LINE (casual persona)
+      - name: Notify report URL via LINE
+        if: ${{ hashFiles(format('reports/weekly_{0}.md', steps.dt.outputs.today_jst)) != '' }}
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          TRADER_REPO_SLUG: ${{ vars.TRADER_REPO_SLUG }}
+        run: |
+          uv run python scripts/curation_notify.py \
+            --report "reports/weekly_${{ steps.dt.outputs.today_jst }}.md" \
+            --date "${{ steps.dt.outputs.today_jst }}" || true

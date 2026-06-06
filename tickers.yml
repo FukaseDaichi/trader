@@ -2,26 +2,52 @@ tickers:
   - code: "7011.JP"
     name: "三菱重工業"
     enabled: true
+    source: "manual"
   - code: "6501.JP"
     name: "日立製作所"
     enabled: true
+    source: "manual"
   - code: "6701.JP"
     name: "日本電気"
     enabled: true
+    source: "manual"
   - code: "7013.JP"
     name: "IHI"
     enabled: true
+    source: "manual"
   - code: "6762.JP"
     name: "TDK"
     enabled: true
+    source: "manual"
   - code: "6723.JP"
     name: "ルネサスエレクトロニクス"
     enabled: true
+    source: "manual"
   - code: "6758.JP"
     name: "ソニーグループ"
     enabled: true
+    source: "manual"
   - code: "1802.JP"
     name: "大林組"
     enabled: true
+    source: "manual"
 settings:
   max_tickers: null
+  # AI ticker curation. See specification_document/ai_ticker_curation/.
+  curation:
+    enabled: true
+    max_universe: 10
+    max_daily_swaps: 2
+    max_daily_adds: 2
+    min_combined_to_promote: 70
+    min_gap: 5
+    keep_floor: 50
+    min_warmup_rows: 200
+    sector_cap_pct: 40
+    fund_weight: 0.5
+    tech_weight: 0.5
+    cooldown_days: 5
+    max_fundamental_age_days: 14
+    report:
+      persona_name: "あおい"
+      tone: "casual_kawaii"

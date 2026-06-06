@@ -115,3 +115,22 @@ A skill is a set of local instructions stored in a `SKILL.md` file.
 - Progressive loading: Read `SKILL.md` first, then load only the needed files from `references/`.
 - Source quality: Prefer primary sources such as company IR, exchange filings, and official disclosures; include concrete dates in output.
 - Output contract: After updates, report changed file paths, selected tickers, concise rationale, and source links.
+
+## AI Ticker Curation (automated)
+
+An automated system curates the `tickers.yml` universe via Claude running in
+GitHub Actions (`claude-code-action@v1` + `CLAUDE_CODE_OAUTH_TOKEN`). Full design
+and contracts: `specification_document/ai_ticker_curation/`.
+
+- Cadence: technical screen runs **daily** (drives small universe swaps);
+  fundamental screen + a casual girl-narrator weekly report run **weekly**
+  (Saturday), notifying the report's GitHub URL via LINE.
+- Agents emit JSON/Markdown only; the deterministic `scripts/curation_merge.py`
+  owns `tickers.yml` edits under guardrails (churn cap, sector cap, warmup,
+  cooldown, fundamental freshness). Never let an agent edit `tickers.yml`.
+- CI skills: `.claude/skills/{jp-stock-technical-screen,jp-stock-fundamental-screen,weekly-stock-report}/`.
+- Scripts: `scripts/{technical_screen,curation_warmup,curation_merge,curation_guard,curation_notify}.py`
+  (+ `scripts/curation_common.py`). Pool: `curation_pool.yml`. Tests: `tests/test_curation_merge.py`.
+- Workflows: `.github/workflows/{daily-ticker-curation,weekly-fundamental-report}.yml`.
+- Tuning knobs live in `tickers.yml` `settings.curation`. `data/watchlist/` is
+  gitignored (warmup data is re-fetched each run).

@@ -2,6 +2,7 @@ import io
 import json
 import os
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -350,21 +351,27 @@ def _download_with_fallback(ticker_code):
     return stooq_df, "stooq", stooq_freshness
 
 
-def update_data(ticker_code):
+def update_data(ticker_code, dest_dir=None):
     """
     Update local parquet file using Stooq and automatic yfinance fallback.
+
+    dest_dir: optional output directory. Defaults to DATA_DIR (top level).
+    Used by the curation warmup to persist candidate data under
+    data/watchlist/ (a subdirectory that sync_data_files does not archive).
     """
     print(f"Updating data for {ticker_code}...")
-    
+
     # Download fresh data with stale-data fallback.
     new_df, source, freshness = _download_with_fallback(ticker_code)
-    
+
     if new_df is None or new_df.empty:
         print(f"No new data found for {ticker_code}.")
         return None
     print(f"Selected source for {ticker_code}: {source}")
-    
-    file_path = DATA_DIR / f"{ticker_code}.parquet"
+
+    target_dir = Path(dest_dir) if dest_dir is not None else DATA_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+    file_path = target_dir / f"{ticker_code}.parquet"
     
     if file_path.exists():
         old_df = pd.read_parquet(file_path)
