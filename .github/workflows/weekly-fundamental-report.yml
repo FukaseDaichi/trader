@@ -70,6 +70,8 @@ jobs:
 
       # Shared rebase-safe helper: git pull --rebase --autostash + retry (3x).
       - name: Commit & push (shared helper)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TODAY_JST="${{ steps.dt.outputs.today_jst }}"
           mkdir -p reports docs/curation

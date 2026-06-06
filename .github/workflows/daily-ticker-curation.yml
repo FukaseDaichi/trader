@@ -93,6 +93,8 @@ jobs:
       # Shared rebase-safe helper: git pull --rebase --autostash + retry (3x).
       - name: Commit & push (shared helper)
         if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TODAY_JST="${{ steps.market.outputs.today_jst }}"
           mkdir -p docs/curation

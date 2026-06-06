@@ -28,6 +28,17 @@ fi
 
 git commit -m "$message"
 
+# Re-establish push credentials. Steps such as anthropics/claude-code-action can
+# replace the auth header that actions/checkout persisted, leaving an invalid
+# credential by push time. When a token is provided, reset origin auth to it.
+token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+if [ -n "${GITHUB_ACTIONS:-}" ] && [ -n "$token" ] && [ -n "${GITHUB_REPOSITORY:-}" ]; then
+  git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+  git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+  encoded="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
+  git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${encoded}"
+fi
+
 for attempt in 1 2 3; do
   echo "Push attempt ${attempt} for ${branch}..."
   if git pull --rebase --autostash origin "$branch" && git push origin "HEAD:${branch}"; then
