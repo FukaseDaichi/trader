@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-06-07T09:00:00+09:00",
+  "as_of": "2026-06-07",
+  "market_bias": "neutral",
+  "summary": "金利レジームは日米とも『据え置き＋次の一手』待ち。日銀は3会合連続据え置き(0.75%)も反対票が3票に増え6/15-16会合での1.0%利上げが市場メイン。Fedは中東発エネルギー高でインフレ『elevated』を理由に3.50-3.75%で利下げを停止(4/29)。ドル円は159円台と160円介入ラインに張り付き(4-5月に計11.7兆円介入)、円安は輸出株に追い風だが介入・日銀利上げで反転リスクを抱える両面相場。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "hawkish", "next_event": "2026-06-17", "note": "4/29会合で目標レンジ3.50-3.75%を据え置き。インフレは『elevated（一部は世界的なエネルギー価格上昇を反映）』とし利下げを停止。4票の反対(1票は利下げ主張、3票は緩和バイアス反対)。6/16-17会合でドットプロット(SEP)更新。"},
+    "boj": {"policy_rate_pct": 0.75, "stance": "hawkish", "next_event": "2026-06-16", "note": "4/28会合で3会合連続据え置き。据え置き反対が前回1票→3票に増加し1.0%利上げを主張。次回6/15-16会合で追加利上げ(→1.0%)が市場メインシナリオ、国債買入れ減額計画の中間評価も実施。"},
+    "usdjpy": {"level": 159.9, "trend": "円安", "as_of": "2026-06-05", "note": "160円の介入警戒ラインに接近。当局は4/30に約5.4兆円、5/1-6に約4.5兆円(計約11.7兆円)の円買い介入を実施し一時155円台へ。中東発の原油高による米ドル高圧力で再び円安。日米金利差と地政学が主因。"}
+  },
+  "themes": [
+    {
+      "id": "boj-june-hike-banks",
+      "title": "日銀6月追加利上げ観測（→1.0%）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-16", "description": "6/15-16の金融政策決定会合で政策金利0.75%→1.00%への利上げが市場メインシナリオ。4/28会合では据え置き反対が3票に増加。"},
+      "affected_sectors": ["銀行", "保険"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP"],
+      "rationale": "短期金利上昇は銀行の貸出・預貸金利ザヤ(NIM)を直接押し上げ、保険は運用利回り改善で恩恵。会合内のタカ派票増加で利上げ確度が高まっており、2週間以降の会合通過に向け金融セクターには追い風。長期金利2%到達で資産運用益も拡大方向。",
+      "sources": [
+        {"title": "日銀 強まる6月利上げ論 物価高・円安リスクで政権も静観姿勢", "url": "https://www.nikkei.com/article/DGXZQOUB023HG0S6A600C2000000/", "date": "2026-06-02", "type": "secondary"},
+        {"title": "日本銀行 総裁記者会見（4/28会合）", "url": "https://www.boj.or.jp/about/press/kaiken_2026/kk260430a.pdf", "date": "2026-04-30", "type": "primary"},
+        {"title": "日本銀行 公表予定（金融政策決定会合 6/15-16）", "url": "https://www.boj.or.jp/about/calendar/index.htm", "date": "2026-06-05", "type": "primary"}
+      ]
+    },
+    {
+      "id": "weak-yen-near-160-exporters",
+      "title": "ドル円159円台・160円介入ライン張り付き（円安）",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-05", "description": "ドル円は約159.9円と160円の介入警戒ラインに接近。当局は4-5月に計約11.7兆円の円買い介入を実施したが、中東発の原油高・米ドル高で再び円安方向。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器", "半導体"],
+      "affected_codes": ["6758.JP", "6501.JP", "6701.JP", "6762.JP", "6723.JP", "7203.JP", "7267.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP"],
+      "rationale": "円安は輸出採算と海外利益の円換算を押し上げ、自動車・電機・電子部品・精密・商社など輸出/海外比率の高い銘柄に追い風。ただし160円接近で為替介入リスクが高く、6月の日銀利上げで日米金利差縮小→円高反転の可能性もあり、追い風は不安定(confidence: medium)。",
+      "sources": [
+        {"title": "11.7兆円規模となった2026年4月～5月の為替介入の効果を考える", "url": "https://www.smd-am.co.jp/market/ichikawa/2026/06/irepo260601/", "date": "2026-06-01", "type": "secondary"},
+        {"title": "日本銀行 外国為替市況（日次）", "url": "https://www.boj.or.jp/statistics/market/forex/fxdaily/fxlist/index.htm", "date": "2026-06-05", "type": "primary"},
+        {"title": "本邦通貨当局による円買い為替介入再開の背景を考える（IIMA）", "url": "https://www.iima.or.jp/docs/newsletter/2026/nl2026.29.pdf", "date": "2026-05-11", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "boj-hike-rate-sensitive-headwind",
+      "title": "金利上昇による金利敏感セクターへの逆風",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-16", "description": "6月会合での0.75%→1.0%利上げ観測。長期金利は節目の2%に到達。"},
+      "affected_sectors": ["建設"],
+      "affected_codes": ["1802.JP", "1801.JP"],
+      "rationale": "金利上昇は割引率上昇を通じて高PERグロースや不動産・建設など金利敏感・長期プロジェクト依存セクターのバリュエーションに逆風。資金調達コスト増で2週間以降の上値を抑える要因。",
+      "sources": [
+        {"title": "日銀0.75%へ利上げ決定、30年ぶり水準 26年以降も継続方針", "url": "https://www.nikkei.com/article/DGXZQOUB166040W5A211C2000000/", "date": "2025-12-17", "type": "secondary"},
+        {"title": "日本銀行 総裁記者会見（4/28会合）", "url": "https://www.boj.or.jp/about/press/kaiken_2026/kk260430a.pdf", "date": "2026-04-30", "type": "primary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold-no-cuts",
+      "title": "Fedのタカ派的据え置き（利下げ停止）",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-04-29", "description": "FOMCは目標レンジを3.50-3.75%で据え置き。インフレ『elevated』、中東発エネルギー高を背景に利下げを停止。4票の反対。"},
+      "affected_sectors": ["半導体製造装置", "半導体"],
+      "affected_codes": ["8035.JP", "6920.JP", "6857.JP", "6146.JP", "6723.JP"],
+      "rationale": "米利下げ再開が遠のき米金利が高止まりすると、グロース・半導体製造装置などレート感応度の高いセクターへの追い風が剥落。6/16-17のSEP(ドットプロット)で利下げ見送りが裏付けられれば、2週間以降のバリュエーション拡大の重しに(ただしAI関連の実需は別要因)。",
+      "sources": [
+        {"title": "Federal Reserve issues FOMC statement (April 29, 2026)", "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm", "date": "2026-04-29", "type": "primary"},
+        {"title": "FOMC Minutes, April 28-29, 2026", "url": "https://www.federalreserve.gov/monetarypolicy/fomcminutes20260429.htm", "date": "2026-05-20", "type": "primary"}
+      ]
+    },
+    {
+      "id": "middle-east-oil-shock-costpush",
+      "title": "中東情勢・原油高によるコストプッシュ",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-04-29", "description": "FOMC声明がインフレ上振れの一因として『世界的なエネルギー価格の上昇』に言及。中東の軍事衝突で原油高が継続。"},
+      "affected_sectors": ["小売", "食品", "運輸", "化学"],
+      "affected_codes": ["9983.JP", "2914.JP", "9020.JP", "4063.JP", "4901.JP", "4661.JP"],
+      "rationale": "原油高は燃料・原材料コストを押し上げ、小売・食品・運輸など内需/輸入コスト敏感セクターのマージンを圧迫。実質所得低下で消費にも逆風。なお資源権益を持つ商社(8058/8031/8001)は資源価格上昇でむしろ追い風となる点に留意。地政学リスクはセンチメント面でも変動要因。",
+      "sources": [
+        {"title": "Federal Reserve issues FOMC statement (April 29, 2026)", "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm", "date": "2026-04-29", "type": "primary"},
+        {"title": "2026年末の米ドル円見通しを152.5円に引き上げ 中東情勢で強まる米ドル高圧力（野村）", "url": "https://www.nomura.co.jp/wealthstyle/article/0676/", "date": "2026-05-20", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["7011.JP", "6501.JP", "6701.JP", "7013.JP", "6762.JP", "6723.JP", "6758.JP", "1802.JP", "8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "7203.JP", "7267.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "8035.JP", "6920.JP", "6857.JP", "6146.JP", "1801.JP", "9983.JP", "2914.JP", "9020.JP", "4063.JP", "4901.JP", "4661.JP"],
+  "notes": "日米とも6月中旬の会合(日銀6/15-16、Fed6/16-17)が次の節目で、利上げ/利下げ見送り・ドットプロット・国債買入れ減額の中間評価が同時に焦点。enabledユニバースは輸出・産業セクター(三菱重工・日立・NEC・IHI・TDK・ルネサス・ソニー)に偏っており、円安は追い風だが160円接近の介入リスクと日銀利上げによる円高反転リスクの両面に注意。銀行/保険はenabled外だがプールに存在し、利上げ局面の最大の受益候補。",
+  "limitations": "マクロ予測は不確実であり、将来の値動きを保証しない。金利・為替・地政学は急変しうる。会合結果(日銀6/16・Fed6/17)で前提が大きく変わる可能性が高い点に留意。"
+}
