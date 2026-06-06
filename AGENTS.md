@@ -123,12 +123,14 @@ GitHub Actions (`claude-code-action@v1` + `CLAUDE_CODE_OAUTH_TOKEN`). Full desig
 and contracts: `specification_document/ai_ticker_curation/`.
 
 - Cadence: technical screen runs **daily** (drives small universe swaps);
-  fundamental screen + a casual girl-narrator weekly report run **weekly**
-  (Saturday), notifying the report's GitHub URL via LINE.
+  a global-macro screen (rates/FX), the fundamental screen, and a casual
+  girl-narrator weekly report run **weekly** (Saturday), notifying the report's
+  GitHub URL via LINE. The weekly report focuses on names that could rise over a
+  2-week+ horizon.
 - Agents emit JSON/Markdown only; the deterministic `scripts/curation_merge.py`
   owns `tickers.yml` edits under guardrails (churn cap, sector cap, warmup,
   cooldown, fundamental freshness). Never let an agent edit `tickers.yml`.
-- CI skills: `.claude/skills/{jp-stock-technical-screen,jp-stock-fundamental-screen,weekly-stock-report}/`.
+- CI skills: `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,weekly-stock-report}/`.
 - Scripts: `scripts/{technical_screen,curation_warmup,curation_merge,curation_guard,curation_notify}.py`
   (+ `scripts/curation_common.py`). Pool: `curation_pool.yml`. Tests: `tests/test_curation_merge.py`.
 - Workflows: `.github/workflows/{daily-ticker-curation,weekly-fundamental-report}.yml`.

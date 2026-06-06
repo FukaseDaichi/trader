@@ -42,6 +42,20 @@ jobs:
           uv run python scripts/technical_screen.py \
             --pool curation_pool.yml --date "${{ steps.dt.outputs.today_jst }}" || true
 
+      # Global macro agent (Opus / web research) -> macro_latest.json (weekly cache).
+      # Runs BEFORE the fundamental agent so it can read the macro regime.
+      - name: Global macro agent
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "/global-macro-screen as_of=${{ steps.dt.outputs.today_jst }}"
+          claude_args: |
+            --model claude-opus-4-8
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash"
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(rm:*)"
+
       # Fundamental agent (Opus / web research) -> fundamental_latest.json (weekly cache)
       - name: Fundamental analysis agent
         uses: anthropics/claude-code-action@v1

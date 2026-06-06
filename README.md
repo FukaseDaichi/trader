@@ -43,7 +43,7 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 | 補助スクリプト | `scripts/*.py` | 営業日判定、監視、監査、ローテ更新、ストレステスト |
 | フロントエンド | `web/` | Next.js 16 + React 19 + Rechartsの静的ダッシュボード |
 | 公開成果物 | `docs/` | GitHub Pages公開ディレクトリ |
-| AI銘柄キュレーション | `scripts/curation_*.py`, `scripts/technical_screen.py`, `.claude/skills/*`, `curation_pool.yml` | 日次テクニカル・週次ファンダ分析、決定論マージ、週次レポート、LINE通知 |
+| AI銘柄キュレーション | `scripts/curation_*.py`, `scripts/technical_screen.py`, `.claude/skills/*`, `curation_pool.yml` | 日次テクニカル・週次マクロ＆ファンダ分析、決定論マージ、週次レポート、LINE通知 |
 | commit/push共通 | `.github/scripts/commit-and-push.sh` | 全workflow共通の`git pull --rebase --autostash`＋最大3回リトライ |
 
 ## セットアップ
@@ -148,6 +148,7 @@ settings:
 | `docs/curation/decision_*.json` | AI銘柄キュレーションの日次判断（監査ログ） |
 | `docs/curation/technical_*.json` | テクニカル候補スコア（baseline/agent精査後） |
 | `docs/curation/fundamental_latest.json` | 週次ファンダ候補スコア（日次mergeのキャッシュ） |
+| `docs/curation/macro_latest.json` | 週次マクロ（金利・為替）レジーム（mergeは不参照、ファンダ/レポートが消費） |
 | `reports/weekly_*.md` | 週次の総合解説レポート（LINE通知対象） |
 
 `data/watchlist/*.parquet`（候補のwarmupデータ）は`.gitignore`対象で、毎回再取得されるためコミットされません。
@@ -217,11 +218,11 @@ AI銘柄キュレーション（自動）を使う場合は追加で以下を設
 Claudeをサブスク（`CLAUDE_CODE_OAUTH_TOKEN`）でGitHub Actions上で実行し、トレンド分析から`tickers.yml`の有効ユニバースを自動更新します。詳細仕様は`specification_document/ai_ticker_curation/`にあります。
 
 - **日次**（平日 04:30 JST / `Daily Ticker Curation`）: 候補データのwarmup → `technical_screen.py`の決定論スコア → テクニカルagent（任意精査）→ `curation_merge.py`が「当日テクニカル＋直近週ファンダ（キャッシュ）」を合成し、ガード通過時のみ`tickers.yml`を少数入替。06:00の`Daily Preopen Core`が更新後ユニバースで予測します。
-- **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: ファンダagent（Web一次情報・Opus）が`fundamental_latest.json`を更新 → レポートagentが女の子ナビ文体の週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
+- **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: マクロagent（金利・為替・世界情勢／Web一次情報・Opus）が`macro_latest.json`を生成 → ファンダagent（Web一次情報・Opus）がそれを織り込み`fundamental_latest.json`を更新 → レポートagentが女の子ナビ文体で「今後2週間以降に伸びそうな銘柄」を中心とした週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
 
 ### 安全設計
 
-- 3つのClaude agentは`docs/curation/*.json`または`reports/*.md`を書くだけで、`tickers.yml`の編集や`git push`は行いません。不可逆変更は決定論の`curation_merge.py`と共通ヘルパ`commit-and-push.sh`に限定されます。
+- 4つのClaude agentは`docs/curation/*.json`または`reports/*.md`を書くだけで、`tickers.yml`の編集や`git push`は行いません。不可逆変更は決定論の`curation_merge.py`と共通ヘルパ`commit-and-push.sh`に限定されます。
 - ガードレール: tech/fundの両軸必須、`min_combined_to_promote`、`min_gap`、churn上限（`max_daily_swaps`/`max_daily_adds`）、`sector_cap_pct`、`min_warmup_rows`、`cooldown_days`、`max_fundamental_age_days`（ファンダ鮮度切れで新規昇格を停止）。
 - 新規候補は`data/watchlist/`（gitignore）で履歴をwarmupし、十分な履歴がある場合のみ昇格します。
 - すべての判断は`docs/curation/decision_*.json`に監査ログとして残ります。巻き戻しは`git revert`、緊急停止は`settings.curation.enabled: false`。

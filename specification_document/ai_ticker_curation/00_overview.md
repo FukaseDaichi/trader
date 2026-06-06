@@ -19,6 +19,7 @@
 | Agent 実行 | `anthropics/claude-code-action@v1` + `CLAUDE_CODE_OAUTH_TOKEN` |
 | ユニバース反映 | `curation_merge.py` が guardrail 通過時のみ `tickers.yml` を更新 |
 | テクニカル頻度 | 平日 04:30 JST の日次 |
+| マクロ頻度 | 土曜 07:00 JST の週次、ファンダ前。`macro_latest.json` をファンダ/レポートが消費（merge は不参照） |
 | ファンダ頻度 | 土曜 07:00 JST の週次。日次 merge は直近 `fundamental_latest.json` をキャッシュ利用 |
 | 週次レポート | `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` |
 | 通知 | `curation_notify.py` が週次レポートの GitHub blob URL を LINE 通知 |
@@ -28,7 +29,7 @@
 ### やること
 
 - 日次: 候補データ warmup、決定論テクニカル baseline、Claude technical agent、決定論 merge、`tickers.yml` 更新
-- 週次: Claude fundamental agent、Claude report writer、レポート URL の LINE 通知
+- 週次: Claude macro agent（金利・為替）、Claude fundamental agent、Claude report writer、レポート URL の LINE 通知
 - 決定ログを `docs/curation/decision_*.json` に残す
 - 新規候補は `data/watchlist/` で warmup し、十分な履歴がある場合だけ昇格させる
 
@@ -55,6 +56,7 @@
 
 毎週 土曜 07:00 JST: weekly-fundamental-report.yml
   checkout → uv sync → technical_screen.py
+    → /global-macro-screen（金利・為替・世界情勢のWeb調査、continue-on-error）
     → /jp-stock-fundamental-screen（Web調査、continue-on-error）
     → /weekly-stock-report（Markdown生成、continue-on-error）
     → commit-and-push.sh
@@ -75,7 +77,7 @@
 | ファイル | 内容 |
 |---|---|
 | `00_overview.md` | 本書。目的・全体像・設計判断 |
-| `01_agent_design.md` | 3 agent の役割、skill、入出力 |
+| `01_agent_design.md` | 4 agent の役割、skill、入出力 |
 | `02_merge_guardrails.md` | `curation_merge.py` の合成ロジックと guardrail |
 | `03_workflows_cicd.md` | 2 workflow の実行順、認証、障害時挙動 |
 | `04_data_contracts.md` | ファイルスキーマと統合制約 |
@@ -84,7 +86,7 @@
 
 ## 7. 技術前提
 
-- Claude skills は `.claude/skills/{jp-stock-technical-screen,jp-stock-fundamental-screen,weekly-stock-report}/` に配置済み
+- Claude skills は `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,weekly-stock-report}/` に配置済み
 - `curation_pool.yml` は流動性のある日本株候補を保持
 - `tickers.yml settings.curation` が運用パラメータを保持
 - `data/watchlist/` は `.gitignore` 対象

@@ -14,6 +14,8 @@ docs/curation/
   technical_YYYY-MM-DD.json
   fundamental_latest.json
   fundamental_YYYY-MM-DD.json
+  macro_latest.json
+  macro_YYYY-MM-DD.json
   decision_latest.json
   decision_YYYY-MM-DD.json
 
@@ -223,7 +225,48 @@ Claude fundamental agent が生成します。
 
 必須: `schema_version`, `agent`, `generated_at`, `as_of`, `candidates[].code/name/score`。merge は `score`、`sector`、`as_of` を使います。
 
-## 8. `decision_latest.json`
+## 8. `macro_latest.json`
+
+Claude global-macro agent が生成します（週次）。`curation_merge.py` は参照せず、ファンダ agent とレポートライターのみが消費します。
+
+```json
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-06-06T07:05:00+09:00",
+  "as_of": "2026-06-06",
+  "market_bias": "neutral",
+  "summary": "金利・為替レジームの総括とJP株への含意",
+  "regime": {
+    "fed":    {"policy_rate_pct": 4.5, "stance": "neutral", "next_event": "2026-06-17", "note": "…"},
+    "boj":    {"policy_rate_pct": 0.5, "stance": "hawkish", "next_event": "2026-06-13", "note": "…"},
+    "usdjpy": {"level": 152.3, "trend": "円安", "as_of": "2026-06-05", "note": "…"}
+  },
+  "themes": [
+    {
+      "id": "boj-hike-path",
+      "title": "日銀の追加利上げ観測",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-03", "description": "主な意見で利上げに前向きな発言"},
+      "affected_sectors": ["銀行", "保険"],
+      "affected_codes": ["8306.JP", "8766.JP"],
+      "rationale": "利ざや改善期待。2週間以降のガイダンスで意識されやすい",
+      "sources": [{"title": "日銀 主な意見", "url": "https://www.boj.or.jp/...", "date": "2026-06-03", "type": "primary"}]
+    }
+  ],
+  "universe_considered": ["8306.JP", "7203.JP"],
+  "notes": "金利・為替を主軸に採点",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる。"
+}
+```
+
+`category` ∈ {`monetary`, `fx`, `other`}。`themes[].stance`（`tailwind`/`neutral`/`headwind`, JP株向け）・`affected_sectors`（`curation_pool.yml` の正規セクター名）・`affected_codes`（`NNNN.JP`）が銘柄紐付けの結合キーです。`regime.*.stance` は中銀の政策スタンス（hawkish/neutral/dovish）で別物。**merge は本ファイルを読みません。**
+
+## 9. `decision_latest.json`
 
 ```json
 {
@@ -279,7 +322,7 @@ Claude fundamental agent が生成します。
 }
 ```
 
-## 9. 週次レポート
+## 10. 週次レポート
 
 `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` は同じ内容です。
 
@@ -294,7 +337,7 @@ Claude fundamental agent が生成します。
 
 詳細は `05_weekly_report.md` を正とします。
 
-## 10. 統合制約
+## 11. 統合制約
 
 | 制約 | 対応 |
 |---|---|

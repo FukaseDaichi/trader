@@ -2,18 +2,18 @@
 
 更新日: 2026-06-06 JST
 
-エージェントは 3 体です。すべて `claude-code-action@v1` で起動します。共通の鉄則は「`tickers.yml` を編集しない」「git 操作をしない」「所定パスの成果物だけを書く」です。ユニバース変更は `scripts/curation_merge.py` が担います。
+エージェントは 4 体です。すべて `claude-code-action@v1` で起動します。共通の鉄則は「`tickers.yml` を編集しない」「git 操作をしない」「所定パスの成果物だけを書く」です。ユニバース変更は `scripts/curation_merge.py` が担います。
 
 ## 1. 役割・頻度
 
-| 項目 | テクニカル | ファンダメンタル | レポートライター |
-|---|---|---|---|
-| 頻度 | 平日 04:30 JST | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
-| 目的 | 価格/出来高トレンドで候補採点 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
-| 主入力 | `technical_screen.py` の数値 | Web の一次情報、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `decision_*.json` |
-| モデル | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-sonnet-4-6` |
-| skill | `.claude/skills/jp-stock-technical-screen/` | `.claude/skills/jp-stock-fundamental-screen/` | `.claude/skills/weekly-stock-report/` |
-| 出力 | `docs/curation/technical_latest.json` | `docs/curation/fundamental_latest.json`, `fundamental_<DATE>.json` | `reports/weekly_<DATE>.md`, `weekly_latest.md` |
+| 項目 | テクニカル | マクロ | ファンダメンタル | レポートライター |
+|---|---|---|---|---|
+| 頻度 | 平日 04:30 JST | 土曜 07:00 JST、ファンダ前 | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
+| 目的 | 価格/出来高トレンドで候補採点 | 金利・金融政策・為替レジームを調査 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
+| 主入力 | `technical_screen.py` の数値 | Web の一次/公式情報、`curation_pool.yml`, `tickers.yml` | Web の一次情報、`macro_latest.json`、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `macro_latest.json`, `decision_*.json` |
+| モデル | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-opus-4-8` | `claude-sonnet-4-6` |
+| skill | `.claude/skills/jp-stock-technical-screen/` | `.claude/skills/global-macro-screen/` | `.claude/skills/jp-stock-fundamental-screen/` | `.claude/skills/weekly-stock-report/` |
+| 出力 | `docs/curation/technical_latest.json` | `docs/curation/macro_latest.json`, `macro_<DATE>.json` | `docs/curation/fundamental_latest.json`, `fundamental_<DATE>.json` | `reports/weekly_<DATE>.md`, `weekly_latest.md` |
 
 ## 2. テクニカル・エージェント
 
@@ -41,7 +41,24 @@ agent は baseline を精査して `technical_latest.json` を必要に応じて
 - Web 検索は禁止
 - `tickers.yml`、`data/`、`src/`、`web/`、`.github/` は編集禁止
 
-## 3. ファンダメンタル・エージェント
+## 3. マクロ・エージェント
+
+### skill の要点
+
+- 出力は `docs/curation/macro_latest.json` と `docs/curation/macro_<as_of>.json` のみ
+- 金利・金融政策・為替（Fed/FOMC、日銀、ドル円）を主軸に世界情勢を一次/公式情報で調査
+- 各テーマに JP株向けの `stance`（tailwind/neutral/headwind）、`affected_sectors`（`curation_pool.yml` の正規セクター名）、`affected_codes`（`NNNN.JP`）を付与
+- すべてのテーマに絶対日付付きの一次/公式ソースを要求
+- `tickers.yml` は編集禁止
+
+### 位置づけ
+
+- 週次 workflow でファンダ agent の**前**に実行する。
+- ファンダ agent はこれを読み、前向き（2週間以降）の `catalyst`/`risk_penalty`/`thesis` を tilt する（スコア体系・`schema_version` は不変）。
+- レポートライターはこれを読み「🌍 世界の動き（金利・為替）」節を書く。
+- **`curation_merge.py` は `macro_latest.json` を参照しない。** ユニバース昇格判定はテク+ファンダの合成スコアのみで決まる。
+
+## 4. ファンダメンタル・エージェント
 
 ### skill の要点
 
@@ -63,7 +80,7 @@ agent は baseline を精査して `technical_latest.json` を必要に応じて
 
 `score >= 70` を候補、`score >= 80` を高確信の目安にします。ただし最終昇格は `curation_merge.py` の guardrail が決めます。
 
-## 4. レポートライター・エージェント
+## 5. レポートライター・エージェント
 
 ### skill の要点
 
@@ -75,7 +92,7 @@ agent は baseline を精査して `technical_latest.json` を必要に応じて
 
 レポートの構成と文体は `05_weekly_report.md` を正とします。
 
-## 5. workflow上の安全規約
+## 6. workflow上の安全規約
 
 workflow の `claude_args` で `git commit`、`git push`、`rm` などを抑止しています。さらに構造上、agent 後の不可逆変更は `curation_merge.py` と `.github/scripts/commit-and-push.sh` に限定されています。
 

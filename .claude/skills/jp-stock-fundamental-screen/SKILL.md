@@ -20,23 +20,39 @@ daily merge uses your report as a weekly cache.
   (company IR, TDnet/EDINET, JPX, official guidance). No source → do not include.
 - Use **absolute dates** (e.g. `2026-05-12`) and concrete numbers. No theme-only
   picks. Do not rely on memory for "latest" financials — browse.
+- **Macro alone is never a thesis.** Disclosed fundamentals (earnings, guidance,
+  valuation, balance sheet) must anchor every pick; the macro cache only tilts
+  the forward-looking catalyst/risk view (see Scoring).
 
 ## Universe to review
 
 1. `Read` `tickers.yml` (enabled `tickers` + `watchlist`) and `curation_pool.yml`.
 2. Cover all enabled + watchlist names (so the merge has fresh fundamental
    scores for them), plus promising pool names worth surfacing.
+3. `Read` `docs/curation/macro_latest.json` if it exists (the weekly macro
+   cache: 金利・金融政策・為替レジーム from the global-macro agent). If it is
+   missing, empty, or its `as_of` is older than ~14 days, proceed **without** it
+   and note that in `notes`. Never fail on a missing macro file.
 
 ## Scoring
 
-3. `Read` `references/selection-framework.md` and score each candidate 0-100
+4. `Read` `references/selection-framework.md` and score each candidate 0-100
    (earnings 30 / guidance 20 / valuation 15 / balance sheet 15 / shareholder
    return 10 / catalyst 5 / risk penalty 5). `>=70` selectable, `>=80` high
    conviction. Keep sector diversity in mind (no single sector dominance).
+5. **Macro tilt (forward-looking, 2週間以降).** Map each candidate to
+   `macro_latest.json` themes by matching its `code` against a theme's
+   `affected_codes`, or its `sector` against `affected_sectors`. Reflect the net
+   tilt **only inside** the existing `catalyst` (0..5) and `risk_penalty`
+   (-5..0) subscores and the `thesis` text — do **not** add new subscores or
+   change the rubric. A `tailwind` can lift `catalyst` toward 5 and soften
+   `risk_penalty` toward 0; a `headwind` can trim `catalyst` and push
+   `risk_penalty` toward -5. Any macro claim in a `thesis` must trace to a
+   source in `macro_latest.json`.
 
 ## Output
 
-4. `Write` `docs/curation/fundamental_latest.json` AND
+6. `Write` `docs/curation/fundamental_latest.json` AND
    `docs/curation/fundamental_<as_of>.json` with this schema:
 
    ```json
@@ -52,7 +68,7 @@ daily merge uses your report as a weekly cache.
          "code": "NNNN.JP", "name": "…", "sector": "…",
          "score": 0-100,
          "subscores": {"earnings":…,"guidance":…,"valuation":…,"balance_sheet":…,"shareholder_return":…,"catalyst":…,"risk_penalty":…},
-         "thesis": "日付と数値を含む簡潔な根拠",
+         "thesis": "日付と数値を含む簡潔な根拠（2週間以降に効く金利・為替の追い風/向かい風があれば併記）",
          "sources": [{"title":"…","url":"…","date":"YYYY-MM-DD","type":"primary"}],
          "confidence": "high|medium|low"
        }

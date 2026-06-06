@@ -34,15 +34,17 @@ Use this framework to score fundamentally driven JP stock candidates before edit
 
 - Check concrete business catalysts: price hikes, capacity additions, contract wins, launches, backlog conversion, capex cycles, or regulation with clear earnings impact.
 - Reward catalysts with clear timelines and a direct path into revenue, margin, or cash flow.
+- Forward-looking macro alignment (2週間以降): fold the relevant `macro_latest.json` theme `stance` into this catalyst score — e.g. a 円安 tailwind for exporters or a 日銀利上げ tailwind for banks — bounded by the 5-point ceiling. Never score macro as a separate line item.
 
 7. Risk and liquidity penalty (-5 points)
 
 - Penalize customer concentration, regulatory overhang, weak liquidity, heavy cyclical sensitivity, accounting concerns, or event-binary risk.
+- Include macro headwinds here when a `macro_latest.json` theme's `stance` is `headwind` for the name's sector/code (e.g. 円高 for exporters, a US rate spike for high-PER growth), bounded by the -5 floor.
 
 ## Hard Filters
 
 - Require at least one primary source within the last 90 days for each selected ticker.
-- Require a thesis anchored by disclosed fundamentals, not only a technical setup or macro narrative.
+- Require a thesis anchored by disclosed fundamentals. A macro tailwind/headwind (from `macro_latest.json`) may **tilt** the forward-looking catalyst/risk view but must never **replace** the fundamental anchor — never select a macro-only or technical-only thesis.
 - Exclude names with obvious balance-sheet distress, unresolved accounting red flags, or clearly stale disclosures unless the user explicitly asks for speculative picks.
 
 ## Thresholds
@@ -63,3 +65,4 @@ Use this framework to score fundamentally driven JP stock candidates before edit
 - Prefer source recency within the last 90 days for core thesis points.
 - Write rationale with dates and concrete metrics, not generic narratives.
 - Prefer metrics that directly express fundamental improvement: sales growth, operating margin, EPS, ROE, buyback size, dividend growth, net cash/debt, and plan progress.
+- Any macro claim in a thesis must trace to a source in `macro_latest.json` (which carries primary/official links). Do not invent macro claims.
