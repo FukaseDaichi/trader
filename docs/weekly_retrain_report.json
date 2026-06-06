@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-30 00:11:26",
+  "generated_at": "2026-06-06 00:09:00",
   "summary": {
     "total_tickers": 8,
     "ok_tickers": 8,
     "failed_tickers": 0,
     "model_ready_tickers": 8,
-    "gate_passed_tickers": 2
+    "gate_passed_tickers": 1
   },
   "entries": [
     {
@@ -13,230 +13,7 @@
       "name": "三菱重工業",
       "status": "ok",
       "model_ready": true,
-      "prob_up": 0.631344285563927,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "trades<10",
-        "cagr<3.0%",
-        "expectancy<0.010%",
-        "sharpe<0.20"
-      ],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 7,
-        "cagr": -0.2025908848125768,
-        "max_drawdown": -0.052723838998520844,
-        "sharpe": -2.7577998714864553,
-        "expectancy": -0.004897541189013639,
-        "turnover": 0.058333333333333334,
-        "net_return_total": -0.05247481792570241
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 10,
-        "cagr": 0.03779832794354676,
-        "max_drawdown": -0.0205188407545408,
-        "sharpe": 0.8191719050000633,
-        "expectancy": 0.0018183947959120594,
-        "turnover": 0.041666666666666664,
-        "net_return_total": 0.017824361059707527
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 7,
-        "cagr": -0.2025908848125768,
-        "max_drawdown": -0.052723838998520844,
-        "sharpe": -2.7577998714864553,
-        "expectancy": -0.004897541189013639,
-        "turnover": 0.058333333333333334,
-        "net_return_total": -0.05247481792570241
-      },
-      "thresholds": {
-        "buy": 0.8,
-        "mild_buy": 0.65,
-        "mild_sell": 0.25,
-        "sell": 0.1,
-        "volatility_limit": 0.04
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": false,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.0018183947959120594,
-        "selected_trades": 10,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 10,
-          "cagr": 0.03779832794354676,
-          "max_drawdown": -0.0205188407545408,
-          "sharpe": 0.8191719050000633,
-          "expectancy": 0.0018183947959120594,
-          "turnover": 0.041666666666666664,
-          "net_return_total": 0.017824361059707527
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "6501.JP",
-      "name": "日立製作所",
-      "status": "ok",
-      "model_ready": true,
-      "prob_up": 0.49619787687011874,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "expectancy<0.010%"
-      ],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 15,
-        "cagr": 0.1958566746682313,
-        "max_drawdown": -0.02833880803060218,
-        "sharpe": 1.7091468059112396,
-        "expectancy": -0.000823060601339052,
-        "turnover": 0.125,
-        "net_return_total": 0.043506194300465095
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 40,
-        "cagr": 0.14790005298881992,
-        "max_drawdown": -0.06826635699770234,
-        "sharpe": 1.1399979619499012,
-        "expectancy": 0.002059336650038221,
-        "turnover": 0.16666666666666666,
-        "net_return_total": 0.06788810851182148
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 15,
-        "cagr": 0.1958566746682313,
-        "max_drawdown": -0.02833880803060218,
-        "sharpe": 1.7091468059112396,
-        "expectancy": -0.000823060601339052,
-        "turnover": 0.125,
-        "net_return_total": 0.043506194300465095
-      },
-      "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.55,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": true,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.002059336650038221,
-        "selected_trades": 40,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 40,
-          "cagr": 0.14790005298881992,
-          "max_drawdown": -0.06826635699770234,
-          "sharpe": 1.1399979619499012,
-          "expectancy": 0.002059336650038221,
-          "turnover": 0.16666666666666666,
-          "net_return_total": 0.06788810851182148
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "6701.JP",
-      "name": "日本電気",
-      "status": "ok",
-      "model_ready": true,
-      "prob_up": 0.48650379049181197,
-      "gate_passed": true,
-      "gate_reason": "ok",
-      "failures": [],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 16,
-        "cagr": 0.31319756279603217,
-        "max_drawdown": -0.004057190752491002,
-        "sharpe": 3.9079694045547306,
-        "expectancy": 0.0036391603560365915,
-        "turnover": 0.13333333333333333,
-        "net_return_total": 0.06702311019335139
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 8,
-        "cagr": 0.07002078919293586,
-        "max_drawdown": -0.003910552690935765,
-        "sharpe": 2.0792329903985687,
-        "expectancy": 0.004060764726507175,
-        "turnover": 0.03333333333333333,
-        "net_return_total": 0.03275259078862014
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 16,
-        "cagr": 0.31319756279603217,
-        "max_drawdown": -0.004057190752491002,
-        "sharpe": 3.9079694045547306,
-        "expectancy": 0.0036391603560365915,
-        "turnover": 0.13333333333333333,
-        "net_return_total": 0.06702311019335139
-      },
-      "thresholds": {
-        "buy": 0.8,
-        "mild_buy": 0.65,
-        "mild_sell": 0.25,
-        "sell": 0.1,
-        "volatility_limit": 0.04
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": false,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.004060764726507175,
-        "selected_trades": 8,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 8,
-          "cagr": 0.07002078919293586,
-          "max_drawdown": -0.003910552690935765,
-          "sharpe": 2.0792329903985687,
-          "expectancy": 0.004060764726507175,
-          "turnover": 0.03333333333333333,
-          "net_return_total": 0.03275259078862014
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "7013.JP",
-      "name": "IHI",
-      "status": "ok",
-      "model_ready": true,
-      "prob_up": 0.601927453170585,
+      "prob_up": 0.5958360494830998,
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
@@ -246,183 +23,33 @@
       ],
       "metrics": {
         "oos_days": 60,
-        "trades": 23,
-        "cagr": -0.2830548022512853,
-        "max_drawdown": -0.12084946626998694,
-        "sharpe": -1.6112156680900895,
-        "expectancy": -0.0012373001017768359,
-        "turnover": 0.19166666666666668,
-        "net_return_total": -0.076170352994405
+        "trades": 15,
+        "cagr": -0.3234275042950123,
+        "max_drawdown": -0.13003857132873686,
+        "sharpe": -2.72330449303637,
+        "expectancy": -0.001967408336306533,
+        "turnover": 0.125,
+        "net_return_total": -0.08883159497414761
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 37,
-        "cagr": -0.05236050549585314,
-        "max_drawdown": -0.057152609769249296,
-        "sharpe": -0.44032507326752246,
-        "expectancy": -8.693182357780367e-06,
-        "turnover": 0.15416666666666667,
-        "net_return_total": -0.025284905525285395
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 23,
-        "cagr": -0.2830548022512853,
-        "max_drawdown": -0.12084946626998694,
-        "sharpe": -1.6112156680900895,
-        "expectancy": -0.0012373001017768359,
-        "turnover": 0.19166666666666668,
-        "net_return_total": -0.076170352994405
-      },
-      "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.55,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": true,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": -8.693182357780367e-06,
-        "selected_trades": 37,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 37,
-          "cagr": -0.05236050549585314,
-          "max_drawdown": -0.057152609769249296,
-          "sharpe": -0.44032507326752246,
-          "expectancy": -8.693182357780367e-06,
-          "turnover": 0.15416666666666667,
-          "net_return_total": -0.025284905525285395
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "6762.JP",
-      "name": "TDK",
-      "status": "ok",
-      "model_ready": true,
-      "prob_up": 0.4341611752716536,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "expectancy<0.010%"
-      ],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 10,
-        "cagr": 0.14248444813999162,
-        "max_drawdown": -0.03230741337131371,
-        "sharpe": 1.3924885777047238,
-        "expectancy": -0.0009822527881967187,
-        "turnover": 0.08333333333333333,
-        "net_return_total": 0.0322238281907512
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 31,
-        "cagr": 0.06315896334454485,
-        "max_drawdown": -0.05118896549849972,
-        "sharpe": 0.8112454843278436,
-        "expectancy": 0.0001856211694568347,
-        "turnover": 0.12916666666666668,
-        "net_return_total": 0.029593546897660916
-      },
-      "metrics_holdout": {
-        "oos_days": 60,
-        "trades": 10,
-        "cagr": 0.14248444813999162,
-        "max_drawdown": -0.03230741337131371,
-        "sharpe": 1.3924885777047238,
-        "expectancy": -0.0009822527881967187,
-        "turnover": 0.08333333333333333,
-        "net_return_total": 0.0322238281907512
-      },
-      "thresholds": {
-        "buy": 0.7,
-        "mild_buy": 0.55,
-        "mild_sell": 0.2,
-        "sell": 0.05,
-        "volatility_limit": 0.03
-      },
-      "threshold_optimization": {
-        "enabled": true,
-        "optimized": true,
-        "objective": "expectancy",
-        "min_trades": 8,
-        "candidate_count": 1134,
-        "selection": "feasible_best",
-        "selected_score": 0.0001856211694568347,
-        "selected_trades": 31,
-        "selected_metrics": {
-          "oos_days": 120,
-          "trades": 31,
-          "cagr": 0.06315896334454485,
-          "max_drawdown": -0.05118896549849972,
-          "sharpe": 0.8112454843278436,
-          "expectancy": 0.0001856211694568347,
-          "turnover": 0.12916666666666668,
-          "net_return_total": 0.029593546897660916
-        },
-        "data_split": "chronological_holdout",
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "holdout_used": true
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "6723.JP",
-      "name": "ルネサスエレクトロニクス",
-      "status": "ok",
-      "model_ready": true,
-      "prob_up": 0.4964809621271659,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "trades<10",
-        "cagr<3.0%",
-        "expectancy<0.010%"
-      ],
-      "metrics": {
-        "oos_days": 60,
-        "trades": 8,
-        "cagr": 0.02572003455984251,
-        "max_drawdown": -0.03187805781686037,
-        "sharpe": 0.28558200121741784,
-        "expectancy": -0.0040277532864559235,
+        "trades": 16,
+        "cagr": 0.0019165721878551256,
+        "max_drawdown": -0.03587576507451229,
+        "sharpe": 0.06316847184918081,
+        "expectancy": 0.0004837644472587803,
         "turnover": 0.06666666666666667,
-        "net_return_total": 0.00606470648410351
-      },
-      "metrics_tuning": {
-        "oos_days": 120,
-        "trades": 8,
-        "cagr": 0.016464543092119976,
-        "max_drawdown": -0.009788667476812729,
-        "sharpe": 0.5082645875570652,
-        "expectancy": 0.0019053842482099558,
-        "turnover": 0.03333333333333333,
-        "net_return_total": 0.0078067301384119325
+        "net_return_total": 0.0009121957532745029
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 8,
-        "cagr": 0.02572003455984251,
-        "max_drawdown": -0.03187805781686037,
-        "sharpe": 0.28558200121741784,
-        "expectancy": -0.0040277532864559235,
-        "turnover": 0.06666666666666667,
-        "net_return_total": 0.00606470648410351
+        "trades": 15,
+        "cagr": -0.3234275042950123,
+        "max_drawdown": -0.13003857132873686,
+        "sharpe": -2.72330449303637,
+        "expectancy": -0.001967408336306533,
+        "turnover": 0.125,
+        "net_return_total": -0.08883159497414761
       },
       "thresholds": {
         "buy": 0.7,
@@ -438,17 +65,393 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": 0.0019053842482099558,
+        "selected_score": 0.0004837644472587803,
+        "selected_trades": 16,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 16,
+          "cagr": 0.0019165721878551256,
+          "max_drawdown": -0.03587576507451229,
+          "sharpe": 0.06316847184918081,
+          "expectancy": 0.0004837644472587803,
+          "turnover": 0.06666666666666667,
+          "net_return_total": 0.0009121957532745029
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "6501.JP",
+      "name": "日立製作所",
+      "status": "ok",
+      "model_ready": true,
+      "prob_up": 0.5589452758344118,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "trades<10"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 2,
+        "cagr": 0.045434164558328494,
+        "max_drawdown": -0.0007499999999999174,
+        "sharpe": 1.924339295472096,
+        "expectancy": 0.005321906674316285,
+        "turnover": 0.016666666666666666,
+        "net_return_total": 0.010635267988621244
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 8,
+        "cagr": 0.1112291355683126,
+        "max_drawdown": -0.012781292338709727,
+        "sharpe": 1.6825362185830606,
+        "expectancy": 0.006398375477555972,
+        "turnover": 0.03333333333333333,
+        "net_return_total": 0.05150477086202865
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 2,
+        "cagr": 0.045434164558328494,
+        "max_drawdown": -0.0007499999999999174,
+        "sharpe": 1.924339295472096,
+        "expectancy": 0.005321906674316285,
+        "turnover": 0.016666666666666666,
+        "net_return_total": 0.010635267988621244
+      },
+      "thresholds": {
+        "buy": 0.75,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": 0.006398375477555972,
         "selected_trades": 8,
         "selected_metrics": {
           "oos_days": 120,
           "trades": 8,
-          "cagr": 0.016464543092119976,
-          "max_drawdown": -0.009788667476812729,
-          "sharpe": 0.5082645875570652,
-          "expectancy": 0.0019053842482099558,
+          "cagr": 0.1112291355683126,
+          "max_drawdown": -0.012781292338709727,
+          "sharpe": 1.6825362185830606,
+          "expectancy": 0.006398375477555972,
           "turnover": 0.03333333333333333,
-          "net_return_total": 0.0078067301384119325
+          "net_return_total": 0.05150477086202865
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "6701.JP",
+      "name": "日本電気",
+      "status": "ok",
+      "model_ready": true,
+      "prob_up": 0.5268976753171708,
+      "gate_passed": true,
+      "gate_reason": "ok",
+      "failures": [],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 16,
+        "cagr": 0.15599717352482179,
+        "max_drawdown": -0.024387099194709716,
+        "sharpe": 1.862974924073438,
+        "expectancy": 0.001587456197024433,
+        "turnover": 0.13333333333333333,
+        "net_return_total": 0.035117635170534234
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 33,
+        "cagr": 0.00031681664610294646,
+        "max_drawdown": -0.12331543003231893,
+        "sharpe": 0.09705001627567993,
+        "expectancy": 0.000752335745020127,
+        "turnover": 0.1375,
+        "net_return_total": 0.00015085255343882942
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 16,
+        "cagr": 0.15599717352482179,
+        "max_drawdown": -0.024387099194709716,
+        "sharpe": 1.862974924073438,
+        "expectancy": 0.001587456197024433,
+        "turnover": 0.13333333333333333,
+        "net_return_total": 0.035117635170534234
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": 0.000752335745020127,
+        "selected_trades": 33,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 33,
+          "cagr": 0.00031681664610294646,
+          "max_drawdown": -0.12331543003231893,
+          "sharpe": 0.09705001627567993,
+          "expectancy": 0.000752335745020127,
+          "turnover": 0.1375,
+          "net_return_total": 0.00015085255343882942
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "7013.JP",
+      "name": "IHI",
+      "status": "ok",
+      "model_ready": true,
+      "prob_up": 0.5787765169946486,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 17,
+        "cagr": -0.5360513510324176,
+        "max_drawdown": -0.17783858389037088,
+        "sharpe": -3.518003505729232,
+        "expectancy": -0.00028300626256264386,
+        "turnover": 0.14166666666666666,
+        "net_return_total": -0.16710918101348438
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 30,
+        "cagr": 0.23704606476833168,
+        "max_drawdown": -0.03183306953568754,
+        "sharpe": 2.254529379183609,
+        "expectancy": 0.0026085873137123923,
+        "turnover": 0.125,
+        "net_return_total": 0.10660664157301625
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 17,
+        "cagr": -0.5360513510324176,
+        "max_drawdown": -0.17783858389037088,
+        "sharpe": -3.518003505729232,
+        "expectancy": -0.00028300626256264386,
+        "turnover": 0.14166666666666666,
+        "net_return_total": -0.16710918101348438
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.55,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": 0.0026085873137123923,
+        "selected_trades": 30,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 30,
+          "cagr": 0.23704606476833168,
+          "max_drawdown": -0.03183306953568754,
+          "sharpe": 2.254529379183609,
+          "expectancy": 0.0026085873137123923,
+          "turnover": 0.125,
+          "net_return_total": 0.10660664157301625
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "6762.JP",
+      "name": "TDK",
+      "status": "ok",
+      "model_ready": true,
+      "prob_up": 0.44417035122231124,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "trades<10",
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 0,
+        "cagr": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "expectancy": 0.0,
+        "turnover": 0.0,
+        "net_return_total": 0.0
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 12,
+        "cagr": -0.00596870626084145,
+        "max_drawdown": -0.01043071137295526,
+        "sharpe": -0.28788323804431665,
+        "expectancy": -0.0002295430571702851,
+        "turnover": 0.05,
+        "net_return_total": -0.002846697681622712
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 0,
+        "cagr": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "expectancy": 0.0,
+        "turnover": 0.0,
+        "net_return_total": 0.0
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": -0.0002295430571702851,
+        "selected_trades": 12,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 12,
+          "cagr": -0.00596870626084145,
+          "max_drawdown": -0.01043071137295526,
+          "sharpe": -0.28788323804431665,
+          "expectancy": -0.0002295430571702851,
+          "turnover": 0.05,
+          "net_return_total": -0.002846697681622712
+        },
+        "data_split": "chronological_holdout",
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "holdout_used": true
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "6723.JP",
+      "name": "ルネサスエレクトロニクス",
+      "status": "ok",
+      "model_ready": true,
+      "prob_up": 0.5137943728505233,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "trades<10",
+        "cagr<3.0%",
+        "expectancy<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "oos_days": 60,
+        "trades": 4,
+        "cagr": -0.017688534686773005,
+        "max_drawdown": -0.0007500000000000284,
+        "sharpe": -0.0931020175812949,
+        "expectancy": -0.0006509152598024451,
+        "turnover": 0.03333333333333333,
+        "net_return_total": -0.004240233872683241
+      },
+      "metrics_tuning": {
+        "oos_days": 120,
+        "trades": 12,
+        "cagr": 0.06433711643751439,
+        "max_drawdown": -0.01582956061364016,
+        "sharpe": 1.3349069484323304,
+        "expectancy": 0.003776711075916044,
+        "turnover": 0.05,
+        "net_return_total": 0.03013670222797349
+      },
+      "metrics_holdout": {
+        "oos_days": 60,
+        "trades": 4,
+        "cagr": -0.017688534686773005,
+        "max_drawdown": -0.0007500000000000284,
+        "sharpe": -0.0931020175812949,
+        "expectancy": -0.0006509152598024451,
+        "turnover": 0.03333333333333333,
+        "net_return_total": -0.004240233872683241
+      },
+      "thresholds": {
+        "buy": 0.7,
+        "mild_buy": 0.6,
+        "mild_sell": 0.2,
+        "sell": 0.05,
+        "volatility_limit": 0.03
+      },
+      "threshold_optimization": {
+        "enabled": true,
+        "optimized": true,
+        "objective": "expectancy",
+        "min_trades": 8,
+        "candidate_count": 1134,
+        "selection": "feasible_best",
+        "selected_score": 0.003776711075916044,
+        "selected_trades": 12,
+        "selected_metrics": {
+          "oos_days": 120,
+          "trades": 12,
+          "cagr": 0.06433711643751439,
+          "max_drawdown": -0.01582956061364016,
+          "sharpe": 1.3349069484323304,
+          "expectancy": 0.003776711075916044,
+          "turnover": 0.05,
+          "net_return_total": 0.03013670222797349
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
@@ -462,39 +465,42 @@
       "name": "ソニーグループ",
       "status": "ok",
       "model_ready": true,
-      "prob_up": 0.538757114844546,
-      "gate_passed": true,
-      "gate_reason": "ok",
-      "failures": [],
+      "prob_up": 0.5254466937721847,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "sharpe<0.20"
+      ],
       "metrics": {
         "oos_days": 60,
-        "trades": 20,
-        "cagr": 0.19524745256688836,
-        "max_drawdown": -0.021064093718785593,
-        "sharpe": 1.882292364235074,
-        "expectancy": 0.00014501226336008924,
-        "turnover": 0.16666666666666666,
-        "net_return_total": 0.043379596382977725
+        "trades": 14,
+        "cagr": -0.012719659929234406,
+        "max_drawdown": -0.026135504480517047,
+        "sharpe": -0.20639859954790274,
+        "expectancy": 0.000574292104896814,
+        "turnover": 0.11666666666666667,
+        "net_return_total": -0.003043275863449435
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 20,
-        "cagr": -0.11730278120594062,
-        "max_drawdown": -0.07419067536398838,
-        "sharpe": -2.0831440572927344,
-        "expectancy": -0.0030392541624091997,
-        "turnover": 0.08333333333333333,
-        "net_return_total": -0.05768506300831955
+        "trades": 29,
+        "cagr": -0.07983105217246489,
+        "max_drawdown": -0.07500908368604797,
+        "sharpe": -1.1534780746670483,
+        "expectancy": -0.001037210843963807,
+        "turnover": 0.12083333333333333,
+        "net_return_total": -0.03884355469450085
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 20,
-        "cagr": 0.19524745256688836,
-        "max_drawdown": -0.021064093718785593,
-        "sharpe": 1.882292364235074,
-        "expectancy": 0.00014501226336008924,
-        "turnover": 0.16666666666666666,
-        "net_return_total": 0.043379596382977725
+        "trades": 14,
+        "cagr": -0.012719659929234406,
+        "max_drawdown": -0.026135504480517047,
+        "sharpe": -0.20639859954790274,
+        "expectancy": 0.000574292104896814,
+        "turnover": 0.11666666666666667,
+        "net_return_total": -0.003043275863449435
       },
       "thresholds": {
         "buy": 0.7,
@@ -510,17 +516,17 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": -0.0030392541624091997,
-        "selected_trades": 20,
+        "selected_score": -0.001037210843963807,
+        "selected_trades": 29,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 20,
-          "cagr": -0.11730278120594062,
-          "max_drawdown": -0.07419067536398838,
-          "sharpe": -2.0831440572927344,
-          "expectancy": -0.0030392541624091997,
-          "turnover": 0.08333333333333333,
-          "net_return_total": -0.05768506300831955
+          "trades": 29,
+          "cagr": -0.07983105217246489,
+          "max_drawdown": -0.07500908368604797,
+          "sharpe": -1.1534780746670483,
+          "expectancy": -0.001037210843963807,
+          "turnover": 0.12083333333333333,
+          "net_return_total": -0.03884355469450085
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
@@ -534,7 +540,7 @@
       "name": "大林組",
       "status": "ok",
       "model_ready": true,
-      "prob_up": 0.557779942567642,
+      "prob_up": 0.5912591611711274,
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
@@ -544,33 +550,33 @@
       ],
       "metrics": {
         "oos_days": 60,
-        "trades": 29,
-        "cagr": -0.39377144459636715,
-        "max_drawdown": -0.12023780924589855,
-        "sharpe": -2.8663132893281897,
-        "expectancy": -0.003098998278508017,
-        "turnover": 0.24166666666666667,
-        "net_return_total": -0.11233977653855154
+        "trades": 22,
+        "cagr": -0.28501629288803476,
+        "max_drawdown": -0.06260803236212409,
+        "sharpe": -1.9208382364439232,
+        "expectancy": -0.002456795131522302,
+        "turnover": 0.18333333333333332,
+        "net_return_total": -0.07677276832954294
       },
       "metrics_tuning": {
         "oos_days": 120,
-        "trades": 41,
-        "cagr": 0.15304289011667693,
-        "max_drawdown": -0.033896777450107995,
-        "sharpe": 1.8160827184343014,
-        "expectancy": 0.00018073650088739468,
-        "turnover": 0.17083333333333334,
-        "net_return_total": 0.07016371106532704
+        "trades": 38,
+        "cagr": 0.15949135805482562,
+        "max_drawdown": -0.03828039448239262,
+        "sharpe": 1.4186171563510654,
+        "expectancy": -0.00028150843273149677,
+        "turnover": 0.15833333333333333,
+        "net_return_total": 0.07300952974281838
       },
       "metrics_holdout": {
         "oos_days": 60,
-        "trades": 29,
-        "cagr": -0.39377144459636715,
-        "max_drawdown": -0.12023780924589855,
-        "sharpe": -2.8663132893281897,
-        "expectancy": -0.003098998278508017,
-        "turnover": 0.24166666666666667,
-        "net_return_total": -0.11233977653855154
+        "trades": 22,
+        "cagr": -0.28501629288803476,
+        "max_drawdown": -0.06260803236212409,
+        "sharpe": -1.9208382364439232,
+        "expectancy": -0.002456795131522302,
+        "turnover": 0.18333333333333332,
+        "net_return_total": -0.07677276832954294
       },
       "thresholds": {
         "buy": 0.7,
@@ -586,17 +592,17 @@
         "min_trades": 8,
         "candidate_count": 1134,
         "selection": "feasible_best",
-        "selected_score": 0.00018073650088739468,
-        "selected_trades": 41,
+        "selected_score": -0.00028150843273149677,
+        "selected_trades": 38,
         "selected_metrics": {
           "oos_days": 120,
-          "trades": 41,
-          "cagr": 0.15304289011667693,
-          "max_drawdown": -0.033896777450107995,
-          "sharpe": 1.8160827184343014,
-          "expectancy": 0.00018073650088739468,
-          "turnover": 0.17083333333333334,
-          "net_return_total": 0.07016371106532704
+          "trades": 38,
+          "cagr": 0.15949135805482562,
+          "max_drawdown": -0.03828039448239262,
+          "sharpe": 1.4186171563510654,
+          "expectancy": -0.00028150843273149677,
+          "turnover": 0.15833333333333333,
+          "net_return_total": 0.07300952974281838
         },
         "data_split": "chronological_holdout",
         "tuning_rows": 120,
