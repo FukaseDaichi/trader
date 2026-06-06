@@ -1,87 +1,82 @@
 # エージェント設計（テクニカル / ファンダメンタル / レポートライター）
 
-作成日: 2026-06-06 JST ／ 改訂: rev.2
+更新日: 2026-06-06 JST
 
-エージェントは3体。すべて `claude-code-action@v1` で起動する。共通の鉄則は **「`tickers.yml` を絶対に編集しない」「出力は所定パスのファイルのみ」**。ユニバース変更は決定論マージ(`02`)が担う。
+エージェントは 3 体です。すべて `claude-code-action@v1` で起動します。共通の鉄則は「`tickers.yml` を編集しない」「git 操作をしない」「所定パスの成果物だけを書く」です。ユニバース変更は `scripts/curation_merge.py` が担います。
 
-## 1. 役割・頻度の一覧
+## 1. 役割・頻度
 
-| 項目 | ② テクニカル | ① ファンダメンタル | ⑥ レポートライター |
+| 項目 | テクニカル | ファンダメンタル | レポートライター |
 |---|---|---|---|
-| 頻度 | **日次（平日）** | **週次（土曜）** | **週次（土曜・①の直後）** |
-| 目的 | 価格/出来高トレンドで候補採点 | 業績/ガイダンス/財務で候補採点 | ①②を総合した解説レポート生成 |
-| 主入力 | ローカル価格データ→指標 | Web（IR/TDnet/EDINET/JPX/開示） | `fundamental_latest.json`+`technical_latest.json`+直近`decision_*` |
-| 推奨モデル | Sonnet 4.6 (`claude-sonnet-4-6`) | Opus 4.8 (`claude-opus-4-8`) | Sonnet 4.6 (`claude-sonnet-4-6`) |
-| 主ツール | `Read,Write,Glob,Grep,Bash(指標計算)`（Web禁止） | `WebSearch,WebFetch,Read,Write,Glob,Grep,Bash` | `Read,Write`（Web/Bash不要） |
+| 頻度 | 平日 04:30 JST | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
+| 目的 | 価格/出来高トレンドで候補採点 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
+| 主入力 | `technical_screen.py` の数値 | Web の一次情報、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `decision_*.json` |
+| モデル | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-sonnet-4-6` |
 | skill | `.claude/skills/jp-stock-technical-screen/` | `.claude/skills/jp-stock-fundamental-screen/` | `.claude/skills/weekly-stock-report/` |
-| 出力 | `docs/curation/technical_latest.json` | `docs/curation/fundamental_latest.json` | `reports/weekly_YYYY-MM-DD.md` |
+| 出力 | `docs/curation/technical_latest.json` | `docs/curation/fundamental_latest.json`, `fundamental_<DATE>.json` | `reports/weekly_<DATE>.md`, `weekly_latest.md` |
 
-> 日次マージは「当日のテクニカル」＋「直近週のファンダ（キャッシュ）」で合成する（`02`）。ファンダは週1更新でも、業績は日次で動かないため実用上十分。
+## 2. テクニカル・エージェント
 
-## 2. ② テクニカル・エージェント（日次）
+### 実行前 baseline
 
-### 2.1 設計思想：決定論計算 + LLM判断のハイブリッド
-指標計算は決定論であるべき。エージェントは **`Bash` で計算スクリプト実行 → 数値読取 → 順位付け・根拠生成 → JSON出力** の流れ。
+workflow は agent の前に必ず以下を実行します。
 
-新規 `scripts/technical_screen.py`（実装対象）:
-- 入力: 候補プール `curation_pool.yml`（流動性ある日本株、既定30〜60銘柄）+ 既存enabled + watchlist。
-- 各銘柄で `data/` / `data/watchlist/` の parquet を読み、既存 `src/model.add_features()`（35指標）を流用して指標算出。
-- `docs/curation/technical_features.json`（中間生成物。エージェントの数値入力）を出力。
+```bash
+uv run python scripts/technical_screen.py --pool curation_pool.yml --date <YYYY-MM-DD>
+```
 
-### 2.2 skill 手順（`.claude/skills/jp-stock-technical-screen/SKILL.md`）
-1. `uv run python scripts/technical_screen.py --pool curation_pool.yml --out docs/curation/technical_features.json` を実行。
-2. 生成JSONを `Read`。
-3. 各銘柄を 0-100 採点（トレンド/MA配列/モメンタム/出来高/相対力/ブレイクの重み付け。重みはskillに明記）。
-4. 上位の短い根拠を付け `docs/curation/technical_latest.json` を `Write`。
-5. **`tickers.yml` 非編集**を厳守。
+このスクリプトは `src.model.add_features(dropna=False)` を使い、以下を生成します。
 
-### 2.3 出力契約
-`technical_latest.json`（スキーマは `04`）。各候補 `code/name/score/signals/horizon_days/rationale/rows_available/warmup_ok`。`warmup_ok=false`（行数<`min_warmup_rows`）はマージで昇格抑止。
+- `docs/curation/technical_features.json`
+- `docs/curation/technical_latest.json`
+- `docs/curation/technical_<DATE>.json`
 
-## 3. ① ファンダメンタル・エージェント（週次）
+agent は baseline を精査して `technical_latest.json` を必要に応じて更新します。agent が失敗しても baseline が残るため、merge は継続できます。
 
-### 3.1 skill 配置と既存資産の再利用
-既存 `skills/jp-stock-ticker-curation/`（`SKILL.md`+`references/selection-framework.md`）を**資産として再利用**し、出力契約のみ変更:
+### skill の要点
 
-- 新skill `.claude/skills/jp-stock-fundamental-screen/SKILL.md` を作成（`/skill-name` 起動は `.claude/skills/` 配下が対象）。
-- スコアは既存 `selection-framework.md`（100点：業績30/ガイダンス20/バリュ15/財務15/株主還元10/カタリスト5/リスク減点5）を流用（`references/` に複製 or 相対参照）。
-- **重要差分**: 既存skillは `tickers.yml` を直接編集するが、新skillは**「`tickers.yml` 非編集。出力は `docs/curation/fundamental_latest.json` のみ」**を明記。
+- 出力は `docs/curation/technical_latest.json` のみ
+- `code`, `name`, `rows_available`, `warmup_ok` は入力値を維持
+- 採点材料は MA5/20/60/200、5/20/60日リターン、RSI、MACD、ATR%、出来高比率、20日高値位置など
+- Web 検索は禁止
+- `tickers.yml`、`data/`、`src/`、`web/`、`.github/` は編集禁止
 
-### 3.2 週次処理（deep相当）
-- 既存enabled + watchlist + 流動性候補を longlist 化し、フレームワークでフル採点。
-- ハードフィルタ（直近90日以内の一次情報1件以上、財務危機/会計懸念の除外）を適用。
-- 出典(一次情報URL+日付)・数値・日付を必須。テーマ単独推奨は禁止。
+## 3. ファンダメンタル・エージェント
 
-### 3.3 出力契約
-`fundamental_latest.json`（スキーマは `04`）。各候補 `code/name/sector/score/subscores/thesis/sources/confidence`。`score>=70` 採用候補、`>=80` 高確信。この週次ファイルが翌週の日次マージのファンダ入力（キャッシュ）になる。
+### skill の要点
 
-## 4. ⑥ レポートライター・エージェント（週次）
+- 出力は `docs/curation/fundamental_latest.json` と `docs/curation/fundamental_<as_of>.json`
+- すべての selected candidate に、直近約 90 日以内の一次情報を少なくとも 1 つ要求
+- `references/selection-framework.md` の 100 点評価を使用
+- `as_of` は merge の鮮度判定で使うため必須
+- `tickers.yml` は編集禁止
 
-### 4.1 役割
-構造化された①②の結果を、**人が読んで楽しいカジュアル解説**（女の子ナビ／「〜だね！」）の Markdown に変換する。分析と“読み物”を分離し、ペルソナを1箇所に集約。
+### 採点軸
 
-### 4.2 入力 → 出力
-- 入力: `docs/curation/fundamental_latest.json`, `docs/curation/technical_latest.json`, 直近1週間の `docs/curation/decision_*.json`（入替の経緯）。
-- 出力: `reports/weekly_YYYY-MM-DD.md`（＋ `reports/weekly_latest.md`）。**`docs/` 外の `reports/`** に置く（publishのrsync衝突回避）。
+- 業績モメンタムと質: 30
+- ガイダンスと上方修正トレンド: 20
+- バリュエーション再評価余地: 15
+- バランスシートとキャッシュ創出: 15
+- 株主還元とガバナンス: 10
+- カタリスト: 5
+- リスク/流動性ペナルティ: -5
 
-### 4.3 skill 手順（`.claude/skills/weekly-stock-report/SKILL.md`）
-1. 上記JSONを `Read`。
-2. ペルソナ・文体規約（`05` に定義）に従い、構成（あいさつ→今週の注目銘柄→ユニバースの変化→地合い→まとめ→免責）でMarkdownを `Write`。
-3. **数値・日付・出典は正確に**（カジュアルでも事実は崩さない）。投資助言ではない旨の免責を必ず入れる。
-4. `tickers.yml` 等は非編集。
+`score >= 70` を候補、`score >= 80` を高確信の目安にします。ただし最終昇格は `curation_merge.py` の guardrail が決めます。
 
-> 文体・構成・サンプルは `05_weekly_report.md` を参照。
+## 4. レポートライター・エージェント
 
-## 5. クォータ配慮（サブスク範囲）
+### skill の要点
 
-- 起動回数: テクニカル=平日(~250/年)、ファンダ=週次(~52/年)、レポート=週次(~52/年)。**Opus消費は週1のファンダのみ**に限定。
-- `--max-turns` 上限: テクニカル15-20 / ファンダ(週次)40 / レポート10-15。
-- レート制限時は**ユニバース変更なし＝現状維持**（`02`§6）。レポートは翌週分でリカバリ。
-- 既存 `main.py`（予測本体）はサブスク非消費。サブスク消費は本キュレーションのエージェント起動に限定。
+- 出力は `reports/weekly_<as_of>.md` と `reports/weekly_latest.md`
+- `docs/` ではなくリポジトリ直下の `reports/` に書く
+- 入力 JSON に存在しない銘柄、数値、出典は作らない
+- カジュアルな女の子ナビ文体だが、数値・日付・固有名詞は正確に保つ
+- 末尾に投資助言ではない旨の免責を必ず入れる
 
-## 6. 共通の安全規約（全エージェント）
+レポートの構成と文体は `05_weekly_report.md` を正とします。
 
-- 出力先は所定パスのみ（テク/ファンダ=`docs/curation/*.json`、レポート=`reports/*.md`）。`tickers.yml`,`data/`,`web/`,`src/`,`.github/` は変更禁止。
-- `git commit`/`git push` 非実行（`--disallowedTools` で抑止。push は決定論ステップが担う）。
-- 値は推測で埋めず、一次情報・実データに基づく。日付は絶対表記（例 `2026-06-05`）。
-- リポジトリ標準（`CLAUDE.md`：赤=上昇/青=下落、`NNNN.JP` 形式、日本語UI）を尊重。
+## 5. workflow上の安全規約
+
+workflow の `claude_args` で `git commit`、`git push`、`rm` などを抑止しています。さらに構造上、agent 後の不可逆変更は `curation_merge.py` と `.github/scripts/commit-and-push.sh` に限定されています。
+
+agent step は `continue-on-error: true` です。テクニカル agent が失敗しても baseline が残り、ファンダ/レポート agent が失敗しても commit helper は差分なしなら正常終了します。

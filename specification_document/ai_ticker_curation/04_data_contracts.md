@@ -1,57 +1,63 @@
 # データ契約とファイルスキーマ
 
-作成日: 2026-06-06 JST
+更新日: 2026-06-06 JST
 
-すべての日付は JST。新規ファイルは UTF-8 / `ensure_ascii=False`（既存スクリプトに整合）。各成果物は `*_latest.json`（最新）と `*_YYYY-MM-DD.json`（日付版・監査）を併せて出力する。
+AI 銘柄キュレーションの成果物は UTF-8 / `ensure_ascii=False` の JSON または Markdown です。日付は原則 JST の絶対日付を使います。
 
-## 1. ディレクトリ構成（新規）
+## 1. ディレクトリ構成
 
-```
+```text
 docs/curation/
-  fundamental_latest.json      # ①ファンダ出力（週次更新＝日次マージのキャッシュ）
-  fundamental_YYYY-MM-DD.json
-  technical_features.json      # technical_screen.py が生成（テクニカルの数値入力）
-  technical_latest.json        # ②テクニカル出力（日次更新）
+  warmup_report.json
+  technical_features.json
+  technical_latest.json
   technical_YYYY-MM-DD.json
-  decision_latest.json         # ③マージ決定（監査・日次）
+  fundamental_latest.json
+  fundamental_YYYY-MM-DD.json
+  decision_latest.json
   decision_YYYY-MM-DD.json
-reports/                       # ★docs/外。publishのrsync --delete 対象外。GitHub blob URLで通知
-  weekly_latest.md             # ⑥週次総合レポート（女の子ナビ解説）
+
+reports/
+  weekly_latest.md
   weekly_YYYY-MM-DD.md
-data/watchlist/                # gitignore（非コミット）。毎回 update_data がフル履歴を再取得
-  {code}.parquet               # 候補のwarmupデータ（sync_data_files の退避対象外）
-curation_pool.yml              # テクニカルが日次スクリーニングする候補プール
+
+data/watchlist/
+  {code}.parquet
+
+curation_pool.yml
 ```
 
-> **配置の使い分け**: `tickers.yml` 更新の作業物は `docs/curation/`、人が読む週次レポートは **`docs/` 外の `reports/`**。後者は publish の `rsync --delete web/out/ docs/` の影響を受けず、`https://github.com/<owner>/<repo>/blob/main/reports/weekly_*.md` で安定的に参照できる。
+`docs/curation/` と `reports/` は workflow 実行後に作られるため、未実行の checkout では存在しない場合があります。`data/watchlist/` は `.gitignore` 対象です。
 
-## 2. `tickers.yml` 拡張（後方互換）
-
-`load_tickers()` は `tickers` と `settings.max_tickers` のみ参照するため、`watchlist` と `settings.curation` を**追加しても既存処理は無影響**。
+## 2. `tickers.yml` 拡張
 
 ```yaml
 tickers:
   - code: "7011.JP"
     name: "三菱重工業"
     enabled: true
-    # 以下はキュレーション用の任意メタ（既存処理は無視）
-    source: "curation"        # manual | curation
+    source: "manual"
+    sector: "機械・重工"
     added_on: "2026-06-06"
+    disabled_on: "2026-06-10"
     combined: 81.5
+    tech_score: 80
+    fund_score: 83
 
-watchlist:                    # 新規・任意。マージが管理。enabled昇格の控え
+watchlist:
   - code: "6920.JP"
     name: "レーザーテック"
+    sector: "半導体製造装置"
     fund_score: 72
     tech_score: 80
     combined: 76.0
-    status: "warming"         # warming | ready
+    status: "warming"
     rows_available: 140
     added_on: "2026-06-04"
 
 settings:
-  max_tickers: null           # 既存。enabled処理数の上限（null=無制限）。キュレーションは別途 max_universe を使用
-  curation:                   # 新規・任意
+  max_tickers: null
+  curation:
     enabled: true
     max_universe: 10
     max_daily_swaps: 2
@@ -64,32 +70,120 @@ settings:
     fund_weight: 0.5
     tech_weight: 0.5
     cooldown_days: 5
-    max_fundamental_age_days: 14   # ファンダ・キャッシュ許容鮮度（超過で新規昇格停止）
+    max_fundamental_age_days: 14
     report:
-      persona_name: "あおい"        # 週次レポートの女の子ナビ名（任意・変更可）
-      tone: "casual_kawaii"         # 「〜だね！」系のカジュアル文体（05参照）
+      persona_name: "あおい"
+      tone: "casual_kawaii"
 ```
 
-> `max_tickers` と `max_universe` の関係: `max_tickers` を非nullにすると `load_tickers()` が enabled を先頭から切り詰めるため、キュレーションのユニバース管理と二重制御になり混乱しうる。**`max_tickers: null` を維持**し、上限は `curation.max_universe` 側で一元管理することを推奨。
+`load_tickers()` は `tickers` と `settings.max_tickers` を検証・利用します。`watchlist` と `settings.curation` は `scripts/curation_*` 用です。
 
-## 3. `curation_pool.yml`（テクニカル候補プール）
-
-流動性のある日本株（例: Nikkei225/TOPIX Coreのサブセット、既定30〜60銘柄）。テクニカル・エージェントの日次スクリーニング対象。週次（既存の universe-refresh 枠）で見直す。
+## 3. `curation_pool.yml`
 
 ```yaml
 pool:
   - code: "7011.JP"
     name: "三菱重工業"
-    sector: "機械"
-  - code: "6920.JP"
-    name: "レーザーテック"
-    sector: "半導体製造装置"
-  # ... 30〜60銘柄
+    sector: "機械・重工"
 ```
 
-## 4. ① ファンダ出力 `fundamental_latest.json`（週次更新／日次マージのキャッシュ）
+`technical_screen.py` は pool + enabled + watchlist の union を評価します。
 
-> 週次（土曜）に更新され、翌週の平日マージはこのファイルの `fund_score` をキャッシュとして参照する。マージ側は `as_of` で鮮度を確認し、`max_fundamental_age_days` 超過なら新規昇格を停止する（`02`§2/§6）。
+## 4. `warmup_report.json`
+
+```json
+{
+  "generated_at": "2026-06-06T04:32:00+09:00",
+  "out_dir": "data/watchlist",
+  "targets": 30,
+  "succeeded": 28,
+  "entries": [
+    {"code": "7203.JP", "rows": 5000, "latest_date": "2026-06-05"}
+  ]
+}
+```
+
+## 5. `technical_features.json`
+
+`scripts/technical_screen.py` の中間生成物です。
+
+```json
+{
+  "generated_at": "2026-06-06T04:34:00+09:00",
+  "data_through": "2026-06-05",
+  "min_warmup_rows": 200,
+  "entries": [
+    {
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "rows": 740,
+      "data_through": "2026-06-05",
+      "close": 21340.0,
+      "ret_5d": 0.031,
+      "ret_20d": 0.078,
+      "ret_60d": 0.12,
+      "ma_5": 21000.0,
+      "ma_20": 20100.0,
+      "ma_60": 19500.0,
+      "ma_200": 17800.0,
+      "div_ma_60": 0.094,
+      "rsi14": 61.2,
+      "macd_hist": 35.2,
+      "macd_hist_change": 3.1,
+      "atr_pct": 0.021,
+      "vol_ratio": 1.4,
+      "high_20d": 21500.0,
+      "high_60d": 21800.0,
+      "price_position_20d": 0.93
+    }
+  ]
+}
+```
+
+## 6. `technical_latest.json`
+
+```json
+{
+  "schema_version": 1,
+  "agent": "technical",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-06-06T04:35:40+09:00",
+  "as_of": "2026-06-06",
+  "data_through": "2026-06-05",
+  "candidates": [
+    {
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "score": 80.0,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 61.2,
+        "macd": "bull",
+        "atr_pct": 0.021,
+        "vol_ratio": 1.4,
+        "breakout_20d": true,
+        "ret_20d": 0.078,
+        "ret_5d": 0.031
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI61",
+      "rows_available": 740,
+      "warmup_ok": true
+    }
+  ],
+  "universe_evaluated": ["6920.JP"],
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
+}
+```
+
+`model` は baseline では `deterministic-baseline`、agent 精査後は `claude-sonnet-4-6` になり得ます。
+
+## 7. `fundamental_latest.json`
+
+Claude fundamental agent が生成します。
 
 ```json
 {
@@ -106,82 +200,30 @@ pool:
       "sector": "半導体製造装置",
       "score": 84,
       "subscores": {
-        "earnings": 26, "guidance": 17, "valuation": 12,
-        "balance_sheet": 13, "shareholder_return": 8,
-        "catalyst": 5, "risk_penalty": -3
+        "earnings": 26,
+        "guidance": 17,
+        "valuation": 12,
+        "balance_sheet": 13,
+        "shareholder_return": 8,
+        "catalyst": 5,
+        "risk_penalty": -3
       },
-      "thesis": "2026-05-12発表のFY受注がYoY+xx%、上方修正。EUV検査の…（日付と数値で）",
+      "thesis": "日付と数値を含む簡潔な根拠",
       "sources": [
-        {"title": "決算short", "url": "https://...", "date": "2026-05-12", "type": "primary"}
+        {"title": "決算短信", "url": "https://...", "date": "2026-05-12", "type": "primary"}
       ],
       "confidence": "high"
     }
   ],
-  "universe_reviewed": ["7011.JP", "6501.JP", "..."],
-  "notes": "週次フル採点。当週の新規開示・決算を反映",
+  "universe_reviewed": ["7011.JP"],
+  "notes": "週次フル採点",
   "limitations": "将来の値動きを保証しない。データは急変しうる。"
 }
 ```
 
-必須: `schema_version`,`agent`,`generated_at`,`as_of`,`candidates[].code/name/score`。`score` は 0-100。出典なしの候補は不可。
+必須: `schema_version`, `agent`, `generated_at`, `as_of`, `candidates[].code/name/score`。merge は `score`、`sector`、`as_of` を使います。
 
-## 5. ② テクニカル出力 `technical_latest.json`
-
-```json
-{
-  "schema_version": 1,
-  "agent": "technical",
-  "model": "claude-sonnet-4-6",
-  "generated_at": "2026-06-06T04:35:40+09:00",
-  "as_of": "2026-06-06",
-  "data_through": "2026-06-05",
-  "candidates": [
-    {
-      "code": "6920.JP",
-      "name": "レーザーテック",
-      "score": 80,
-      "signals": {
-        "trend": "up", "ma_stack": "MA25>MA50>MA200",
-        "rsi14": 61.2, "macd": "bull_cross",
-        "rs_vs_topix_20d": 4.2, "atr_pct": 2.1,
-        "vol_zscore": 1.4, "breakout_20d": true,
-        "ret_20d": 7.8
-      },
-      "horizon_days": 5,
-      "rationale": "MA好配列＋出来高増ブレイク。RSI過熱手前。",
-      "rows_available": 740,
-      "warmup_ok": true
-    }
-  ],
-  "universe_evaluated": ["（curation_pool + enabled + watchlist）"],
-  "notes": ""
-}
-```
-
-必須: `candidates[].code/name/score/rows_available/warmup_ok`。`warmup_ok=false`(=`rows_available < min_warmup_rows`)はマージで昇格抑止。
-
-## 6. テクニカル特徴量 `technical_features.json`（中間生成物）
-
-`scripts/technical_screen.py` が `add_features()` を用いて算出。エージェントの数値入力。
-
-```json
-{
-  "generated_at": "2026-06-06T04:34:00+09:00",
-  "data_through": "2026-06-05",
-  "min_warmup_rows": 200,
-  "entries": [
-    {
-      "code": "6920.JP", "name": "レーザーテック", "rows": 740,
-      "close": 21340.0, "ret_5d": 3.1, "ret_20d": 7.8,
-      "ma25": 20100, "ma50": 19500, "ma200": 17800,
-      "rsi14": 61.2, "macd_hist": 35.2, "atr_pct": 2.1,
-      "vol_zscore": 1.4, "high_20d": 21500, "high_60d": 21800
-    }
-  ]
-}
-```
-
-## 7. ③ 決定監査ログ `decision_latest.json`
+## 8. `decision_latest.json`
 
 ```json
 {
@@ -189,62 +231,74 @@ pool:
   "date": "2026-06-06",
   "as_of": "2026-06-06",
   "applied": true,
+  "tickers_written": true,
   "inputs": {
-    "fundamental": "docs/curation/fundamental_2026-06-06.json",
-    "technical": "docs/curation/technical_2026-06-06.json"
+    "technical": "docs/curation/technical_latest.json",
+    "fundamental": "fundamental_latest.json"
   },
-  "weights": {"fund": 0.5, "tech": 0.5},
+  "weights": {"tech": 0.5, "fund": 0.5},
+  "fundamental_age_days": 0,
+  "conservative_mode": false,
   "ranking": [
     {
-      "code": "6920.JP", "name": "レーザーテック",
-      "fund_score": 84, "tech_score": 80, "combined": 82.0,
-      "in_universe_before": false, "warmup_ok": true,
-      "action": "promote",
-      "reasons": ["combined>=70", "warmup_ok", "beats_min_enabled+gap"]
-    },
-    {
-      "code": "1802.JP", "name": "大林組",
-      "fund_score": 41, "tech_score": 47, "combined": 44.0,
-      "in_universe_before": true, "action": "demote",
-      "reasons": ["below_keep_floor", "paired_with_promote"]
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "tech_score": 80,
+      "fund_score": 84,
+      "combined": 82.0,
+      "warmup_ok": true,
+      "in_universe_before": false,
+      "action": "promote"
     }
   ],
   "changes": {
-    "promoted": ["6920.JP"], "demoted": ["1802.JP"],
-    "added_to_watchlist": ["6146.JP"], "removed_from_watchlist": []
+    "promoted": ["6920.JP"],
+    "promoted_add": ["6920.JP"],
+    "promoted_swap": [],
+    "demoted": [],
+    "watchlist": ["6146.JP"]
   },
   "guardrails": {
-    "max_daily_swaps": 2, "applied_swaps": 1, "applied_adds": 0,
-    "max_universe": 10, "sector_caps_ok": true,
-    "schema_valid": true, "jpx_open": true, "fail_safe_triggered": false
+    "max_universe": 10,
+    "max_daily_swaps": 2,
+    "max_daily_adds": 2,
+    "applied_swaps": 0,
+    "applied_adds": 1,
+    "conservative_mode": false,
+    "fundamental_age_days": 0,
+    "has_technical": true,
+    "sector_cap_pct": 40
   },
   "data_moves": [
     {"from": "data/watchlist/6920.JP.parquet", "to": "data/6920.JP.parquet"}
   ],
-  "universe_before": ["7011.JP", "...", "1802.JP"],
-  "universe_after":  ["7011.JP", "...", "6920.JP"]
+  "universe_before": ["7011.JP"],
+  "universe_after": ["7011.JP", "6920.JP"],
+  "generated_at": "2026-06-06T04:45:00+09:00"
 }
 ```
 
-## 7-B. 週次レポート `reports/weekly_YYYY-MM-DD.md`（契約の要点）
+## 9. 週次レポート
 
-- 生成: レポートライター・エージェント（週次）。入力は `fundamental_latest.json` + `technical_latest.json` + 直近 `decision_*.json`。
-- 配置: **`docs/` 外の `reports/`**（publish rsync 対象外）。`reports/weekly_latest.md` も併記。
-- 形式: Markdown。先頭にフロントマター（`date`,`as_of`,`persona`,`disclaimer`）。本文は女の子ナビのカジュアル解説（「〜だね！」）。
-- 必須要素: 今週の注目銘柄（ファンダ＋テクニカルの根拠・数値・日付）、ユニバースの入替、地合い、まとめ、**免責**。
-- 構成・文体規約・サンプル・LINE文面は **`05_weekly_report.md`** を正とする。
+`reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` は同じ内容です。
 
-## 8. 既存コードとの統合制約（再掲・遵守必須）
+必須:
 
-| 制約 | 影響 | 対応 |
-|---|---|---|
-| `sync_data_files()` はトップレベル `data/*.parquet` のみ走査しenabled外を `data/archive/` へ退避 | warmupをトップレベルに置くと `main.py` 実行で退避される | warmupは `data/watchlist/`（サブディレクトリ）に置く。昇格時のみトップレベルへ移動 |
-| `update_data()` の出力先はトップレベル固定 | warmupに直接使えない | 出力先指定可能にするか `warmup_candidate()` を新設（ロジックは流用） |
-| `main.py` は MA60 で最低60行、KPIゲートは `TRADER_BT_MIN_TRAIN_ROWS`(既定200) を要求 | 履歴不足銘柄は強制HOLD | `min_warmup_rows`(既定200) を昇格条件にしてコールドスタート回避 |
-| `load_tickers()` は `tickers`/`settings.max_tickers` のみ参照 | `watchlist`/`settings.curation` 追加は安全 | スキーマ拡張は後方互換 |
-| 既存 `daily-publish-dashboard.yml` は `web/out/` を `docs/` へ `rsync --delete`（一部JSONを除外） | `docs/curation/` が publish の rsync で削除される懸念 | publish の rsync に `--exclude 'curation'` を追加（実装時必須・`06`の残課題）。**週次レポートは `docs/` 外の `reports/` に置くため影響なし** |
-| 週次レポートのGitHub URL | LINE通知に安定URLが必要 | `reports/`(docs外)＋ `https://github.com/<owner>/<repo>/blob/main/reports/weekly_<DATE>.md`。slugは `TRADER_REPO_SLUG` or `git remote` 由来 |
+- YAML front matter: `date`, `as_of`, `persona`, `disclaimer`
+- 今週の注目銘柄
+- ユニバースの動き
+- 地合い
+- まとめ
+- 投資助言ではない旨の免責
 
-## 9. フロントエンド連携（任意）
+詳細は `05_weekly_report.md` を正とします。
 
-`docs/curation/decision_latest.json` を読めば、ダッシュボードに「本日の入替（追加/除外と根拠）」「watchlist」を表示可能。スコープ外だが、`web/src/types/index.ts` に型追加＋カード1枚で実現できる軽微拡張（`06`に任意項目として記載）。
+## 10. 統合制約
+
+| 制約 | 対応 |
+|---|---|
+| `sync_data_files()` はトップレベル `data/*.parquet` のみ退避 | warmup は `data/watchlist/` に保存 |
+| `main.py` は MA60 で最低 60 行、KPI gate は既定 200 行を要求 | `min_warmup_rows=200` を昇格条件にする |
+| `daily-publish-dashboard.yml` は `docs/` を `rsync --delete` | `docs/curation/` を exclude 済み、レポートは `reports/` |
+| `load_tickers()` は `watchlist` を日次予測対象にしない | watchlist は curation 専用 |

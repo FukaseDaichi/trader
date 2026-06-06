@@ -1,6 +1,6 @@
 # データ契約・横断仕様
 
-更新日: 2026-05-14 JST
+更新日: 2026-06-06 JST
 
 ## `tickers.yml`
 
@@ -9,20 +9,46 @@ tickers:
   - code: "7011.JP"
     name: "三菱重工業"
     enabled: true
+    source: "manual"
 settings:
   max_tickers: null
+  curation:
+    enabled: true
+    max_universe: 10
 ```
 
-仕様:
+日次予測本体の仕様:
 
-- `tickers`は配列
-- 各要素は`code`, `name`, `enabled`を持つ想定
-- `enabled`省略時は有効扱い
-- `settings.max_tickers`が`null`または未指定なら全有効銘柄
-- `settings.max_tickers`が整数なら先頭から件数制限
-- `max_tickers < 1`はエラー
+- `tickers` は配列
+- 各要素は `code`, `name`, `enabled` を持つ
+- `code` と `name` は非空文字列必須
+- `enabled` 省略時は有効扱い。指定時は boolean 必須
+- ticker code の重複はエラー
+- `settings` は指定時 mapping 必須
+- `settings.max_tickers` が `null` または未指定なら全有効銘柄
+- `settings.max_tickers` が整数なら先頭から件数制限
+- `max_tickers < 1` はエラー
 
-現状、`code`/`name`必須チェックは明示的には行われず、後段で`KeyError`になる可能性があります。
+AI 銘柄キュレーション用の任意メタ:
+
+- ticker item: `source`, `added_on`, `disabled_on`, `sector`, `combined`, `tech_score`, `fund_score`
+- root: `watchlist`
+- settings: `settings.curation`
+
+これらは `load_tickers()` の日次予測対象抽出では無視されますが、`scripts/curation_*` が読み書きします。
+
+## `curation_pool.yml`
+
+AI キュレーションの日次テクニカルスクリーニング候補プールです。
+
+```yaml
+pool:
+  - code: "7203.JP"
+    name: "トヨタ自動車"
+    sector: "自動車"
+```
+
+`scripts/technical_screen.py` と `scripts/curation_warmup.py` が読みます。候補は `NNNN.JP` 形式で、`sector` は分散ガードに使われます。
 
 ## `data/{ticker}.parquet`
 
@@ -35,11 +61,19 @@ settings:
 - `close`
 - `volume`
 
-`date`はtimezoneなしdatetimeへ正規化されます。価格と出来高は数値化できない行を削除します。さらに、価格の正値、`low <= open/close <= high`、異常な終値変化を検証します。異常行は除外され、警告は`data_validation_warnings`として日次・監査系レポートに残ります。
+`date` は timezone なし datetime へ正規化されます。価格と出来高は数値化できない行を削除します。さらに、価格の正値、`low <= open/close <= high`、異常な終値変化を検証します。検証警告は `data_validation_warnings` として日次・監査系レポートに残ります。
+
+## `data/watchlist/{ticker}.parquet`
+
+AI キュレーション候補の warmup データです。`scripts/curation_warmup.py` が `update_data(dest_dir=...)` で保存します。
+
+- `.gitignore` 対象で、通常 commit しない
+- `sync_data_files()` の退避対象外
+- 昇格時に `curation_merge.py` が必要に応じて `data/{ticker}.parquet` へ移動
 
 ## `data/jpx_holidays.json`
 
-`jpx_calendar.py sync`と`data_loader.py`の鮮度判定で使います。
+`jpx_calendar.py sync` と `data_loader.py` の鮮度判定で使います。
 
 対応形式:
 
@@ -53,7 +87,7 @@ settings:
 }
 ```
 
-`data_loader.py`は`{"holidays": {...}}`形式と、日付キー直下の辞書形式の両方を読めます。
+`data_loader.py` と `jpx_calendar.py` は `{"holidays": {...}}` 形式と、日付キー直下の辞書形式の両方を読めます。
 
 ## `docs/state.json`
 
@@ -73,11 +107,11 @@ settings:
 
 仕様:
 
-- `history`は最大30日
-- 1日1エントリ
+- `history` は最大 30 日
+- 1 日 1 エントリ
 - 同日再実行時は当日エントリを置換
-- `RUN_DATE_JST`で`date`を上書き可能
-- `signals`は`tickers.yml`の有効銘柄だけにフィルタされる
+- `RUN_DATE_JST` で `date` を上書き可能
+- `signals` は `tickers.yml` の有効銘柄だけにフィルタされる
 
 ## `docs/dashboard_index.json`
 
@@ -115,7 +149,7 @@ settings:
 }
 ```
 
-`data`は最大500行で、列は`date`, `open`, `high`, `low`, `close`, `volume`, `ma_5`, `ma_20`, `ma_60`, `rsi`です。
+`data` は最大 500 行で、列は `date`, `open`, `high`, `low`, `close`, `volume`, `ma_5`, `ma_20`, `ma_60`, `rsi` です。
 
 ## Signalオブジェクト
 
@@ -140,18 +174,19 @@ settings:
     "sell": 0.1,
     "volatility_limit": 0.04
   },
+  "threshold_optimization": {},
   "limit_price": null,
   "stop_loss": null
 }
 ```
 
-`action`は`BUY`, `MILD_BUY`, `HOLD`, `MILD_SELL`, `SELL`のいずれかです。KPIゲート未達時は`raw_action`に予測上のアクションを残し、`action`は`HOLD`になります。
+`action` は `BUY`, `MILD_BUY`, `HOLD`, `MILD_SELL`, `SELL` のいずれかです。KPI ゲート未達時は `raw_action` に予測上のアクションを残し、`action` は `HOLD` になります。
 
-銘柄単位の処理失敗時は`status: "failed"`、`action: "HOLD"`になり、`prob_up`や`close`は`null`になり得ます。
+銘柄単位の処理失敗時は `status: "failed"`、`action: "HOLD"` になり、`prob_up` や `close` は `null` になり得ます。失敗シグナルでは `thresholds` と `threshold_optimization` が付かない場合があります。
 
 ## `docs/backtest_report.json`
 
-日次KPIゲート結果です。
+日次 KPI ゲート結果です。
 
 主なフィールド:
 
@@ -168,10 +203,28 @@ settings:
 - `entries[].status`
 - `entries[].data_validation_warnings`
 
+## `docs/curation/*.json`
+
+AI 銘柄キュレーションの作業物・監査ログです。
+
+- `technical_features.json`: `technical_screen.py` の中間特徴量
+- `technical_latest.json`, `technical_YYYY-MM-DD.json`: テクニカル候補スコア
+- `fundamental_latest.json`, `fundamental_YYYY-MM-DD.json`: 週次ファンダメンタル候補スコア
+- `decision_latest.json`, `decision_YYYY-MM-DD.json`: 決定論 merge の監査ログ
+- `warmup_report.json`: warmup 結果
+
+詳細スキーマは `ai_ticker_curation/04_data_contracts.md` を正とします。
+
+## `reports/weekly_YYYY-MM-DD.md`
+
+週次ファンダ・テクニカル総合レポートです。`weekly-fundamental-report.yml` のレポートライター agent が生成し、`curation_notify.py` が GitHub blob URL を LINE 通知します。
+
+`reports/` は `docs/` 外にあり、GitHub Pages の publish `rsync --delete` の対象外です。
+
 ## 横断的な注意
 
-- `docs/history_data.json`は現行契約ではありません
-- `web/public/`はローカル開発用同期先であり、公開元は`docs/`
-- `data/features/*.parquet`は生成されますが、現状では主要処理の入力ではありません
-- 無効化された銘柄の`data/*.parquet`は削除せず、`data/archive/`へ移動します
-- `state.json`の`last_update`はJSTですが、監査系・バックテスト系レポートの`generated_at`はJSTに統一されていません
+- `docs/history_data.json` は現行契約ではありません
+- `web/public/` はローカル開発用同期先であり、公開元は `docs/`
+- `data/features/*.parquet` は生成されますが、現状では主要処理の入力ではなく、workflow の commit 対象でもありません
+- 無効化された銘柄のトップレベル `data/*.parquet` は削除せず、`data/archive/` へ移動します
+- `state.json` の `last_update` は JST ですが、監査系・バックテスト系レポートの `generated_at` はすべて JST に統一されているわけではありません

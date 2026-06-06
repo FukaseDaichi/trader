@@ -1,6 +1,6 @@
 # フロントエンド仕様
 
-更新日: 2026-05-14 JST
+更新日: 2026-06-06 JST
 
 ## 技術スタック
 
@@ -101,3 +101,4 @@ npm run build:prod --prefix web
 - チャートのアクセシビリティ対応は限定的
 - チャート入力が空の場合の描画ガードは十分ではない
 - `tailwind-merge`は依存にあるが現時点では使われていない
+- AI銘柄キュレーションの `docs/curation/decision_latest.json` や `reports/weekly_latest.md` へのリンク表示は未実装
