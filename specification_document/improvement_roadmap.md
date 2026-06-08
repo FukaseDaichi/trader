@@ -11,7 +11,7 @@
 |---|---|---|
 | シグナルの使い方 | **手動トレードの参考** | 実績トラッキングと「今日の建玉」提案が直接効く。自動執行は当面スコープ外 |
 | 改修の最優先 | **稼げる（シグナル品質・収益性）** | ターゲット設計・モデル・ポートフォリオが主役。可視化は従だが含める |
-| インフラ許容 | **無料枠マネージドDB可（Postgres）** | Neon / Supabase 等を system-of-record に採用可。ネット依存・シークレット管理は許容 |
+| インフラ許容 | **Neon Free の Postgres を第一候補** | GitHub Actions からの断続的な書き込み、SQL 集計、将来の移行容易性を重視。Supabase は Auth/Storage/API 直読みが必要になった場合の代替 |
 | ドキュメント粒度 | **包括ロードマップ** | フェーズ分け・優先度・中長期ビジョンまで |
 | 全体戦略 | **C案：計測ファースト段階移行** | Phase0 計測 → Phase1 品質 → Phase2 本丸 → Phase3 UX。各フェーズ出荷可能 |
 | ポートフォリオ方向 | **ロングオンリー** | 信用取引不要。SELL は「持たない/手仕舞い」の意味で運用 |
@@ -72,7 +72,7 @@
 
 ```text
                      ┌──────────────────────────────────────────────┐
-                     │      Postgres (system of record / 無料枠)     │
+                     │   Neon Postgres (decision log SoR / Free)     │
                      │  prices? predictions signals signal_outcomes  │
                      │  portfolio_snapshots model_registry           │
                      │  backtest_runs/equity macro_snapshots         │
@@ -110,11 +110,39 @@
 | データ種別 | 置き場所 | 理由 |
 |---|---|---|
 | 価格 OHLCV（時系列・追記主体） | **当面 parquet 継続**（`data/*.parquet`）＋ DuckDB で分析クエリ | 既存資産・git 版管理・無料・読み出し高速。Phase2 以降で必要なら `prices` テーブルへ移行 |
-| 予測・シグナル・**実現結果**・ポートフォリオ・モデル版・マクロ・バックテスト | **Postgres（Neon/Supabase 無料枠）** | 関係クエリ・無制限履歴・集計・版管理。git-as-DB の競合（W8）を解消 |
+| 予測・シグナル・**実現結果**・ポートフォリオ・モデル版・マクロ・バックテスト | **Neon Postgres Free** | 関係クエリ・長期履歴・集計・版管理。git-as-DB の競合（W8）を解消。DB容量監視とアーカイブ方針を必須化 |
 
-> **なぜ全部 Postgres にしないか**: 価格は単純追記の時系列でリレーションが薄く、parquet＋DuckDB が最も安く速い。無料 Postgres のストレージ枠（数百 MB〜）も節約できる。逆に「予測と実現結果の突合・長期集計」は RDB が圧倒的に有利。**価格は parquet、意思決定ログは DB** が費用対効果の最適点。
+> **なぜ全部 Postgres にしないか**: 価格は単純追記の時系列でリレーションが薄く、parquet＋DuckDB が最も安く速い。無料 Postgres のストレージ枠（Neon/Supabase ともに Free は実質 0.5GB 級）も節約できる。逆に「予測と実現結果の突合・長期集計」は RDB が圧倒的に有利。**価格は parquet、意思決定ログは DB** が費用対効果の最適点。
 
-### 4.2 スキーマ（DDL ドラフト）
+### 4.2 DB サービス比較と採用判断（2026-06-08 JST 調査）
+
+このシステムの DB 要件は、一般的な Web アプリよりかなり絞られています。
+
+- 書き込み主体は GitHub Actions からの **日次バッチ**。常時接続・低レイテンシ API は不要。
+- ダッシュボードは GitHub Pages の静的 JSON を読むため、DB を直接公開しない。
+- 必要なのは、`signals` と `signal_outcomes` の突合、日付/銘柄/モデル版での集計、migration、トランザクション。
+- 価格 OHLCV は DB に入れず、容量を意思決定ログに限定する。
+
+| 候補 | Free 枠の要点（確認時点） | 適合度 | 判断 |
+|---|---|---|---|
+| **Neon Postgres** | 0.5GB storage/project、100 CU-hours/month/project、idle 時 scale-to-zero、5GB egress/month。Free 超過時は compute 停止 | **高**。Postgres そのもの、CI バッチと相性が良い。Auth/Storage など不要な機能が少ない | **採用第一候補** |
+| **Supabase Postgres** | 500MB database size、5GB egress、1GB file storage、Free は 2 project、1週間 inactive で pause。500MB 超過で read-only | 中〜高。Postgres + 管理画面は便利。ただし本件では Auth/Realtime/Storage を使わず、Free pause/read-only が余計な運用要素 | Neon 不調時、または将来 DB 直読み API/RLS/Auth が必要になった場合の代替 |
+| **Firebase / Firestore** | Spark は支払い方法不要。Firestore は 1GiB stored、50k reads/day、20k writes/day、10GiB egress/month | 低〜中。無料枠は十分だが NoSQL/document 課金。`signal_outcomes` の join/集計/再現性管理が Postgres より遠い | 不採用。モバイル/リアルタイム/ユーザー単位同期が主役なら再検討 |
+| **Cloudflare D1** | SQLite ベース。5GB storage、5M rows read/day、100k rows written/day | 中。無料枠は大きいが Postgres ではなく、row-scan 課金と Workers 寄りの運用になる | 不採用。Cloudflare Workers 上で直接配信する構成へ変えるなら候補 |
+| **Turso/libSQL** | SQLite/libSQL。5GB storage、500M rows read/month、10M rows written/month | 中。無料枠は強いが Postgres 互換ではない。将来の分析 SQL/拡張/移行で制約 | 不採用。Postgres 無料枠が不足した場合の低コスト SQLite 系代替 |
+
+**結論**: Phase0 は **Neon Free の Postgres** で開始する。理由は、現在の構成が「GitHub Actions から短時間だけ接続して書く」形であり、Neon の serverless/scale-to-zero と自然に合うため。Supabase は良いサービスだが、このプロジェクトでは Auth、Storage、Realtime、Edge Functions の価値をまだ使わない。Firebase は無料枠こそ広いが、今回の本質である「予測、シグナル、実現結果、モデル版の関係クエリ」には RDB のほうが素直。
+
+**容量見積もり**: 50銘柄、年間252営業日、`predictions`/`signals`/`signal_outcomes(1d,5d,10d)` を全保存しても、年間の主テーブル行数は概算 63,000 行。価格 OHLCV と大型モデル artifact を DB 外に置く限り、数年は 0.5GB 内に収まる見込み。ただし JSONB の肥大と index を考慮し、**400MB 到達で警告、450MB 到達で古い backtest equity/detail の parquet アーカイブまたは有料化判断**を入れる。
+
+**調査ソース**:
+- Neon Pricing / Plans: https://neon.com/pricing, https://neon.com/docs/introduction/plans
+- Supabase Billing / Database Size: https://supabase.com/docs/guides/platform/billing-on-supabase, https://supabase.com/docs/guides/platform/database-size
+- Firebase Firestore Pricing: https://firebase.google.com/docs/firestore/pricing
+- Cloudflare D1 Pricing: https://developers.cloudflare.com/d1/platform/pricing/
+- Turso Pricing: https://turso.tech/pricing
+
+### 4.3 スキーマ（DDL ドラフト）
 
 ```sql
 -- 銘柄マスタ（tickers.yml / curation を反映）
@@ -142,10 +170,15 @@ CREATE TABLE model_registry (
   active       BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- Phase0 migration 時に "legacy-daily-v0" を seed する。
+-- 現行の日次再学習モデルは artifact が無いため、model_registry には
+-- kind='per_ticker_legacy_daily' / active=true / artifact_uri=NULL として記録する。
+
 -- 予測（モデル生出力）
 CREATE TABLE predictions (
   id            BIGSERIAL PRIMARY KEY,
   run_date      DATE NOT NULL,          -- 予測実行日(JST)
+  as_of_date    DATE NOT NULL,          -- 予測に使った最新価格日
   ticker        TEXT NOT NULL REFERENCES tickers(code),
   model_version TEXT NOT NULL REFERENCES model_registry(version),
   horizon_days  INT  NOT NULL,          -- 主軸 5
@@ -162,7 +195,9 @@ CREATE TABLE predictions (
 CREATE TABLE signals (
   id            BIGSERIAL PRIMARY KEY,
   run_date      DATE NOT NULL,
+  as_of_date    DATE NOT NULL,          -- 予測に使った最新価格日
   ticker        TEXT NOT NULL REFERENCES tickers(code),
+  prediction_id BIGINT REFERENCES predictions(id),
   action        TEXT NOT NULL,          -- BUY/MILD_BUY/HOLD/MILD_SELL/SELL
   raw_action    TEXT,                   -- ゲート未達でも残す元判断
   conviction    DOUBLE PRECISION,       -- 0..1
@@ -181,6 +216,7 @@ CREATE TABLE signals (
 CREATE TABLE signal_outcomes (
   signal_id      BIGINT NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
   horizon_days   INT NOT NULL,          -- 1 / 5 / 10 を別行で
+  entry_date     DATE NOT NULL,         -- 通常は signals.as_of_date
   eval_date      DATE NOT NULL,         -- 評価確定日
   entry_close    DOUBLE PRECISION,
   exit_close     DOUBLE PRECISION,
@@ -233,15 +269,23 @@ CREATE TABLE backtest_equity (
   equity DOUBLE PRECISION NOT NULL,
   PRIMARY KEY (run_id, date)
 );
+
+-- migration 適用履歴（Alembic を使わない場合の最小管理）
+CREATE TABLE schema_migrations (
+  version    TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
-### 4.3 可用性・フォールバック（原則2の具体化）
+### 4.4 可用性・フォールバック（原則2の具体化）
 
-- 新規 `src/db.py`（薄いデータアクセス層）を導入。書き込みは **write-through**。
+- 新規 `src/db.py`（薄いデータアクセス層）を導入。書き込みは **write-through**。初期は ORM を使わず `psycopg` + SQL で十分。
 - DB 接続不可時は **ローカル JSONL（`data/outbox/*.jsonl`）へキュー**し、次回実行でリプレイ。日次シグナル生成は DB 状態に依存させない。
 - 接続情報は GitHub Actions Secret（`DATABASE_URL`）。ローカルは `.env`。`.env.example` に追記。
+- `DATABASE_URL` が未設定、`TRADER_DB_ENABLED=false`、または migration 未適用の場合は、DB 書き込みだけを skip して従来処理を継続する。
+- outbox は `event_id`（`run_date:ticker:event_type`）で冪等化し、DB 復旧後も重複 upsert にならないようにする。
 
-### 4.4 移行・バックフィル戦略
+### 4.5 移行・バックフィル戦略
 
 1. **価格履歴を保有しているため、過去の実現リターンは正確に再計算可能**。Phase0 で `state.json`（直近30日）の既存シグナルを `signals` に取り込み、parquet から `signal_outcomes` を埋める。
 2. さらに **現行モデルを過去に遡ってバックテストし `backtest_runs` にシード**することで、ライブ台帳が貯まる前から長期の擬似トラックレコードを提示できる。
@@ -258,22 +302,51 @@ CREATE TABLE backtest_equity (
 **目的**: モデルを変えずに「出したシグナルが実際どうだったか」を貯め始める。以降の全改善の検証土台。
 
 **施策**
-- Postgres（Neon/Supabase 無料枠）provision、`DATABASE_URL` を Secret 化。
-- `src/db.py`（接続・upsert・フォールバックキュー）と `4.2` のスキーマ migration（`scripts/db_migrate.py` または alembic）。
-- `main.py` の日次出力を `predictions`/`signals` に write-through（既存 JSON 出力は維持）。
-- **`scripts/settle_outcomes.py`**: 価格更新後、未確定シグナルの 1d/5d/10d 実現リターン・TOPIX 超過・hit・MAE/MFE を計算し `signal_outcomes` を埋める。日次 workflow に追加。
-- バックフィル（`4.4`）。
-- ダッシュボードに最小タイル: 直近の実現的中率＋「BUY/SELL を額面通り従った場合」の簡易資産曲線。
+- **Neon Free** で Postgres project を作成し、`DATABASE_URL` を GitHub Actions Secret / local `.env` に設定する。
+- `src/db.py`（接続・upsert・フォールバックキュー）と `4.3` のスキーマ migration（`scripts/db_migrate.py`）を追加する。初期は `psycopg` のみでよく、Alembic は Phase1 以降で migration が増えたら導入する。
+- `main.py` の日次出力を `predictions`/`signals` に write-through する。既存 `docs/state.json` / `docs/dashboard_index.json` は維持する。
+- **日付契約を明確化**: `run_date` は workflow 実行日、`as_of_date` は予測に使った最新価格日（現行 signal の `date`）とする。outcome は `as_of_date` 起点で 1d/5d/10d を評価する。
+- **`scripts/settle_outcomes.py`**: 価格更新後、未確定シグナルの 1d/5d/10d 実現リターン・TOPIX 超過・hit・MAE/MFE を計算し `signal_outcomes` を埋める。TOPIX データが未取得の場合は `benchmark_ret`/`excess_ret` を NULL にして処理を継続する。
+- バックフィル（`4.5`）。最初は `docs/state.json` の直近30日だけを seed し、擬似長期 backtest の DB seed は Phase0 後半に分ける。
+- ダッシュボードに最小タイル: 直近の実現的中率、平均実現リターン、BUY/MILD_BUY を額面通り従った場合の簡易資産曲線。
+- DB 容量監視: migration または dashboard export 時に `pg_database_size` を取得し、400MB 以上で警告 JSON を出す。
+
+**Phase 0 実装計画（推奨順）**
+
+1. **0A: provider/bootstrap**
+   - Neon project 作成、接続先 region は GitHub Actions から近い US または Asia を選択（レイテンシは重要でない）。
+   - GitHub Secrets: `DATABASE_URL`。`.env.example`: `TRADER_DB_ENABLED`, `TRADER_DB_FALLBACK_DIR`, `TRADER_DB_WRITE_TIMEOUT_SEC`, `TRADER_DB_STORAGE_WARN_MB` を追加。
+   - `pyproject.toml` に `psycopg[binary]` を追加。
+2. **0B: migration**
+   - `scripts/db_migrate.py` を idempotent に実装。`schema_migrations` を使い、`tickers.yml` の enabled 銘柄と `legacy-daily-v0` model_registry を seed。
+   - Phase0 で日次運用に使う最小テーブルは `tickers`, `model_registry`, `predictions`, `signals`, `signal_outcomes`, `schema_migrations`。他テーブルは作成だけして空でよい。
+3. **0C: write-through + outbox**
+   - `src/db.py` に `upsert_prediction_signal_batch(signals, run_date)` と `flush_outbox()` を実装。
+   - 失敗時は `data/outbox/YYYY-MM-DD.jsonl` に `event_id` 付きで保存。DB 復旧時は upsert で重複吸収。
+   - `main.py` は DB 例外を握りつぶしてログだけ出し、通知と dashboard export を止めない。
+4. **0D: outcome settlement**
+   - `scripts/settle_outcomes.py --as-of YYYY-MM-DD` を追加。
+   - 未確定 horizon の signal を DB から取得し、各 ticker parquet から `entry_date` と `eval_date` の close/high/low を読む。
+   - `BUY/MILD_BUY` は long、`SELL/MILD_SELL` は「持たない/手仕舞い」評価として方向 hit と avoided-loss 指標を分ける。Phase0 の簡易資産曲線は long 系だけで開始する。
+5. **0E: dashboard export**
+   - `src/dashboard.py` に DB 由来の `docs/performance_summary.json` を追加出力。DB 不通なら既存 JSON のみ出力。
+   - Web はまず小さな実績タイルだけ追加し、詳細画面の大改修は Phase3 へ送る。
+6. **0F: workflow**
+   - `daily-preopen-core.yml` の `Run prediction script` に DB env を渡す。
+   - `main.py` 実行後に `uv run python scripts/settle_outcomes.py --as-of "$TODAY_JST"` を実行。settle 失敗は workflow failure にせず、警告ファイルを `docs/` に出して commit 対象にする。
 
 **主な変更/新規**: `src/db.py`(新), `scripts/db_migrate.py`(新), `scripts/settle_outcomes.py`(新), `main.py`, `.github/workflows/daily-preopen-core.yml`, `.env.example`, ダッシュボード出力。
 
 **受け入れ基準**
-- 日次実行後、`signals` と `predictions` に当日分が入る。
+- 日次実行後、`signals` と `predictions` に当日分が入り、`run_date` と `as_of_date` が区別されている。
 - 翌営業日以降、`signal_outcomes` に 1d 実現結果が確定する。
 - DB を停止しても日次シグナル・LINE 通知は従来どおり動く（フォールバック検証）。
-- ダッシュボードに「実現的中率」が表示される。
+- outbox に溜まったイベントを DB 復旧後にリプレイでき、重複行が発生しない。
+- ダッシュボードに「実現的中率」と「平均実現リターン」が表示される。
+- `docs/state.json` / `docs/dashboard_index.json` の既存契約が壊れない。
+- DB サイズが 400MB 以上になった場合に警告が出る。
 
-**リスク/緩和**: 無料枠の一時停止 → フォールバックキューで吸収。秘密情報 → Secret 管理・接続文字列をログに出さない。
+**リスク/緩和**: Neon Free の compute/storage 枠超過 → フォールバックキュー、容量監視、DB へ保存する対象を意思決定ログに限定。秘密情報 → Secret 管理・接続文字列をログに出さない。日付ズレ → `run_date`/`as_of_date` を明示して settlement の起点を固定。
 
 ---
 
@@ -410,12 +483,12 @@ CREATE TABLE backtest_equity (
 ## 8. 横断仕様（設定・運用・CI/CD・セキュリティ）
 
 - **設定**: 現行の env 駆動（`src/config.py`）を踏襲し追加。
-  - `DATABASE_URL`(Secret), `TRADER_DB_ENABLED`, `TRADER_DB_FALLBACK_DIR`
+  - `DATABASE_URL`(Secret), `TRADER_DB_ENABLED`, `TRADER_DB_FALLBACK_DIR`, `TRADER_DB_WRITE_TIMEOUT_SEC`, `TRADER_DB_STORAGE_WARN_MB`
   - `TRADER_TARGET_HORIZON_DAYS=5`, `TRADER_LABEL_MODE=triple_barrier|vol_norm|binary`
   - `TRADER_TB_TP_ATR`, `TRADER_TB_SL_ATR`, `TRADER_TB_MAX_DAYS`
   - `TRADER_PORTFOLIO_TARGET_VOL`, `TRADER_PORTFOLIO_MAX_NAME_W`, `TRADER_PORTFOLIO_SECTOR_CAP`, `TRADER_PORTFOLIO_NOTRADE_BAND`, `TRADER_PORTFOLIO_TOP_N`
 - **CI/CD**:
-  - `daily-preopen-core.yml` に settle ＋ DB write を追加。
+  - `daily-preopen-core.yml` に Neon DB write-through と settle を追加。DB 不通時は workflow を失敗させず outbox/警告 JSON に退避。
   - `weekly-model-retrain.yml` を実学習・版登録へ格上げ。
   - 新規 `daily-settle`（または core に統合）と `drift_check`。
   - git-as-DB の競合（W8）は意思決定ログを DB へ移すことで緩和。価格 parquet の commit は継続。
@@ -427,7 +500,7 @@ CREATE TABLE backtest_equity (
 
 | リスク | 影響 | 緩和 |
 |---|---|---|
-| 無料 DB の停止/枠超過 | 書き込み欠落 | フォールバックキュー、バッチ書き込み、データ量を意思決定ログに限定 |
+| Neon Free の compute/storage 枠超過 | 書き込み欠落 | フォールバックキュー、バッチ書き込み、データ量を意思決定ログに限定、400MB 警告 |
 | 過学習（特徴量/ターゲット増） | ライブ劣化 | walk-forward 厳守、較正、**実現結果台帳での A/B 検証**、ドリフト検知 |
 | 小ユニバースのクロスセクション弱さ | αが出ない | 30銘柄下限、N 不足日は per-ticker へフォールバック |
 | レジーム誤判定 | 大きな逆風 | ボラターゲットで段階調整、断定的オン/オフを避ける |
