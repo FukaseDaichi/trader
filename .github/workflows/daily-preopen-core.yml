@@ -51,7 +51,18 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
         run: uv run python main.py
+
+      - name: Settle realized outcomes
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}"
 
       - name: Commit and push data/docs updates
         if: ${{ steps.market.outputs.is_open == 'true' }}
