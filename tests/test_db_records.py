@@ -23,6 +23,10 @@ from src.db_records import (  # noqa: E402
     summarize_performance,
 )
 
+import tempfile  # noqa: E402
+
+import src.db as dbmod  # noqa: E402
+
 OK_SIGNAL = {
     "ticker": "7011.JP",
     "name": "三菱重工業",
@@ -180,6 +184,35 @@ def test_summary_handles_empty():
     assert s["horizons"]["5"]["hit_rate"] is None
 
 
+def test_outbox_queue_and_dedup():
+    import os
+    with tempfile.TemporaryDirectory() as tmp:
+        os.environ["TRADER_DB_FALLBACK_DIR"] = tmp
+        os.environ["TRADER_DB_ENABLED"] = "false"  # force fallback path
+        os.environ.pop("DATABASE_URL", None)
+        try:
+            signals = [
+                {"ticker": "7011.JP", "date": "2026-06-05", "prob_up": 0.7,
+                 "action": "MILD_BUY", "gate_passed": True, "status": "ok"},
+                {"ticker": "9999.JP", "date": "2026-06-08", "prob_up": None,
+                 "action": "HOLD", "gate_passed": False, "status": "failed"},
+            ]
+            res = dbmod.record_run(signals, run_date="2026-06-08")
+            assert res["ok"] is False
+            # 7011 -> pred + sig (2), 9999 -> sig only (1) = 3 events
+            assert res["queued"] == 3
+
+            events = dbmod._read_outbox_events()
+            ids = {e["event_id"] for e in events}
+            assert "2026-06-08:7011.JP:pred" in ids
+            assert "2026-06-08:7011.JP:sig" in ids
+            assert "2026-06-08:9999.JP:sig" in ids
+            assert "2026-06-08:9999.JP:pred" not in ids  # no prob_up -> no prediction
+        finally:
+            os.environ.pop("TRADER_DB_FALLBACK_DIR", None)
+            os.environ.pop("TRADER_DB_ENABLED", None)
+
+
 ALL_TESTS = [
     test_event_id_is_stable_and_namespaced,
     test_prediction_row_for_ok_signal,
@@ -194,6 +227,7 @@ ALL_TESTS = [
     test_outcome_empty_path_uses_realized,
     test_summary_hit_rate_and_curve,
     test_summary_handles_empty,
+    test_outbox_queue_and_dedup,
 ]
 
 
