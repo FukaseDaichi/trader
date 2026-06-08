@@ -12,6 +12,8 @@ import pandas as pd
 from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
 from .data_loader import load_data
 from .model import add_features
+from . import db
+from .db_records import summarize_performance
 
 MAX_HISTORY_DAYS = 30
 MAX_DASHBOARD_ROWS = 500
@@ -21,6 +23,7 @@ RUN_DATE_ENV = "RUN_DATE_JST"
 DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"
 TICKER_EXPORT_DIR = DOCS_DIR / "tickers"
 LEGACY_HISTORY_FILE = DOCS_DIR / "history_data.json"
+PERFORMANCE_FILE = DOCS_DIR / "performance_summary.json"
 EXPORT_COLUMNS = [
     "date",
     "open",
@@ -191,6 +194,9 @@ def update_dashboard(signals):
     # 2. Export dashboard_index.json + tickers/{code}.json.
     export_dashboard_data()
 
+    # 3. Phase 0: export realized-performance summary from the DB (best-effort).
+    export_performance_summary()
+
 
 def update_state(signals):
     """
@@ -306,3 +312,53 @@ def export_history_data():
     Backward-compatible wrapper.
     """
     export_dashboard_data()
+
+
+def export_performance_summary():
+    """
+    Write docs/performance_summary.json from the measurement DB. Best-effort:
+    if the DB is disabled or unreachable, write an "unavailable" marker and
+    keep the previous summary untouched on disk if present.
+    """
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+
+    if not db.db_enabled():
+        if not PERFORMANCE_FILE.exists():
+            _atomic_write_json(PERFORMANCE_FILE, {
+                "available": False, "reason": "db_disabled", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        conn = db.connect()
+    except Exception as exc:  # noqa: BLE001
+        print(f"performance_summary: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        if not PERFORMANCE_FILE.exists():
+            _atomic_write_json(PERFORMANCE_FILE, {
+                "available": False, "reason": "db_unreachable", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        rows = db.fetch_outcome_rows(conn)
+        summary = summarize_performance(rows, curve_horizon=1)
+        size_mb = db.db_size_mb(conn)
+        warn_mb = float(os.getenv("TRADER_DB_STORAGE_WARN_MB", "400"))
+        payload = {
+            "available": True,
+            "generated_at": now_str,
+            "as_of": _resolve_run_date_jst(datetime.now(JST)),
+            "n_long_signals": summary["n_long_signals"],
+            "horizons": summary["horizons"],
+            "equity_curve": summary["equity_curve"],
+            "db_size_mb": size_mb,
+            "storage_warning": size_mb >= warn_mb,
+        }
+        if payload["storage_warning"]:
+            print(f"WARNING: DB size {size_mb}MB >= {warn_mb}MB threshold.")
+        _atomic_write_json(PERFORMANCE_FILE, payload, indent=2)
+        print(f"Performance summary exported to {PERFORMANCE_FILE}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"performance_summary: export failed (ignored): {type(exc).__name__}: {exc}")
+    finally:
+        conn.close()

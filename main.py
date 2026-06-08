@@ -8,6 +8,7 @@ from src.predictor import generate_signal
 from src.notifier import send_notification
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
+from src import db
 
 
 def _run_date_jst() -> str:
@@ -257,6 +258,14 @@ def main():
 
         signals.append(signal)
         backtest_entries.append(backtest_entry)
+
+    # Phase 0: write-through predictions/signals to the measurement DB.
+    # Never let DB issues break the daily run (notification + dashboard).
+    try:
+        db_result = db.record_run(signals, _run_date_jst())
+        print(f"DB record_run: {db_result}")
+    except Exception as e:  # defensive: record_run itself should not raise
+        print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
 
     report_path = write_backtest_report(backtest_entries)
     print(f"Backtest KPI report exported to {report_path}")
