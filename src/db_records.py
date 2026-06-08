@@ -75,3 +75,43 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
         "reason": signal.get("reason"),
         "status": signal.get("status", "ok"),
     }
+
+
+def compute_outcome(action: str, entry_close: float, exit_close: float,
+                    path_highs, path_lows) -> dict:
+    """
+    Compute the realized outcome of a single signal at one horizon.
+
+    - realized_ret: raw stock return entry->exit (objective fact, sign-agnostic).
+    - hit: directional correctness given the action's STANCE
+        * long  (BUY/MILD_BUY)  -> hit if price rose
+        * avoid (SELL/MILD_SELL)-> hit if price fell (avoiding a loss was correct)
+        * HOLD / unknown        -> None (no directional claim)
+    - mfe/mae: max favorable / adverse excursion vs entry over the holding path.
+    - exit_reason: always "time" in Phase 0 (triple-barrier TP/SL is Phase 1).
+    """
+    entry = float(entry_close)
+    if entry <= 0:
+        raise ValueError("entry_close must be positive")
+
+    realized_ret = float(exit_close) / entry - 1.0
+
+    highs = [float(h) for h in (path_highs or [])]
+    lows = [float(low) for low in (path_lows or [])]
+    mfe = (max(highs) / entry - 1.0) if highs else realized_ret
+    mae = (min(lows) / entry - 1.0) if lows else realized_ret
+
+    if action in LONG_ACTIONS:
+        hit = realized_ret > 0
+    elif action in AVOID_ACTIONS:
+        hit = realized_ret < 0
+    else:
+        hit = None
+
+    return {
+        "realized_ret": realized_ret,
+        "hit": hit,
+        "mae": mae,
+        "mfe": mfe,
+        "exit_reason": "time",
+    }

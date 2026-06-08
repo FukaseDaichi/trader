@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.db_records import (  # noqa: E402
+    compute_outcome,
     make_event_id,
     signal_to_prediction_row,
     signal_to_signal_row,
@@ -93,12 +94,68 @@ def test_signal_row_for_failed_signal():
     assert row["conviction"] is None
 
 
+def test_outcome_long_profit():
+    # entry 100, exit 110, path high 112 / low 99
+    o = compute_outcome("BUY", entry_close=100.0, exit_close=110.0,
+                        path_highs=[105.0, 112.0], path_lows=[99.0, 108.0])
+    assert abs(o["realized_ret"] - 0.10) < 1e-9
+    assert o["hit"] is True
+    assert abs(o["mfe"] - 0.12) < 1e-9     # 112/100 - 1
+    assert abs(o["mae"] - (-0.01)) < 1e-9  # 99/100 - 1
+    assert o["exit_reason"] == "time"
+
+
+def test_outcome_long_loss_is_not_hit():
+    o = compute_outcome("MILD_BUY", entry_close=100.0, exit_close=95.0,
+                        path_highs=[101.0], path_lows=[94.0])
+    assert abs(o["realized_ret"] - (-0.05)) < 1e-9
+    assert o["hit"] is False
+
+
+def test_outcome_avoid_hit_when_price_falls():
+    # SELL/avoid: "hit" means avoiding was correct, i.e. price fell.
+    o = compute_outcome("SELL", entry_close=100.0, exit_close=90.0,
+                        path_highs=[101.0], path_lows=[89.0])
+    assert o["hit"] is True
+    o2 = compute_outcome("MILD_SELL", entry_close=100.0, exit_close=105.0,
+                         path_highs=[106.0], path_lows=[100.0])
+    assert o2["hit"] is False
+
+
+def test_outcome_hold_has_no_hit():
+    o = compute_outcome("HOLD", entry_close=100.0, exit_close=101.0,
+                        path_highs=[102.0], path_lows=[100.0])
+    assert o["hit"] is None
+    assert abs(o["realized_ret"] - 0.01) < 1e-9
+
+
+def test_outcome_rejects_bad_entry():
+    raised = False
+    try:
+        compute_outcome("BUY", entry_close=0.0, exit_close=100.0, path_highs=[], path_lows=[])
+    except ValueError:
+        raised = True
+    assert raised is True
+
+
+def test_outcome_empty_path_uses_realized():
+    o = compute_outcome("BUY", entry_close=100.0, exit_close=103.0, path_highs=[], path_lows=[])
+    assert abs(o["mfe"] - 0.03) < 1e-9
+    assert abs(o["mae"] - 0.03) < 1e-9
+
+
 ALL_TESTS = [
     test_event_id_is_stable_and_namespaced,
     test_prediction_row_for_ok_signal,
     test_prediction_row_is_none_when_prob_missing,
     test_signal_row_maps_core_fields,
     test_signal_row_for_failed_signal,
+    test_outcome_long_profit,
+    test_outcome_long_loss_is_not_hit,
+    test_outcome_avoid_hit_when_price_falls,
+    test_outcome_hold_has_no_hit,
+    test_outcome_rejects_bad_entry,
+    test_outcome_empty_path_uses_realized,
 ]
 
 
