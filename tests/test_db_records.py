@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+Unit tests for src/db_records.py (pure logic, no DB / no network).
+
+Runnable two ways:
+  uv run python tests/test_db_records.py     # standalone
+  uv run pytest tests/test_db_records.py      # if pytest is available
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.db_records import (  # noqa: E402
+    make_event_id,
+    signal_to_prediction_row,
+    signal_to_signal_row,
+)
+
+OK_SIGNAL = {
+    "ticker": "7011.JP",
+    "name": "三菱重工業",
+    "date": "2026-06-05",
+    "close": 4586.0,
+    "prob_up": 0.72,
+    "action": "MILD_BUY",
+    "raw_action": "MILD_BUY",
+    "gate_passed": True,
+    "status": "ok",
+    "thresholds": {"buy": 0.8, "mild_buy": 0.65, "mild_sell": 0.25, "sell": 0.1, "volatility_limit": 0.04},
+    "limit_price": None,
+    "stop_loss": None,
+    "reason": "やや上昇傾向 (上昇確率 72%)",
+}
+
+FAILED_SIGNAL = {
+    "ticker": "9999.JP",
+    "name": "失敗銘柄",
+    "date": "2026-06-08",
+    "close": None,
+    "prob_up": None,
+    "action": "HOLD",
+    "raw_action": "HOLD",
+    "gate_passed": False,
+    "status": "failed",
+}
+
+
+def test_event_id_is_stable_and_namespaced():
+    assert make_event_id("2026-06-08", "7011.JP", "sig") == "2026-06-08:7011.JP:sig"
+    assert make_event_id("2026-06-08", "7011.JP", "pred") != make_event_id("2026-06-08", "7011.JP", "sig")
+
+
+def test_prediction_row_for_ok_signal():
+    row = signal_to_prediction_row(OK_SIGNAL, run_date="2026-06-08")
+    assert row is not None
+    assert row["run_date"] == "2026-06-08"
+    assert row["as_of_date"] == "2026-06-05"      # signal['date'] = latest price date
+    assert row["ticker"] == "7011.JP"
+    assert row["model_version"] == "legacy-daily-v0"
+    assert row["horizon_days"] == 1               # legacy model predicts next-day
+    assert abs(row["prob_up"] - 0.72) < 1e-9
+    assert abs(row["raw_score"] - 0.72) < 1e-9
+
+
+def test_prediction_row_is_none_when_prob_missing():
+    assert signal_to_prediction_row(FAILED_SIGNAL, run_date="2026-06-08") is None
+
+
+def test_signal_row_maps_core_fields():
+    row = signal_to_signal_row(OK_SIGNAL, run_date="2026-06-08")
+    assert row["run_date"] == "2026-06-08"
+    assert row["as_of_date"] == "2026-06-05"
+    assert row["ticker"] == "7011.JP"
+    assert row["action"] == "MILD_BUY"
+    assert row["gate_passed"] is True
+    assert row["status"] == "ok"
+    assert abs(row["conviction"] - 0.72) < 1e-9
+    assert row["target_weight"] is None           # Phase 2
+    assert row["thresholds"]["buy"] == 0.8
+
+
+def test_signal_row_for_failed_signal():
+    row = signal_to_signal_row(FAILED_SIGNAL, run_date="2026-06-08")
+    assert row["ticker"] == "9999.JP"
+    assert row["action"] == "HOLD"
+    assert row["gate_passed"] is False
+    assert row["status"] == "failed"
+    assert row["conviction"] is None
+
+
+ALL_TESTS = [
+    test_event_id_is_stable_and_namespaced,
+    test_prediction_row_for_ok_signal,
+    test_prediction_row_is_none_when_prob_missing,
+    test_signal_row_maps_core_fields,
+    test_signal_row_for_failed_signal,
+]
+
+
+def main() -> int:
+    failures = 0
+    for t in ALL_TESTS:
+        try:
+            t()
+            print(f"PASS {t.__name__}")
+        except AssertionError as exc:
+            failures += 1
+            print(f"FAIL {t.__name__}: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            print(f"ERROR {t.__name__}: {type(exc).__name__}: {exc}")
+    print(f"\n{len(ALL_TESTS) - failures}/{len(ALL_TESTS)} passed")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
