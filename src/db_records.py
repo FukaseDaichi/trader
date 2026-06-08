@@ -115,3 +115,61 @@ def compute_outcome(action: str, entry_close: float, exit_close: float,
         "mfe": mfe,
         "exit_reason": "time",
     }
+
+
+def _mean(values):
+    vals = [v for v in values if v is not None]
+    if not vals:
+        return None
+    return sum(vals) / len(vals)
+
+
+def summarize_performance(rows, curve_horizon: int = 1) -> dict:
+    """
+    Aggregate joined (signals x signal_outcomes) rows into a dashboard summary.
+
+    Each row: {entry_date, action, horizon_days, realized_ret, hit}.
+    Hit-rate and the equity curve use LONG actions only (BUY / MILD_BUY);
+    the long-only equity curve compounds the per-day mean realized return at
+    `curve_horizon` (default 1 day).
+    """
+    long_rows = [r for r in rows if r.get("action") in LONG_ACTIONS]
+
+    horizons = {}
+    for h in OUTCOME_HORIZONS:
+        h_rows = [r for r in long_rows if int(r.get("horizon_days", 0)) == h]
+        rets = [r.get("realized_ret") for r in h_rows if r.get("realized_ret") is not None]
+        hits = [r.get("hit") for r in h_rows if r.get("hit") is not None]
+        horizons[str(h)] = {
+            "count": len(rets),
+            "hit_rate": (sum(1 for x in hits if x) / len(hits)) if hits else None,
+            "avg_return": _mean(rets),
+        }
+
+    # Equity curve: group curve_horizon long rows by entry_date, compound daily means.
+    by_date: dict[str, list[float]] = {}
+    for r in long_rows:
+        if int(r.get("horizon_days", 0)) != curve_horizon:
+            continue
+        ret = r.get("realized_ret")
+        if ret is None or not r.get("entry_date"):
+            continue
+        by_date.setdefault(str(r["entry_date"]), []).append(float(ret))
+
+    equity_curve = []
+    equity = 1.0
+    for d in sorted(by_date):
+        daily_return = _mean(by_date[d]) or 0.0
+        equity *= (1.0 + daily_return)
+        equity_curve.append({
+            "date": d,
+            "equity": equity,
+            "daily_return": daily_return,
+            "n": len(by_date[d]),
+        })
+
+    return {
+        "n_long_signals": len(long_rows),
+        "horizons": horizons,
+        "equity_curve": equity_curve,
+    }

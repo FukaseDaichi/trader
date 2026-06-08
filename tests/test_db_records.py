@@ -20,6 +20,7 @@ from src.db_records import (  # noqa: E402
     make_event_id,
     signal_to_prediction_row,
     signal_to_signal_row,
+    summarize_performance,
 )
 
 OK_SIGNAL = {
@@ -144,6 +145,41 @@ def test_outcome_empty_path_uses_realized():
     assert abs(o["mae"] - 0.03) < 1e-9
 
 
+def _row(entry_date, action, horizon, ret, hit):
+    return {"entry_date": entry_date, "action": action,
+            "horizon_days": horizon, "realized_ret": ret, "hit": hit}
+
+
+def test_summary_hit_rate_and_curve():
+    rows = [
+        _row("2026-05-01", "BUY", 1, 0.02, True),
+        _row("2026-05-01", "MILD_BUY", 1, -0.01, False),  # same day -> averaged
+        _row("2026-05-02", "BUY", 1, 0.03, True),
+        _row("2026-05-01", "BUY", 5, 0.05, True),
+        _row("2026-05-01", "SELL", 1, -0.04, True),       # avoid hit, excluded from curve
+    ]
+    s = summarize_performance(rows, curve_horizon=1)
+
+    # 1d long hit-rate: 3 long 1d rows (0.02 T, -0.01 F, 0.03 T) -> 2/3
+    assert s["horizons"]["1"]["count"] == 3
+    assert abs(s["horizons"]["1"]["hit_rate"] - (2.0 / 3.0)) < 1e-9
+
+    # equity curve: day1 mean(0.02,-0.01)=0.005 ; day2 = 0.03
+    curve = s["equity_curve"]
+    assert [p["date"] for p in curve] == ["2026-05-01", "2026-05-02"]
+    assert abs(curve[0]["equity"] - 1.005) < 1e-9
+    assert abs(curve[1]["equity"] - 1.005 * 1.03) < 1e-9
+    assert s["n_long_signals"] == 4   # BUY/MILD_BUY rows across all horizons
+
+
+def test_summary_handles_empty():
+    s = summarize_performance([], curve_horizon=1)
+    assert s["n_long_signals"] == 0
+    assert s["equity_curve"] == []
+    assert s["horizons"]["5"]["count"] == 0
+    assert s["horizons"]["5"]["hit_rate"] is None
+
+
 ALL_TESTS = [
     test_event_id_is_stable_and_namespaced,
     test_prediction_row_for_ok_signal,
@@ -156,6 +192,8 @@ ALL_TESTS = [
     test_outcome_hold_has_no_hit,
     test_outcome_rejects_bad_entry,
     test_outcome_empty_path_uses_realized,
+    test_summary_hit_rate_and_curve,
+    test_summary_handles_empty,
 ]
 
 
