@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardIndexData } from "../types";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import PerformanceCard from "../components/PerformanceCard";
 import {
   actionLabel,
   actionBadgeClass,
@@ -160,6 +161,7 @@ export default function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto">
+        <PerformanceCard />
         <h2 className="text-xl font-bold text-slate-100 mb-6 flex items-center gap-2">
             <RefreshCw size={20} className="text-blue-400" />
             監視銘柄一覧

@@ -69,3 +69,21 @@ export interface TickerDetailData {
   signals: TickerSignalHistoryEntry[];
   data: TickerData[];
 }
+
+export interface PerformanceHorizon {
+  count: number;
+  hit_rate: number | null;
+  avg_return: number | null;
+}
+
+export interface PerformanceSummary {
+  available: boolean;
+  reason?: string;
+  generated_at: string;
+  as_of?: string;
+  n_long_signals?: number;
+  horizons?: Record<string, PerformanceHorizon>;
+  equity_curve?: { date: string; equity: number; daily_return: number; n: number }[];
+  db_size_mb?: number;
+  storage_warning?: boolean;
+}
