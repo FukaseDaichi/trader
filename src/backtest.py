@@ -519,6 +519,109 @@ def format_gate_summary(result):
     )
 
 
+def _evaluate_portfolio_gate_rules(metrics: dict, config: dict) -> list[str]:
+    """
+    Check portfolio backtest metrics against the four gate thresholds from
+    get_portfolio_config():
+
+      backtest_max_dd       max abs drawdown allowed (e.g. 0.25 means 25%).
+      backtest_min_sharpe   minimum annualised Sharpe.
+      backtest_min_ir       minimum information ratio.
+      backtest_max_turnover maximum mean per-period turnover.
+
+    ``max_drawdown`` from the backtest is <= 0, so the rule is
+    ``abs(max_drawdown) > backtest_max_dd``.
+    """
+    failures = []
+
+    max_dd = metrics.get("max_drawdown")
+    if max_dd is not None and abs(float(max_dd)) > float(config["backtest_max_dd"]):
+        failures.append(f"max_dd>{float(config['backtest_max_dd']):.1%}")
+
+    sharpe = metrics.get("sharpe")
+    if sharpe is None or float(sharpe) < float(config["backtest_min_sharpe"]):
+        failures.append(f"sharpe<{float(config['backtest_min_sharpe']):.2f}")
+
+    ir = metrics.get("information_ratio")
+    if ir is None or float(ir) < float(config["backtest_min_ir"]):
+        failures.append(f"ir<{float(config['backtest_min_ir']):.2f}")
+
+    turnover = metrics.get("turnover")
+    if turnover is not None and float(turnover) > float(config["backtest_max_turnover"]):
+        failures.append(f"turnover>{float(config['backtest_max_turnover']):.2f}")
+
+    return failures
+
+
+def evaluate_portfolio_kpi_gate(result: dict, config: dict) -> dict:
+    """
+    Evaluate a portfolio KPI gate from an already-computed
+    ``run_portfolio_backtest`` result dict.
+
+    This wrapper consumes the *already-computed* metrics — it does NOT re-run
+    the simulation. The gate checks four thresholds read from ``config``
+    (expected keys: backtest_max_dd, backtest_min_sharpe, backtest_min_ir,
+    backtest_max_turnover). All are present on the dict returned by
+    ``get_portfolio_config()``.
+
+    Returns a dict with the same shape as ``evaluate_kpi_gate()``:
+      ``{passed, skipped, reason, metrics, failures}``
+    """
+    # Insufficient / missing result.
+    if result is None or result.get("status") != "ok":
+        status_str = (result or {}).get("status", "no_result")
+        return {
+            "passed": False,
+            "skipped": False,
+            "reason": status_str,
+            "metrics": (result or {}).get("metrics", {}),
+            "failures": [f"status={status_str}"],
+        }
+
+    metrics = result.get("metrics") or {}
+
+    # Empty metrics dict (should not occur for status="ok", but guard anyway).
+    if not metrics:
+        return {
+            "passed": False,
+            "skipped": False,
+            "reason": "no_metrics",
+            "metrics": {},
+            "failures": ["no_metrics"],
+        }
+
+    failures = _evaluate_portfolio_gate_rules(metrics, config)
+    return {
+        "passed": len(failures) == 0,
+        "skipped": False,
+        "reason": "ok" if not failures else "kpi_failed",
+        "metrics": metrics,
+        "failures": failures,
+    }
+
+
+def format_portfolio_gate_summary(result: dict) -> str:
+    """One-line human-readable summary of a portfolio gate result."""
+    metrics = result.get("metrics", {})
+    failures = result.get("failures", [])
+    passed_str = "PASS" if result.get("passed") else "FAIL"
+    sharpe = metrics.get("sharpe")
+    max_dd = metrics.get("max_drawdown")
+    ir = metrics.get("information_ratio")
+    turnover = metrics.get("turnover")
+    cagr = metrics.get("cagr")
+    cagr_s = f"{cagr:.1%}" if cagr is not None else "None"
+    max_dd_s = f"{max_dd:.1%}" if max_dd is not None else "None"
+    sharpe_s = f"{sharpe:.2f}" if sharpe is not None else "None"
+    ir_s = f"{ir:.2f}" if ir is not None else "None"
+    turnover_s = f"{turnover:.2f}" if turnover is not None else "None"
+    suffix = f" [{', '.join(failures)}]" if failures else ""
+    return (
+        f"{passed_str} CAGR={cagr_s}, MaxDD={max_dd_s}, "
+        f"Sharpe={sharpe_s}, IR={ir_s}, Turnover={turnover_s}{suffix}"
+    )
+
+
 def write_backtest_report(entries):
     label_cfg = get_label_config()
     payload = {

@@ -15,7 +15,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import json  # noqa: E402
+import tempfile  # noqa: E402
+
 from src.db_records import (  # noqa: E402
+    backtest_equity_rows,
+    backtest_run_row,
     compute_outcome,
     cs_prediction_row,
     make_event_id,
@@ -23,8 +28,6 @@ from src.db_records import (  # noqa: E402
     signal_to_signal_row,
     summarize_performance,
 )
-
-import tempfile  # noqa: E402
 
 import src.db as dbmod  # noqa: E402
 
@@ -234,6 +237,141 @@ def test_cs_prediction_row_missing_ticker_is_none():
     assert row2 is None
 
 
+def _bt_result_ok():
+    """Minimal run_portfolio_backtest-shaped result with status='ok'."""
+    return {
+        "status": "ok",
+        "start_date": "2024-01-05",
+        "end_date": "2024-12-20",
+        "n_periods": 48,
+        "rebalance_days": 5,
+        "cost_bps": 10.0,
+        "slippage_bps": 5.0,
+        "params": {
+            "target_vol": 0.12,
+            "max_name_weight": 0.20,
+            "top_n": 8,
+            "rebalance_days": 5,
+            "cost_bps": 10.0,
+            "slippage_bps": 5.0,
+        },
+        "metrics": {
+            "cagr": 0.15,
+            "sharpe": 0.80,
+            "sortino": 1.1,
+            "max_drawdown": -0.10,
+            "information_ratio": 0.50,
+            "turnover": 0.20,
+            "n_periods": 48,
+        },
+        "equity": [
+            {
+                "date": "2024-01-05",
+                "equity": 1.0,
+                "benchmark_equity": 1.0,
+                "period_return": 0.01,
+                "benchmark_return": 0.005,
+                "drawdown": 0.0,
+                "gross_exposure": 0.85,
+                "turnover": 0.30,
+            },
+            {
+                "date": "2024-01-12",
+                "equity": 1.01,
+                "benchmark_equity": 1.005,
+                "period_return": 0.01,
+                "benchmark_return": 0.003,
+                "drawdown": 0.0,
+                "gross_exposure": 0.87,
+                "turnover": 0.05,
+            },
+        ],
+    }
+
+
+def test_backtest_run_row_maps_core_fields():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", model_version="cs-v1-20260610")
+    assert row is not None
+    assert row["run_date"] == "2026-06-10"
+    assert row["model_version"] == "cs-v1-20260610"
+    assert row["scope"] == "portfolio"
+    assert row["start_date"] == "2024-01-05"
+    assert row["end_date"] == "2024-12-20"
+    # params and metrics are dicts (JSON-serializable).
+    assert isinstance(row["params"], dict)
+    assert isinstance(row["metrics"], dict)
+    assert row["metrics"]["sharpe"] == 0.80
+    assert row["params"]["top_n"] == 8
+    # Verify JSON-serialisability (no non-serialisable types).
+    json.dumps(row["params"])
+    json.dumps(row["metrics"])
+
+
+def test_backtest_run_row_custom_scope():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", scope="custom_scope")
+    assert row["scope"] == "custom_scope"
+
+
+def test_backtest_run_row_none_model_version():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", model_version=None)
+    assert row is not None
+    assert row["model_version"] is None
+
+
+def test_backtest_run_row_insufficient_returns_none():
+    result = {"status": "insufficient", "metrics": {}, "equity": []}
+    assert backtest_run_row(result, run_date="2026-06-10") is None
+
+
+def test_backtest_run_row_none_result_returns_none():
+    assert backtest_run_row(None, run_date="2026-06-10") is None
+
+
+def test_backtest_equity_rows_period_return_renamed():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    assert len(rows) == 2
+
+    # period_return must be renamed to daily_return.
+    assert "daily_return" in rows[0], rows[0]
+    assert "period_return" not in rows[0], rows[0]
+
+    # Values preserved.
+    assert rows[0]["daily_return"] == 0.01
+    assert rows[1]["daily_return"] == 0.01
+
+
+def test_backtest_equity_rows_all_keys_present():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    expected_keys = {
+        "date", "equity", "benchmark_equity", "daily_return",
+        "benchmark_return", "drawdown", "gross_exposure", "turnover",
+    }
+    for row in rows:
+        assert expected_keys.issubset(set(row)), f"Missing keys: {expected_keys - set(row)}"
+
+
+def test_backtest_equity_rows_insufficient_is_empty():
+    result = {"status": "insufficient", "metrics": {}, "equity": []}
+    assert backtest_equity_rows(result) == []
+
+
+def test_backtest_equity_rows_none_result_is_empty():
+    assert backtest_equity_rows(None) == []
+
+
+def test_backtest_equity_rows_json_serializable():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    # All values must be JSON-serializable (no numpy/datetime objects).
+    for row in rows:
+        json.dumps(row)
+
+
 def test_outbox_queue_and_dedup():
     import os
     with tempfile.TemporaryDirectory() as tmp:
@@ -280,6 +418,16 @@ ALL_TESTS = [
     test_outbox_queue_and_dedup,
     test_cs_prediction_row_maps_fields,
     test_cs_prediction_row_missing_ticker_is_none,
+    test_backtest_run_row_maps_core_fields,
+    test_backtest_run_row_custom_scope,
+    test_backtest_run_row_none_model_version,
+    test_backtest_run_row_insufficient_returns_none,
+    test_backtest_run_row_none_result_returns_none,
+    test_backtest_equity_rows_period_return_renamed,
+    test_backtest_equity_rows_all_keys_present,
+    test_backtest_equity_rows_insufficient_is_empty,
+    test_backtest_equity_rows_none_result_is_empty,
+    test_backtest_equity_rows_json_serializable,
 ]
 
 

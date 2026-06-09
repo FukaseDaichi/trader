@@ -312,6 +312,88 @@ def record_run(signals: list[dict], run_date: str) -> dict:
         conn.close()
 
 
+# --- Phase 2: portfolio backtest write-through -----------------------------
+
+def insert_backtest_run(conn, row: dict, equity_rows: list[dict]) -> int:
+    """
+    Insert one ``backtest_runs`` row and its associated ``backtest_equity`` rows
+    in a single transaction.
+
+    ``row`` must contain all non-auto columns for ``backtest_runs`` (see
+    ``db_records.backtest_run_row`` for the mapping). ``equity_rows`` is the list
+    from ``db_records.backtest_equity_rows``; each entry must have all columns
+    except ``run_id`` (injected here from the RETURNING id).
+
+    Returns the generated ``backtest_runs.id``.
+    """
+    from psycopg.types.json import Jsonb
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO backtest_runs"
+            " (run_date, model_version, scope, start_date, end_date, params, metrics)"
+            " VALUES (%(run_date)s, %(model_version)s, %(scope)s, %(start_date)s,"
+            "  %(end_date)s, %(params)s, %(metrics)s)"
+            " RETURNING id",
+            {
+                **row,
+                "params": Jsonb(row.get("params", {})),
+                "metrics": Jsonb(row.get("metrics", {})),
+            },
+        )
+        run_id = cur.fetchone()[0]
+
+        if equity_rows:
+            cur.executemany(
+                "INSERT INTO backtest_equity"
+                " (run_id, date, equity, benchmark_equity, daily_return,"
+                "  benchmark_return, drawdown, gross_exposure, turnover)"
+                " VALUES (%(run_id)s, %(date)s, %(equity)s, %(benchmark_equity)s,"
+                "  %(daily_return)s, %(benchmark_return)s, %(drawdown)s,"
+                "  %(gross_exposure)s, %(turnover)s)",
+                [{"run_id": run_id, **eq} for eq in equity_rows],
+            )
+
+    conn.commit()
+    return run_id
+
+
+def record_backtest_run(result: dict, run_date: str, *,
+                        model_version: str | None = None,
+                        scope: str = "portfolio") -> dict:
+    """
+    Write-through a ``run_portfolio_backtest`` result to the DB. Never raises.
+
+    When DB is disabled or any error occurs the function returns
+    ``{"ok": False, "reason": ...}`` — the caller is responsible for deciding
+    whether to log. The JSON report (``docs/portfolio_backtest.json``) is written
+    by the caller regardless of this function's outcome.
+
+    Returns ``{"ok": True, "run_id": <int>}`` on success.
+    """
+    run_row = db_records.backtest_run_row(result, run_date, model_version=model_version,
+                                         scope=scope)
+    if run_row is None:
+        return {"ok": False, "reason": "insufficient_or_no_result"}
+
+    equity_rows = db_records.backtest_equity_rows(result)
+
+    if not db_enabled():
+        return {"ok": False, "reason": "db_disabled"}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}"}
+
+    try:
+        run_id = insert_backtest_run(conn, run_row, equity_rows)
+        return {"ok": True, "run_id": run_id}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}"}
+    finally:
+        conn.close()
+
+
 # --- settlement support (read) ---------------------------------------------
 
 def fetch_unsettled(conn) -> list[dict]:

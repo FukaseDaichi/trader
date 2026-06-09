@@ -129,6 +129,67 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
     }
 
 
+def backtest_run_row(result: dict, run_date: str, *,
+                     model_version: str | None = None,
+                     scope: str = "portfolio") -> dict | None:
+    """
+    Map a ``run_portfolio_backtest`` result dict to a ``backtest_runs`` INSERT row.
+
+    Returns ``None`` when the result is None or its status is not ``"ok"``
+    (insufficient runs should not be persisted).
+
+    Column mapping:
+      run_date      <- caller-supplied
+      model_version <- caller-supplied (may be None)
+      scope         <- caller-supplied (default "portfolio")
+      start_date    <- result["start_date"]
+      end_date      <- result["end_date"]
+      params        <- result["params"]  (JSONB)
+      metrics       <- result["metrics"] (JSONB)
+    """
+    if result is None or result.get("status") != "ok":
+        return None
+
+    return {
+        "run_date": run_date,
+        "model_version": model_version,
+        "scope": scope,
+        "start_date": result["start_date"],
+        "end_date": result["end_date"],
+        "params": result.get("params", {}),
+        "metrics": result.get("metrics", {}),
+    }
+
+
+def backtest_equity_rows(result: dict) -> list[dict]:
+    """
+    Map the ``equity`` list from a ``run_portfolio_backtest`` result to a list
+    of ``backtest_equity`` INSERT rows (run_id is NOT yet set — the caller
+    injects it after the backtest_runs INSERT returns the generated id).
+
+    Key rename: ``period_return`` -> ``daily_return`` (matches the DB column).
+
+    Returns an empty list when result is None, status != "ok", or equity is
+    empty.
+    """
+    if result is None or result.get("status") != "ok":
+        return []
+
+    rows = []
+    for eq in result.get("equity") or []:
+        rows.append({
+            "date": eq["date"],
+            "equity": eq["equity"],
+            "benchmark_equity": eq.get("benchmark_equity"),
+            "daily_return": eq.get("period_return"),   # rename: period_return -> daily_return
+            "benchmark_return": eq.get("benchmark_return"),
+            "drawdown": eq.get("drawdown"),
+            "gross_exposure": eq.get("gross_exposure"),
+            "turnover": eq.get("turnover"),
+        })
+    return rows
+
+
 def compute_outcome(action: str, entry_close: float, exit_close: float,
                     path_highs, path_lows) -> dict:
     """

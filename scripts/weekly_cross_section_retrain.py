@@ -35,16 +35,19 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src import db, model_store  # noqa: E402
+from src.backtest import evaluate_portfolio_kpi_gate, format_portfolio_gate_summary  # noqa: E402
 from src.config import (  # noqa: E402
     BACKTEST_GATE_CONFIG,
     TICKERS,
     get_cross_section_config,
     get_model_runtime_config,
+    get_portfolio_config,
 )
 from src.cross_section import build_cs_panel  # noqa: E402
 from src.cs_model import train_cs_model  # noqa: E402
 from src.data_loader import load_data, update_data  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
+from src.portfolio_backtest import run_portfolio_backtest, write_portfolio_backtest_report  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
 
 
@@ -240,6 +243,88 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                 "(artifacts + active pointer written locally)."
             )
 
+    # --- Portfolio backtest (best-effort; never aborts the retrain) ---
+    # Build price_frames keyed by ticker code (= ticker_info["code"]) to match
+    # the ticker column in bundle["oos_predictions"].
+    portfolio_summary: dict | None = None
+    try:
+        portfolio_cfg = get_portfolio_config()
+        portfolio_cfg["top_n"] = cs_cfg.get("top_n", 8)
+
+        price_frames = {
+            ticker_info["code"]: df[["date", "close"]].copy()
+            for ticker_info, df in tickers_data
+            if "date" in df.columns and "close" in df.columns
+        }
+
+        # sectors: available when ticker_info carries a "sector" field.
+        sectors = {
+            ticker_info["code"]: ticker_info["sector"]
+            for ticker_info, _ in tickers_data
+            if ticker_info.get("sector")
+        }
+
+        bt_result = run_portfolio_backtest(
+            bundle["oos_predictions"],
+            price_frames,
+            macro_panel,
+            portfolio_cfg,
+            sectors=sectors,
+            label_horizon_days=label_horizon_days,
+            cost_bps=float(portfolio_cfg.get("cost_bps", 10.0)),
+            slippage_bps=float(portfolio_cfg.get("slippage_bps", 5.0)),
+        )
+        gate = evaluate_portfolio_kpi_gate(bt_result, portfolio_cfg)
+        gate_summary = format_portfolio_gate_summary(gate)
+        print(f"cs-retrain: portfolio backtest {gate_summary}")
+
+        # Write docs/portfolio_backtest.json (always, even in dry-run).
+        bt_report_path = Path(ROOT_DIR) / "docs" / "portfolio_backtest.json"
+        write_portfolio_backtest_report(
+            bt_result,
+            output_path=str(bt_report_path),
+            model_version=version,
+            run_date=today_jst_iso(),
+            generated_at=generated_at,
+        )
+        print(f"cs-retrain: portfolio backtest report written to {bt_report_path}")
+
+        # Best-effort DB persist (skipped in dry-run).
+        if not dry_run and db.db_enabled():
+            db_res = db.record_backtest_run(
+                bt_result,
+                today_jst_iso(),
+                model_version=version,
+                scope="portfolio",
+            )
+            if db_res.get("ok"):
+                print(f"cs-retrain: backtest_runs row inserted (id={db_res.get('run_id')}).")
+            else:
+                print(
+                    f"cs-retrain: backtest DB persist skipped (ignored): "
+                    f"{db_res.get('reason')}"
+                )
+
+        # Compact summary to include in cs_model_quality.json.
+        m = bt_result.get("metrics") or {}
+        portfolio_summary = {
+            "status": bt_result.get("status"),
+            "gate_passed": gate.get("passed"),
+            "gate_failures": gate.get("failures"),
+            "n_periods": bt_result.get("n_periods"),
+            "sharpe": m.get("sharpe"),
+            "cagr": m.get("cagr"),
+            "max_drawdown": m.get("max_drawdown"),
+            "information_ratio": m.get("information_ratio"),
+            "turnover": m.get("turnover"),
+        }
+
+    except Exception as e:  # noqa: BLE001 — backtest failure must never abort retrain
+        print(
+            f"cs-retrain: portfolio backtest failed (ignored): "
+            f"{type(e).__name__}: {e}"
+        )
+
     # --- Write quality report ---
     payload = {
         "available": True,
@@ -252,6 +337,7 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         "db_registered": db_registered,
         "metrics": bundle["metrics"],
         "fallback_reason": fallback_reason,
+        "portfolio_backtest": portfolio_summary,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(

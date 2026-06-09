@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import portfolio_backtest as pbt  # noqa: E402
+from src.backtest import evaluate_portfolio_kpi_gate, format_portfolio_gate_summary  # noqa: E402
 
 N_TICKERS = 30
 N_DATES = 250
@@ -326,6 +327,132 @@ def test_write_report_roundtrip():
 
 
 # ---------------------------------------------------------------------------
+# Portfolio KPI gate tests
+# ---------------------------------------------------------------------------
+
+def _gate_config(**overrides):
+    """Threshold config matching get_portfolio_config() defaults."""
+    base = {
+        "backtest_min_sharpe": 0.30,
+        "backtest_max_dd": 0.25,
+        "backtest_min_ir": 0.00,
+        "backtest_max_turnover": 0.40,
+    }
+    base.update(overrides)
+    return base
+
+
+def _ok_result(sharpe=0.80, max_drawdown=-0.10, information_ratio=0.50,
+               turnover=0.20, cagr=0.12):
+    """Passing-metrics result stub."""
+    return {
+        "status": "ok",
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31",
+        "n_periods": 50,
+        "metrics": {
+            "sharpe": sharpe,
+            "max_drawdown": max_drawdown,
+            "information_ratio": information_ratio,
+            "turnover": turnover,
+            "cagr": cagr,
+        },
+    }
+
+
+def test_gate_passes_when_all_metrics_ok():
+    result = _ok_result()
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config())
+    assert gate["passed"] is True, gate
+    assert gate["reason"] == "ok"
+    assert gate["failures"] == []
+    assert gate["skipped"] is False
+
+
+def test_gate_fails_on_max_dd_breach():
+    # max_drawdown = -0.30 -> abs = 0.30 > threshold 0.25
+    result = _ok_result(max_drawdown=-0.30)
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config(backtest_max_dd=0.25))
+    assert gate["passed"] is False, gate
+    assert any("max_dd" in f for f in gate["failures"]), gate["failures"]
+
+
+def test_gate_fails_on_low_sharpe():
+    result = _ok_result(sharpe=0.10)
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config(backtest_min_sharpe=0.30))
+    assert gate["passed"] is False, gate
+    assert any("sharpe" in f for f in gate["failures"]), gate["failures"]
+
+
+def test_gate_fails_on_low_ir():
+    # IR = -0.05 < threshold 0.00
+    result = _ok_result(information_ratio=-0.05)
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config(backtest_min_ir=0.00))
+    assert gate["passed"] is False, gate
+    assert any("ir" in f for f in gate["failures"]), gate["failures"]
+
+
+def test_gate_fails_on_high_turnover():
+    result = _ok_result(turnover=0.50)
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config(backtest_max_turnover=0.40))
+    assert gate["passed"] is False, gate
+    assert any("turnover" in f for f in gate["failures"]), gate["failures"]
+
+
+def test_gate_insufficient_status_not_passed():
+    result = {"status": "insufficient", "metrics": {}, "equity": []}
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config())
+    assert gate["passed"] is False
+    assert "insufficient" in gate["reason"]
+
+
+def test_gate_none_result_not_passed():
+    gate = evaluate_portfolio_kpi_gate(None, _gate_config())
+    assert gate["passed"] is False
+
+
+def test_gate_none_metrics_fields_fail():
+    # sharpe=None should trigger sharpe failure (< threshold).
+    result = _ok_result()
+    result["metrics"]["sharpe"] = None
+    result["metrics"]["information_ratio"] = None
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config())
+    assert gate["passed"] is False
+    assert any("sharpe" in f for f in gate["failures"]), gate["failures"]
+    assert any("ir" in f for f in gate["failures"]), gate["failures"]
+
+
+def test_gate_summary_is_string_with_pass_fail():
+    passing = evaluate_portfolio_kpi_gate(_ok_result(), _gate_config())
+    s = format_portfolio_gate_summary(passing)
+    assert isinstance(s, str)
+    assert "PASS" in s
+    assert "Sharpe" in s
+
+    failing = evaluate_portfolio_kpi_gate(_ok_result(sharpe=0.05), _gate_config())
+    sf = format_portfolio_gate_summary(failing)
+    assert "FAIL" in sf
+
+
+def test_gate_with_real_backtest_result():
+    """End-to-end: run a real backtest and put the result through the gate."""
+    tickers = _tickers()
+    frames = _price_frames(tickers, seed=20)
+    oos = _oos_predictions(tickers, seed=21, signal=0.05)
+    macro = _macro_panel()
+    res = pbt.run_portfolio_backtest(
+        oos, frames, macro, _config(), sectors=_sectors(tickers),
+        label_horizon_days=H,
+    )
+    assert res["status"] == "ok"
+    gate = evaluate_portfolio_kpi_gate(res, _gate_config())
+    # Gate evaluates without error; result is consistent.
+    assert isinstance(gate["passed"], bool)
+    assert isinstance(gate["failures"], list)
+    assert gate["metrics"] is res["metrics"]
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -337,6 +464,16 @@ ALL_TESTS = [
     test_backtest_benchmark_alpha_beta,
     test_backtest_insufficient_periods,
     test_write_report_roundtrip,
+    test_gate_passes_when_all_metrics_ok,
+    test_gate_fails_on_max_dd_breach,
+    test_gate_fails_on_low_sharpe,
+    test_gate_fails_on_low_ir,
+    test_gate_fails_on_high_turnover,
+    test_gate_insufficient_status_not_passed,
+    test_gate_none_result_not_passed,
+    test_gate_none_metrics_fields_fail,
+    test_gate_summary_is_string_with_pass_fail,
+    test_gate_with_real_backtest_result,
 ]
 
 
