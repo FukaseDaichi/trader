@@ -163,6 +163,57 @@ def get_backtest_gate_config():
         "auto_threshold_min_gap": _get_env_float("TRADER_AUTO_THRESHOLD_MIN_GAP", 0.05),
     }
 
+
+def _get_env_str(name, default):
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return str(default)
+    return str(raw)
+
+
+def get_label_config():
+    """
+    Phase 1 label / target configuration (roadmap §6.1).
+
+    `binary_1d` reproduces the legacy next-day binary target for rollback and
+    A/B comparison; `triple_barrier` (default) and `vol_norm` are the Phase 1
+    horizon-aware targets.
+    """
+    return {
+        "label_mode": _get_env_choice(
+            "TRADER_LABEL_MODE",
+            "triple_barrier",
+            {"triple_barrier", "vol_norm", "binary_1d"},
+        ),
+        "horizon_days": max(1, _get_env_int("TRADER_TARGET_HORIZON_DAYS", 5)),
+        "tb_tp_atr": max(0.0, _get_env_float("TRADER_TB_TP_ATR", 1.5)),
+        "tb_sl_atr": max(0.0, _get_env_float("TRADER_TB_SL_ATR", 1.0)),
+        "tb_max_days": max(1, _get_env_int("TRADER_TB_MAX_DAYS", 5)),
+        "vol_col": "volatility",
+    }
+
+
+def get_model_runtime_config():
+    """Phase 1 model-mode / calibration / artifact configuration."""
+    default_model_dir = str(DATA_DIR / "models")
+    return {
+        "model_mode": _get_env_choice(
+            "TRADER_MODEL_MODE", "auto", {"auto", "legacy", "phase1"}
+        ),
+        "calibration_mode": _get_env_choice(
+            "TRADER_CALIBRATION_MODE", "isotonic", {"isotonic", "none"}
+        ),
+        "macro_features_enabled": _get_env_bool("TRADER_MACRO_FEATURES_ENABLED", True),
+        "model_dir": _get_env_str("TRADER_MODEL_DIR", default_model_dir),
+        "active_model_file": _get_env_str(
+            "TRADER_MODEL_ACTIVE_FILE", str(DATA_DIR / "models" / "active_model.json")
+        ),
+        "min_calibration_rows": max(10, _get_env_int("TRADER_MIN_CALIBRATION_ROWS", 60)),
+    }
+
+
 TICKERS = load_tickers()
 LINE_CONFIG = get_line_config()
 BACKTEST_GATE_CONFIG = get_backtest_gate_config()
+LABEL_CONFIG = get_label_config()
+MODEL_RUNTIME_CONFIG = get_model_runtime_config()

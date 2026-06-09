@@ -59,6 +59,54 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           exit "$STATUS"
 
+      - name: Run model drift check
+        id: drift
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        run: |
+          set +e
+          OUTPUT=$(uv run python scripts/drift_check.py --as-of "${{ steps.market.outputs.today_jst }}" 2>&1)
+          STATUS=$?
+          printf '%s\n' "$OUTPUT"
+          {
+            echo "status=$STATUS"
+            echo "output<<EOF"
+            printf '%s\n' "$OUTPUT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Create drift issue
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.drift.outputs.status == '2' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRIFT_OUTPUT: ${{ steps.drift.outputs.output }}
+        run: |
+          TODAY_JST="${{ steps.market.outputs.today_jst }}"
+          TITLE="Model drift detected ($TODAY_JST)"
+          BODY=$(cat <<EOF
+          Model drift thresholds were breached for $TODAY_JST.
+
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Output:
+          \`\`\`
+          $DRIFT_OUTPUT
+          \`\`\`
+          EOF
+          )
+
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq 'length')
+          if [ "$EXISTING" -eq 0 ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          else
+            echo "Open drift issue already exists for $TODAY_JST."
+          fi
+
       - name: Create watchdog failure issue
         if: ${{ steps.market.outputs.is_open == 'true' && steps.watchdog.outcome == 'failure' }}
         env:

@@ -33,27 +33,43 @@ def _as_float(value):
 
 
 def signal_to_prediction_row(signal: dict, run_date: str,
-                             model_version: str = LEGACY_MODEL_VERSION,
-                             horizon_days: int = LEGACY_PREDICTION_HORIZON) -> dict | None:
+                             model_version: str | None = None,
+                             horizon_days: int | None = None) -> dict | None:
     """
     Map a daily signal to a `predictions` row. Returns None when there is no
     probability to record (e.g. failed tickers), so we don't store empty rows.
+
+    Phase 1 fields (model_version / horizon_days / raw_score / expected_ret /
+    features_hash) are taken from the signal when present; otherwise they fall
+    back to the legacy daily model (next-day binary).
     """
     prob_up = _as_float(signal.get("prob_up"))
     if prob_up is None:
         return None
 
+    resolved_version = model_version or signal.get("model_version") or LEGACY_MODEL_VERSION
+    if horizon_days is not None:
+        resolved_horizon = int(horizon_days)
+    elif signal.get("horizon_days") is not None:
+        resolved_horizon = int(signal["horizon_days"])
+    else:
+        resolved_horizon = LEGACY_PREDICTION_HORIZON
+
+    raw_score = _as_float(signal.get("raw_score"))
+    if raw_score is None:
+        raw_score = prob_up
+
     return {
         "run_date": run_date,
         "as_of_date": signal.get("date"),
         "ticker": signal.get("ticker"),
-        "model_version": model_version,
-        "horizon_days": int(horizon_days),
-        "raw_score": prob_up,
+        "model_version": resolved_version,
+        "horizon_days": resolved_horizon,
+        "raw_score": raw_score,
         "prob_up": prob_up,
-        "expected_ret": None,   # Phase 1 (regression head)
+        "expected_ret": _as_float(signal.get("expected_ret")),
         "cs_rank": None,        # Phase 2 (cross-sectional)
-        "features_hash": None,  # Phase 1 (reproducibility)
+        "features_hash": signal.get("features_hash"),
     }
 
 

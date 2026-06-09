@@ -31,10 +31,25 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Update macro snapshots
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+        run: uv run python scripts/update_macro_snapshots.py
+
       - name: Run retrain pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          TRADER_TARGET_HORIZON_DAYS: "5"
+          TRADER_LABEL_MODE: "triple_barrier"
+          TRADER_CALIBRATION_MODE: "isotonic"
+          TRADER_MACRO_FEATURES_ENABLED: "true"
         run: uv run python scripts/weekly_model_retrain.py --output docs/weekly_retrain_report.json
 
       - name: Commit and push retrain artifacts
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
-          bash .github/scripts/commit-and-push.sh "Weekly retrain refresh ($TODAY_JST)" data/ docs/weekly_retrain_report.json
+          bash .github/scripts/commit-and-push.sh "Weekly retrain refresh ($TODAY_JST)" \
+            data/ docs/weekly_retrain_report.json docs/model_quality.json

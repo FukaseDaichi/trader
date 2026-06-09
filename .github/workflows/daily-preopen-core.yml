@@ -45,6 +45,15 @@ jobs:
         if: ${{ steps.market.outputs.is_open != 'true' }}
         run: echo "JPX closed on ${{ steps.market.outputs.target_date }} (${{ steps.market.outputs.market_reason }}). Skip."
 
+      - name: Update macro snapshots
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        run: uv run python scripts/update_macro_snapshots.py --as-of "${{ steps.market.outputs.today_jst }}"
+
       - name: Run prediction script
         if: ${{ steps.market.outputs.is_open == 'true' }}
         env:
@@ -53,6 +62,12 @@ jobs:
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
+          # Phase 1: use the saved model when available, else legacy fallback.
+          TRADER_MODEL_MODE: "auto"
+          TRADER_TARGET_HORIZON_DAYS: "5"
+          TRADER_LABEL_MODE: "triple_barrier"
+          TRADER_CALIBRATION_MODE: "isotonic"
+          TRADER_MACRO_FEATURES_ENABLED: "true"
         run: uv run python main.py
 
       - name: Settle realized outcomes
@@ -63,6 +78,17 @@ jobs:
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}"
+
+      - name: Publish model drift report
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        # Publish docs/drift_report.json for the dashboard; alerting (Issue) is
+        # handled by daily-watchdog. A breach exit code must not fail core.
+        run: uv run python scripts/drift_check.py --as-of "${{ steps.market.outputs.today_jst }}" || true
 
       - name: Commit and push data/docs updates
         if: ${{ steps.market.outputs.is_open == 'true' }}

@@ -12,7 +12,7 @@ import pandas as pd
 from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
 from .data_loader import load_data
 from .model import add_features
-from . import db
+from . import db, model_store
 from .db_records import summarize_performance
 
 MAX_HISTORY_DAYS = 30
@@ -24,6 +24,8 @@ DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"
 TICKER_EXPORT_DIR = DOCS_DIR / "tickers"
 LEGACY_HISTORY_FILE = DOCS_DIR / "history_data.json"
 PERFORMANCE_FILE = DOCS_DIR / "performance_summary.json"
+MODEL_QUALITY_FILE = DOCS_DIR / "model_quality.json"
+DRIFT_REPORT_FILE = DOCS_DIR / "drift_report.json"
 EXPORT_COLUMNS = [
     "date",
     "open",
@@ -197,6 +199,9 @@ def update_dashboard(signals):
     # 3. Phase 0: export realized-performance summary from the DB (best-effort).
     export_performance_summary()
 
+    # 4. Phase 1: export model-quality summary from the active model artifact.
+    export_model_quality()
+
 
 def update_state(signals):
     """
@@ -362,3 +367,96 @@ def export_performance_summary():
         print(f"performance_summary: export failed (ignored): {type(exc).__name__}: {exc}")
     finally:
         conn.close()
+
+
+def _median(values):
+    nums = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    if not nums:
+        return None
+    nums = sorted(nums)
+    mid = len(nums) // 2
+    if len(nums) % 2:
+        return float(nums[mid])
+    return float((nums[mid - 1] + nums[mid]) / 2.0)
+
+
+def _load_drift_overlay() -> dict:
+    if not DRIFT_REPORT_FILE.exists():
+        return {}
+    try:
+        data = json.loads(DRIFT_REPORT_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def export_model_quality():
+    """
+    Write docs/model_quality.json (Phase 1). Sourced from the committed active
+    model artifact's metadata (so it works without a DB), enriched with the
+    drift report when present. When no active model exists the file is marked
+    unavailable and the dashboard card hides itself.
+    """
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+
+    active = model_store.read_active_model()
+    if not active:
+        _atomic_write_json(MODEL_QUALITY_FILE, {
+            "available": False, "reason": "no_active_model", "generated_at": now_str,
+        }, indent=2)
+        return
+
+    version = active.get("version")
+    meta = model_store.read_version_metadata(version) or {}
+    cv_by_ticker = ((meta.get("cv_metrics") or {}).get("by_ticker") or {})
+
+    drift = _load_drift_overlay()
+    drift_by = drift.get("by_ticker", {}) if isinstance(drift.get("by_ticker"), dict) else {}
+
+    allowed = {t["code"] for t in TICKERS}
+    by_ticker: dict[str, Any] = {}
+    briers: list[float] = []
+    ics: list[float] = []
+    any_warning = False
+
+    for code, metrics in cv_by_ticker.items():
+        if code not in allowed or not isinstance(metrics, dict):
+            continue
+        cal = metrics.get("calibration") or {}
+        drift_row = drift_by.get(code, {}) if isinstance(drift_by.get(code), dict) else {}
+        warning = bool(drift_row.get("warning", False))
+        any_warning = any_warning or warning
+
+        brier = metrics.get("brier")
+        ic = metrics.get("ic")
+        if isinstance(brier, (int, float)):
+            briers.append(brier)
+        if isinstance(ic, (int, float)):
+            ics.append(ic)
+
+        by_ticker[code] = {
+            "brier": brier,
+            "brier_raw": metrics.get("brier_raw"),
+            "ic": ic,
+            "auc": metrics.get("auc"),
+            "calibration_rows": cal.get("rows"),
+            "psi_max": drift_row.get("psi_max"),
+            "warning": warning,
+        }
+
+    drift_warning = bool(drift.get("breached")) or any_warning
+    payload = {
+        "available": True,
+        "generated_at": now_str,
+        "active_model_version": version,
+        "horizon_days": active.get("horizon_days") or meta.get("horizon_days"),
+        "summary": {
+            "tickers": len(by_ticker),
+            "median_brier": _median(briers),
+            "median_ic": _median(ics),
+            "drift_warning": drift_warning,
+        },
+        "by_ticker": by_ticker,
+    }
+    _atomic_write_json(MODEL_QUALITY_FILE, payload, indent=2)
+    print(f"Model quality summary exported to {MODEL_QUALITY_FILE}")
