@@ -73,6 +73,42 @@ def signal_to_prediction_row(signal: dict, run_date: str,
     }
 
 
+def cs_prediction_row(pred: dict, run_date: str, *,
+                      model_version: str,
+                      horizon_days: int,
+                      as_of_date=None) -> dict | None:
+    """
+    Map one cross-sectional prediction (ticker, raw_score, cs_rank, prob_up,
+    expected_ret, features_hash) to a `predictions` table row.
+
+    Returns None when there is no ticker. cs_rank is an int (1 = top);
+    prob_up / expected_ret / raw_score are floats or None.
+
+    Keys match the predictions upsert schema exactly:
+      run_date, as_of_date, ticker, model_version, horizon_days,
+      raw_score, prob_up, expected_ret, cs_rank, features_hash.
+    """
+    ticker = pred.get("ticker")
+    if not ticker:
+        return None
+
+    cs_rank = pred.get("cs_rank")
+    cs_rank_int = int(cs_rank) if cs_rank is not None else None
+
+    return {
+        "run_date": run_date,
+        "as_of_date": as_of_date,
+        "ticker": ticker,
+        "model_version": model_version,
+        "horizon_days": int(horizon_days),
+        "raw_score": _as_float(pred.get("raw_score")),
+        "prob_up": _as_float(pred.get("prob_up")),
+        "expected_ret": _as_float(pred.get("expected_ret")),
+        "cs_rank": cs_rank_int,
+        "features_hash": pred.get("features_hash"),
+    }
+
+
 def signal_to_signal_row(signal: dict, run_date: str) -> dict:
     """Map a daily signal to a `signals` row (one per run_date/ticker)."""
     prob_up = _as_float(signal.get("prob_up"))

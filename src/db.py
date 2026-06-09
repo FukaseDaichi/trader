@@ -242,6 +242,48 @@ def apply_signal_history(conn, history_days: list[dict]) -> dict:
     return {"events": len(all_events), "applied": applied, "linked": linked}
 
 
+def record_cs_predictions(cs_rows: list[dict], run_date: str) -> dict:
+    """
+    Write-through cross-sectional ``predictions`` rows (model_version cs-v1-*).
+
+    Never raises. On DB-disabled or any failure, queues events to the outbox
+    so the next run flushes them. Each event uses kind="prediction" so
+    ``_apply_events`` upserts via ``_upsert_prediction``, which already handles
+    cs_rank / expected_ret. The cs-v1-* model_version means these never collide
+    with Phase 1 "pred" rows that use per-ticker-v1-* / legacy-daily-v0 versions.
+    """
+    events = []
+    for row in cs_rows:
+        ticker = row.get("ticker")
+        if not ticker:
+            continue
+        events.append({
+            "event_id": db_records.make_event_id(run_date, ticker, "cs_pred"),
+            "kind": "prediction",
+            "row": row,
+        })
+
+    n = len(events)
+    if not db_enabled():
+        queued = _queue_events(events)
+        return {"ok": False, "reason": "db_disabled", "queued": queued}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        queued = _queue_events(events)
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}", "queued": queued}
+
+    try:
+        applied = _apply_events(conn, events)
+        return {"ok": True, "applied": applied}
+    except Exception as exc:  # noqa: BLE001
+        queued = _queue_events(events)
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
+    finally:
+        conn.close()
+
+
 def record_run(signals: list[dict], run_date: str) -> dict:
     """
     Write-through the day's predictions+signals. Never raises.

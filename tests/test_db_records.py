@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.db_records import (  # noqa: E402
     compute_outcome,
+    cs_prediction_row,
     make_event_id,
     signal_to_prediction_row,
     signal_to_signal_row,
@@ -184,6 +185,55 @@ def test_summary_handles_empty():
     assert s["horizons"]["5"]["hit_rate"] is None
 
 
+def test_cs_prediction_row_maps_fields():
+    pred = {
+        "ticker": "7011.JP",
+        "raw_score": 1.234,
+        "cs_rank": 3,
+        "prob_up": 0.72,
+        "expected_ret": 0.015,
+        "features_hash": None,
+    }
+    row = cs_prediction_row(
+        pred,
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+        as_of_date="2026-06-06",
+    )
+    assert row is not None
+    assert row["run_date"] == "2026-06-09"
+    assert row["as_of_date"] == "2026-06-06"
+    assert row["ticker"] == "7011.JP"
+    assert row["model_version"] == "cs-v1-20260609"
+    assert row["horizon_days"] == 5
+    assert isinstance(row["cs_rank"], int) and row["cs_rank"] == 3
+    assert abs(row["raw_score"] - 1.234) < 1e-9
+    assert abs(row["prob_up"] - 0.72) < 1e-9
+    assert abs(row["expected_ret"] - 0.015) < 1e-9
+    assert row["features_hash"] is None
+
+
+def test_cs_prediction_row_missing_ticker_is_none():
+    # No ticker -> must return None
+    row = cs_prediction_row(
+        {"raw_score": 0.5, "cs_rank": 1, "prob_up": 0.6, "expected_ret": 0.01},
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+    )
+    assert row is None
+
+    # Explicit None ticker -> also None
+    row2 = cs_prediction_row(
+        {"ticker": None, "raw_score": 0.5, "cs_rank": 1, "prob_up": 0.6},
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+    )
+    assert row2 is None
+
+
 def test_outbox_queue_and_dedup():
     import os
     with tempfile.TemporaryDirectory() as tmp:
@@ -228,6 +278,8 @@ ALL_TESTS = [
     test_summary_hit_rate_and_curve,
     test_summary_handles_empty,
     test_outbox_queue_and_dedup,
+    test_cs_prediction_row_maps_fields,
+    test_cs_prediction_row_missing_ticker_is_none,
 ]
 
 

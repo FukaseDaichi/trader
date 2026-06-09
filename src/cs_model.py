@@ -331,6 +331,68 @@ def _fit_booster(rows, feature_cols, label_col, objective, seed):
 
 
 # ---------------------------------------------------------------------------
+# infer_cross_section  (Task 5 inference orchestrator)
+# ---------------------------------------------------------------------------
+
+def infer_cross_section(tickers_data, macro_panel, bundle, *,
+                        macro_enabled: bool = True,
+                        label_horizon_days: int = 5):
+    """
+    Build the latest cross-section for the universe and score it with ``bundle``.
+
+    Parameters
+    ----------
+    tickers_data : list of (ticker_info_dict, ohlcv_df)
+    macro_panel  : pd.DataFrame | None — passed through to build_cs_panel
+    bundle       : cs bundle dict from model_store.load_cs_bundle
+    macro_enabled: whether macro features are used (must match bundle)
+    label_horizon_days : horizon (informational; labels are NOT built here)
+
+    Returns
+    -------
+    (pred_df, as_of_date)
+        pred_df    : DataFrame with columns [ticker, raw_score, cs_rank,
+                     score_pct, prob_up, expected_ret] — one row per ticker,
+                     sorted by cs_rank ascending.
+        as_of_date : pandas.Timestamp of the latest panel date, or None.
+
+    Returns (empty DataFrame, None) when the panel cannot be built.
+    """
+    from .cross_section import build_cs_panel  # local import to avoid circular
+
+    empty = pd.DataFrame(columns=_PRED_COLS)
+
+    if not tickers_data or bundle is None:
+        return empty, None
+
+    try:
+        panel = build_cs_panel(
+            tickers_data,
+            macro_panel=macro_panel,
+            macro_enabled=macro_enabled,
+            with_labels=False,
+        )
+    except Exception:  # noqa: BLE001 — robustness
+        return empty, None
+
+    if panel is None or panel.empty:
+        return empty, None
+
+    panel["date"] = pd.to_datetime(panel["date"])
+    as_of = panel["date"].max()
+
+    try:
+        pred = predict_cs_model(bundle, panel)
+    except Exception:  # noqa: BLE001 — robustness
+        return empty, None
+
+    if pred is None or pred.empty:
+        return empty, None
+
+    return pred, as_of
+
+
+# ---------------------------------------------------------------------------
 # predict_cs_model
 # ---------------------------------------------------------------------------
 
