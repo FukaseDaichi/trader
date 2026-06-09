@@ -164,3 +164,152 @@ def clear_active_model(active_file: str | None = None, model_dir: str | None = N
     path = _active_file(active_file, model_dir)
     if path.exists():
         path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — cross-sectional (single-model) bundle
+# ---------------------------------------------------------------------------
+
+def _active_cs_file(active_file: str | None = None, model_dir: str | None = None) -> Path:
+    raw = active_file or os.environ.get("TRADER_CS_MODEL_ACTIVE_FILE")
+    if raw:
+        return Path(raw)
+    return _model_dir(model_dir) / "active_cs_model.json"
+
+
+def save_cs_bundle(
+    version: str,
+    booster,
+    *,
+    feature_schema: dict,
+    calibration: dict | None = None,
+    feature_reference: dict | None = None,
+    sector_encoder: dict | None = None,
+    universe: list | None = None,
+    oos_predictions=None,
+    version_metadata: dict | None = None,
+    model_dir: str | None = None,
+) -> str:
+    """
+    Persist the single cross-sectional model bundle under version_dir.
+
+    booster: a trained lightgbm.Booster (saved to model.txt).
+    feature_schema: dict, REQUIRED (written to feature_schema.json).
+    calibration / feature_reference: dicts (JSON), optional -> None when absent.
+    sector_encoder: dict, optional -> {} when absent.
+    universe: list[str], optional -> [] when absent.
+    oos_predictions: pandas.DataFrame -> oos_predictions.parquet (skipped when None/empty).
+    version_metadata: dict -> metadata.json via save_version_metadata (skipped when None).
+    Returns the version_dir path as str.
+    """
+    vdir = version_dir(version, model_dir)
+    vdir.mkdir(parents=True, exist_ok=True)
+
+    booster.save_model(str(vdir / "model.txt"))
+
+    _write_json(vdir / "feature_schema.json", feature_schema)
+    _write_json(vdir / "calibration.json", calibration)
+    _write_json(vdir / "feature_reference.json", feature_reference)
+    _write_json(vdir / "sector_encoder.json", sector_encoder if sector_encoder is not None else {})
+    _write_json(vdir / "universe.json", universe if universe is not None else [])
+
+    if oos_predictions is not None:
+        import pandas as pd  # noqa: PLC0415 — lazy import
+        if isinstance(oos_predictions, pd.DataFrame) and not oos_predictions.empty:
+            oos_predictions.to_parquet(str(vdir / "oos_predictions.parquet"))
+
+    if version_metadata is not None:
+        save_version_metadata(version, version_metadata, model_dir)
+
+    return str(vdir)
+
+
+def load_cs_bundle(version: str, model_dir: str | None = None) -> dict | None:
+    """
+    Load the CS bundle, or None when model.txt is missing/corrupt.
+
+    Returns:
+      {"version": version, "booster": lgb.Booster,
+       "feature_schema": {...}, "calibration": {...}|None,
+       "feature_reference": {...}|None, "sector_encoder": {...},
+       "universe": [...], "oos_predictions": pd.DataFrame|None,
+       "metadata": {...}|None}
+    """
+    import lightgbm as lgb  # noqa: PLC0415 — lazy import
+
+    vdir = version_dir(version, model_dir)
+    model_path = vdir / "model.txt"
+    if not model_path.exists():
+        return None
+
+    try:
+        booster = lgb.Booster(model_file=str(model_path))
+    except Exception:  # noqa: BLE001 — corrupt artifact -> treat as missing
+        return None
+
+    feature_schema = _read_json(vdir / "feature_schema.json") or {}
+    calibration = _read_json(vdir / "calibration.json")
+    feature_reference = _read_json(vdir / "feature_reference.json")
+    sector_encoder = _read_json(vdir / "sector_encoder.json") or {}
+    universe_raw = _read_json(vdir / "universe.json")
+    universe = universe_raw if isinstance(universe_raw, list) else []
+
+    oos_predictions = None
+    parquet_path = vdir / "oos_predictions.parquet"
+    if parquet_path.exists():
+        try:
+            import pandas as pd  # noqa: PLC0415 — lazy import
+            oos_predictions = pd.read_parquet(str(parquet_path))
+        except Exception:  # noqa: BLE001 — corrupt/missing -> None
+            oos_predictions = None
+
+    metadata = read_version_metadata(version, model_dir)
+
+    return {
+        "version": version,
+        "booster": booster,
+        "feature_schema": feature_schema,
+        "calibration": calibration,
+        "feature_reference": feature_reference,
+        "sector_encoder": sector_encoder,
+        "universe": universe,
+        "oos_predictions": oos_predictions,
+        "metadata": metadata,
+    }
+
+
+def write_active_cs_model(
+    version: str,
+    metadata: dict | None = None,
+    model_dir: str | None = None,
+    active_file: str | None = None,
+) -> str:
+    """Point the CS active model at `version`; metadata merged into the pointer."""
+    payload = {"version": version}
+    if metadata:
+        payload.update(metadata)
+    path = _active_cs_file(active_file, model_dir)
+    _write_json(path, payload)
+    return str(path)
+
+
+def read_active_cs_model(
+    active_file: str | None = None, model_dir: str | None = None
+) -> dict | None:
+    """Return the CS active-model pointer, or None when missing/corrupt/invalid (no 'version')."""
+    path = _active_cs_file(active_file, model_dir)
+    if not path.exists():
+        return None
+    data = _read_json(path)
+    if not isinstance(data, dict) or not data.get("version"):
+        return None
+    return data
+
+
+def clear_active_cs_model(
+    active_file: str | None = None, model_dir: str | None = None
+) -> None:
+    """Remove the CS active pointer (rollback parity with clear_active_model)."""
+    path = _active_cs_file(active_file, model_dir)
+    if path.exists():
+        path.unlink(missing_ok=True)
