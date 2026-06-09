@@ -1,14 +1,20 @@
 import os
 from datetime import UTC, datetime, timedelta
 
-from src.config import TICKERS, BACKTEST_GATE_CONFIG
+from src.config import (
+    TICKERS,
+    BACKTEST_GATE_CONFIG,
+    get_label_config,
+    get_model_runtime_config,
+)
 from src.data_loader import update_data, load_data, sync_data_files
-from src.model import add_features, train_and_predict
+from src.labels import effective_horizon
+from src.model import build_feature_frame, train_and_predict
 from src.predictor import generate_signal
 from src.notifier import send_notification
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
-from src import db
+from src import db, macro, model_store, phase1
 
 
 def _run_date_jst() -> str:
@@ -125,7 +131,63 @@ def _attach_confidence_fields(signal, gate_result, model_ready):
     return signal
 
 
-def _process_ticker(ticker_info):
+def _predict_for_ticker(featured, ticker_info, ctx):
+    """
+    Produce (prob_up, model_ready, phase1_fields) honoring TRADER_MODEL_MODE.
+
+    - phase1: an active saved bundle is required; missing -> not model_ready.
+    - auto:   use the saved bundle when available, else legacy daily training.
+    - legacy: always train from scratch with the configured label.
+    """
+    code = ticker_info["code"]
+    mode = ctx["model_cfg"]["model_mode"]
+    label_cfg = ctx["label_cfg"]
+    active = ctx["active"]
+    horizon = effective_horizon(label_cfg)
+
+    if mode in ("auto", "phase1") and active:
+        version = active.get("version")
+        bundle = model_store.load_model_bundle(version, code)
+        if bundle is not None:
+            pred = phase1.predict_ticker(featured, bundle, label_cfg)
+            if pred is not None:
+                print(f"Inference for {code}: saved model {version} "
+                      f"(prob_up={pred['prob_up']:.2%}, exp_ret={pred['expected_ret']})")
+                return pred["prob_up"], True, {
+                    "model_version": version,
+                    "horizon_days": pred["horizon_days"],
+                    "raw_score": pred["raw_score"],
+                    "expected_ret": pred["expected_ret"],
+                    "features_hash": pred["features_hash"],
+                }
+        if mode == "phase1":
+            print(f"Active model has no bundle for {code}; phase1 mode -> failed HOLD.")
+            return 0.5, False, {"model_version": version, "horizon_days": horizon}
+        print(f"No saved bundle for {code}; auto mode -> legacy training fallback.")
+
+    if mode == "phase1":
+        print(f"No active model for {code}; phase1 mode -> failed HOLD.")
+        return 0.5, False, {
+            "model_version": active.get("version") if active else None,
+            "horizon_days": horizon,
+        }
+
+    # legacy / auto-fallback: train from scratch with the configured label.
+    model, prob_up = train_and_predict(
+        featured, runtime_config=BACKTEST_GATE_CONFIG, label_config=label_cfg
+    )
+    if model is None:
+        return 0.5, False, {"model_version": db.LEGACY_MODEL_VERSION, "horizon_days": horizon}
+    return prob_up, True, {
+        "model_version": db.LEGACY_MODEL_VERSION,
+        "horizon_days": horizon,
+        "raw_score": prob_up,
+        "expected_ret": None,
+        "features_hash": None,
+    }
+
+
+def _process_ticker(ticker_info, ctx):
     code = ticker_info["code"]
     print(f"\nProcessing {code} ({ticker_info['name']})...")
 
@@ -158,9 +220,9 @@ def _process_ticker(ticker_info):
             ),
         )
 
-    # 3. Feature Engineering
-    df = add_features(df)
-    if df.empty:
+    # 3. Feature Engineering (technical + macro/regime features)
+    featured = build_feature_frame(df, macro_panel=ctx["macro_panel"], ticker_info=ticker_info)
+    if featured.empty:
         print(f"Data empty after feature engineering for {code}. Recording failed HOLD state.")
         close = _latest_close_or_none(code)
         return (
@@ -172,8 +234,8 @@ def _process_ticker(ticker_info):
             ),
         )
 
-    # 4. KPI Gate (cost/slippage-inclusive OOS backtest)
-    gate_result = evaluate_kpi_gate(df, BACKTEST_GATE_CONFIG)
+    # 4. KPI Gate (cost/slippage-inclusive horizon-aware OOS backtest)
+    gate_result = evaluate_kpi_gate(featured, BACKTEST_GATE_CONFIG, label_config=ctx["label_cfg"])
     gate_summary = format_gate_summary(gate_result)
     gate_status = "PASS" if gate_result["passed"] else "FAIL"
     print(f"KPI gate {gate_status} for {code}: {gate_summary}")
@@ -184,6 +246,8 @@ def _process_ticker(ticker_info):
         "status": "ok",
         "passed": gate_result["passed"],
         "reason": gate_result["reason"],
+        "horizon_days": gate_result.get("horizon_days"),
+        "label_mode": gate_result.get("label_mode"),
         "failures": gate_result["failures"],
         "metrics": gate_result["metrics"],
         "metrics_tuning": gate_result.get("metrics_tuning"),
@@ -193,21 +257,26 @@ def _process_ticker(ticker_info):
         "data_validation_warnings": validation_warnings,
     }
 
-    # 5. Train & Predict (always run so dashboard can show raw probability)
-    model, prob_up = train_and_predict(df, runtime_config=BACKTEST_GATE_CONFIG)
-    model_ready = model is not None
+    # 5. Predict (saved Phase 1 model or legacy fallback per TRADER_MODEL_MODE)
+    prob_up, model_ready, phase1_fields = _predict_for_ticker(featured, ticker_info, ctx)
     if not model_ready:
-        print(f"Model training failed for {code}. Falling back to neutral probability.")
+        print(f"Model inference unavailable for {code}. Falling back to neutral probability.")
         prob_up = 0.5
 
     print(f"Prediction for {code}: Up Probability = {prob_up:.2%}")
     thresholds = gate_result.get("thresholds")
 
     # 6. Generate Signal
-    signal = generate_signal(df, prob_up, ticker_info, thresholds=thresholds)
+    signal = generate_signal(featured, prob_up, ticker_info, thresholds=thresholds)
     signal["thresholds"] = thresholds
     signal["threshold_optimization"] = gate_result.get("threshold_optimization")
     signal["status"] = "ok"
+    # Phase 1 prediction provenance (flows into predictions table).
+    signal["model_version"] = phase1_fields.get("model_version")
+    signal["horizon_days"] = phase1_fields.get("horizon_days")
+    signal["raw_score"] = phase1_fields.get("raw_score")
+    signal["expected_ret"] = phase1_fields.get("expected_ret")
+    signal["features_hash"] = phase1_fields.get("features_hash")
     signal = _attach_confidence_fields(signal, gate_result, model_ready=model_ready)
 
     if not signal["gate_passed"]:
@@ -234,12 +303,31 @@ def main():
     except Exception as e:
         print(f"Failed to archive inactive data files. Continuing daily run: {type(e).__name__}: {e}")
 
+    # Phase 1 inference context: model mode, label config, macro panel, and the
+    # active saved model (read once for the whole run).
+    model_cfg = get_model_runtime_config()
+    label_cfg = get_label_config()
+    macro_panel = macro.load_macro_panel()
+    active = None
+    if model_cfg["model_mode"] in ("auto", "phase1"):
+        active = model_store.read_active_model()
+    mode = model_cfg["model_mode"]
+    active_label = active.get("version") if active else "none"
+    print(f"Model mode: {mode}; active model: {active_label}; "
+          f"macro panel: {'loaded' if macro_panel is not None else 'absent'}")
+    ctx = {
+        "model_cfg": model_cfg,
+        "label_cfg": label_cfg,
+        "macro_panel": macro_panel,
+        "active": active,
+    }
+
     signals = []
     backtest_entries = []
 
     for ticker_info in TICKERS:
         try:
-            signal, backtest_entry = _process_ticker(ticker_info)
+            signal, backtest_entry = _process_ticker(ticker_info, ctx)
         except Exception as e:
             code = ticker_info["code"]
             error = f"{type(e).__name__}: {e}"

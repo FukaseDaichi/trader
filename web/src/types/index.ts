@@ -87,3 +87,28 @@ export interface PerformanceSummary {
   db_size_mb?: number;
   storage_warning?: boolean;
 }
+
+export interface ModelQualityTicker {
+  brier: number | null;
+  brier_raw?: number | null;
+  ic: number | null;
+  auc?: number | null;
+  calibration_rows?: number | null;
+  psi_max?: number | null;
+  warning?: boolean;
+}
+
+export interface ModelQuality {
+  available: boolean;
+  reason?: string;
+  generated_at: string;
+  active_model_version?: string;
+  horizon_days?: number | null;
+  summary?: {
+    tickers: number;
+    median_brier: number | null;
+    median_ic: number | null;
+    drift_warning: boolean;
+  };
+  by_ticker?: Record<string, ModelQualityTicker>;
+}

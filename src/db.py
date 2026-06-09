@@ -193,6 +193,43 @@ def flush_outbox(conn) -> int:
     return applied
 
 
+def _link_prediction_ids(conn) -> int:
+    """
+    Best-effort backfill of signals.prediction_id from the matching prediction
+    (same run_date/ticker). Idempotent: only fills NULLs. Phase 1 (W: link).
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE signals s SET prediction_id = p.id"
+            " FROM predictions p"
+            " WHERE s.prediction_id IS NULL"
+            "   AND p.run_date = s.run_date AND p.ticker = s.ticker"
+            "   AND p.id = (SELECT max(id) FROM predictions p2"
+            "               WHERE p2.run_date = s.run_date AND p2.ticker = s.ticker)"
+        )
+        linked = cur.rowcount
+    conn.commit()
+    return linked
+
+
+def apply_signal_history(conn, history_days: list[dict]) -> dict:
+    """
+    Seed historical predictions/signals from a list of
+    {"run_date": ..., "signals": [...]} days (e.g. docs/state.json). Idempotent
+    via the same upserts as the daily write-through, so re-running is safe.
+    """
+    all_events: list[dict] = []
+    for day in history_days:
+        run_date = day.get("run_date") or day.get("date")
+        signals = day.get("signals") or []
+        if not run_date or not signals:
+            continue
+        all_events.extend(_build_events(signals, run_date))
+    applied = _apply_events(conn, all_events)
+    linked = _link_prediction_ids(conn)
+    return {"events": len(all_events), "applied": applied, "linked": linked}
+
+
 def record_run(signals: list[dict], run_date: str) -> dict:
     """
     Write-through the day's predictions+signals. Never raises.
@@ -212,7 +249,8 @@ def record_run(signals: list[dict], run_date: str) -> dict:
     try:
         flushed = flush_outbox(conn)
         applied = _apply_events(conn, events)
-        return {"ok": True, "applied": applied, "flushed_backlog": flushed}
+        linked = _link_prediction_ids(conn)
+        return {"ok": True, "applied": applied, "flushed_backlog": flushed, "linked": linked}
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
         return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
@@ -285,3 +323,134 @@ def db_size_mb(conn) -> float:
         cur.execute("SELECT pg_database_size(current_database())")
         size_bytes = cur.fetchone()[0]
     return round(size_bytes / (1024 * 1024), 2)
+
+
+# --- Phase 1: macro snapshots ----------------------------------------------
+
+def upsert_macro_snapshot(conn, row: dict) -> None:
+    """Upsert one macro_snapshots row (keyed by date)."""
+    from psycopg.types.json import Jsonb
+    params = dict(row)
+    params["raw"] = Jsonb(row["raw"]) if row.get("raw") is not None else None
+    params.setdefault("market_bias", None)
+    params.setdefault("regime", None)
+    for col in ("usdjpy", "topix", "nikkei", "nikkei_vi", "jgb10y"):
+        params.setdefault(col, None)
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO macro_snapshots"
+            " (date, usdjpy, topix, nikkei, nikkei_vi, jgb10y, market_bias, regime, raw)"
+            " VALUES (%(date)s, %(usdjpy)s, %(topix)s, %(nikkei)s, %(nikkei_vi)s,"
+            "  %(jgb10y)s, %(market_bias)s, %(regime)s, %(raw)s)"
+            " ON CONFLICT (date) DO UPDATE SET"
+            "  usdjpy=EXCLUDED.usdjpy, topix=EXCLUDED.topix, nikkei=EXCLUDED.nikkei,"
+            "  nikkei_vi=EXCLUDED.nikkei_vi, jgb10y=EXCLUDED.jgb10y,"
+            "  market_bias=EXCLUDED.market_bias, regime=EXCLUDED.regime, raw=EXCLUDED.raw",
+            params,
+        )
+    conn.commit()
+
+
+# --- Phase 1: model registry + quality -------------------------------------
+
+def register_model_version(conn, version: str, *, kind: str, universe, feature_set,
+                           params, cv_metrics, calibration=None, artifact_uri=None,
+                           make_active: bool = True) -> None:
+    """
+    Upsert a model_registry row. When make_active, mark exactly this version
+    active (all others become inactive) so there is a single active model.
+    """
+    from psycopg.types.json import Jsonb
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO model_registry"
+            " (version, trained_at, kind, universe, feature_set, params, cv_metrics,"
+            "  calibration, artifact_uri, active)"
+            " VALUES (%s, now(), %s, %s, %s, %s, %s, %s, %s, %s)"
+            " ON CONFLICT (version) DO UPDATE SET"
+            "  trained_at=now(), kind=EXCLUDED.kind, universe=EXCLUDED.universe,"
+            "  feature_set=EXCLUDED.feature_set, params=EXCLUDED.params,"
+            "  cv_metrics=EXCLUDED.cv_metrics, calibration=EXCLUDED.calibration,"
+            "  artifact_uri=EXCLUDED.artifact_uri",
+            (version, kind, Jsonb(universe), Jsonb(feature_set), Jsonb(params),
+             Jsonb(cv_metrics), Jsonb(calibration) if calibration is not None else None,
+             artifact_uri, bool(make_active)),
+        )
+        if make_active:
+            cur.execute("UPDATE model_registry SET active = (version = %s)", (version,))
+    conn.commit()
+
+
+def set_active_model(conn, version: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute("UPDATE model_registry SET active = (version = %s)", (version,))
+    conn.commit()
+
+
+def active_model_version(conn) -> str | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT version FROM model_registry WHERE active = TRUE"
+            " ORDER BY trained_at DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+_MODEL_QUALITY_DEFAULTS = {
+    "brier": None, "brier_raw": None, "ic": None, "auc": None, "hit_rate": None,
+    "calibration_rows": None, "psi_max": None, "warning": False,
+}
+
+
+def upsert_model_quality(conn, row: dict) -> None:
+    params = {**_MODEL_QUALITY_DEFAULTS, **row}
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO model_quality_snapshots"
+            " (run_date, model_version, ticker, horizon_days, brier, brier_raw, ic, auc,"
+            "  hit_rate, calibration_rows, psi_max, warning)"
+            " VALUES (%(run_date)s, %(model_version)s, %(ticker)s, %(horizon_days)s,"
+            "  %(brier)s, %(brier_raw)s, %(ic)s, %(auc)s, %(hit_rate)s,"
+            "  %(calibration_rows)s, %(psi_max)s, %(warning)s)"
+            " ON CONFLICT (run_date, model_version, ticker, horizon_days) DO UPDATE SET"
+            "  brier=EXCLUDED.brier, brier_raw=EXCLUDED.brier_raw, ic=EXCLUDED.ic,"
+            "  auc=EXCLUDED.auc, hit_rate=EXCLUDED.hit_rate,"
+            "  calibration_rows=EXCLUDED.calibration_rows, psi_max=EXCLUDED.psi_max,"
+            "  warning=EXCLUDED.warning",
+            params,
+        )
+    conn.commit()
+
+
+# --- Phase 1: drift -------------------------------------------------------
+
+def fetch_prediction_outcomes(conn, model_version: str, horizon_days: int) -> list[dict]:
+    """
+    Joined (predictions x signals x signal_outcomes) rows for one model version
+    at one horizon: prob_up, raw_score, realized_ret, hit. Used by drift_check.
+    """
+    from psycopg.rows import dict_row
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
+            " FROM predictions p"
+            " JOIN signals s ON s.run_date = p.run_date AND s.ticker = p.ticker"
+            " JOIN signal_outcomes o ON o.signal_id = s.id AND o.horizon_days = %s"
+            " WHERE p.model_version = %s AND p.horizon_days = %s",
+            (horizon_days, model_version, horizon_days),
+        )
+        return cur.fetchall()
+
+
+def insert_drift_report(conn, run_date: str, model_version: str | None, scope: str,
+                        status: str, breached: bool, metrics: dict) -> None:
+    from psycopg.types.json import Jsonb
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO drift_reports"
+            " (run_date, model_version, scope, status, breached, metrics)"
+            " VALUES (%s, %s, %s, %s, %s, %s)",
+            (run_date, model_version, scope, status, bool(breached), Jsonb(metrics)),
+        )
+    conn.commit()

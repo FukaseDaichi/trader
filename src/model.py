@@ -3,6 +3,10 @@ import numpy as np
 import lightgbm as lgb
 from datetime import timedelta
 
+from .config import get_label_config
+from .labels import build_labelled_frame
+from .macro import MACRO_FEATURE_COLS, add_macro_features
+
 
 # ---------------------------------------------------------------------------
 # Technical Indicators
@@ -234,10 +238,13 @@ def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     return model
 
 
-def train_and_predict(df, runtime_config=None):
+def train_and_predict(df, runtime_config=None, label_config=None):
     """
     Train a LightGBM ensemble via walk-forward cross-validation and predict
-    whether tomorrow's close > today's close.
+    the probability that price rises over the configured horizon.
+
+    Phase 1: the target is built by src.labels (default 5-day triple-barrier).
+    Set TRADER_LABEL_MODE=binary_1d to reproduce the legacy next-day target.
 
     Strategy
     --------
@@ -265,11 +272,12 @@ def train_and_predict(df, runtime_config=None):
     n_folds = _config_int(config, "n_folds", 3, minimum=1)
     min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
 
-    # Target: did price go up NEXT day?
-    df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
-
-    # Drop the last row (target unknown)
-    labelled = df.dropna(subset=['target']).copy()
+    # Phase 1: horizon-aware label via src.labels (binary_1d == legacy next-day).
+    label_cfg = label_config or get_label_config()
+    labelled = build_labelled_frame(df, label_cfg)
+    if labelled.empty:
+        print("No labelled rows after target construction.")
+        return None, 0.5
 
     # Use recent history window (default: last 4 years)
     max_date = labelled['date'].max()
@@ -305,8 +313,8 @@ def train_and_predict(df, runtime_config=None):
             continue
 
         model_fold = _train_single_fold(
-            train_fold[FEATURE_COLS], train_fold['target'],
-            val_fold[FEATURE_COLS], val_fold['target'],
+            train_fold[FEATURE_COLS], train_fold['target_class'],
+            val_fold[FEATURE_COLS], val_fold['target_class'],
             seed=42 + fold_idx,
         )
         fold_predictions.append(model_fold.predict(latest_row)[0])
@@ -323,8 +331,8 @@ def train_and_predict(df, runtime_config=None):
         return None, 0.5
 
     final_model = _train_single_fold(
-        train_all[FEATURE_COLS], train_all['target'],
-        val_all[FEATURE_COLS], val_all['target'],
+        train_all[FEATURE_COLS], train_all['target_class'],
+        val_all[FEATURE_COLS], val_all['target_class'],
         seed=42,
     )
     fold_predictions.append(final_model.predict(latest_row)[0])
@@ -333,3 +341,109 @@ def train_and_predict(df, runtime_config=None):
     prob_up = float(np.mean(fold_predictions))
 
     return final_model, prob_up
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: persisted-model training & inference (W3)
+# ---------------------------------------------------------------------------
+
+def train_horizon_models(labelled, feature_cols, runtime_config=None):
+    """
+    Walk-forward training that returns the fold boosters, the final booster, and
+    the out-of-sample fold predictions (uncalibrated raw_score + label + the
+    H-day forward return) used downstream for calibration and CV metrics.
+
+    `labelled` must already carry `target_class`, `fwd_return`, and `date`
+    (see src.labels.build_labelled_frame). `feature_cols` lets the caller train
+    on technical + macro features without touching the legacy FEATURE_COLS list.
+    """
+    config = runtime_config or {}
+    val_size = _config_int(config, "val_size", 60, minimum=1)
+    purge_gap = _config_int(config, "purge_gap", 5, minimum=0)
+    n_folds = _config_int(config, "n_folds", 3, minimum=1)
+    min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
+
+    n = len(labelled)
+    folds = []
+    oos_frames = []
+
+    for fold_idx in range(n_folds):
+        val_end = n - fold_idx * val_size
+        val_start = val_end - val_size
+        train_end = val_start - purge_gap
+        if val_start < 0:
+            break
+        if train_end < min_train_rows:
+            continue
+        train_fold = labelled.iloc[:train_end]
+        val_fold = labelled.iloc[val_start:val_end]
+        if val_fold.empty:
+            continue
+
+        booster = _train_single_fold(
+            train_fold[feature_cols], train_fold["target_class"],
+            val_fold[feature_cols], val_fold["target_class"],
+            seed=42 + fold_idx,
+        )
+        folds.append(booster)
+        oos = val_fold[["date", "fwd_return", "target_class"]].copy()
+        oos["raw_score"] = booster.predict(val_fold[feature_cols])
+        oos_frames.append(oos)
+
+    final_model = None
+    if n > val_size:
+        train_all = labelled.iloc[:-val_size]
+        val_all = labelled.iloc[-val_size:]
+        if not train_all.empty and not val_all.empty and len(train_all) >= min_train_rows:
+            final_model = _train_single_fold(
+                train_all[feature_cols], train_all["target_class"],
+                val_all[feature_cols], val_all["target_class"],
+                seed=42,
+            )
+
+    if oos_frames:
+        oos_df = (
+            pd.concat(oos_frames, ignore_index=True)
+            .sort_values("date")
+            .drop_duplicates(subset=["date"], keep="first")
+            .reset_index(drop=True)
+        )
+    else:
+        oos_df = pd.DataFrame(columns=["date", "fwd_return", "target_class", "raw_score"])
+
+    return folds, final_model, oos_df
+
+
+def predict_prob_with_bundle(bundle, feature_row):
+    """
+    Ensemble (folds + final) raw probability for one feature row.
+    `feature_row` is a 1-row DataFrame aligned to the bundle's feature columns.
+    Returns None when the bundle has no usable boosters.
+    """
+    preds = []
+    for booster in bundle.get("folds", []) or []:
+        preds.append(float(booster.predict(feature_row)[0]))
+    final_model = bundle.get("final")
+    if final_model is not None:
+        preds.append(float(final_model.predict(feature_row)[0]))
+    if not preds:
+        return None
+    return float(np.mean(preds))
+
+
+# Phase 1 training feature set = legacy technical features + macro/regime features.
+PHASE1_FEATURE_COLS = FEATURE_COLS + MACRO_FEATURE_COLS
+
+
+def build_feature_frame(df, macro_panel=None, ticker_info=None, dropna_features=True):
+    """
+    Technical (add_features) + macro (add_macro_features) feature frame.
+
+    Technical features are NaN-dropped as usual; macro columns are joined with a
+    backward as-of merge and may be NaN (missing series), which LightGBM tolerates.
+    The macro schema is always present (stable PHASE1_FEATURE_COLS).
+    """
+    featured = add_features(df, dropna=dropna_features)
+    if featured.empty:
+        return featured
+    return add_macro_features(featured, macro_panel, ticker_info)

@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
-from .config import DOCS_DIR
+from .config import DOCS_DIR, get_label_config
+from .labels import build_labelled_frame, effective_horizon
 from .model import FEATURE_COLS, _train_single_fold
 from .predictor import action_from_probability, resolve_thresholds
 
@@ -35,11 +36,19 @@ _AUTO_THRESHOLD_CANDIDATES = {
 }
 
 
-def _prepare_labelled_data(df, config):
-    labelled = df.copy()
-    labelled["next_close"] = labelled["close"].shift(-1)
-    labelled = labelled.dropna(subset=["next_close"]).reset_index(drop=True)
-    labelled["target"] = (labelled["next_close"] > labelled["close"]).astype(int)
+def _prepare_labelled_data(df, config, label_config):
+    """
+    Build a horizon-aware labelled frame (src.labels) carrying both the 1-day
+    asset return `r1d` (for the daily P&L simulation) and `fwd_return` (the
+    H-day realized return) plus the `target_class` probability-head label.
+    """
+    work = df.copy().sort_values("date").reset_index(drop=True)
+    work["r1d"] = work["close"].shift(-1) / work["close"] - 1.0
+
+    labelled = build_labelled_frame(work, label_config)
+    if labelled.empty:
+        return labelled
+    labelled = labelled.dropna(subset=["r1d"]).reset_index(drop=True)
 
     max_date = labelled["date"].max()
     start_date = max_date - timedelta(days=365 * int(config["validation_years"]))
@@ -71,12 +80,14 @@ def _collect_oos_predictions(labelled, config):
             continue
 
         model_fold = _train_single_fold(
-            train_fold[FEATURE_COLS], train_fold["target"],
-            val_fold[FEATURE_COLS], val_fold["target"],
+            train_fold[FEATURE_COLS], train_fold["target_class"],
+            val_fold[FEATURE_COLS], val_fold["target_class"],
             seed=42 + fold_idx,
         )
 
-        predicted = val_fold[["date", "close", "next_close", "volatility"]].copy()
+        predicted = val_fold[
+            ["date", "close", "r1d", "fwd_return", "volatility", "target_class"]
+        ].copy()
         predicted["prob_up"] = model_fold.predict(val_fold[FEATURE_COLS])
         fold_frames.append(predicted)
 
@@ -219,11 +230,21 @@ def _build_threshold_candidates(config):
     return candidates
 
 
-def _simulate_strategy(oos, config, thresholds=None):
+def _simulate_strategy(oos, config, thresholds=None, horizon=1):
+    """
+    Horizon-aware long-only simulation.
+
+    Each signal stays active for `horizon` business days. Overlapping signals
+    are blended as the average target stance over the trailing horizon window
+    (López de Prado "average active signal"), applied to the 1-day asset return.
+    Turnover cost is charged on the change in blended exposure. With horizon=1
+    this reduces exactly to the original per-day position simulation.
+    """
     if oos.empty:
         return oos
 
     t = resolve_thresholds(thresholds)
+    h = max(1, int(horizon))
     sim = oos.copy()
     sim["action"] = [
         action_from_probability(prob_up=row.prob_up, volatility=row.volatility, thresholds=t)
@@ -233,11 +254,13 @@ def _simulate_strategy(oos, config, thresholds=None):
         _to_position(action, allow_short=bool(config["allow_short"]))
         for action in sim["action"]
     ]
-    sim["next_return"] = sim["next_close"] / sim["close"] - 1.0
-    sim["prev_position"] = sim["position"].shift(1).fillna(0.0)
-    sim["turnover"] = (sim["position"] - sim["prev_position"]).abs()
+    # Blended exposure: mean target stance of signals still active over H days.
+    sim["exposure"] = sim["position"].rolling(h, min_periods=1).mean()
+    sim["asset_return"] = sim["r1d"]
+    sim["prev_exposure"] = sim["exposure"].shift(1).fillna(0.0)
+    sim["turnover"] = (sim["exposure"] - sim["prev_exposure"]).abs()
     fee_rate = (float(config["cost_bps"]) + float(config["slippage_bps"])) / 10000.0
-    sim["gross_return"] = sim["position"] * sim["next_return"]
+    sim["gross_return"] = sim["exposure"] * sim["asset_return"]
     sim["cost_return"] = sim["turnover"] * fee_rate
     sim["net_return"] = sim["gross_return"] - sim["cost_return"]
     sim["equity"] = (1.0 + sim["net_return"]).cumprod()
@@ -321,7 +344,7 @@ def _score_for_objective(metrics, objective):
     return float(metrics["expectancy"])
 
 
-def _optimize_thresholds(tuning_oos, config):
+def _optimize_thresholds(tuning_oos, config, horizon=1):
     default_thresholds = resolve_thresholds()
     enabled = bool(config.get("auto_threshold_enabled", True))
     objective = str(config.get("auto_threshold_objective", "expectancy")).strip().lower()
@@ -342,7 +365,7 @@ def _optimize_thresholds(tuning_oos, config):
     best_feasible = None
 
     for threshold in candidates:
-        sim = _simulate_strategy(tuning_oos, config, thresholds=threshold)
+        sim = _simulate_strategy(tuning_oos, config, thresholds=threshold, horizon=horizon)
         metrics = _compute_metrics(sim)
         score = _score_for_objective(metrics, objective)
         rank = (score, metrics["sharpe"], metrics["cagr"], metrics["net_return_total"])
@@ -389,13 +412,18 @@ def _optimize_thresholds(tuning_oos, config):
     }
 
 
-def evaluate_kpi_gate(df, config):
+def evaluate_kpi_gate(df, config, label_config=None):
     default_thresholds = resolve_thresholds()
+    label_cfg = label_config or get_label_config()
+    horizon = effective_horizon(label_cfg)
+    label_mode = label_cfg.get("label_mode", "triple_barrier")
     if not bool(config.get("enabled", True)):
         return {
             "passed": True,
             "skipped": True,
             "reason": "gate_disabled",
+            "horizon_days": horizon,
+            "label_mode": label_mode,
             "metrics": _compute_metrics(pd.DataFrame()),
             "metrics_tuning": _compute_metrics(pd.DataFrame()),
             "metrics_holdout": _compute_metrics(pd.DataFrame()),
@@ -415,13 +443,15 @@ def evaluate_kpi_gate(df, config):
             },
         }
 
-    labelled = _prepare_labelled_data(df, config)
+    labelled = _prepare_labelled_data(df, config, label_cfg)
     min_required = int(config["train_min_rows"]) + int(config["val_size"]) + int(config["purge_gap"])
     if len(labelled) < min_required:
         return {
             "passed": False,
             "skipped": False,
             "reason": "insufficient_rows",
+            "horizon_days": horizon,
+            "label_mode": label_mode,
             "metrics": _compute_metrics(pd.DataFrame()),
             "metrics_tuning": _compute_metrics(pd.DataFrame()),
             "metrics_holdout": _compute_metrics(pd.DataFrame()),
@@ -443,12 +473,12 @@ def evaluate_kpi_gate(df, config):
 
     oos = _collect_oos_predictions(labelled, config)
     tuning_oos, holdout_oos, split_info = _split_oos_for_thresholding(oos, config)
-    thresholds, threshold_optimization = _optimize_thresholds(tuning_oos, config)
+    thresholds, threshold_optimization = _optimize_thresholds(tuning_oos, config, horizon=horizon)
 
-    sim_tuning = _simulate_strategy(tuning_oos, config, thresholds=thresholds)
+    sim_tuning = _simulate_strategy(tuning_oos, config, thresholds=thresholds, horizon=horizon)
     metrics_tuning = _compute_metrics(sim_tuning)
 
-    sim_holdout = _simulate_strategy(holdout_oos, config, thresholds=thresholds)
+    sim_holdout = _simulate_strategy(holdout_oos, config, thresholds=thresholds, horizon=horizon)
     metrics_holdout = _compute_metrics(sim_holdout)
 
     metrics_for_gate = metrics_holdout
@@ -462,6 +492,8 @@ def evaluate_kpi_gate(df, config):
         "passed": len(failures) == 0,
         "skipped": False,
         "reason": "ok" if not failures else "kpi_failed",
+        "horizon_days": horizon,
+        "label_mode": label_mode,
         "metrics": metrics_for_gate,
         "metrics_tuning": metrics_tuning,
         "metrics_holdout": metrics_holdout,
@@ -488,8 +520,11 @@ def format_gate_summary(result):
 
 
 def write_backtest_report(entries):
+    label_cfg = get_label_config()
     payload = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "label_mode": label_cfg.get("label_mode"),
+        "horizon_days": effective_horizon(label_cfg),
         "entries": entries,
     }
     output_path = DOCS_DIR / "backtest_report.json"
