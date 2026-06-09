@@ -63,6 +63,8 @@ def load_universe_candidates(
     for t in tickers_cfg.get("tickers", []):
         if not isinstance(t, dict) or not t.get("code"):
             continue
+        if not t.get("enabled", True):
+            continue
         code = t["code"]
         if code in seen:
             continue

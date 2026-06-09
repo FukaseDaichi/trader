@@ -424,6 +424,20 @@ def test_load_universe_candidates_pool_only_code():
     assert z["liquidity"] is None
 
 
+def test_load_universe_candidates_disabled_ticker_can_fall_back_to_pool():
+    """Disabled ticker entries should not block pool/watchlist warmup data lookup."""
+    cfg = {
+        "tickers": [{"code": "D.JP", "name": "Disabled D", "enabled": False}],
+        "watchlist": [],
+        "settings": {},
+    }
+    pool = [{"code": "D.JP", "name": "Pool D", "sector": "建設"}]
+    cands = load_universe_candidates(cfg, pool)
+    d = next(c for c in cands if c["code"] == "D.JP")
+    assert d["source"] == "pool"
+    assert d["sector"] == "建設"
+
+
 def test_load_universe_candidates_no_duplicates():
     """Each code appears exactly once."""
     cfg = {
@@ -479,6 +493,7 @@ ALL_TESTS = [
     test_load_universe_candidates_dedup_priority,
     test_load_universe_candidates_sector_backfill_from_pool,
     test_load_universe_candidates_pool_only_code,
+    test_load_universe_candidates_disabled_ticker_can_fall_back_to_pool,
     test_load_universe_candidates_no_duplicates,
 ]
 

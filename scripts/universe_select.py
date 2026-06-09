@@ -16,8 +16,9 @@ Selection flow:
   2. Enrich each candidate with rows + liquidity from local parquets
   3. Call select_target_universe()
   4. Always write docs/curation/universe_selection_latest.json
-  5. When --apply AND status=="ok": deterministically update tickers.yml via
-     save_tickers_config() and set settings.curation.max_universe = target_size
+  5. When --apply AND status=="ok": move selected warmup parquets to data/,
+     deterministically update tickers.yml via save_tickers_config(), and set
+     settings.curation.max_universe = target_size
   6. When status != "ok": print reason, DO NOT touch tickers.yml
 
 Idempotency: re-running --apply with the same inputs produces an identical
@@ -28,6 +29,7 @@ changes, and timestamps are not written to tickers.yml).
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -78,7 +80,8 @@ def _load_parquet(code: str, source: str) -> pd.DataFrame | None:
     Try to load a parquet for *code*.
 
     Search order:
-    - enabled: data/<code>.parquet only
+    - enabled: data/<code>.parquet, then data/watchlist/<code>.parquet as a
+      one-time promotion fallback
     - watchlist / pool: data/watchlist/<code>.parquet first, then data/<code>.parquet
     """
     if source == "enabled":
@@ -86,6 +89,12 @@ def _load_parquet(code: str, source: str) -> pd.DataFrame | None:
         if path.exists():
             try:
                 return pd.read_parquet(path)
+            except Exception:
+                return None
+        watchlist_path = WATCHLIST_DIR / f"{code}.parquet"
+        if watchlist_path.exists():
+            try:
+                return pd.read_parquet(watchlist_path)
             except Exception:
                 return None
         return None
@@ -139,7 +148,9 @@ def _apply_universe(
     - Currently-enabled codes NOT in selected: set enabled=False; set
       disabled_on only if not already disabled (avoids timestamp churn).
     - settings.curation.max_universe = target_size.
-    - Does NOT change source; does NOT touch watchlist entries here.
+    - Does NOT change source.
+    - Removes selected codes from watchlist so it only tracks non-enabled
+      candidates.
     """
     today = today_jst_iso()
     selected_codes = {c["code"]: c for c in selected}
@@ -215,6 +226,10 @@ def _apply_universe(
     # Update settings.curation.max_universe
     new_cfg = dict(cfg)
     new_cfg["tickers"] = new_tickers
+    new_cfg["watchlist"] = [
+        w for w in cfg.get("watchlist", [])
+        if not (isinstance(w, dict) and w.get("code") in selected_codes)
+    ]
     settings = dict(new_cfg.get("settings") or {})
     curation = dict(settings.get("curation") or {})
     curation["max_universe"] = target_size
@@ -222,6 +237,34 @@ def _apply_universe(
     new_cfg["settings"] = settings
 
     return new_cfg
+
+
+def _move_selected_data(selected: list[dict]) -> list[dict]:
+    """
+    Move selected warmup parquets into canonical data/.
+
+    `data/watchlist/` is gitignored and re-fetched by warmup jobs. Once a code
+    is enabled, daily and weekly model jobs expect `data/<code>.parquet`.
+    """
+    moves = []
+    for c in selected:
+        code = c.get("code")
+        if not code:
+            continue
+        src = WATCHLIST_DIR / f"{code}.parquet"
+        dst = DATA_DIR / f"{code}.parquet"
+        if src.exists() and not dst.exists():
+            try:
+                shutil.move(str(src), str(dst))
+                moves.append({"from": str(src), "to": str(dst)})
+            except OSError as exc:
+                print(f"  data move failed for {code}: {exc}")
+        elif src.exists() and dst.exists():
+            try:
+                src.unlink()
+            except OSError:
+                pass
+    return moves
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +420,7 @@ def main() -> int:
     # --- Apply to tickers.yml only when --apply AND status == "ok" ---
     if args.apply:
         if result["status"] == "ok":
+            data_moves = _move_selected_data(result["selected"])
             new_cfg = _apply_universe(cfg, result["selected"], target_size)
             save_tickers_config(new_cfg)
             newly_enabled = [
@@ -389,6 +433,8 @@ def main() -> int:
             ]
             print(f"  tickers.yml updated: +{len(newly_enabled)} enabled, "
                   f"-{len(newly_disabled)} disabled")
+            if data_moves:
+                print(f"  data moved: {len(data_moves)} parquet files")
             if newly_enabled:
                 print(f"  newly enabled:  {newly_enabled}")
             if newly_disabled:

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import math
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import cs_model as cm  # noqa: E402
+from src import model_store  # noqa: E402
 from src.cross_section import cross_sectional_feature_cols  # noqa: E402
 
 
@@ -219,6 +221,77 @@ def test_infer_cs_end_to_end():
     assert isinstance(as_of, pd.Timestamp), f"as_of must be pd.Timestamp, got {type(as_of)}"
 
 
+def test_infer_cs_after_saved_bundle_reload():
+    """
+    Regression: a saved+loaded CS bundle must retain feature_cols so daily
+    inference scores with the same feature schema used in training.
+    """
+    panel = _make_planted_panel(n_tickers=30, n_dates=160, macro_enabled=False, seed=17)
+    bundle, info = cm.train_cs_model(panel, config=_cfg(), macro_enabled=False, seed=42)
+    assert bundle is not None, f"training failed: {info}"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        version = "cs-v1-test"
+        model_store.save_cs_bundle(
+            version,
+            bundle["booster"],
+            feature_schema={
+                "feature_cols": bundle["feature_cols"],
+                "objective": bundle["objective"],
+                "macro_enabled": bundle["macro_enabled"],
+            },
+            calibration=bundle["calibration"],
+            feature_reference=bundle["feature_reference"],
+            sector_encoder=bundle["sector_encoder"],
+            universe=bundle["universe"],
+            oos_predictions=bundle["oos_predictions"],
+            model_dir=tmp,
+        )
+        loaded = model_store.load_cs_bundle(version, model_dir=tmp)
+
+    assert loaded is not None
+    assert loaded["feature_cols"] == bundle["feature_cols"]
+
+    pred_df, as_of = cm.infer_cross_section(
+        _make_tickers_data(n_tickers=35, n_rows=250),
+        macro_panel=None,
+        bundle=loaded,
+        macro_enabled=False,
+        label_horizon_days=5,
+    )
+
+    assert pred_df is not None and not pred_df.empty, "expected loaded bundle to score"
+    assert sorted(pred_df["cs_rank"].tolist()) == list(range(1, len(pred_df) + 1))
+    assert as_of is not None
+
+
+def test_predict_cs_uses_latest_wide_cross_section():
+    """
+    If only a few tickers have a newer vendor date, score the latest date with
+    enough names instead of ranking a two-name cross-section.
+    """
+    panel = _make_planted_panel(n_tickers=30, n_dates=160, macro_enabled=False, seed=23)
+    bundle, info = cm.train_cs_model(panel, config=_cfg(), macro_enabled=False, seed=42)
+    assert bundle is not None, f"training failed: {info}"
+
+    score_panel = panel.drop(
+        columns=["fwd_return", "target_up", "target_vol_norm", "target_rank_bucket"],
+        errors="ignore",
+    )
+    latest_date = score_panel["date"].max()
+    thin_next_date = latest_date + pd.offsets.BDay(1)
+    thin_rows = score_panel[score_panel["date"] == latest_date].head(2).copy()
+    thin_rows["date"] = thin_next_date
+    mixed = pd.concat([score_panel, thin_rows], ignore_index=True)
+
+    assert cm._latest_scorable_date(mixed) == latest_date
+
+    pred = cm.predict_cs_model(bundle, mixed)
+
+    assert len(pred) == 30, f"expected the latest wide cross-section, got {len(pred)}"
+    assert sorted(pred["cs_rank"].tolist()) == list(range(1, 31))
+
+
 def test_infer_cs_empty_tickers_data():
     """Empty tickers_data returns (empty DataFrame, None)."""
     panel = _make_planted_panel()
@@ -243,6 +316,8 @@ def test_infer_cs_none_bundle():
 ALL_TESTS = [
     test_infer_cs_predict_path,
     test_infer_cs_end_to_end,
+    test_infer_cs_after_saved_bundle_reload,
+    test_predict_cs_uses_latest_wide_cross_section,
     test_infer_cs_empty_tickers_data,
     test_infer_cs_none_bundle,
 ]

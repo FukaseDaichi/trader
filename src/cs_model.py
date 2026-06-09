@@ -379,7 +379,9 @@ def infer_cross_section(tickers_data, macro_panel, bundle, *,
         return empty, None
 
     panel["date"] = pd.to_datetime(panel["date"])
-    as_of = panel["date"].max()
+    as_of = _latest_scorable_date(panel)
+    if as_of is None:
+        return empty, None
 
     try:
         pred = predict_cs_model(bundle, panel)
@@ -404,12 +406,16 @@ def predict_cs_model(bundle, latest_panel) -> pd.DataFrame:
 
     panel = latest_panel.copy()
     panel["date"] = pd.to_datetime(panel["date"])
-    latest_date = panel["date"].max()
+    latest_date = _latest_scorable_date(panel)
+    if latest_date is None:
+        return empty
     rows = panel[panel["date"] == latest_date].copy()
     if rows.empty:
         return empty
 
-    feature_cols = bundle.get("feature_cols", [])
+    feature_cols = bundle.get("feature_cols")
+    if not feature_cols:
+        feature_cols = (bundle.get("feature_schema") or {}).get("feature_cols", [])
     X = rows.reindex(columns=feature_cols)  # missing cols -> NaN (LightGBM tolerates)
 
     raw_score = np.asarray(bundle["booster"].predict(X), dtype="float64")
@@ -435,6 +441,27 @@ def predict_cs_model(bundle, latest_panel) -> pd.DataFrame:
 
     out = out.sort_values("cs_rank").reset_index(drop=True)
     return out[_PRED_COLS]
+
+
+def _latest_scorable_date(panel: pd.DataFrame):
+    """
+    Return the latest date with a sufficiently wide cross-section.
+
+    Data vendors can update a few tickers one business day earlier than the
+    rest. Scoring the absolute max date would then rank only those few names.
+    Prefer the latest date whose row count meets `TRADER_CS_MIN_DAILY_NAMES`;
+    fall back to the absolute max date only when no date is wide enough.
+    """
+    if panel is None or panel.empty or "date" not in panel.columns:
+        return None
+    counts = panel.groupby("date", sort=True).size()
+    if counts.empty:
+        return None
+    min_names = int(get_cross_section_config().get("min_daily_names", 20))
+    eligible = counts[counts >= max(1, min_names)]
+    if not eligible.empty:
+        return eligible.index.max()
+    return counts.index.max()
 
 
 # ---------------------------------------------------------------------------

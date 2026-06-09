@@ -158,6 +158,7 @@ def test_cs_bundle_save_load_roundtrip():
         assert np.allclose(bundle["booster"].predict(X), booster.predict(X))
 
         # Scalar fields round-trip.
+        assert bundle["feature_cols"] == feature_schema["feature_cols"]
         assert bundle["feature_schema"] == feature_schema
         assert bundle["calibration"] == calibration
         assert bundle["sector_encoder"] == sector_encoder

@@ -265,9 +265,14 @@ def load_cs_bundle(version: str, model_dir: str | None = None) -> dict | None:
 
     metadata = read_version_metadata(version, model_dir)
 
+    feature_cols = feature_schema.get("feature_cols")
+    if not isinstance(feature_cols, list):
+        feature_cols = []
+
     return {
         "version": version,
         "booster": booster,
+        "feature_cols": feature_cols,
         "feature_schema": feature_schema,
         "calibration": calibration,
         "feature_reference": feature_reference,
