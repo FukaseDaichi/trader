@@ -68,6 +68,13 @@ jobs:
           TRADER_LABEL_MODE: "triple_barrier"
           TRADER_CALIBRATION_MODE: "isotonic"
           TRADER_MACRO_FEATURES_ENABLED: "true"
+          # Phase 2: cross-sectional + portfolio snapshot. Shadow mode only —
+          # predictions + docs/portfolio_latest.json are produced, but Phase 1
+          # signals/notification are unchanged. Falls back to Phase 1 when no
+          # active CS model / sufficient universe exists. Flip to "active" here
+          # to roll out (no code change needed).
+          TRADER_PORTFOLIO_ENABLED: "true"
+          TRADER_PORTFOLIO_MODE: "shadow"
         run: uv run python main.py
 
       - name: Settle realized outcomes

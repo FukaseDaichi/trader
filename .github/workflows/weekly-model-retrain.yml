@@ -38,6 +38,12 @@ jobs:
           TRADER_DB_ENABLED: "true"
         run: uv run python scripts/update_macro_snapshots.py
 
+      - name: Select universe (report only)
+        continue-on-error: true
+        # Report only — never mutates tickers.yml here. Universe expansion via
+        # `--apply` stays a deliberate, separately-gated step (plan §1 非スコープ).
+        run: uv run python scripts/universe_select.py --target-size 40
+
       - name: Run retrain pipeline
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -48,8 +54,34 @@ jobs:
           TRADER_MACRO_FEATURES_ENABLED: "true"
         run: uv run python scripts/weekly_model_retrain.py --output docs/weekly_retrain_report.json
 
+      - name: Run cross-sectional retrain (Phase 2)
+        # Phase 2 failure must not fail the weekly job — Phase 1 retrain above
+        # already succeeded, and the daily pipeline falls back to Phase 1 when no
+        # active CS artifact exists.
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          TRADER_CS_LABEL_HORIZON_DAYS: "5"
+          TRADER_CS_OBJECTIVE: "ranker"
+          TRADER_MACRO_FEATURES_ENABLED: "true"
+        run: uv run python scripts/weekly_cross_section_retrain.py --output docs/cs_model_quality.json
+
+      - name: Generate shadow-validation report (Phase 1 vs Phase 2)
+        # Best-effort comparison report for the eventual shadow->active flip
+        # decision. Read-only over the shadow window; never flips anything and
+        # must not fail the weekly job (DB-disabled/error -> available:false).
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+        run: uv run python scripts/portfolio_shadow_report.py --output docs/portfolio_shadow_report.json
+
       - name: Commit and push retrain artifacts
+        # `data/` captures data/models/ (Phase 1 + cs-v1-* bundles + active
+        # pointers); `docs/` captures weekly_retrain_report.json, model_quality.json,
+        # cs_model_quality.json, portfolio_backtest.json, and the universe report.
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
           bash .github/scripts/commit-and-push.sh "Weekly retrain refresh ($TODAY_JST)" \
-            data/ docs/weekly_retrain_report.json docs/model_quality.json
+            data/ docs/

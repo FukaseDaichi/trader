@@ -26,6 +26,8 @@ LEGACY_HISTORY_FILE = DOCS_DIR / "history_data.json"
 PERFORMANCE_FILE = DOCS_DIR / "performance_summary.json"
 MODEL_QUALITY_FILE = DOCS_DIR / "model_quality.json"
 DRIFT_REPORT_FILE = DOCS_DIR / "drift_report.json"
+PORTFOLIO_LATEST_FILE = DOCS_DIR / "portfolio_latest.json"
+PORTFOLIO_BACKTEST_FILE = DOCS_DIR / "portfolio_backtest.json"
 EXPORT_COLUMNS = [
     "date",
     "open",
@@ -460,3 +462,62 @@ def export_model_quality():
     }
     _atomic_write_json(MODEL_QUALITY_FILE, payload, indent=2)
     print(f"Model quality summary exported to {MODEL_QUALITY_FILE}")
+
+
+# --- Phase 2: portfolio dashboard exports ----------------------------------
+
+def export_portfolio_latest(snapshot, *, run_date=None, reason=None,
+                            generated_at=None, output_path=None):
+    """
+    Write docs/portfolio_latest.json from a ``build_portfolio_snapshot`` result.
+
+    Available: when ``snapshot`` is present and its status is ``"ok"`` the file
+    is ``{"available": True, "generated_at": ..., **snapshot}`` (the snapshot
+    already carries run_date/as_of_date/mode/status/positions/etc.).
+
+    Unavailable: when ``snapshot is None`` OR its status is not ``"ok"`` (e.g.
+    a Phase 2 fallback), the file is ``{"available": False, "reason": <reason or
+    status>, "generated_at": ...}``. Pass ``reason`` to surface the fallback
+    cause (e.g. ``"insufficient_universe"``).
+
+    ``generated_at`` is only stamped when supplied — this function never calls
+    ``datetime.now`` so tests stay deterministic (the caller passes a JST
+    timestamp). ``run_date`` is stamped onto the unavailable payload too so the
+    card can show the date. Written atomically (indent=2). Returns the path str.
+    """
+    path = Path(output_path) if output_path is not None else PORTFOLIO_LATEST_FILE
+
+    if snapshot is not None and snapshot.get("status") == "ok":
+        payload: dict[str, Any] = {"available": True}
+        payload.update(snapshot)
+    else:
+        resolved_reason = reason
+        if resolved_reason is None and snapshot is not None:
+            resolved_reason = snapshot.get("status")
+        payload = {"available": False, "reason": resolved_reason}
+        if run_date is not None:
+            payload["run_date"] = run_date
+
+    if generated_at:
+        payload["generated_at"] = generated_at
+
+    _atomic_write_json(path, payload, indent=2)
+    print(f"Portfolio snapshot exported to {path} (available={payload['available']})")
+    return str(path)
+
+
+def export_portfolio_backtest(result, *, model_version=None, run_date=None,
+                              generated_at=None, output_path=None):
+    """
+    Write docs/portfolio_backtest.json from a ``run_portfolio_backtest`` result.
+
+    Thin delegate to ``portfolio_backtest.write_portfolio_backtest_report`` so
+    the docs export lives in the dashboard module per convention; the report
+    logic (available true/false, atomic write) is owned there. Returns the path.
+    """
+    from .portfolio_backtest import write_portfolio_backtest_report
+    out = str(output_path) if output_path is not None else str(PORTFOLIO_BACKTEST_FILE)
+    return write_portfolio_backtest_report(
+        result, output_path=out, model_version=model_version,
+        run_date=run_date, generated_at=generated_at,
+    )

@@ -112,3 +112,40 @@ export interface ModelQuality {
   };
   by_ticker?: Record<string, ModelQualityTicker>;
 }
+
+export type PortfolioDiffType = "new" | "increase" | "decrease" | "exit" | "hold";
+
+export interface PortfolioPosition {
+  ticker: string;
+  name: string | null;
+  sector: string | null;
+  target_weight: number;
+  prev_weight: number;
+  diff_type: PortfolioDiffType;
+  cs_rank: number | null;
+  expected_ret: number | null;
+  prob_up: number | null;
+  volatility: number | null;
+  limit_price: number | null;
+  stop_loss: number | null;
+}
+
+export interface PortfolioLatest {
+  available: boolean;
+  reason?: string;
+  generated_at?: string;
+  run_date?: string;
+  as_of_date?: string;
+  mode?: "shadow" | "active";
+  status?: "ok" | "failed";
+  model_version?: string;
+  gross_exposure?: number;
+  net_exposure?: number;
+  expected_vol?: number;
+  expected_ret?: number;
+  sector_exposure?: Record<string, number>;
+  diff_summary?: { add: number; trim: number; exit: number; hold: number };
+  positions?: PortfolioPosition[];
+  warnings?: string[];
+  constraints?: Record<string, unknown>;
+}

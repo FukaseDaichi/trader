@@ -80,6 +80,30 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Read portfolio KPI / snapshot warnings (shadow)
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        # Surfaces the Phase 2 portfolio backtest gate + daily snapshot warnings
+        # as log annotations. Shadow rollout: informational only — it never opens
+        # an issue or fails the watchdog.
+        continue-on-error: true
+        run: |
+          if [ -f docs/portfolio_backtest.json ]; then
+            echo "portfolio backtest:"
+            jq -c '{available, reason, metrics: (.metrics // {} | {sharpe, max_drawdown, information_ratio, turnover})}' docs/portfolio_backtest.json || true
+          else
+            echo "portfolio backtest: (absent)"
+          fi
+          if [ -f docs/portfolio_latest.json ]; then
+            echo "portfolio snapshot:"
+            jq -c '{available, reason, mode, status, gross_exposure, warnings}' docs/portfolio_latest.json || true
+            WARN=$(jq -r '(.warnings // []) | length' docs/portfolio_latest.json 2>/dev/null || echo 0)
+            if [ -n "$WARN" ] && [ "$WARN" != "0" ]; then
+              echo "::warning::portfolio snapshot has $WARN warning(s)"
+            fi
+          else
+            echo "portfolio snapshot: (absent)"
+          fi
+
       - name: Create drift issue
         if: ${{ steps.market.outputs.is_open == 'true' && steps.drift.outputs.status == '2' }}
         env:

@@ -15,15 +15,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import json  # noqa: E402
+import tempfile  # noqa: E402
+
 from src.db_records import (  # noqa: E402
+    backtest_equity_rows,
+    backtest_run_row,
     compute_outcome,
+    cs_prediction_row,
     make_event_id,
+    portfolio_snapshot_row,
     signal_to_prediction_row,
     signal_to_signal_row,
     summarize_performance,
 )
-
-import tempfile  # noqa: E402
 
 import src.db as dbmod  # noqa: E402
 
@@ -184,6 +189,282 @@ def test_summary_handles_empty():
     assert s["horizons"]["5"]["hit_rate"] is None
 
 
+def test_cs_prediction_row_maps_fields():
+    pred = {
+        "ticker": "7011.JP",
+        "raw_score": 1.234,
+        "cs_rank": 3,
+        "prob_up": 0.72,
+        "expected_ret": 0.015,
+        "features_hash": None,
+    }
+    row = cs_prediction_row(
+        pred,
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+        as_of_date="2026-06-06",
+    )
+    assert row is not None
+    assert row["run_date"] == "2026-06-09"
+    assert row["as_of_date"] == "2026-06-06"
+    assert row["ticker"] == "7011.JP"
+    assert row["model_version"] == "cs-v1-20260609"
+    assert row["horizon_days"] == 5
+    assert isinstance(row["cs_rank"], int) and row["cs_rank"] == 3
+    assert abs(row["raw_score"] - 1.234) < 1e-9
+    assert abs(row["prob_up"] - 0.72) < 1e-9
+    assert abs(row["expected_ret"] - 0.015) < 1e-9
+    assert row["features_hash"] is None
+
+
+def test_cs_prediction_row_missing_ticker_is_none():
+    # No ticker -> must return None
+    row = cs_prediction_row(
+        {"raw_score": 0.5, "cs_rank": 1, "prob_up": 0.6, "expected_ret": 0.01},
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+    )
+    assert row is None
+
+    # Explicit None ticker -> also None
+    row2 = cs_prediction_row(
+        {"ticker": None, "raw_score": 0.5, "cs_rank": 1, "prob_up": 0.6},
+        run_date="2026-06-09",
+        model_version="cs-v1-20260609",
+        horizon_days=5,
+    )
+    assert row2 is None
+
+
+def _bt_result_ok():
+    """Minimal run_portfolio_backtest-shaped result with status='ok'."""
+    return {
+        "status": "ok",
+        "start_date": "2024-01-05",
+        "end_date": "2024-12-20",
+        "n_periods": 48,
+        "rebalance_days": 5,
+        "cost_bps": 10.0,
+        "slippage_bps": 5.0,
+        "params": {
+            "target_vol": 0.12,
+            "max_name_weight": 0.20,
+            "top_n": 8,
+            "rebalance_days": 5,
+            "cost_bps": 10.0,
+            "slippage_bps": 5.0,
+        },
+        "metrics": {
+            "cagr": 0.15,
+            "sharpe": 0.80,
+            "sortino": 1.1,
+            "max_drawdown": -0.10,
+            "information_ratio": 0.50,
+            "turnover": 0.20,
+            "n_periods": 48,
+        },
+        "equity": [
+            {
+                "date": "2024-01-05",
+                "equity": 1.0,
+                "benchmark_equity": 1.0,
+                "period_return": 0.01,
+                "benchmark_return": 0.005,
+                "drawdown": 0.0,
+                "gross_exposure": 0.85,
+                "turnover": 0.30,
+            },
+            {
+                "date": "2024-01-12",
+                "equity": 1.01,
+                "benchmark_equity": 1.005,
+                "period_return": 0.01,
+                "benchmark_return": 0.003,
+                "drawdown": 0.0,
+                "gross_exposure": 0.87,
+                "turnover": 0.05,
+            },
+        ],
+    }
+
+
+def test_backtest_run_row_maps_core_fields():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", model_version="cs-v1-20260610")
+    assert row is not None
+    assert row["run_date"] == "2026-06-10"
+    assert row["model_version"] == "cs-v1-20260610"
+    assert row["scope"] == "portfolio"
+    assert row["start_date"] == "2024-01-05"
+    assert row["end_date"] == "2024-12-20"
+    # params and metrics are dicts (JSON-serializable).
+    assert isinstance(row["params"], dict)
+    assert isinstance(row["metrics"], dict)
+    assert row["metrics"]["sharpe"] == 0.80
+    assert row["params"]["top_n"] == 8
+    # Verify JSON-serialisability (no non-serialisable types).
+    json.dumps(row["params"])
+    json.dumps(row["metrics"])
+
+
+def test_backtest_run_row_custom_scope():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", scope="custom_scope")
+    assert row["scope"] == "custom_scope"
+
+
+def test_backtest_run_row_none_model_version():
+    result = _bt_result_ok()
+    row = backtest_run_row(result, run_date="2026-06-10", model_version=None)
+    assert row is not None
+    assert row["model_version"] is None
+
+
+def test_backtest_run_row_insufficient_returns_none():
+    result = {"status": "insufficient", "metrics": {}, "equity": []}
+    assert backtest_run_row(result, run_date="2026-06-10") is None
+
+
+def test_backtest_run_row_none_result_returns_none():
+    assert backtest_run_row(None, run_date="2026-06-10") is None
+
+
+def test_backtest_equity_rows_period_return_renamed():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    assert len(rows) == 2
+
+    # period_return must be renamed to daily_return.
+    assert "daily_return" in rows[0], rows[0]
+    assert "period_return" not in rows[0], rows[0]
+
+    # Values preserved.
+    assert rows[0]["daily_return"] == 0.01
+    assert rows[1]["daily_return"] == 0.01
+
+
+def test_backtest_equity_rows_all_keys_present():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    expected_keys = {
+        "date", "equity", "benchmark_equity", "daily_return",
+        "benchmark_return", "drawdown", "gross_exposure", "turnover",
+    }
+    for row in rows:
+        assert expected_keys.issubset(set(row)), f"Missing keys: {expected_keys - set(row)}"
+
+
+def test_backtest_equity_rows_insufficient_is_empty():
+    result = {"status": "insufficient", "metrics": {}, "equity": []}
+    assert backtest_equity_rows(result) == []
+
+
+def test_backtest_equity_rows_none_result_is_empty():
+    assert backtest_equity_rows(None) == []
+
+
+def test_backtest_equity_rows_json_serializable():
+    result = _bt_result_ok()
+    rows = backtest_equity_rows(result)
+    # All values must be JSON-serializable (no numpy/datetime objects).
+    for row in rows:
+        json.dumps(row)
+
+
+def _snapshot_ok(as_of_date="2026-06-06"):
+    """Minimal build_portfolio_snapshot-shaped result with status='ok'."""
+    return {
+        "run_date": "2026-06-09",
+        "as_of_date": as_of_date,
+        "mode": "shadow",
+        "status": "ok",
+        "model_version": "cs-v1-20260609",
+        "gross_exposure": 0.85,
+        "net_exposure": 0.85,
+        "expected_vol": 0.11,
+        "expected_ret": 0.012,
+        "sector_exposure": {"Industrials": 0.4, None: 0.45},
+        "diff_summary": {"add": 2, "trim": 1, "exit": 0, "hold": 5},
+        "positions": [
+            {"ticker": "7011.JP", "name": "三菱重工業", "sector": "Industrials",
+             "target_weight": 0.2, "prev_weight": 0.15, "diff_type": "increase",
+             "cs_rank": 1, "expected_ret": 0.02, "prob_up": 0.7,
+             "volatility": 0.25, "limit_price": None, "stop_loss": None},
+        ],
+        "constraints": {"target_vol": 0.12, "top_n": 8, "regime": "neutral"},
+        "warnings": ["covariance_diagonal_fallback"],
+    }
+
+
+def test_portfolio_snapshot_row_maps_all_columns():
+    snap = _snapshot_ok()
+    row = portfolio_snapshot_row(snap)
+    assert row is not None
+    assert row["run_date"] == "2026-06-09"
+    assert row["as_of_date"] == "2026-06-06"
+    assert row["model_version"] == "cs-v1-20260609"
+    assert row["mode"] == "shadow"
+    assert row["status"] == "ok"
+    # diff_summary -> diff_from_prev column rename.
+    assert row["diff_from_prev"] == {"add": 2, "trim": 1, "exit": 0, "hold": 5}
+    assert "diff_summary" not in row
+    assert row["positions"] == snap["positions"]
+    assert abs(row["gross_exposure"] - 0.85) < 1e-9
+    assert abs(row["net_exposure"] - 0.85) < 1e-9
+    assert abs(row["expected_ret"] - 0.012) < 1e-9
+    assert abs(row["expected_vol"] - 0.11) < 1e-9
+    assert row["sector_exposure"] == {"Industrials": 0.4, None: 0.45}
+    assert row["constraints"]["top_n"] == 8
+    assert row["warnings"] == ["covariance_diagonal_fallback"]
+    # Every value must be JSON-serializable (None dict key -> "null").
+    json.dumps(row)
+
+
+def test_portfolio_snapshot_row_run_date_override():
+    snap = _snapshot_ok()
+    row = portfolio_snapshot_row(snap, run_date="2026-06-10")
+    assert row["run_date"] == "2026-06-10"  # explicit arg wins over snapshot
+
+
+def test_portfolio_snapshot_row_as_of_date_falls_back_to_run_date():
+    # as_of_date None must fall back to run_date (NOT NULL column).
+    snap = _snapshot_ok(as_of_date=None)
+    row = portfolio_snapshot_row(snap, run_date="2026-06-09")
+    assert row["as_of_date"] == "2026-06-09"
+
+
+def test_portfolio_snapshot_row_none_input_is_none():
+    assert portfolio_snapshot_row(None) is None
+    # Missing status -> not persistable.
+    assert portfolio_snapshot_row({"run_date": "2026-06-09"}) is None
+
+
+def test_portfolio_snapshot_row_persists_failed_status():
+    failed = {
+        "run_date": "2026-06-09",
+        "as_of_date": "2026-06-06",
+        "mode": "shadow",
+        "status": "failed",
+        "model_version": "cs-v1-20260609",
+        "gross_exposure": 0.0,
+        "net_exposure": 0.0,
+        "expected_vol": 0.0,
+        "expected_ret": 0.0,
+        "sector_exposure": {},
+        "diff_summary": {"add": 0, "trim": 0, "exit": 0, "hold": 0},
+        "positions": [],
+        "constraints": {"top_n": 8},
+        "warnings": ["construction_error"],
+    }
+    row = portfolio_snapshot_row(failed)
+    assert row is not None
+    assert row["status"] == "failed"
+    assert row["positions"] == []
+    json.dumps(row)
+
+
 def test_outbox_queue_and_dedup():
     import os
     with tempfile.TemporaryDirectory() as tmp:
@@ -228,6 +509,23 @@ ALL_TESTS = [
     test_summary_hit_rate_and_curve,
     test_summary_handles_empty,
     test_outbox_queue_and_dedup,
+    test_cs_prediction_row_maps_fields,
+    test_cs_prediction_row_missing_ticker_is_none,
+    test_backtest_run_row_maps_core_fields,
+    test_backtest_run_row_custom_scope,
+    test_backtest_run_row_none_model_version,
+    test_backtest_run_row_insufficient_returns_none,
+    test_backtest_run_row_none_result_returns_none,
+    test_backtest_equity_rows_period_return_renamed,
+    test_backtest_equity_rows_all_keys_present,
+    test_backtest_equity_rows_insufficient_is_empty,
+    test_backtest_equity_rows_none_result_is_empty,
+    test_backtest_equity_rows_json_serializable,
+    test_portfolio_snapshot_row_maps_all_columns,
+    test_portfolio_snapshot_row_run_date_override,
+    test_portfolio_snapshot_row_as_of_date_falls_back_to_run_date,
+    test_portfolio_snapshot_row_none_input_is_none,
+    test_portfolio_snapshot_row_persists_failed_status,
 ]
 
 

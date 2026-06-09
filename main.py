@@ -6,6 +6,8 @@ from src.config import (
     BACKTEST_GATE_CONFIG,
     get_label_config,
     get_model_runtime_config,
+    get_portfolio_config,
+    get_cross_section_config,
 )
 from src.data_loader import update_data, load_data, sync_data_files
 from src.labels import effective_horizon
@@ -14,7 +16,7 @@ from src.predictor import generate_signal
 from src.notifier import send_notification
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
-from src import db, macro, model_store, phase1
+from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard
 
 
 def _run_date_jst() -> str:
@@ -26,6 +28,11 @@ def _run_date_jst() -> str:
         except ValueError:
             print(f"Invalid RUN_DATE_JST={override!r}; using current JST date.")
     return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d")
+
+
+def _now_jst_str() -> str:
+    """JST wall-clock timestamp string for dashboard ``generated_at`` stamps."""
+    return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _empty_metrics():
@@ -325,6 +332,234 @@ def _process_ticker(ticker_info, ctx):
     return signal, backtest_entry
 
 
+def run_phase2_inference(macro_panel, model_cfg, run_date):
+    """
+    Phase 2 cross-sectional inference. Returns a result dict for the portfolio
+    layer (Task 6/8) or None when Phase 2 is disabled/unavailable.
+
+    NEVER raises — callers still wrap in try/except as a backstop.
+
+    Gating
+    ------
+    - portfolio_config["enabled"] is False -> return None (skip)
+    - no active CS pointer / bundle load fails -> {"status":"fallback", ...}
+    - len(TICKERS) < cross_section_config["min_universe"] -> fallback
+    - too few usable tickers after load_data -> fallback
+
+    On success: loads each enabled ticker's df, builds the cross-section panel,
+    calls cs_model.infer_cross_section, persists via db.record_cs_predictions,
+    and returns a success dict carrying status, mode, model_version, as_of_date,
+    predictions DataFrame, tickers_data list, and bundle.
+
+    The portfolio construction + snapshot/JSON export (Task 6/8) consumes the
+    returned dict; for now those steps are left as a TODO hook.
+    """
+    pf_cfg = get_portfolio_config()
+    cs_cfg = get_cross_section_config()
+
+    if not pf_cfg["enabled"]:
+        print("Phase 2 portfolio disabled; skipping.")
+        return None
+
+    portfolio_mode = pf_cfg["mode"]
+
+    # --- Active CS model check ---
+    active_cs = model_store.read_active_cs_model()
+    if active_cs is None:
+        print("Phase 2: no active CS model pointer found; falling back to Phase 1 only.")
+        return {"status": "fallback", "reason": "no_active_cs_model", "mode": portfolio_mode}
+
+    version = active_cs.get("version", "")
+    bundle = model_store.load_cs_bundle(version)
+    if bundle is None:
+        print(f"Phase 2: CS bundle load failed for version={version!r}; falling back.")
+        return {"status": "fallback", "reason": "bundle_load_failed", "mode": portfolio_mode,
+                "model_version": version}
+
+    # --- Universe size check ---
+    universe = TICKERS
+    min_universe = int(cs_cfg.get("min_universe", 30))
+    if len(universe) < min_universe:
+        print(f"Phase 2: universe size {len(universe)} < min_universe {min_universe}; falling back.")
+        return {"status": "fallback", "reason": "insufficient_universe", "mode": portfolio_mode,
+                "model_version": version}
+
+    # --- Load OHLCV data for all enabled tickers (best-effort) ---
+    tickers_data = []
+    for ticker_info in universe:
+        try:
+            df = load_data(ticker_info["code"])
+        except Exception as e:  # noqa: BLE001
+            print(f"Phase 2: load_data failed for {ticker_info['code']}: {type(e).__name__}: {e}")
+            df = None
+        if df is not None and not df.empty:
+            tickers_data.append((ticker_info, df))
+
+    if len(tickers_data) < min_universe:
+        print(f"Phase 2: only {len(tickers_data)} tickers with usable data "
+              f"(need {min_universe}); falling back.")
+        return {"status": "fallback", "reason": "insufficient_usable_data", "mode": portfolio_mode,
+                "model_version": version}
+
+    # --- Macro features flag (honour bundle's training setting) ---
+    macro_enabled = bool(
+        active_cs.get(
+            "macro_features_enabled",
+            (model_cfg or {}).get("macro_features_enabled", True),
+        )
+    )
+
+    # --- Inference ---
+    horizon_days = int(active_cs.get("horizon_days", cs_cfg.get("label_horizon_days", 5)))
+    pred_df, as_of = cs_model.infer_cross_section(
+        tickers_data,
+        macro_panel,
+        bundle,
+        macro_enabled=macro_enabled,
+        label_horizon_days=horizon_days,
+    )
+
+    if pred_df is None or pred_df.empty:
+        print("Phase 2: infer_cross_section returned empty predictions; falling back.")
+        return {"status": "fallback", "reason": "empty_predictions", "mode": portfolio_mode,
+                "model_version": version}
+
+    # --- Build DB rows ---
+    as_of_str = as_of.strftime("%Y-%m-%d") if as_of is not None else None
+    cs_rows = []
+    for _, row in pred_df.iterrows():
+        mapped = db_records.cs_prediction_row(
+            {
+                "ticker": row.get("ticker"),
+                "raw_score": row.get("raw_score"),
+                "cs_rank": row.get("cs_rank"),
+                "prob_up": row.get("prob_up"),
+                "expected_ret": row.get("expected_ret"),
+                "features_hash": None,  # CS panel doesn't derive per-ticker hash here
+            },
+            run_date,
+            model_version=version,
+            horizon_days=horizon_days,
+            as_of_date=as_of_str,
+        )
+        if mapped is not None:
+            cs_rows.append(mapped)
+
+    # --- Persist (best-effort; never breaks Phase 1) ---
+    db_result = db.record_cs_predictions(cs_rows, run_date)
+    print(f"Phase 2 DB write: {db_result}")
+
+    return {
+        "status": "ok",
+        "mode": portfolio_mode,
+        "model_version": version,
+        "as_of_date": as_of_str,
+        "predictions": pred_df,
+        "tickers_data": tickers_data,
+        "bundle": bundle,
+    }
+
+
+def _prev_target_weights() -> dict:
+    """
+    Yesterday's target book as ``{ticker: target_weight}``, best-effort.
+
+    DB first (latest portfolio_snapshots row), then docs/portfolio_latest.json,
+    else ``{}``. Never raises — the portfolio build treats ``{}`` as a fresh
+    book (everything is a "new" diff).
+    """
+    # DB-first.
+    if db.db_enabled():
+        try:
+            conn = db.connect()
+            try:
+                snap = db.fetch_latest_portfolio_snapshot(conn)
+            finally:
+                conn.close()
+            if snap and snap.get("positions"):
+                return {
+                    p["ticker"]: float(p.get("target_weight") or 0.0)
+                    for p in snap["positions"] if p.get("ticker")
+                }
+        except Exception as e:  # noqa: BLE001
+            print(f"Phase 2: prev-weights DB read failed (ignored): {type(e).__name__}: {e}")
+
+    # JSON fallback (docs/portfolio_latest.json).
+    try:
+        from src.dashboard import PORTFOLIO_LATEST_FILE
+        if PORTFOLIO_LATEST_FILE.exists():
+            import json
+            data = json.loads(PORTFOLIO_LATEST_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("available") and data.get("positions"):
+                return {
+                    p["ticker"]: float(p.get("target_weight") or 0.0)
+                    for p in data["positions"] if p.get("ticker")
+                }
+    except Exception as e:  # noqa: BLE001
+        print(f"Phase 2: prev-weights JSON read failed (ignored): {type(e).__name__}: {e}")
+
+    return {}
+
+
+def _run_portfolio_snapshot(phase2, run_date):
+    """
+    Build the daily portfolio snapshot from a successful Phase 2 inference
+    result, write docs/portfolio_latest.json, and upsert portfolio_snapshots.
+
+    Shadow-mode wiring (plan Task 8A): the snapshot's ``mode`` field carries
+    "shadow"/"active" straight through to the DB + JSON, but we do NOT write
+    ``target_weight`` back into the Phase 1 ``signals`` table — operational
+    active-ization is deferred to plan Task 10 (gated on 10 shadow days). The
+    Phase 1 signal/notification path stays byte-for-byte unchanged.
+    """
+    tickers_data = phase2.get("tickers_data") or []
+
+    # Enrichment maps keyed by ticker code (None values are fine downstream).
+    sectors: dict = {}
+    names: dict = {}
+    closes: dict = {}
+    price_frames: dict = {}
+    for ticker_info, df in tickers_data:
+        code = ticker_info.get("code")
+        if not code:
+            continue
+        sectors[code] = ticker_info.get("sector")
+        names[code] = ticker_info.get("name")
+        if df is not None and not df.empty and "close" in df.columns:
+            closes[code] = float(df["close"].iloc[-1])
+            if "date" in df.columns:
+                price_frames[code] = df[["date", "close"]]
+
+    prev_weights = _prev_target_weights()
+
+    # Qualitative regime accessor: none is wired into the daily pipeline yet
+    # (the macro panel only carries a numeric bias score; the qualitative
+    # "regime" string lives in docs/curation/macro_latest.json without a loader).
+    # Default to "neutral" per plan; revisit when a regime accessor exists.
+    regime = "neutral"
+
+    cfg = get_portfolio_config()
+    cfg["top_n"] = get_cross_section_config().get("top_n", 8)
+
+    snapshot = portfolio.build_portfolio_snapshot(
+        phase2["predictions"], price_frames, prev_weights, cfg,
+        sectors=sectors, names=names, closes=closes, regime=regime,
+        run_date=run_date, as_of_date=phase2.get("as_of_date"),
+        model_version=phase2.get("model_version"), mode=phase2.get("mode", "shadow"),
+    )
+
+    dashboard.export_portfolio_latest(
+        snapshot, run_date=run_date, generated_at=_now_jst_str(),
+    )
+    db_result = db.record_portfolio_snapshot(snapshot, run_date)
+    print(f"Phase 2 portfolio DB write: {db_result}")
+
+    diff = snapshot.get("diff_summary")
+    print(f"Phase 2 portfolio snapshot: mode={snapshot.get('mode')} "
+          f"status={snapshot.get('status')} gross={snapshot.get('gross_exposure')} "
+          f"positions={len(snapshot.get('positions') or [])} diff={diff}")
+
+
 def main():
     print("Starting daily stock prediction job...")
 
@@ -397,6 +632,28 @@ def main():
         print(f"DB record_run: {db_result}")
     except Exception as e:  # defensive: record_run itself should not raise
         print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
+
+    # Phase 2: cross-sectional inference + portfolio snapshot (Task 8A).
+    # Never breaks Phase 1 — any failure here is caught and logged below.
+    try:
+        run_date = _run_date_jst()
+        phase2 = run_phase2_inference(macro_panel, model_cfg, run_date)
+        if phase2 is None:
+            # Phase 2 disabled -> leave docs/portfolio_latest.json untouched.
+            pass
+        else:
+            print(f"Phase 2 inference: {phase2.get('status')} "
+                  f"(mode={phase2.get('mode')}, model={phase2.get('model_version')})")
+            if phase2.get("status") == "ok":
+                _run_portfolio_snapshot(phase2, run_date)
+            elif phase2.get("status") == "fallback":
+                # Phase 2 was enabled but degraded -> mark the card unavailable.
+                dashboard.export_portfolio_latest(
+                    None, reason=phase2.get("reason", "fallback"),
+                    run_date=run_date, generated_at=_now_jst_str(),
+                )
+    except Exception as e:  # noqa: BLE001
+        print(f"Phase 2 inference skipped (ignored): {type(e).__name__}: {e}")
 
     report_path = write_backtest_report(backtest_entries)
     print(f"Backtest KPI report exported to {report_path}")

@@ -113,6 +113,134 @@ def test_clear_active_model():
         assert ms.read_active_model(active_file=active) is None
 
 
+def test_cs_bundle_save_load_roundtrip():
+    import pandas as pd
+
+    with tempfile.TemporaryDirectory() as tmp:
+        version = "cs-v1-20260613"
+        booster = _toy_booster(seed=42)
+        feature_schema = {
+            "feature_cols": ["f0", "f1", "f2", "f3"],
+            "objective": "ranker",
+            "macro_enabled": False,
+        }
+        calibration = {"bucket_0": {"up_prob": 0.2, "expected_ret": -0.01},
+                       "bucket_1": {"up_prob": 0.8, "expected_ret": 0.03}}
+        sector_encoder = {"Technology": 0, "Finance": 1}
+        universe = ["7011.JP", "9984.JP", "6758.JP"]
+        oos_df = pd.DataFrame({
+            "date": pd.to_datetime(["2026-01-05", "2026-01-06"]),
+            "ticker": ["7011.JP", "9984.JP"],
+            "raw_score": [0.6, 0.4],
+            "fwd_return": [0.02, -0.01],
+            "target_up": [1, 0],
+            "target_vol_norm": [1.1, 0.9],
+            "target_rank_bucket": [2, 1],
+        })
+
+        ms.save_cs_bundle(
+            version,
+            booster,
+            feature_schema=feature_schema,
+            calibration=calibration,
+            sector_encoder=sector_encoder,
+            universe=universe,
+            oos_predictions=oos_df,
+            model_dir=tmp,
+        )
+
+        bundle = ms.load_cs_bundle(version, model_dir=tmp)
+        assert bundle is not None
+        assert bundle["version"] == version
+
+        # Booster predictions must match original.
+        X = np.random.default_rng(7).normal(size=(10, 4))
+        assert np.allclose(bundle["booster"].predict(X), booster.predict(X))
+
+        # Scalar fields round-trip.
+        assert bundle["feature_schema"] == feature_schema
+        assert bundle["calibration"] == calibration
+        assert bundle["sector_encoder"] == sector_encoder
+        assert bundle["universe"] == universe
+
+        # OOS DataFrame round-trips (same shape + columns).
+        assert bundle["oos_predictions"] is not None
+        assert bundle["oos_predictions"].shape == oos_df.shape
+        assert list(bundle["oos_predictions"].columns) == list(oos_df.columns)
+
+
+def test_cs_bundle_missing_returns_none():
+    with tempfile.TemporaryDirectory() as tmp:
+        assert ms.load_cs_bundle("nope", model_dir=tmp) is None
+
+
+def test_cs_bundle_oos_optional():
+    with tempfile.TemporaryDirectory() as tmp:
+        version = "cs-v1-20260614"
+        booster = _toy_booster(seed=5)
+        feature_schema = {"feature_cols": ["f0", "f1", "f2", "f3"], "objective": "ranker"}
+
+        ms.save_cs_bundle(
+            version,
+            booster,
+            feature_schema=feature_schema,
+            oos_predictions=None,
+            model_dir=tmp,
+        )
+
+        bundle = ms.load_cs_bundle(version, model_dir=tmp)
+        assert bundle is not None
+        assert bundle["oos_predictions"] is None
+
+        # Booster still loads correctly.
+        X = np.random.default_rng(8).normal(size=(10, 4))
+        assert np.allclose(bundle["booster"].predict(X), booster.predict(X))
+
+
+def test_active_cs_model_roundtrip_and_isolation():
+    with tempfile.TemporaryDirectory() as tmp:
+        cs_file = str(Path(tmp) / "active_cs_model.json")
+        p1_file = str(Path(tmp) / "active_model.json")
+
+        # Write CS pointer.
+        ms.write_active_cs_model(
+            "cs-v1-20260613",
+            {"kind": "cross_sectional_ranker_v1", "horizon_days": 5},
+            active_file=cs_file,
+        )
+
+        # Write Phase 1 pointer to a DIFFERENT file.
+        ms.write_active_model(
+            "per-ticker-v1-x",
+            {"kind": "per_ticker_horizon_v1"},
+            active_file=p1_file,
+        )
+
+        # Read CS pointer back and check fields.
+        cs_data = ms.read_active_cs_model(active_file=cs_file)
+        assert cs_data is not None
+        assert cs_data["version"] == "cs-v1-20260613"
+        assert cs_data["kind"] == "cross_sectional_ranker_v1"
+        assert cs_data["horizon_days"] == 5
+
+        # Read Phase 1 pointer back independently.
+        p1_data = ms.read_active_model(active_file=p1_file)
+        assert p1_data is not None
+        assert p1_data["version"] == "per-ticker-v1-x"
+
+        # Cross-reads must not collide: CS file lacks Phase 1 version string, P1 lacks CS kind.
+        assert cs_data["version"] != p1_data["version"]
+
+
+def test_clear_active_cs_model():
+    with tempfile.TemporaryDirectory() as tmp:
+        cs_file = str(Path(tmp) / "active_cs_model.json")
+        ms.write_active_cs_model("cs-v1-20260613", active_file=cs_file)
+        assert ms.read_active_cs_model(active_file=cs_file) is not None
+        ms.clear_active_cs_model(active_file=cs_file)
+        assert ms.read_active_cs_model(active_file=cs_file) is None
+
+
 ALL_TESTS = [
     test_save_load_roundtrip_same_prediction,
     test_load_missing_version_returns_none,
@@ -121,6 +249,11 @@ ALL_TESTS = [
     test_read_active_model_corrupt_is_none,
     test_version_metadata_roundtrip_and_artifact_uri,
     test_clear_active_model,
+    test_cs_bundle_save_load_roundtrip,
+    test_cs_bundle_missing_returns_none,
+    test_cs_bundle_oos_optional,
+    test_active_cs_model_roundtrip_and_isolation,
+    test_clear_active_cs_model,
 ]
 
 

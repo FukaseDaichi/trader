@@ -73,6 +73,42 @@ def signal_to_prediction_row(signal: dict, run_date: str,
     }
 
 
+def cs_prediction_row(pred: dict, run_date: str, *,
+                      model_version: str,
+                      horizon_days: int,
+                      as_of_date=None) -> dict | None:
+    """
+    Map one cross-sectional prediction (ticker, raw_score, cs_rank, prob_up,
+    expected_ret, features_hash) to a `predictions` table row.
+
+    Returns None when there is no ticker. cs_rank is an int (1 = top);
+    prob_up / expected_ret / raw_score are floats or None.
+
+    Keys match the predictions upsert schema exactly:
+      run_date, as_of_date, ticker, model_version, horizon_days,
+      raw_score, prob_up, expected_ret, cs_rank, features_hash.
+    """
+    ticker = pred.get("ticker")
+    if not ticker:
+        return None
+
+    cs_rank = pred.get("cs_rank")
+    cs_rank_int = int(cs_rank) if cs_rank is not None else None
+
+    return {
+        "run_date": run_date,
+        "as_of_date": as_of_date,
+        "ticker": ticker,
+        "model_version": model_version,
+        "horizon_days": int(horizon_days),
+        "raw_score": _as_float(pred.get("raw_score")),
+        "prob_up": _as_float(pred.get("prob_up")),
+        "expected_ret": _as_float(pred.get("expected_ret")),
+        "cs_rank": cs_rank_int,
+        "features_hash": pred.get("features_hash"),
+    }
+
+
 def signal_to_signal_row(signal: dict, run_date: str) -> dict:
     """Map a daily signal to a `signals` row (one per run_date/ticker)."""
     prob_up = _as_float(signal.get("prob_up"))
@@ -90,6 +126,125 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
         "stop_loss": _as_float(signal.get("stop_loss")),
         "reason": signal.get("reason"),
         "status": signal.get("status", "ok"),
+    }
+
+
+def backtest_run_row(result: dict, run_date: str, *,
+                     model_version: str | None = None,
+                     scope: str = "portfolio") -> dict | None:
+    """
+    Map a ``run_portfolio_backtest`` result dict to a ``backtest_runs`` INSERT row.
+
+    Returns ``None`` when the result is None or its status is not ``"ok"``
+    (insufficient runs should not be persisted).
+
+    Column mapping:
+      run_date      <- caller-supplied
+      model_version <- caller-supplied (may be None)
+      scope         <- caller-supplied (default "portfolio")
+      start_date    <- result["start_date"]
+      end_date      <- result["end_date"]
+      params        <- result["params"]  (JSONB)
+      metrics       <- result["metrics"] (JSONB)
+    """
+    if result is None or result.get("status") != "ok":
+        return None
+
+    return {
+        "run_date": run_date,
+        "model_version": model_version,
+        "scope": scope,
+        "start_date": result["start_date"],
+        "end_date": result["end_date"],
+        "params": result.get("params", {}),
+        "metrics": result.get("metrics", {}),
+    }
+
+
+def backtest_equity_rows(result: dict) -> list[dict]:
+    """
+    Map the ``equity`` list from a ``run_portfolio_backtest`` result to a list
+    of ``backtest_equity`` INSERT rows (run_id is NOT yet set — the caller
+    injects it after the backtest_runs INSERT returns the generated id).
+
+    Key rename: ``period_return`` -> ``daily_return`` (matches the DB column).
+
+    Returns an empty list when result is None, status != "ok", or equity is
+    empty.
+    """
+    if result is None or result.get("status") != "ok":
+        return []
+
+    rows = []
+    for eq in result.get("equity") or []:
+        rows.append({
+            "date": eq["date"],
+            "equity": eq["equity"],
+            "benchmark_equity": eq.get("benchmark_equity"),
+            "daily_return": eq.get("period_return"),   # rename: period_return -> daily_return
+            "benchmark_return": eq.get("benchmark_return"),
+            "drawdown": eq.get("drawdown"),
+            "gross_exposure": eq.get("gross_exposure"),
+            "turnover": eq.get("turnover"),
+        })
+    return rows
+
+
+def portfolio_snapshot_row(snapshot: dict, *, run_date=None) -> dict | None:
+    """
+    Map a ``portfolio.build_portfolio_snapshot`` result to a
+    ``portfolio_snapshots`` INSERT row (one per run_date).
+
+    Returns ``None`` only when ``snapshot`` is None or carries no status; both
+    ``"ok"`` and ``"failed"`` are real daily outcomes worth persisting, so they
+    map to a row. (``run_date`` is the PRIMARY KEY -> the db layer upserts.)
+
+    Column mapping (``snapshot`` key -> column):
+      run_date        <- caller-supplied ``run_date`` else snapshot["run_date"]
+      as_of_date      <- snapshot["as_of_date"], falling back to run_date when
+                         None (the schema column is NOT NULL)
+      model_version   <- snapshot["model_version"]
+      mode / status   <- snapshot["mode"] / snapshot["status"]
+      positions       <- snapshot["positions"]            (JSONB)
+      diff_from_prev  <- snapshot["diff_summary"]          (JSONB)
+      gross_exposure  <- snapshot["gross_exposure"]
+      net_exposure    <- snapshot["net_exposure"]
+      sector_exposure <- snapshot["sector_exposure"]       (JSONB)
+      expected_ret    <- snapshot["expected_ret"]
+      expected_vol    <- snapshot["expected_vol"]
+      constraints     <- snapshot["constraints"]           (JSONB)
+      warnings        <- snapshot["warnings"]              (JSONB)
+
+    Nested values stay plain Python (lists/dicts); the db.py layer wraps the
+    JSONB columns in ``Jsonb`` before the INSERT. The returned dict is
+    JSON-serializable.
+    """
+    if snapshot is None:
+        return None
+    status = snapshot.get("status")
+    if status not in ("ok", "failed"):
+        return None
+
+    resolved_run_date = run_date if run_date is not None else snapshot.get("run_date")
+    as_of_date = snapshot.get("as_of_date")
+    if as_of_date is None:
+        as_of_date = resolved_run_date  # NOT NULL column -> fall back to run_date
+
+    return {
+        "run_date": resolved_run_date,
+        "as_of_date": as_of_date,
+        "model_version": snapshot.get("model_version"),
+        "mode": snapshot.get("mode"),
+        "status": status,
+        "positions": snapshot.get("positions") or [],
+        "diff_from_prev": snapshot.get("diff_summary"),
+        "gross_exposure": _as_float(snapshot.get("gross_exposure")),
+        "net_exposure": _as_float(snapshot.get("net_exposure")),
+        "sector_exposure": snapshot.get("sector_exposure"),
+        "expected_ret": _as_float(snapshot.get("expected_ret")),
+        "expected_vol": _as_float(snapshot.get("expected_vol")),
+        "constraints": snapshot.get("constraints"),
+        "warnings": snapshot.get("warnings"),
     }
 
 

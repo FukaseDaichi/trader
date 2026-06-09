@@ -242,6 +242,48 @@ def apply_signal_history(conn, history_days: list[dict]) -> dict:
     return {"events": len(all_events), "applied": applied, "linked": linked}
 
 
+def record_cs_predictions(cs_rows: list[dict], run_date: str) -> dict:
+    """
+    Write-through cross-sectional ``predictions`` rows (model_version cs-v1-*).
+
+    Never raises. On DB-disabled or any failure, queues events to the outbox
+    so the next run flushes them. Each event uses kind="prediction" so
+    ``_apply_events`` upserts via ``_upsert_prediction``, which already handles
+    cs_rank / expected_ret. The cs-v1-* model_version means these never collide
+    with Phase 1 "pred" rows that use per-ticker-v1-* / legacy-daily-v0 versions.
+    """
+    events = []
+    for row in cs_rows:
+        ticker = row.get("ticker")
+        if not ticker:
+            continue
+        events.append({
+            "event_id": db_records.make_event_id(run_date, ticker, "cs_pred"),
+            "kind": "prediction",
+            "row": row,
+        })
+
+    n = len(events)
+    if not db_enabled():
+        queued = _queue_events(events)
+        return {"ok": False, "reason": "db_disabled", "queued": queued}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        queued = _queue_events(events)
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}", "queued": queued}
+
+    try:
+        applied = _apply_events(conn, events)
+        return {"ok": True, "applied": applied}
+    except Exception as exc:  # noqa: BLE001
+        queued = _queue_events(events)
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
+    finally:
+        conn.close()
+
+
 def record_run(signals: list[dict], run_date: str) -> dict:
     """
     Write-through the day's predictions+signals. Never raises.
@@ -266,6 +308,175 @@ def record_run(signals: list[dict], run_date: str) -> dict:
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
         return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
+    finally:
+        conn.close()
+
+
+# --- Phase 2: portfolio backtest write-through -----------------------------
+
+def insert_backtest_run(conn, row: dict, equity_rows: list[dict]) -> int:
+    """
+    Insert one ``backtest_runs`` row and its associated ``backtest_equity`` rows
+    in a single transaction.
+
+    ``row`` must contain all non-auto columns for ``backtest_runs`` (see
+    ``db_records.backtest_run_row`` for the mapping). ``equity_rows`` is the list
+    from ``db_records.backtest_equity_rows``; each entry must have all columns
+    except ``run_id`` (injected here from the RETURNING id).
+
+    Returns the generated ``backtest_runs.id``.
+    """
+    from psycopg.types.json import Jsonb
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO backtest_runs"
+            " (run_date, model_version, scope, start_date, end_date, params, metrics)"
+            " VALUES (%(run_date)s, %(model_version)s, %(scope)s, %(start_date)s,"
+            "  %(end_date)s, %(params)s, %(metrics)s)"
+            " RETURNING id",
+            {
+                **row,
+                "params": Jsonb(row.get("params", {})),
+                "metrics": Jsonb(row.get("metrics", {})),
+            },
+        )
+        run_id = cur.fetchone()[0]
+
+        if equity_rows:
+            cur.executemany(
+                "INSERT INTO backtest_equity"
+                " (run_id, date, equity, benchmark_equity, daily_return,"
+                "  benchmark_return, drawdown, gross_exposure, turnover)"
+                " VALUES (%(run_id)s, %(date)s, %(equity)s, %(benchmark_equity)s,"
+                "  %(daily_return)s, %(benchmark_return)s, %(drawdown)s,"
+                "  %(gross_exposure)s, %(turnover)s)",
+                [{"run_id": run_id, **eq} for eq in equity_rows],
+            )
+
+    conn.commit()
+    return run_id
+
+
+def record_backtest_run(result: dict, run_date: str, *,
+                        model_version: str | None = None,
+                        scope: str = "portfolio") -> dict:
+    """
+    Write-through a ``run_portfolio_backtest`` result to the DB. Never raises.
+
+    When DB is disabled or any error occurs the function returns
+    ``{"ok": False, "reason": ...}`` — the caller is responsible for deciding
+    whether to log. The JSON report (``docs/portfolio_backtest.json``) is written
+    by the caller regardless of this function's outcome.
+
+    Returns ``{"ok": True, "run_id": <int>}`` on success.
+    """
+    run_row = db_records.backtest_run_row(result, run_date, model_version=model_version,
+                                         scope=scope)
+    if run_row is None:
+        return {"ok": False, "reason": "insufficient_or_no_result"}
+
+    equity_rows = db_records.backtest_equity_rows(result)
+
+    if not db_enabled():
+        return {"ok": False, "reason": "db_disabled"}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}"}
+
+    try:
+        run_id = insert_backtest_run(conn, run_row, equity_rows)
+        return {"ok": True, "run_id": run_id}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}"}
+    finally:
+        conn.close()
+
+
+# --- Phase 2: daily portfolio snapshot write-through -----------------------
+
+def upsert_portfolio_snapshot(conn, row: dict) -> None:
+    """
+    Upsert one ``portfolio_snapshots`` row (keyed by ``run_date``).
+
+    ``row`` must contain every non-auto column (see
+    ``db_records.portfolio_snapshot_row``). JSONB columns (positions,
+    diff_from_prev, sector_exposure, constraints, warnings) are wrapped in
+    ``Jsonb`` here. ``constraints`` is a SQL reserved word -> quoted.
+    """
+    from psycopg.types.json import Jsonb
+    params = dict(row)
+    params["positions"] = Jsonb(row.get("positions") or [])
+    for col in ("diff_from_prev", "sector_exposure", "constraints", "warnings"):
+        params[col] = Jsonb(row[col]) if row.get(col) is not None else None
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO portfolio_snapshots"
+            " (run_date, as_of_date, model_version, mode, status, positions,"
+            "  diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
+            "  expected_ret, expected_vol, \"constraints\", warnings)"
+            " VALUES (%(run_date)s, %(as_of_date)s, %(model_version)s, %(mode)s,"
+            "  %(status)s, %(positions)s, %(diff_from_prev)s, %(gross_exposure)s,"
+            "  %(net_exposure)s, %(sector_exposure)s, %(expected_ret)s,"
+            "  %(expected_vol)s, %(constraints)s, %(warnings)s)"
+            " ON CONFLICT (run_date) DO UPDATE SET"
+            "  as_of_date=EXCLUDED.as_of_date, model_version=EXCLUDED.model_version,"
+            "  mode=EXCLUDED.mode, status=EXCLUDED.status, positions=EXCLUDED.positions,"
+            "  diff_from_prev=EXCLUDED.diff_from_prev, gross_exposure=EXCLUDED.gross_exposure,"
+            "  net_exposure=EXCLUDED.net_exposure, sector_exposure=EXCLUDED.sector_exposure,"
+            "  expected_ret=EXCLUDED.expected_ret, expected_vol=EXCLUDED.expected_vol,"
+            "  \"constraints\"=EXCLUDED.\"constraints\", warnings=EXCLUDED.warnings",
+            params,
+        )
+    conn.commit()
+
+
+def fetch_latest_portfolio_snapshot(conn) -> dict | None:
+    """
+    Return the most recent ``portfolio_snapshots`` row (max ``run_date``) as a
+    dict, or ``None`` when the table is empty. JSONB columns come back as plain
+    Python (e.g. ``positions`` is a list of dicts).
+    """
+    from psycopg.rows import dict_row
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT run_date, as_of_date, model_version, mode, status, positions,"
+            " diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
+            " expected_ret, expected_vol, \"constraints\", warnings"
+            " FROM portfolio_snapshots ORDER BY run_date DESC LIMIT 1"
+        )
+        return cur.fetchone()
+
+
+def record_portfolio_snapshot(snapshot: dict, run_date: str) -> dict:
+    """
+    Write-through the daily portfolio snapshot to ``portfolio_snapshots``.
+    Never raises.
+
+    Best-effort only (no outbox): the daily snapshot is regenerated every run,
+    so a transient failure simply means the row is rewritten next time. Returns
+    ``{"ok": True}`` on success or ``{"ok": False, "reason": ...}`` otherwise.
+    The caller logs the result; ``docs/portfolio_latest.json`` is written by the
+    dashboard layer regardless of this function's outcome.
+    """
+    row = db_records.portfolio_snapshot_row(snapshot, run_date=run_date)
+    if row is None:
+        return {"ok": False, "reason": "no_persistable_snapshot"}
+
+    if not db_enabled():
+        return {"ok": False, "reason": "db_disabled"}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}"}
+
+    try:
+        upsert_portfolio_snapshot(conn, row)
+        return {"ok": True}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}"}
     finally:
         conn.close()
 
@@ -389,7 +600,10 @@ def register_model_version(conn, version: str, *, kind: str, universe, feature_s
              artifact_uri, bool(make_active)),
         )
         if make_active:
-            cur.execute("UPDATE model_registry SET active = (version = %s)", (version,))
+            cur.execute(
+                "UPDATE model_registry SET active = (version = %s) WHERE kind = %s",
+                (version, kind),
+            )
     conn.commit()
 
 
@@ -404,6 +618,17 @@ def active_model_version(conn) -> str | None:
         cur.execute(
             "SELECT version FROM model_registry WHERE active = TRUE"
             " ORDER BY trained_at DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def active_model_version_for_kind(conn, kind: str) -> str | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT version FROM model_registry WHERE active = TRUE AND kind = %s"
+            " ORDER BY trained_at DESC LIMIT 1",
+            (kind,),
         )
         row = cur.fetchone()
     return row[0] if row else None
