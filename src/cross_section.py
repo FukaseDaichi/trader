@@ -161,10 +161,8 @@ def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
 
         g = panel.groupby("date")[f]
 
-        # --- z-score ---
+        # --- z-score (NaN-aware, population std ddof=0) ---
         mean = g.transform("mean")
-        std = g.transform("std")   # pandas default ddof=1; override below
-        # Use ddof=0 (population std) as specified.
         std_pop = g.transform(lambda s: s.std(ddof=0))
 
         col_z = f"cs_z_{f}"
