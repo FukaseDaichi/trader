@@ -67,6 +67,16 @@ jobs:
           TRADER_MACRO_FEATURES_ENABLED: "true"
         run: uv run python scripts/weekly_cross_section_retrain.py --output docs/cs_model_quality.json
 
+      - name: Generate shadow-validation report (Phase 1 vs Phase 2)
+        # Best-effort comparison report for the eventual shadow->active flip
+        # decision. Read-only over the shadow window; never flips anything and
+        # must not fail the weekly job (DB-disabled/error -> available:false).
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+        run: uv run python scripts/portfolio_shadow_report.py --output docs/portfolio_shadow_report.json
+
       - name: Commit and push retrain artifacts
         # `data/` captures data/models/ (Phase 1 + cs-v1-* bundles + active
         # pointers); `docs/` captures weekly_retrain_report.json, model_quality.json,
