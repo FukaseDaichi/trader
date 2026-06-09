@@ -212,6 +212,41 @@ def get_model_runtime_config():
     }
 
 
+def get_cross_section_config():
+    """Phase 2 cross-sectional model / universe configuration."""
+    return {
+        "objective": _get_env_choice("TRADER_CS_OBJECTIVE", "ranker", {"ranker", "regression"}),
+        "active_model_file": _get_env_str("TRADER_CS_MODEL_ACTIVE_FILE", str(DATA_DIR / "models" / "active_cs_model.json")),
+        "min_universe": _get_env_int("TRADER_CS_MIN_UNIVERSE", 30),
+        "top_n": _get_env_int("TRADER_CS_TOP_N", 8),
+        "label_horizon_days": max(1, _get_env_int("TRADER_CS_LABEL_HORIZON_DAYS", 5)),
+        "min_daily_names": _get_env_int("TRADER_CS_MIN_DAILY_NAMES", 20),
+        "panel_lookback_years": max(1, _get_env_int("TRADER_CS_PANEL_LOOKBACK_YEARS", 5)),
+        "universe_target_size": _get_env_int("TRADER_UNIVERSE_TARGET_SIZE", 40),
+    }
+
+
+def get_portfolio_config():
+    """Phase 2 long-only portfolio construction / KPI-gate configuration."""
+    return {
+        "enabled": _get_env_bool("TRADER_PORTFOLIO_ENABLED", False),
+        "mode": _get_env_choice("TRADER_PORTFOLIO_MODE", "shadow", {"shadow", "active"}),
+        "target_vol": _get_env_float("TRADER_PORTFOLIO_TARGET_VOL", 0.12),
+        "max_name_weight": _get_env_float("TRADER_PORTFOLIO_MAX_NAME_WEIGHT", 0.20),
+        "sector_cap": _get_env_float("TRADER_PORTFOLIO_SECTOR_CAP", 0.40),
+        "max_gross": _get_env_float("TRADER_PORTFOLIO_MAX_GROSS", 1.00),
+        "min_weight": _get_env_float("TRADER_PORTFOLIO_MIN_WEIGHT", 0.03),
+        "notrade_band": _get_env_float("TRADER_PORTFOLIO_NOTRADE_BAND", 0.02),
+        "min_expected_ret": _get_env_float("TRADER_PORTFOLIO_MIN_EXPECTED_RET", 0.0),
+        "risk_off_gross_mult": _get_env_float("TRADER_PORTFOLIO_RISK_OFF_GROSS_MULT", 0.50),
+        "cov_lookback_days": _get_env_int("TRADER_PORTFOLIO_COV_LOOKBACK_DAYS", 60),
+        "backtest_min_sharpe": _get_env_float("TRADER_PORTFOLIO_BACKTEST_MIN_SHARPE", 0.30),
+        "backtest_max_dd": _get_env_float("TRADER_PORTFOLIO_BACKTEST_MAX_DD", 0.25),
+        "backtest_min_ir": _get_env_float("TRADER_PORTFOLIO_BACKTEST_MIN_IR", 0.00),
+        "backtest_max_turnover": _get_env_float("TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER", 0.40),
+    }
+
+
 TICKERS = load_tickers()
 LINE_CONFIG = get_line_config()
 BACKTEST_GATE_CONFIG = get_backtest_gate_config()

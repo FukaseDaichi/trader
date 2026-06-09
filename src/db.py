@@ -389,7 +389,10 @@ def register_model_version(conn, version: str, *, kind: str, universe, feature_s
              artifact_uri, bool(make_active)),
         )
         if make_active:
-            cur.execute("UPDATE model_registry SET active = (version = %s)", (version,))
+            cur.execute(
+                "UPDATE model_registry SET active = (version = %s) WHERE kind = %s",
+                (version, kind),
+            )
     conn.commit()
 
 
@@ -404,6 +407,17 @@ def active_model_version(conn) -> str | None:
         cur.execute(
             "SELECT version FROM model_registry WHERE active = TRUE"
             " ORDER BY trained_at DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def active_model_version_for_kind(conn, kind: str) -> str | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT version FROM model_registry WHERE active = TRUE AND kind = %s"
+            " ORDER BY trained_at DESC LIMIT 1",
+            (kind,),
         )
         row = cur.fetchone()
     return row[0] if row else None
