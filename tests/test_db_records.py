@@ -24,6 +24,7 @@ from src.db_records import (  # noqa: E402
     compute_outcome,
     cs_prediction_row,
     make_event_id,
+    portfolio_snapshot_row,
     signal_to_prediction_row,
     signal_to_signal_row,
     summarize_performance,
@@ -372,6 +373,98 @@ def test_backtest_equity_rows_json_serializable():
         json.dumps(row)
 
 
+def _snapshot_ok(as_of_date="2026-06-06"):
+    """Minimal build_portfolio_snapshot-shaped result with status='ok'."""
+    return {
+        "run_date": "2026-06-09",
+        "as_of_date": as_of_date,
+        "mode": "shadow",
+        "status": "ok",
+        "model_version": "cs-v1-20260609",
+        "gross_exposure": 0.85,
+        "net_exposure": 0.85,
+        "expected_vol": 0.11,
+        "expected_ret": 0.012,
+        "sector_exposure": {"Industrials": 0.4, None: 0.45},
+        "diff_summary": {"add": 2, "trim": 1, "exit": 0, "hold": 5},
+        "positions": [
+            {"ticker": "7011.JP", "name": "三菱重工業", "sector": "Industrials",
+             "target_weight": 0.2, "prev_weight": 0.15, "diff_type": "increase",
+             "cs_rank": 1, "expected_ret": 0.02, "prob_up": 0.7,
+             "volatility": 0.25, "limit_price": None, "stop_loss": None},
+        ],
+        "constraints": {"target_vol": 0.12, "top_n": 8, "regime": "neutral"},
+        "warnings": ["covariance_diagonal_fallback"],
+    }
+
+
+def test_portfolio_snapshot_row_maps_all_columns():
+    snap = _snapshot_ok()
+    row = portfolio_snapshot_row(snap)
+    assert row is not None
+    assert row["run_date"] == "2026-06-09"
+    assert row["as_of_date"] == "2026-06-06"
+    assert row["model_version"] == "cs-v1-20260609"
+    assert row["mode"] == "shadow"
+    assert row["status"] == "ok"
+    # diff_summary -> diff_from_prev column rename.
+    assert row["diff_from_prev"] == {"add": 2, "trim": 1, "exit": 0, "hold": 5}
+    assert "diff_summary" not in row
+    assert row["positions"] == snap["positions"]
+    assert abs(row["gross_exposure"] - 0.85) < 1e-9
+    assert abs(row["net_exposure"] - 0.85) < 1e-9
+    assert abs(row["expected_ret"] - 0.012) < 1e-9
+    assert abs(row["expected_vol"] - 0.11) < 1e-9
+    assert row["sector_exposure"] == {"Industrials": 0.4, None: 0.45}
+    assert row["constraints"]["top_n"] == 8
+    assert row["warnings"] == ["covariance_diagonal_fallback"]
+    # Every value must be JSON-serializable (None dict key -> "null").
+    json.dumps(row)
+
+
+def test_portfolio_snapshot_row_run_date_override():
+    snap = _snapshot_ok()
+    row = portfolio_snapshot_row(snap, run_date="2026-06-10")
+    assert row["run_date"] == "2026-06-10"  # explicit arg wins over snapshot
+
+
+def test_portfolio_snapshot_row_as_of_date_falls_back_to_run_date():
+    # as_of_date None must fall back to run_date (NOT NULL column).
+    snap = _snapshot_ok(as_of_date=None)
+    row = portfolio_snapshot_row(snap, run_date="2026-06-09")
+    assert row["as_of_date"] == "2026-06-09"
+
+
+def test_portfolio_snapshot_row_none_input_is_none():
+    assert portfolio_snapshot_row(None) is None
+    # Missing status -> not persistable.
+    assert portfolio_snapshot_row({"run_date": "2026-06-09"}) is None
+
+
+def test_portfolio_snapshot_row_persists_failed_status():
+    failed = {
+        "run_date": "2026-06-09",
+        "as_of_date": "2026-06-06",
+        "mode": "shadow",
+        "status": "failed",
+        "model_version": "cs-v1-20260609",
+        "gross_exposure": 0.0,
+        "net_exposure": 0.0,
+        "expected_vol": 0.0,
+        "expected_ret": 0.0,
+        "sector_exposure": {},
+        "diff_summary": {"add": 0, "trim": 0, "exit": 0, "hold": 0},
+        "positions": [],
+        "constraints": {"top_n": 8},
+        "warnings": ["construction_error"],
+    }
+    row = portfolio_snapshot_row(failed)
+    assert row is not None
+    assert row["status"] == "failed"
+    assert row["positions"] == []
+    json.dumps(row)
+
+
 def test_outbox_queue_and_dedup():
     import os
     with tempfile.TemporaryDirectory() as tmp:
@@ -428,6 +521,11 @@ ALL_TESTS = [
     test_backtest_equity_rows_insufficient_is_empty,
     test_backtest_equity_rows_none_result_is_empty,
     test_backtest_equity_rows_json_serializable,
+    test_portfolio_snapshot_row_maps_all_columns,
+    test_portfolio_snapshot_row_run_date_override,
+    test_portfolio_snapshot_row_as_of_date_falls_back_to_run_date,
+    test_portfolio_snapshot_row_none_input_is_none,
+    test_portfolio_snapshot_row_persists_failed_status,
 ]
 
 

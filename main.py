@@ -16,7 +16,7 @@ from src.predictor import generate_signal
 from src.notifier import send_notification
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
-from src import db, macro, model_store, phase1, cs_model, db_records
+from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard
 
 
 def _run_date_jst() -> str:
@@ -28,6 +28,11 @@ def _run_date_jst() -> str:
         except ValueError:
             print(f"Invalid RUN_DATE_JST={override!r}; using current JST date.")
     return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d")
+
+
+def _now_jst_str() -> str:
+    """JST wall-clock timestamp string for dashboard ``generated_at`` stamps."""
+    return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _empty_metrics():
@@ -455,6 +460,106 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
     }
 
 
+def _prev_target_weights() -> dict:
+    """
+    Yesterday's target book as ``{ticker: target_weight}``, best-effort.
+
+    DB first (latest portfolio_snapshots row), then docs/portfolio_latest.json,
+    else ``{}``. Never raises — the portfolio build treats ``{}`` as a fresh
+    book (everything is a "new" diff).
+    """
+    # DB-first.
+    if db.db_enabled():
+        try:
+            conn = db.connect()
+            try:
+                snap = db.fetch_latest_portfolio_snapshot(conn)
+            finally:
+                conn.close()
+            if snap and snap.get("positions"):
+                return {
+                    p["ticker"]: float(p.get("target_weight") or 0.0)
+                    for p in snap["positions"] if p.get("ticker")
+                }
+        except Exception as e:  # noqa: BLE001
+            print(f"Phase 2: prev-weights DB read failed (ignored): {type(e).__name__}: {e}")
+
+    # JSON fallback (docs/portfolio_latest.json).
+    try:
+        from src.dashboard import PORTFOLIO_LATEST_FILE
+        if PORTFOLIO_LATEST_FILE.exists():
+            import json
+            data = json.loads(PORTFOLIO_LATEST_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("available") and data.get("positions"):
+                return {
+                    p["ticker"]: float(p.get("target_weight") or 0.0)
+                    for p in data["positions"] if p.get("ticker")
+                }
+    except Exception as e:  # noqa: BLE001
+        print(f"Phase 2: prev-weights JSON read failed (ignored): {type(e).__name__}: {e}")
+
+    return {}
+
+
+def _run_portfolio_snapshot(phase2, run_date):
+    """
+    Build the daily portfolio snapshot from a successful Phase 2 inference
+    result, write docs/portfolio_latest.json, and upsert portfolio_snapshots.
+
+    Shadow-mode wiring (plan Task 8A): the snapshot's ``mode`` field carries
+    "shadow"/"active" straight through to the DB + JSON, but we do NOT write
+    ``target_weight`` back into the Phase 1 ``signals`` table — operational
+    active-ization is deferred to plan Task 10 (gated on 10 shadow days). The
+    Phase 1 signal/notification path stays byte-for-byte unchanged.
+    """
+    tickers_data = phase2.get("tickers_data") or []
+
+    # Enrichment maps keyed by ticker code (None values are fine downstream).
+    sectors: dict = {}
+    names: dict = {}
+    closes: dict = {}
+    price_frames: dict = {}
+    for ticker_info, df in tickers_data:
+        code = ticker_info.get("code")
+        if not code:
+            continue
+        sectors[code] = ticker_info.get("sector")
+        names[code] = ticker_info.get("name")
+        if df is not None and not df.empty and "close" in df.columns:
+            closes[code] = float(df["close"].iloc[-1])
+            if "date" in df.columns:
+                price_frames[code] = df[["date", "close"]]
+
+    prev_weights = _prev_target_weights()
+
+    # Qualitative regime accessor: none is wired into the daily pipeline yet
+    # (the macro panel only carries a numeric bias score; the qualitative
+    # "regime" string lives in docs/curation/macro_latest.json without a loader).
+    # Default to "neutral" per plan; revisit when a regime accessor exists.
+    regime = "neutral"
+
+    cfg = get_portfolio_config()
+    cfg["top_n"] = get_cross_section_config().get("top_n", 8)
+
+    snapshot = portfolio.build_portfolio_snapshot(
+        phase2["predictions"], price_frames, prev_weights, cfg,
+        sectors=sectors, names=names, closes=closes, regime=regime,
+        run_date=run_date, as_of_date=phase2.get("as_of_date"),
+        model_version=phase2.get("model_version"), mode=phase2.get("mode", "shadow"),
+    )
+
+    dashboard.export_portfolio_latest(
+        snapshot, run_date=run_date, generated_at=_now_jst_str(),
+    )
+    db_result = db.record_portfolio_snapshot(snapshot, run_date)
+    print(f"Phase 2 portfolio DB write: {db_result}")
+
+    diff = snapshot.get("diff_summary")
+    print(f"Phase 2 portfolio snapshot: mode={snapshot.get('mode')} "
+          f"status={snapshot.get('status')} gross={snapshot.get('gross_exposure')} "
+          f"positions={len(snapshot.get('positions') or [])} diff={diff}")
+
+
 def main():
     print("Starting daily stock prediction job...")
 
@@ -528,13 +633,25 @@ def main():
     except Exception as e:  # defensive: record_run itself should not raise
         print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
 
-    # Phase 2: cross-sectional inference + (Task 6/8) portfolio. Never breaks Phase 1.
+    # Phase 2: cross-sectional inference + portfolio snapshot (Task 8A).
+    # Never breaks Phase 1 — any failure here is caught and logged below.
     try:
-        phase2 = run_phase2_inference(macro_panel, model_cfg, _run_date_jst())
-        if phase2 is not None:
+        run_date = _run_date_jst()
+        phase2 = run_phase2_inference(macro_panel, model_cfg, run_date)
+        if phase2 is None:
+            # Phase 2 disabled -> leave docs/portfolio_latest.json untouched.
+            pass
+        else:
             print(f"Phase 2 inference: {phase2.get('status')} "
                   f"(mode={phase2.get('mode')}, model={phase2.get('model_version')})")
-            # TODO(Task 6/8): portfolio construction + snapshot/JSON export consumes `phase2`.
+            if phase2.get("status") == "ok":
+                _run_portfolio_snapshot(phase2, run_date)
+            elif phase2.get("status") == "fallback":
+                # Phase 2 was enabled but degraded -> mark the card unavailable.
+                dashboard.export_portfolio_latest(
+                    None, reason=phase2.get("reason", "fallback"),
+                    run_date=run_date, generated_at=_now_jst_str(),
+                )
     except Exception as e:  # noqa: BLE001
         print(f"Phase 2 inference skipped (ignored): {type(e).__name__}: {e}")
 

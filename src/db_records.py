@@ -190,6 +190,64 @@ def backtest_equity_rows(result: dict) -> list[dict]:
     return rows
 
 
+def portfolio_snapshot_row(snapshot: dict, *, run_date=None) -> dict | None:
+    """
+    Map a ``portfolio.build_portfolio_snapshot`` result to a
+    ``portfolio_snapshots`` INSERT row (one per run_date).
+
+    Returns ``None`` only when ``snapshot`` is None or carries no status; both
+    ``"ok"`` and ``"failed"`` are real daily outcomes worth persisting, so they
+    map to a row. (``run_date`` is the PRIMARY KEY -> the db layer upserts.)
+
+    Column mapping (``snapshot`` key -> column):
+      run_date        <- caller-supplied ``run_date`` else snapshot["run_date"]
+      as_of_date      <- snapshot["as_of_date"], falling back to run_date when
+                         None (the schema column is NOT NULL)
+      model_version   <- snapshot["model_version"]
+      mode / status   <- snapshot["mode"] / snapshot["status"]
+      positions       <- snapshot["positions"]            (JSONB)
+      diff_from_prev  <- snapshot["diff_summary"]          (JSONB)
+      gross_exposure  <- snapshot["gross_exposure"]
+      net_exposure    <- snapshot["net_exposure"]
+      sector_exposure <- snapshot["sector_exposure"]       (JSONB)
+      expected_ret    <- snapshot["expected_ret"]
+      expected_vol    <- snapshot["expected_vol"]
+      constraints     <- snapshot["constraints"]           (JSONB)
+      warnings        <- snapshot["warnings"]              (JSONB)
+
+    Nested values stay plain Python (lists/dicts); the db.py layer wraps the
+    JSONB columns in ``Jsonb`` before the INSERT. The returned dict is
+    JSON-serializable.
+    """
+    if snapshot is None:
+        return None
+    status = snapshot.get("status")
+    if status not in ("ok", "failed"):
+        return None
+
+    resolved_run_date = run_date if run_date is not None else snapshot.get("run_date")
+    as_of_date = snapshot.get("as_of_date")
+    if as_of_date is None:
+        as_of_date = resolved_run_date  # NOT NULL column -> fall back to run_date
+
+    return {
+        "run_date": resolved_run_date,
+        "as_of_date": as_of_date,
+        "model_version": snapshot.get("model_version"),
+        "mode": snapshot.get("mode"),
+        "status": status,
+        "positions": snapshot.get("positions") or [],
+        "diff_from_prev": snapshot.get("diff_summary"),
+        "gross_exposure": _as_float(snapshot.get("gross_exposure")),
+        "net_exposure": _as_float(snapshot.get("net_exposure")),
+        "sector_exposure": snapshot.get("sector_exposure"),
+        "expected_ret": _as_float(snapshot.get("expected_ret")),
+        "expected_vol": _as_float(snapshot.get("expected_vol")),
+        "constraints": snapshot.get("constraints"),
+        "warnings": snapshot.get("warnings"),
+    }
+
+
 def compute_outcome(action: str, entry_close: float, exit_close: float,
                     path_highs, path_lows) -> dict:
     """

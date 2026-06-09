@@ -394,6 +394,93 @@ def record_backtest_run(result: dict, run_date: str, *,
         conn.close()
 
 
+# --- Phase 2: daily portfolio snapshot write-through -----------------------
+
+def upsert_portfolio_snapshot(conn, row: dict) -> None:
+    """
+    Upsert one ``portfolio_snapshots`` row (keyed by ``run_date``).
+
+    ``row`` must contain every non-auto column (see
+    ``db_records.portfolio_snapshot_row``). JSONB columns (positions,
+    diff_from_prev, sector_exposure, constraints, warnings) are wrapped in
+    ``Jsonb`` here. ``constraints`` is a SQL reserved word -> quoted.
+    """
+    from psycopg.types.json import Jsonb
+    params = dict(row)
+    params["positions"] = Jsonb(row.get("positions") or [])
+    for col in ("diff_from_prev", "sector_exposure", "constraints", "warnings"):
+        params[col] = Jsonb(row[col]) if row.get(col) is not None else None
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO portfolio_snapshots"
+            " (run_date, as_of_date, model_version, mode, status, positions,"
+            "  diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
+            "  expected_ret, expected_vol, \"constraints\", warnings)"
+            " VALUES (%(run_date)s, %(as_of_date)s, %(model_version)s, %(mode)s,"
+            "  %(status)s, %(positions)s, %(diff_from_prev)s, %(gross_exposure)s,"
+            "  %(net_exposure)s, %(sector_exposure)s, %(expected_ret)s,"
+            "  %(expected_vol)s, %(constraints)s, %(warnings)s)"
+            " ON CONFLICT (run_date) DO UPDATE SET"
+            "  as_of_date=EXCLUDED.as_of_date, model_version=EXCLUDED.model_version,"
+            "  mode=EXCLUDED.mode, status=EXCLUDED.status, positions=EXCLUDED.positions,"
+            "  diff_from_prev=EXCLUDED.diff_from_prev, gross_exposure=EXCLUDED.gross_exposure,"
+            "  net_exposure=EXCLUDED.net_exposure, sector_exposure=EXCLUDED.sector_exposure,"
+            "  expected_ret=EXCLUDED.expected_ret, expected_vol=EXCLUDED.expected_vol,"
+            "  \"constraints\"=EXCLUDED.\"constraints\", warnings=EXCLUDED.warnings",
+            params,
+        )
+    conn.commit()
+
+
+def fetch_latest_portfolio_snapshot(conn) -> dict | None:
+    """
+    Return the most recent ``portfolio_snapshots`` row (max ``run_date``) as a
+    dict, or ``None`` when the table is empty. JSONB columns come back as plain
+    Python (e.g. ``positions`` is a list of dicts).
+    """
+    from psycopg.rows import dict_row
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT run_date, as_of_date, model_version, mode, status, positions,"
+            " diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
+            " expected_ret, expected_vol, \"constraints\", warnings"
+            " FROM portfolio_snapshots ORDER BY run_date DESC LIMIT 1"
+        )
+        return cur.fetchone()
+
+
+def record_portfolio_snapshot(snapshot: dict, run_date: str) -> dict:
+    """
+    Write-through the daily portfolio snapshot to ``portfolio_snapshots``.
+    Never raises.
+
+    Best-effort only (no outbox): the daily snapshot is regenerated every run,
+    so a transient failure simply means the row is rewritten next time. Returns
+    ``{"ok": True}`` on success or ``{"ok": False, "reason": ...}`` otherwise.
+    The caller logs the result; ``docs/portfolio_latest.json`` is written by the
+    dashboard layer regardless of this function's outcome.
+    """
+    row = db_records.portfolio_snapshot_row(snapshot, run_date=run_date)
+    if row is None:
+        return {"ok": False, "reason": "no_persistable_snapshot"}
+
+    if not db_enabled():
+        return {"ok": False, "reason": "db_disabled"}
+
+    try:
+        conn = connect()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}"}
+
+    try:
+        upsert_portfolio_snapshot(conn, row)
+        return {"ok": True}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}"}
+    finally:
+        conn.close()
+
+
 # --- settlement support (read) ---------------------------------------------
 
 def fetch_unsettled(conn) -> list[dict]:
