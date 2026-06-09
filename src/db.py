@@ -128,7 +128,7 @@ def _build_events(signals: list[dict], run_date: str) -> list[dict]:
 
 # --- upserts ---------------------------------------------------------------
 
-def _upsert_prediction(cur, row: dict) -> None:
+def _upsert_prediction(cur, row: dict) -> int | None:
     cur.execute(
         "INSERT INTO predictions"
         " (run_date, as_of_date, ticker, model_version, horizon_days,"
@@ -139,28 +139,34 @@ def _upsert_prediction(cur, row: dict) -> None:
         " ON CONFLICT (run_date, ticker, model_version, horizon_days) DO UPDATE SET"
         "  as_of_date=EXCLUDED.as_of_date, raw_score=EXCLUDED.raw_score,"
         "  prob_up=EXCLUDED.prob_up, expected_ret=EXCLUDED.expected_ret,"
-        "  cs_rank=EXCLUDED.cs_rank, features_hash=EXCLUDED.features_hash",
+        "  cs_rank=EXCLUDED.cs_rank, features_hash=EXCLUDED.features_hash"
+        " RETURNING id",
         row,
     )
+    returned = cur.fetchone()
+    return returned[0] if returned else None
 
 
-def _upsert_signal(cur, row: dict) -> None:
+def _upsert_signal(cur, row: dict, prediction_id: int | None = None) -> None:
     from psycopg.types.json import Jsonb
     params = dict(row)
+    params["prediction_id"] = prediction_id
     params["thresholds"] = Jsonb(row.get("thresholds")) if row.get("thresholds") is not None else None
     cur.execute(
         "INSERT INTO signals"
-        " (run_date, as_of_date, ticker, action, raw_action, conviction,"
+        " (run_date, as_of_date, ticker, prediction_id, action, raw_action, conviction,"
         "  target_weight, thresholds, gate_passed, limit_price, stop_loss, reason, status)"
-        " VALUES (%(run_date)s, %(as_of_date)s, %(ticker)s, %(action)s, %(raw_action)s,"
-        "  %(conviction)s, %(target_weight)s, %(thresholds)s, %(gate_passed)s,"
-        "  %(limit_price)s, %(stop_loss)s, %(reason)s, %(status)s)"
+        " VALUES (%(run_date)s, %(as_of_date)s, %(ticker)s, %(prediction_id)s,"
+        "  %(action)s, %(raw_action)s, %(conviction)s, %(target_weight)s,"
+        "  %(thresholds)s, %(gate_passed)s, %(limit_price)s, %(stop_loss)s,"
+        "  %(reason)s, %(status)s)"
         " ON CONFLICT (run_date, ticker) DO UPDATE SET"
-        "  as_of_date=EXCLUDED.as_of_date, action=EXCLUDED.action,"
-        "  raw_action=EXCLUDED.raw_action, conviction=EXCLUDED.conviction,"
-        "  target_weight=EXCLUDED.target_weight, thresholds=EXCLUDED.thresholds,"
-        "  gate_passed=EXCLUDED.gate_passed, limit_price=EXCLUDED.limit_price,"
-        "  stop_loss=EXCLUDED.stop_loss, reason=EXCLUDED.reason, status=EXCLUDED.status",
+        "  as_of_date=EXCLUDED.as_of_date, prediction_id=EXCLUDED.prediction_id,"
+        "  action=EXCLUDED.action, raw_action=EXCLUDED.raw_action,"
+        "  conviction=EXCLUDED.conviction, target_weight=EXCLUDED.target_weight,"
+        "  thresholds=EXCLUDED.thresholds, gate_passed=EXCLUDED.gate_passed,"
+        "  limit_price=EXCLUDED.limit_price, stop_loss=EXCLUDED.stop_loss,"
+        "  reason=EXCLUDED.reason, status=EXCLUDED.status",
         params,
     )
 
@@ -169,6 +175,7 @@ def _apply_events(conn, events: list[dict]) -> int:
     """Idempotently upsert a list of outbox events. Dedup by event_id."""
     seen = set()
     applied = 0
+    prediction_ids: dict[tuple, int | None] = {}
     with conn.cursor() as cur:
         for ev in events:
             eid = ev.get("event_id")
@@ -176,9 +183,13 @@ def _apply_events(conn, events: list[dict]) -> int:
                 continue
             seen.add(eid)
             if ev.get("kind") == "prediction":
-                _upsert_prediction(cur, ev["row"])
+                pred_id = _upsert_prediction(cur, ev["row"])
+                row = ev["row"]
+                prediction_ids[(row.get("run_date"), row.get("ticker"))] = pred_id
             elif ev.get("kind") == "signal":
-                _upsert_signal(cur, ev["row"])
+                row = ev["row"]
+                pred_id = prediction_ids.get((row.get("run_date"), row.get("ticker")))
+                _upsert_signal(cur, row, prediction_id=pred_id)
             applied += 1
     conn.commit()
     return applied
@@ -195,17 +206,18 @@ def flush_outbox(conn) -> int:
 
 def _link_prediction_ids(conn) -> int:
     """
-    Best-effort backfill of signals.prediction_id from the matching prediction
-    (same run_date/ticker). Idempotent: only fills NULLs. Phase 1 (W: link).
+    Best-effort refresh of signals.prediction_id from the latest matching
+    prediction (same run_date/ticker). Idempotent and fixes rerun drift.
     """
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE signals s SET prediction_id = p.id"
             " FROM predictions p"
-            " WHERE s.prediction_id IS NULL"
+            " WHERE s.status = 'ok'"
             "   AND p.run_date = s.run_date AND p.ticker = s.ticker"
             "   AND p.id = (SELECT max(id) FROM predictions p2"
             "               WHERE p2.run_date = s.run_date AND p2.ticker = s.ticker)"
+            "   AND s.prediction_id IS DISTINCT FROM p.id"
         )
         linked = cur.rowcount
     conn.commit()

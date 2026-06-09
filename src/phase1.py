@@ -27,7 +27,7 @@ from .calibration import (
     reliability_bins,
 )
 from .labels import build_labelled_frame, effective_horizon
-from .model import PHASE1_FEATURE_COLS, predict_prob_with_bundle, train_horizon_models
+from .model import PHASE1_FEATURE_COLS, phase1_feature_cols, predict_prob_with_bundle, train_horizon_models
 
 
 # --- PSI / feature reference ------------------------------------------------
@@ -179,7 +179,7 @@ def train_ticker_bundle(featured: pd.DataFrame, gate_config: dict,
     if len(labelled) < min_required:
         return None, {"reason": "insufficient_rows", "rows": int(len(labelled))}
 
-    feature_cols = list(PHASE1_FEATURE_COLS)
+    feature_cols = phase1_feature_cols(model_cfg.get("macro_features_enabled", True))
     folds, final, oos = train_horizon_models(labelled, feature_cols, gate_config)
     if final is None and not folds:
         return None, {"reason": "training_failed"}

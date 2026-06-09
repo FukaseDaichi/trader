@@ -34,7 +34,7 @@ import numpy as np  # noqa: E402
 
 from src import db, model_store, phase1  # noqa: E402
 from src.calibration import brier_score, ic_score  # noqa: E402
-from src.config import DOCS_DIR, TICKERS, get_label_config  # noqa: E402
+from src.config import DOCS_DIR, TICKERS, get_label_config, get_model_runtime_config  # noqa: E402
 from src.data_loader import load_data  # noqa: E402
 from src.labels import effective_horizon  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
@@ -90,6 +90,36 @@ def _db_outcomes_by_ticker(model_version: str, horizon: int) -> dict[str, list[d
     return by_ticker
 
 
+def _drift_reasons(metric_status: str, ic, brier, psi_max, thresholds: dict) -> tuple[list[str], list[str]]:
+    """
+    Return (dashboard warning reasons, CI-breach reasons).
+
+    PSI can be useful as an early dashboard warning, but it should only trigger
+    a CI breach once realized outcome metrics have enough sample to evaluate the
+    active model. This keeps initial rollout from opening noisy Issues.
+    """
+    reasons: list[str] = []
+    breach_reasons: list[str] = []
+
+    if metric_status == "ok":
+        if ic is not None and ic < thresholds["min_ic"]:
+            reason = f"ic<{thresholds['min_ic']}"
+            reasons.append(reason)
+            breach_reasons.append(reason)
+        if brier is not None and brier > thresholds["max_brier"]:
+            reason = f"brier>{thresholds['max_brier']}"
+            reasons.append(reason)
+            breach_reasons.append(reason)
+
+    if psi_max is not None and psi_max > thresholds["max_psi"]:
+        reason = f"psi>{thresholds['max_psi']}"
+        reasons.append(reason)
+        if metric_status == "ok":
+            breach_reasons.append(reason)
+
+    return reasons, breach_reasons
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 1 model drift check")
     parser.add_argument("--as-of", default=today_jst_iso())
@@ -114,6 +144,11 @@ def main() -> int:
 
     version = active.get("version")
     label_cfg = get_label_config()
+    model_cfg = get_model_runtime_config()
+    macro_enabled = bool(active.get(
+        "macro_features_enabled",
+        model_cfg.get("macro_features_enabled", True),
+    ))
     horizon = active.get("horizon_days") or effective_horizon(label_cfg)
     outcomes_by_ticker = _db_outcomes_by_ticker(version, horizon)
     macro_panel = load_macro_panel()
@@ -133,7 +168,12 @@ def main() -> int:
         if feature_reference:
             df = load_data(code)
             if df is not None and not df.empty:
-                featured = build_feature_frame(df, macro_panel=macro_panel, ticker_info=ticker)
+                featured = build_feature_frame(
+                    df,
+                    macro_panel=macro_panel,
+                    ticker_info=ticker,
+                    macro_enabled=macro_enabled,
+                )
                 window = featured.tail(thresholds["psi_window"])
                 psi_max, psi_by = phase1.feature_psi(feature_reference, window)
                 if psi_by:
@@ -158,16 +198,10 @@ def main() -> int:
         else:
             insufficient += 1
 
-        reasons = []
-        if metric_status == "ok":
-            if ic is not None and ic < thresholds["min_ic"]:
-                reasons.append(f"ic<{thresholds['min_ic']}")
-            if brier is not None and brier > thresholds["max_brier"]:
-                reasons.append(f"brier>{thresholds['max_brier']}")
-        if psi_max is not None and psi_max > thresholds["max_psi"]:
-            reasons.append(f"psi>{thresholds['max_psi']}")
+        reasons, breach_reasons = _drift_reasons(metric_status, ic, brier, psi_max, thresholds)
 
         warning = len(reasons) > 0
+        breached_ticker = len(breach_reasons) > 0
         if warning:
             warned.append(code)
 
@@ -180,11 +214,14 @@ def main() -> int:
             "psi_max": psi_max,
             "psi_worst_feature": worst_feature,
             "warning": warning,
+            "breached": breached_ticker,
             "reasons": reasons,
+            "breach_reasons": breach_reasons,
         }
 
-    breached = len(warned) > 0
-    status = "warning" if breached else "ok"
+    breached_tickers = [code for code, row in by_ticker.items() if row.get("breached")]
+    breached = len(breached_tickers) > 0
+    status = "warning" if breached else ("insufficient_sample" if insufficient else "ok")
     payload = {
         "available": True,
         "generated_at": now,
@@ -196,6 +233,7 @@ def main() -> int:
             "tickers": len(by_ticker),
             "breached": breached,
             "warned_tickers": warned,
+            "breached_tickers": breached_tickers,
             "insufficient_sample_tickers": insufficient,
         },
         "by_ticker": by_ticker,

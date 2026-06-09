@@ -41,7 +41,7 @@ from src.config import (  # noqa: E402
 )
 from src.data_loader import load_data, update_data  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
-from src.model import PHASE1_FEATURE_COLS, build_feature_frame  # noqa: E402
+from src.model import build_feature_frame, phase1_feature_cols  # noqa: E402
 from src.phase1 import train_ticker_bundle  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
 
@@ -73,6 +73,7 @@ def _median(values):
 def run_retrain(output_path: Path, version: str) -> int:
     label_cfg = get_label_config()
     model_cfg = get_model_runtime_config()
+    feature_cols = phase1_feature_cols(model_cfg.get("macro_features_enabled", True))
     macro_panel = load_macro_panel()
     if macro_panel is None:
         print("weekly: no macro panel found; training on technical features only "
@@ -99,7 +100,12 @@ def run_retrain(output_path: Path, version: str) -> int:
                 entries.append(_failure_entry(ticker, "insufficient_data", warnings=warnings))
                 continue
 
-            featured = build_feature_frame(df, macro_panel=macro_panel, ticker_info=ticker)
+            featured = build_feature_frame(
+                df,
+                macro_panel=macro_panel,
+                ticker_info=ticker,
+                macro_enabled=model_cfg.get("macro_features_enabled", True),
+            )
             if featured.empty:
                 entries.append(_failure_entry(ticker, "empty_features", warnings=warnings))
                 continue
@@ -169,7 +175,8 @@ def run_retrain(output_path: Path, version: str) -> int:
         "horizon_days": label_cfg_horizon(label_cfg),
         "label_mode": label_cfg.get("label_mode"),
         "label_config": label_cfg,
-        "feature_set": PHASE1_FEATURE_COLS,
+        "macro_features_enabled": bool(model_cfg.get("macro_features_enabled", True)),
+        "feature_set": feature_cols,
         "universe": [t["code"] for t in TICKERS],
         "trained_tickers": [e["ticker"] for e in ok_entries],
         "cv_metrics": {"by_ticker": cv_by_ticker, "aggregate": aggregate},
@@ -182,6 +189,7 @@ def run_retrain(output_path: Path, version: str) -> int:
             "generated_at": version_metadata["generated_at"],
             "horizon_days": version_metadata["horizon_days"],
             "label_mode": version_metadata["label_mode"],
+            "macro_features_enabled": version_metadata["macro_features_enabled"],
             "n_models": len(ok_entries),
         })
         print(f"weekly: saved {len(ok_entries)} model bundles under version {version}; "
@@ -198,7 +206,7 @@ def run_retrain(output_path: Path, version: str) -> int:
                     conn, version,
                     kind=MODEL_KIND,
                     universe=version_metadata["universe"],
-                    feature_set=PHASE1_FEATURE_COLS,
+                    feature_set=feature_cols,
                     params={"lgb": "see src.model._LGB_PARAMS", "label_config": label_cfg},
                     cv_metrics={"by_ticker": cv_by_ticker, "aggregate": aggregate},
                     calibration=calibration_map,
@@ -232,7 +240,8 @@ def run_retrain(output_path: Path, version: str) -> int:
         "db_registered": db_registered,
         "label_mode": label_cfg.get("label_mode"),
         "horizon_days": version_metadata["horizon_days"],
-        "feature_count": len(PHASE1_FEATURE_COLS),
+        "macro_features_enabled": version_metadata["macro_features_enabled"],
+        "feature_count": len(feature_cols),
         "aggregate_cv": aggregate,
         "summary": {
             "total_tickers": len(entries),

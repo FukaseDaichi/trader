@@ -96,6 +96,32 @@ def _failure_backtest_entry(ticker_info, reason, error=None, validation_warnings
     }
 
 
+def _label_config_for_mode(model_cfg):
+    """`legacy` is the operational rollback path: old next-day binary labels."""
+    label_cfg = get_label_config()
+    if model_cfg["model_mode"] == "legacy" and label_cfg.get("label_mode") != "binary_1d":
+        print("Model mode legacy: forcing label_mode=binary_1d for rollback.")
+        label_cfg = {
+            **label_cfg,
+            "label_mode": "binary_1d",
+            "horizon_days": 1,
+            "tb_max_days": 1,
+        }
+    return label_cfg
+
+
+def _active_model_compatible(active, model_cfg):
+    """
+    Avoid using a saved model trained with a different macro-feature setting.
+    Older pointers lacked the flag; those are treated as macro-enabled.
+    """
+    if not active:
+        return False
+    expected = bool(model_cfg.get("macro_features_enabled", True))
+    actual = bool(active.get("macro_features_enabled", True))
+    return actual == expected
+
+
 def _attach_confidence_fields(signal, gate_result, model_ready):
     gate_passed = bool(gate_result.get("passed", False))
     failures = gate_result.get("failures") or []
@@ -113,6 +139,11 @@ def _attach_confidence_fields(signal, gate_result, model_ready):
     # Guard rail: if model inference failed, force non-actionable output.
     if not model_ready:
         signal["gate_passed"] = False
+        signal["status"] = "failed"
+        signal["prob_up"] = None
+        signal["raw_score"] = None
+        signal["expected_ret"] = None
+        signal["features_hash"] = None
         signal["confidence_label"] = "自信なし"
         signal["confidence_reason"] = "当日の予測計算に失敗"
         signal["action"] = "HOLD"
@@ -221,7 +252,12 @@ def _process_ticker(ticker_info, ctx):
         )
 
     # 3. Feature Engineering (technical + macro/regime features)
-    featured = build_feature_frame(df, macro_panel=ctx["macro_panel"], ticker_info=ticker_info)
+    featured = build_feature_frame(
+        df,
+        macro_panel=ctx["macro_panel"],
+        ticker_info=ticker_info,
+        macro_enabled=ctx["model_cfg"].get("macro_features_enabled", True),
+    )
     if featured.empty:
         print(f"Data empty after feature engineering for {code}. Recording failed HOLD state.")
         close = _latest_close_or_none(code)
@@ -306,11 +342,18 @@ def main():
     # Phase 1 inference context: model mode, label config, macro panel, and the
     # active saved model (read once for the whole run).
     model_cfg = get_model_runtime_config()
-    label_cfg = get_label_config()
+    label_cfg = _label_config_for_mode(model_cfg)
     macro_panel = macro.load_macro_panel()
     active = None
     if model_cfg["model_mode"] in ("auto", "phase1"):
         active = model_store.read_active_model()
+        if active and not _active_model_compatible(active, model_cfg):
+            print(
+                "Active model macro-feature setting is incompatible with "
+                f"TRADER_MACRO_FEATURES_ENABLED={model_cfg['macro_features_enabled']}; "
+                "saved-model inference disabled for this run."
+            )
+            active = None
     mode = model_cfg["model_mode"]
     active_label = active.get("version") if active else "none"
     print(f"Model mode: {mode}; active model: {active_label}; "

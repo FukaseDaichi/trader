@@ -431,19 +431,29 @@ def predict_prob_with_bundle(bundle, feature_row):
     return float(np.mean(preds))
 
 
-# Phase 1 training feature set = legacy technical features + macro/regime features.
+# Phase 1 default feature set = legacy technical features + macro/regime features.
 PHASE1_FEATURE_COLS = FEATURE_COLS + MACRO_FEATURE_COLS
 
 
-def build_feature_frame(df, macro_panel=None, ticker_info=None, dropna_features=True):
+def phase1_feature_cols(macro_enabled=True):
+    """Return the Phase 1 feature schema for the current macro-feature setting."""
+    if macro_enabled:
+        return list(PHASE1_FEATURE_COLS)
+    return list(FEATURE_COLS)
+
+
+def build_feature_frame(df, macro_panel=None, ticker_info=None, dropna_features=True,
+                        macro_enabled=True):
     """
     Technical (add_features) + macro (add_macro_features) feature frame.
 
     Technical features are NaN-dropped as usual; macro columns are joined with a
     backward as-of merge and may be NaN (missing series), which LightGBM tolerates.
-    The macro schema is always present (stable PHASE1_FEATURE_COLS).
+    When macro_enabled is false, only legacy technical columns are emitted.
     """
     featured = add_features(df, dropna=dropna_features)
     if featured.empty:
+        return featured
+    if not macro_enabled:
         return featured
     return add_macro_features(featured, macro_panel, ticker_info)

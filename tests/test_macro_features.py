@@ -26,6 +26,7 @@ from src.macro import (  # noqa: E402
     encode_market_bias,
     latest_snapshot_row,
 )
+from src.model import FEATURE_COLS, build_feature_frame, phase1_feature_cols  # noqa: E402
 
 
 def _series(start, n, step, key):
@@ -113,6 +114,38 @@ def test_latest_snapshot_row():
     assert latest_snapshot_row(pd.DataFrame()) is None
 
 
+def test_phase1_feature_cols_respects_macro_flag():
+    assert phase1_feature_cols(False) == FEATURE_COLS
+    enabled = phase1_feature_cols(True)
+    assert enabled[:len(FEATURE_COLS)] == FEATURE_COLS
+    for col in MACRO_FEATURE_COLS:
+        assert col in enabled
+
+
+def test_build_feature_frame_macro_disabled_omits_macro_columns():
+    dates = pd.date_range("2026-01-01", periods=90, freq="D")
+    close = pd.Series([100.0 + i * 0.5 for i in range(90)])
+    stock = pd.DataFrame({
+        "date": dates,
+        "open": close - 0.2,
+        "high": close + 1.0,
+        "low": close - 1.0,
+        "close": close,
+        "volume": [1_000_000 + i * 1000 for i in range(90)],
+    })
+    macro_panel = pd.DataFrame({
+        "date": dates,
+        "macro_topix_ret_20": [0.1] * 90,
+    })
+
+    out = build_feature_frame(stock, macro_panel=macro_panel, macro_enabled=False)
+    assert not out.empty
+    for col in FEATURE_COLS:
+        assert col in out.columns
+    for col in MACRO_FEATURE_COLS:
+        assert col not in out.columns
+
+
 ALL_TESTS = [
     test_encode_market_bias,
     test_add_macro_features_none_panel_emits_nan_schema,
@@ -120,6 +153,8 @@ ALL_TESTS = [
     test_build_macro_panel_columns_and_returns,
     test_build_macro_panel_empty_input,
     test_latest_snapshot_row,
+    test_phase1_feature_cols_respects_macro_flag,
+    test_build_feature_frame_macro_disabled_omits_macro_columns,
 ]
 
 
