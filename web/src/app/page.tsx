@@ -7,6 +7,7 @@ import Link from "next/link";
 import PerformanceCard from "../components/PerformanceCard";
 import ModelQualityCard from "../components/ModelQualityCard";
 import PortfolioCard from "../components/PortfolioCard";
+import RegimeBanner from "../components/RegimeBanner";
 import {
   actionLabel,
   actionBadgeClass,
@@ -161,6 +162,8 @@ export default function Home() {
             <p className="text-slate-400">最終更新: {data.last_update}</p>
         </div>
       </header>
+
+      <RegimeBanner />
 
       <div className="max-w-7xl mx-auto">
         <PerformanceCard />

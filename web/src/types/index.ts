@@ -113,6 +113,25 @@ export interface ModelQuality {
   by_ticker?: Record<string, ModelQualityTicker>;
 }
 
+export interface EquityPoint { date: string; strategy: number; benchmark: number; n: number; }
+export interface DrawdownPoint { date: string; drawdown: number; }
+export interface ReliabilityBin { bin_low: number; bin_high: number; mean_prob: number | null; frac_up: number | null; count: number; }
+export interface PerformanceDetail {
+  available: boolean; reason?: string; generated_at: string; as_of?: string;
+  horizon_days?: number; history_days?: number;
+  equity_curve?: EquityPoint[]; drawdown_curve?: DrawdownPoint[];
+  rolling?: { hit_rate_20d: number | null; avg_return_20d: number | null; excess_return_20d: number | null; sharpe_60d: number | null; };
+  reliability?: { brier: number | null; bins: ReliabilityBin[]; };
+}
+export interface SignalOutcomeRow {
+  entry_date: string; ticker: string; name: string | null; action: SignalAction;
+  conviction: number | null; horizon_days: number; realized_ret: number | null;
+  benchmark_ret: number | null; excess_ret: number | null; hit: boolean | null;
+  mae: number | null; mfe: number | null; exit_reason: string | null;
+}
+export interface SignalOutcomesRecent { available: boolean; reason?: string; generated_at: string; rows?: SignalOutcomeRow[]; }
+export interface MacroLatest { market_bias?: string; as_of?: string; summary?: string; }
+
 export type PortfolioDiffType = "new" | "increase" | "decrease" | "exit" | "hold";
 
 export interface PortfolioPosition {

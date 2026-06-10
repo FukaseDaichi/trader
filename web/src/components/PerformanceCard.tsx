@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PerformanceSummary } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
 
@@ -27,7 +28,10 @@ export default function PerformanceCard() {
 
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
-      <h3 className="text-lg font-bold text-white mb-1">実績トラックレコード（計測中）</h3>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-lg font-bold text-white">実績トラックレコード（計測中）</h3>
+        <Link href="/performance" className="text-blue-400 text-sm hover:underline">詳細 →</Link>
+      </div>
       <p className="text-xs text-slate-400 mb-4">
         実際に出した買い系シグナル（BUY / やや買い）の実現結果です。サンプルが貯まるほど信頼度が上がります。
       </p>
