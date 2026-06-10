@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PortfolioLatest, PortfolioDiffType } from "../types";
+import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
 
 const DIFF_LABEL: Record<PortfolioDiffType, string> = {
   new: "新規",
@@ -29,10 +30,10 @@ export default function PortfolioCard() {
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    fetch(`${basePath}/portfolio_latest.json`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: PortfolioLatest | null) => setPf(json))
-      .catch(() => setPf(null));
+    fetchJson<PortfolioLatest>(
+      `${basePath}/portfolio_latest.json`,
+      (v): v is PortfolioLatest => isAvailablePayload(v),
+    ).then(setPf);
   }, []);
 
   if (!pf || !pf.available || !pf.positions || pf.positions.length === 0) return null;

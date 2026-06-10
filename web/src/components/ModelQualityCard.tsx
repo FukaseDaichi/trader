@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { ModelQuality } from "../types";
+import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
 
 export default function ModelQualityCard() {
   const [mq, setMq] = useState<ModelQuality | null>(null);
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    fetch(`${basePath}/model_quality.json`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: ModelQuality | null) => setMq(json))
-      .catch(() => setMq(null));
+    fetchJson<ModelQuality>(
+      `${basePath}/model_quality.json`,
+      (v): v is ModelQuality => isAvailablePayload(v),
+    ).then(setMq);
   }, []);
 
   // Hidden until a Phase 1 model is active and quality data is available.

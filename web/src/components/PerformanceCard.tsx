@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { PerformanceSummary } from "../types";
+import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
 
 export default function PerformanceCard() {
   const [perf, setPerf] = useState<PerformanceSummary | null>(null);
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    fetch(`${basePath}/performance_summary.json`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: PerformanceSummary | null) => setPerf(json))
-      .catch(() => setPerf(null));
+    fetchJson<PerformanceSummary>(
+      `${basePath}/performance_summary.json`,
+      (v): v is PerformanceSummary => isAvailablePayload(v),
+    ).then(setPerf);
   }, []);
 
   // Render nothing until the file is available with data (Phase 0 is best-effort).

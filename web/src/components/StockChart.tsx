@@ -194,17 +194,20 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
   }, [data, dateRange]);
 
   // Determine min/max for Y-axis scaling
-  const { minPrice, maxPrice } = useMemo(() => {
+  const { minPrice, maxPrice, hasPriceData } = useMemo(() => {
     const prices: number[] = [];
     filteredData.forEach((d) => {
       if (d.high != null) prices.push(d.high);
       if (d.low != null) prices.push(d.low);
       if (d.close != null) prices.push(d.close);
     });
+    if (prices.length === 0) {
+      return { minPrice: 0, maxPrice: 1, hasPriceData: false };
+    }
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const margin = (max - min) * 0.05;
-    return { minPrice: min - margin, maxPrice: max + margin };
+    return { minPrice: min - margin, maxPrice: max + margin, hasPriceData: true };
   }, [filteredData]);
 
   // Volume max for scaling
@@ -216,6 +219,15 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
   const toggleIndicator = (key: keyof IndicatorToggles) => {
     setIndicators((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  if (!hasPriceData) {
+    return (
+      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-8 text-center">
+        <p className="text-slate-200 font-semibold">{tickerName}</p>
+        <p className="text-slate-400 text-sm mt-2">価格データがありません</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-slate-900 rounded-xl p-4 shadow-lg border border-slate-800">
