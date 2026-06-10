@@ -24,10 +24,18 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   LightGBM ranker over the whole universe, daily long-only target portfolio
   with risk caps → `docs/portfolio_latest.json`. Shadow mode never alters
   Phase 1 signals or notifications.
+- **Phase 3 — manual-trading UX + hardening**: TOPIX-benchmark settlement
+  (`signal_outcomes.benchmark_ret`/`excess_ret`), a settle-day performance
+  export (`docs/performance_detail.json` + `docs/signal_outcomes_recent.json`),
+  a daily LINE digest and weekly performance summary (with bounded push retry),
+  a `/performance` dashboard page (equity vs TOPIX, drawdown, calibration,
+  recent outcomes), and active-mode wiring so `TRADER_PORTFOLIO_MODE=active`
+  reflects `target_weight` into signals with no further code change (the flip
+  itself stays a deliberate manual step gated on the shadow report).
 
-Phase 3 (manual-trading UX, hardening) is **plan-only**:
-`specification_document/plans/2026-06-10-phase3-ux-and-hardening.md`.
-Full specs live in `specification_document/`.
+Implementation plan & full specs:
+`specification_document/plans/2026-06-10-phase3-ux-and-hardening.md` and
+`specification_document/`.
 
 ## Commands
 
@@ -66,23 +74,32 @@ Per enabled ticker in `tickers.yml`:
    uses the saved weekly-trained calibrated model; falls back to same-day
    legacy training when no bundle exists. `legacy` mode is the rollback path.
 5. **Signal** (`src/predictor.py`): `prob_up` → 5-level action with a
-   volatility guard. **Notify** (`src/notifier.py`): LINE push for
-   gate-passed non-HOLD only.
+   volatility guard. (Notification moved post-loop — see step 8.)
 
-Run-level steps after the ticker loop:
+Run-level steps after the ticker loop (Phase 3 reordered these so notifications
+fire once, after the portfolio snapshot, and target weights persist):
 
-6. **Phase 0 write-through** (`src/db.py`, `src/db_records.py`).
-7. **Phase 2 inference** (`src/cross_section.py`, `src/cs_model.py`,
+6. **Phase 2 inference** (`src/cross_section.py`, `src/cs_model.py`,
    `src/portfolio.py`): cross-sectional prediction + portfolio snapshot →
    `docs/portfolio_latest.json` + DB (only when `TRADER_PORTFOLIO_ENABLED`).
-8. **Dashboard export** (`src/dashboard.py`): `docs/state.json`,
-   `docs/dashboard_index.json`, `docs/tickers/*.json`, plus best-effort
-   `performance_summary.json` (Phase 0) and `model_quality.json` (Phase 1).
+7. **Active-mode merge** (`portfolio.merge_target_weights`): reflect
+   `target_weight` into signals — no-op in shadow / gate-fail / no-snapshot.
+8. **Notify** (`src/notifier.py` `send_line_text`, retry-bounded): per-ticker
+   LINE push for gate-passed non-HOLD (`TRADER_NOTIFY_PER_TICKER_ENABLED`),
+   then the daily digest (`src/digest.py`, `TRADER_NOTIFY_DIGEST_ENABLED`).
+9. **Phase 0 write-through** (`src/db.py`, `src/db_records.py`) — after the
+   merge so `signals.target_weight` lands.
+10. **Dashboard export** (`src/dashboard.py`): `docs/state.json`,
+    `docs/dashboard_index.json`, `docs/tickers/*.json`, plus best-effort
+    `performance_summary.json` / `performance_detail.json` /
+    `signal_outcomes_recent.json` (Phase 0/3) and `model_quality.json` (Phase 1).
 
 Weekly/auxiliary: `scripts/weekly_model_retrain.py` (Phase 1 artifacts +
 `model_registry`), `scripts/weekly_cross_section_retrain.py` (CS model →
 `docs/cs_model_quality.json`), `scripts/portfolio_shadow_report.py` (Phase 1
-vs Phase 2), `scripts/settle_outcomes.py` (realized returns),
+vs Phase 2 + `active_readiness`), `scripts/settle_outcomes.py` (realized returns
++ TOPIX benchmark + settle-day performance export; `--refill-benchmark`),
+`scripts/weekly_performance_notify.py` (weekly LINE performance summary),
 `scripts/drift_check.py` (→ `docs/drift_report.json`),
 `scripts/universe_select.py` (deterministic universe, report-only).
 
@@ -93,11 +110,17 @@ Next.js 16 + React 19 + Recharts 3 + TailwindCSS 4, static export served from
 
 - Data contract: `/dashboard_index.json` and `/tickers/{code}.json` are
   required; `performance_summary.json`, `model_quality.json`,
-  `portfolio_latest.json` power optional cards that hide when absent or
-  `available: false`.
-- `src/app/page.tsx` (home), `src/app/stocks/[ticker]/` (detail),
-  `src/components/`: `StockChart`, `SignalCard`, `PerformanceCard`,
-  `ModelQualityCard`, `PortfolioCard`. Types in `src/types/index.ts`.
+  `portfolio_latest.json`, `performance_detail.json`,
+  `signal_outcomes_recent.json` and `curation/macro_latest.json` power optional
+  cards/sections that hide when absent or `available: false`. (`history_data.json`
+  is a removed legacy contract — the frontend does NOT read it.) All card fetches
+  go through `src/lib/fetchJson.ts` (runtime-validated; bad JSON → card hidden).
+- `src/app/page.tsx` (home) + `RegimeBanner`, `src/app/performance/page.tsx`
+  (equity vs TOPIX / drawdown / calibration / recent outcomes via
+  `PerformanceDetail`), `src/app/stocks/[ticker]/` (detail). `src/components/`:
+  `StockChart`, `SignalCard`, `PerformanceCard`, `ModelQualityCard`,
+  `PortfolioCard`, `PerformanceDetail`, `RegimeBanner`. Types in
+  `src/types/index.ts`.
 
 ### CI/CD (`.github/workflows/`)
 
@@ -121,9 +144,13 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   Phase 2 failures all degrade gracefully (fallback or skip + log). Preserve
   this property in any change to `main.py` or its dependencies.
 - The KPI gate must pass before any actionable signal; failures → `HOLD`.
-- Phase 2 is shadow: portfolio code must not modify Phase 1 signals or
-  notifications. Activation (`TRADER_PORTFOLIO_MODE=active`) is a deliberate
-  manual step, planned for Phase 3.
+- Phase 2 is shadow: in shadow mode portfolio code must not modify Phase 1
+  signals or notifications. Active wiring exists (Phase 3
+  `portfolio.merge_target_weights`) so `TRADER_PORTFOLIO_MODE=active` reflects
+  `target_weight` into signals **only** when the portfolio KPI gate passes; the
+  flip to active stays a deliberate manual env change gated on the shadow report
+  (`active_readiness` in `docs/portfolio_shadow_report.json`). Shadow behavior
+  must remain byte-for-byte unchanged.
 - `daily-publish-dashboard.yml` rsyncs `web/out/` over `docs/` with
   `--delete`. **Any new data file under `docs/` must be added to that
   workflow's `--exclude` list**, or the next publish deletes it
