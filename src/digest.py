@@ -1,5 +1,5 @@
 """
-src/digest.py — PURE daily digest builder.
+src/digest.py — PURE daily digest builder and weekly summary builder.
 
 No DB, network, or file IO. Accepts plain dicts/lists/strings and returns a
 formatted LINE message string.
@@ -8,10 +8,18 @@ Public API
 ----------
 build_daily_digest(run_date, portfolio_latest, performance_summary,
                    macro_regime, signals, dashboard_url) -> str
+
+build_weekly_summary(rows, week_start, week_end, report_url) -> str | None
+    rows: list of outcome-detail dicts from db.fetch_outcome_detail_rows.
+    Returns None when rows is empty (caller skips notification).
+    Note: 建玉回転 (new/exit turnover) is intentionally omitted in v1 — it
+    requires portfolio_snapshots diff_type diffs, not signal outcome rows.
+    Planned for Phase 4 when portfolio goes active.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 _SEP = "──────────"
@@ -212,4 +220,86 @@ def build_daily_digest(
         perf_line,
         f"詳細: {dashboard_url}",
     ]
+    return "\n".join(parts)
+
+
+def build_weekly_summary(
+    rows: list[dict],
+    week_start: str,
+    week_end: str,
+    report_url: str,
+) -> str | None:
+    """Build and return a weekly realized-performance LINE summary string.
+
+    Pure function — no side effects, no IO.
+
+    Returns None when rows is empty (caller should skip notification).
+
+    Note: 建玉回転 (new/exit position turnover counts) is intentionally omitted
+    in v1.  That metric requires portfolio_snapshots diff_type diffs, which are
+    not present in fetch_outcome_detail_rows (signal-outcome rows only).
+    Planned for Phase 4 once the portfolio moves to active mode.
+    """
+    if not rows:
+        return None
+
+    # --- Date header (no leading zeros) ---
+    try:
+        ws = date.fromisoformat(week_start)
+        we = date.fromisoformat(week_end)
+        date_range = f"{ws.month}/{ws.day}〜{we.month}/{we.day}"
+    except (ValueError, TypeError):
+        date_range = f"{week_start}〜{week_end}"
+
+    header = f"📈 週間実績 ({date_range})"
+
+    # --- Signal counts ---
+    total = len(rows)
+    buy_actions = {"BUY", "MILD_BUY"}
+    sell_actions = {"SELL", "MILD_SELL"}
+    buy_count = sum(1 for r in rows if r.get("action") in buy_actions)
+    sell_count = sum(1 for r in rows if r.get("action") in sell_actions)
+    signal_line = f"シグナル: {total}件 (買い系{buy_count} / 売り系{sell_count})"
+
+    # --- Performance line ---
+    hit_rows = [r for r in rows if r.get("hit") is not None]
+    if hit_rows:
+        hit_rate = sum(1 for r in hit_rows if r.get("hit") is True) / len(hit_rows)
+        hit_str = f"{hit_rate:.0%}"
+    else:
+        hit_str = "—"
+
+    ret_rows = [r for r in rows if r.get("realized_ret") is not None]
+    if ret_rows:
+        avg_ret = sum(r["realized_ret"] for r in ret_rows) / len(ret_rows)
+        avg_str = f"{avg_ret:+.1%}"
+    else:
+        avg_str = "—"
+
+    perf_line = f"的中率(5日): {hit_str} / 平均 {avg_str}"
+
+    excess_rows = [r for r in rows if r.get("excess_ret") is not None]
+    if excess_rows:
+        avg_excess = sum(r["excess_ret"] for r in excess_rows) / len(excess_rows)
+        perf_line += f" / 対TOPIX {avg_excess:+.1%}"
+
+    # --- Best / Worst line (only when at least one realized_ret exists) ---
+    best_worst_line: str | None = None
+    if ret_rows:
+        best = max(ret_rows, key=lambda r: r["realized_ret"])
+        worst = min(ret_rows, key=lambda r: r["realized_ret"])
+        best_name = best.get("name") or best.get("ticker", "?")
+        worst_name = worst.get("name") or worst.get("ticker", "?")
+        best_worst_line = (
+            f"ベスト: {best_name} {best['realized_ret']:+.1%}"
+            f" ・ワースト: {worst_name} {worst['realized_ret']:+.1%}"
+        )
+
+    # --- Assemble ---
+    parts = [header, signal_line, perf_line]
+    if best_worst_line:
+        parts.append(best_worst_line)
+    if report_url:
+        parts.append(f"レポート: {report_url}")
+
     return "\n".join(parts)

@@ -367,6 +367,92 @@ def test_top2_and_remainder_in_group():
 
 
 # ---------------------------------------------------------------------------
+# build_weekly_summary
+# ---------------------------------------------------------------------------
+
+_WEEKLY_ROWS = [
+    {
+        "entry_date": "2026-06-16", "ticker": "6146.JP", "name": "ディスコ",
+        "action": "BUY", "conviction": 0.72, "horizon_days": 5,
+        "realized_ret": 0.042, "benchmark_ret": 0.008, "excess_ret": 0.034,
+        "hit": True, "mae": -0.005, "mfe": 0.048, "exit_reason": "time",
+    },
+    {
+        "entry_date": "2026-06-17", "ticker": "7201.JP", "name": "日産自",
+        "action": "MILD_BUY", "conviction": 0.55, "horizon_days": 5,
+        "realized_ret": -0.021, "benchmark_ret": 0.003, "excess_ret": -0.024,
+        "hit": False, "mae": -0.025, "mfe": 0.002, "exit_reason": "time",
+    },
+    {
+        "entry_date": "2026-06-17", "ticker": "9984.JP", "name": "ソフトバンク",
+        "action": "SELL", "conviction": 0.65, "horizon_days": 5,
+        "realized_ret": 0.015, "benchmark_ret": 0.006, "excess_ret": 0.009,
+        "hit": True, "mae": -0.010, "mfe": 0.018, "exit_reason": "time",
+    },
+    {
+        "entry_date": "2026-06-18", "ticker": "4063.JP", "name": "信越化",
+        "action": "MILD_BUY", "conviction": 0.58, "horizon_days": 5,
+        "realized_ret": -0.055, "benchmark_ret": 0.002, "excess_ret": -0.057,
+        "hit": False, "mae": -0.060, "mfe": 0.001, "exit_reason": "time",
+    },
+]
+
+
+def test_weekly_summary_empty_rows_returns_none():
+    result = digest.build_weekly_summary([], "2026-06-16", "2026-06-20", "https://x/r.md")
+    assert result is None, f"expected None, got {result!r}"
+
+
+def test_weekly_summary_full_fixture_contains_expected_parts():
+    out = digest.build_weekly_summary(_WEEKLY_ROWS, "2026-06-16", "2026-06-20", "https://x/r.md")
+    assert out is not None, "expected a string, got None"
+    # シグナル counts: total=4, buy=BUY(1)+MILD_BUY(2)=3, sell=SELL(1)
+    assert "シグナル: 4件" in out, out
+    assert "買い系3" in out, out
+    assert "売り系1" in out, out
+    # Performance line contains required labels + exact hit rate (2/4 hits = 50%)
+    assert "的中率(5日):" in out, out
+    assert "50%" in out, out
+    assert "平均" in out, out
+    # excess_ret present -> 対TOPIX must appear
+    assert "対TOPIX" in out, out
+    # best (max realized_ret=0.042 -> ディスコ +4.2%) and worst (min=-0.055 -> 信越化 -5.5%)
+    assert "ベスト:" in out, out
+    assert "ワースト:" in out, out
+    assert "ディスコ" in out and "+4.2%" in out, out
+    assert "信越化" in out and "-5.5%" in out, out
+    # report URL must appear
+    assert "https://x/r.md" in out, out
+
+
+def test_weekly_summary_no_excess_ret_omits_topix():
+    rows = [
+        {
+            "entry_date": "2026-06-16", "ticker": "6146.JP", "name": "ディスコ",
+            "action": "BUY", "conviction": 0.72, "horizon_days": 5,
+            "realized_ret": 0.042, "benchmark_ret": None, "excess_ret": None,
+            "hit": True, "mae": -0.005, "mfe": 0.048, "exit_reason": "time",
+        },
+    ]
+    out = digest.build_weekly_summary(rows, "2026-06-16", "2026-06-20", "")
+    assert out is not None, "expected a string, got None"
+    assert "対TOPIX" not in out, f"unexpected '対TOPIX' in: {out}"
+
+
+def test_weekly_summary_date_formatting():
+    out = digest.build_weekly_summary(_WEEKLY_ROWS[:1], "2026-06-16", "2026-06-20", "")
+    assert out is not None, "expected a string"
+    assert "6/16〜6/20" in out, f"expected '6/16〜6/20' in: {out}"
+
+
+def test_weekly_summary_hit_all_none_shows_dash():
+    rows = [{"action": "BUY", "name": "X社", "ticker": "1.JP",
+             "realized_ret": 0.01, "excess_ret": None, "hit": None}]
+    out = digest.build_weekly_summary(rows, "2026-06-16", "2026-06-20", "")
+    assert "的中率(5日): —" in out, out
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -400,6 +486,12 @@ ALL_TESTS = [
     test_dashboard_url_appears,
     test_run_date_in_header,
     test_top2_and_remainder_in_group,
+    # --- build_weekly_summary ---
+    test_weekly_summary_empty_rows_returns_none,
+    test_weekly_summary_full_fixture_contains_expected_parts,
+    test_weekly_summary_no_excess_ret_omits_topix,
+    test_weekly_summary_date_formatting,
+    test_weekly_summary_hit_all_none_shows_dash,
 ]
 
 
