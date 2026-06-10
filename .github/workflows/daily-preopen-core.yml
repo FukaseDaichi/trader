@@ -75,6 +75,9 @@ jobs:
           # to roll out (no code change needed).
           TRADER_PORTFOLIO_ENABLED: "true"
           TRADER_PORTFOLIO_MODE: "shadow"
+          TRADER_NOTIFY_DIGEST_ENABLED: "true"
+          TRADER_NOTIFY_PER_TICKER_ENABLED: "true"
+          TRADER_NOTIFY_RETRY_MAX: "3"
         run: uv run python main.py
 
       - name: Settle realized outcomes

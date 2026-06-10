@@ -836,7 +836,7 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
         er = _to_float(c.get("expected_ret"))
         if er is not None:
             expected_ret_total += w * er
-        sec = sector_lk.get(tk)
+        sec = sector_lk.get(tk) or "その他"
         sector_exposure[sec] = sector_exposure.get(sec, 0.0) + w
         close = close_lk.get(tk)
         limit_price, stop_loss = _limit_stop(close)

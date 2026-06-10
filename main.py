@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from src.config import (
     TICKERS,
     BACKTEST_GATE_CONFIG,
+    DOCS_DIR,
+    LINE_CONFIG,
     get_label_config,
     get_model_runtime_config,
     get_portfolio_config,
@@ -13,10 +15,10 @@ from src.data_loader import update_data, load_data, sync_data_files
 from src.labels import effective_horizon
 from src.model import build_feature_frame, train_and_predict
 from src.predictor import generate_signal
-from src.notifier import send_notification
+from src.notifier import send_notification, send_line_text
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
-from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard
+from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard, digest
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -108,6 +110,44 @@ def _failure_backtest_entry(ticker_info, reason, error=None, validation_warnings
         "threshold_optimization": None,
         "data_validation_warnings": validation_warnings or [],
     }
+
+
+def _read_json_file(path):
+    """Read and parse a JSON file. Returns parsed dict or None (never raises)."""
+    try:
+        import json
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _build_macro_regime(macro_panel):
+    """Build macro regime dict from macro_panel + macro_latest.json.
+
+    Returns {"market_bias": ..., "usdjpy": ...} or partial/{} on any failure.
+    Never raises.
+    """
+    try:
+        macro_latest_path = DOCS_DIR / "curation" / "macro_latest.json"
+        macro_latest = _read_json_file(macro_latest_path) or {}
+        market_bias = macro_latest.get("market_bias")
+        usdjpy = None
+        panel = macro_panel
+        try:
+            # macro_panel is a pandas DataFrame in the daily run; take the latest
+            # non-null usdjpy. (dict fallback kept for callers/tests.)
+            if panel is not None and "usdjpy" in getattr(panel, "columns", []):
+                col = panel["usdjpy"].dropna()
+                if not col.empty:
+                    usdjpy = float(col.iloc[-1])
+            elif isinstance(panel, dict) and panel.get("usdjpy") is not None:
+                usdjpy = float(panel["usdjpy"])
+        except Exception:  # noqa: BLE001
+            pass
+        return {"market_bias": market_bias, "usdjpy": usdjpy}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _label_config_for_mode(model_cfg):
@@ -668,7 +708,19 @@ def main():
                 except Exception as e:  # noqa: BLE001
                     print(f"Notification failed for {signal.get('ticker')} "
                           f"(ignored): {type(e).__name__}: {e}")
-    # Task 5 hook: the daily digest send is appended here.
+    # Task 5: daily morning digest (best-effort, never breaks the run).
+    if _env_bool("TRADER_NOTIFY_DIGEST_ENABLED", True):
+        try:
+            from src.dashboard import PORTFOLIO_LATEST_FILE, PERFORMANCE_FILE
+            portfolio_payload = snapshot if snapshot else _read_json_file(PORTFOLIO_LATEST_FILE)
+            performance_payload = _read_json_file(PERFORMANCE_FILE)
+            macro_regime = _build_macro_regime(macro_panel)
+            text = digest.build_daily_digest(
+                run_date, portfolio_payload, performance_payload,
+                macro_regime, signals, LINE_CONFIG.get("dashboard_url", ""))
+            send_line_text(text)
+        except Exception as e:  # noqa: BLE001
+            print(f"Digest notification failed (ignored): {type(e).__name__}: {e}")
 
     # Phase 0: write-through to the measurement DB AFTER the active-weight merge so
     # signals.target_weight lands. Never breaks the run.

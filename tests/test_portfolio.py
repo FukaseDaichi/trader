@@ -640,6 +640,35 @@ def test_read_portfolio_gate_various_cases():
         assert pf.read_portfolio_gate(path_avail) is False
 
 
+# ---------------------------------------------------------------------------
+# I8: sector None → "その他" in sector_exposure
+# ---------------------------------------------------------------------------
+
+def test_build_snapshot_none_sector_aggregates_under_その他():
+    """I8: a position with no sector maps to "その他" in sector_exposure, not None/null."""
+    # One ticker with sector=None, one with sector="X".
+    preds = [
+        {"ticker": "NONE.JP", "name": "NoSector", "sector": None,
+         "cs_rank": 1, "expected_ret": 0.05, "prob_up": 0.7,
+         "volatility": 0.20, "close": 1000.0},
+        {"ticker": "X001.JP", "name": "WithSector", "sector": "X",
+         "cs_rank": 2, "expected_ret": 0.04, "prob_up": 0.65,
+         "volatility": 0.18, "close": 2000.0},
+    ]
+    tickers = [p["ticker"] for p in preds]
+    frames = _make_price_frames(tickers, n_rows=120, seed=99)
+    snap = pf.build_portfolio_snapshot(
+        preds, frames, prev_weights={}, config=_config(top_n=2),
+        run_date="2026-06-10", mode="shadow",
+    )
+    assert snap["status"] == "ok", snap
+    se = snap["sector_exposure"]
+    assert None not in se, f"None key found in sector_exposure: {se}"
+    assert "その他" in se, f'"その他" key missing from sector_exposure: {se}'
+    # The weight under "その他" must be positive (the None-sector ticker was selected).
+    assert se["その他"] > 0, se
+
+
 ALL_TESTS = [
     test_select_candidates_filter_sort_cap,
     test_select_candidates_missing_er_eligible_only_when_floor_nonpositive,
@@ -675,6 +704,7 @@ ALL_TESTS = [
     test_merge_target_weights_active_ok,
     test_merge_target_weights_noop_on_shadow_or_gate_fail,
     test_read_portfolio_gate_various_cases,
+    test_build_snapshot_none_sector_aggregates_under_その他,
 ]
 
 
