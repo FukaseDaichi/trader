@@ -219,6 +219,49 @@ def test_non_gate_passed_buy_not_counted():
 
 
 # ---------------------------------------------------------------------------
+# (d2) Signal name lines — digest-only operation lists WHICH tickers to act on
+# ---------------------------------------------------------------------------
+
+def test_signal_names_listed_by_action():
+    sigs = [
+        {"action": "BUY", "gate_passed": True, "name": "三菱重工業", "ticker": "7011.JP"},
+        {"action": "MILD_BUY", "gate_passed": True, "name": "トヨタ自動車", "ticker": "7203.JP"},
+        {"action": "MILD_BUY", "gate_passed": True, "name": "ホンダ", "ticker": "7267.JP"},
+        {"action": "SELL", "gate_passed": True, "name": "日産自動車", "ticker": "7201.JP"},
+        {"action": "BUY", "gate_passed": False, "name": "ゲート未達社", "ticker": "9998.JP"},
+        {"action": "HOLD", "gate_passed": True, "name": "ホールド社", "ticker": "9999.JP"},
+    ]
+    out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
+    assert "🔴 買い: 三菱重工業" in out, out
+    assert "🟠 やや買い: トヨタ自動車 / ホンダ" in out, out
+    assert "🟢 売り: 日産自動車" in out, out
+    assert "ゲート未達社" not in out, out
+    assert "ホールド社" not in out, out
+
+
+def test_signal_names_absent_when_no_actionable():
+    sigs = _signals(("HOLD", True), ("BUY", False))
+    out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
+    assert "🔴 買い:" not in out, out
+    assert "🟠 やや買い:" not in out, out
+
+
+def test_signal_names_truncated_after_four():
+    sigs = [{"action": "BUY", "gate_passed": True,
+             "name": f"銘柄{i}", "ticker": f"{1000 + i}.JP"} for i in range(6)]
+    out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
+    assert "ほか2件" in out, out
+    assert "銘柄0" in out and "銘柄3" in out, out
+    assert "銘柄4" not in out, out
+
+
+def test_signal_names_fallback_to_ticker():
+    sigs = [{"action": "MILD_SELL", "gate_passed": True, "ticker": "7203.JP"}]
+    out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
+    assert "🔵 やや売り: 7203.JP" in out, out
+
+
+# ---------------------------------------------------------------------------
 # (e) Active mode — "[active" header + diff-type groups
 # ---------------------------------------------------------------------------
 
@@ -472,6 +515,10 @@ ALL_TESTS = [
     test_signal_counts_correct,
     test_signal_counts_exact_fixture,
     test_non_gate_passed_buy_not_counted,
+    test_signal_names_listed_by_action,
+    test_signal_names_absent_when_no_actionable,
+    test_signal_names_truncated_after_four,
+    test_signal_names_fallback_to_ticker,
     test_active_mode_header_contains_active,
     test_active_mode_increase_appears_under_増,
     test_active_mode_empty_middle_groups_absent,

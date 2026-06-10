@@ -84,9 +84,11 @@ fire once, after the portfolio snapshot, and target weights persist):
    `docs/portfolio_latest.json` + DB (only when `TRADER_PORTFOLIO_ENABLED`).
 7. **Active-mode merge** (`portfolio.merge_target_weights`): reflect
    `target_weight` into signals — no-op in shadow / gate-fail / no-snapshot.
-8. **Notify** (`src/notifier.py` `send_line_text`, retry-bounded): per-ticker
-   LINE push for gate-passed non-HOLD (`TRADER_NOTIFY_PER_TICKER_ENABLED`),
-   then the daily digest (`src/digest.py`, `TRADER_NOTIFY_DIGEST_ENABLED`).
+8. **Notify** (`src/notifier.py` `send_line_text`, retry-bounded): the daily
+   digest (`src/digest.py`, `TRADER_NOTIFY_DIGEST_ENABLED`) is the primary
+   channel and lists gate-passed buy/sell ticker names per action; per-ticker
+   pushes are OFF by default (`TRADER_NOTIFY_PER_TICKER_ENABLED=false` since
+   2026-06-11, LINE free-tier quota) and remain available as an opt-in.
 9. **Phase 0 write-through** (`src/db.py`, `src/db_records.py`) — after the
    merge so `signals.target_weight` lands.
 10. **Dashboard export** (`src/dashboard.py`): `docs/state.json`,

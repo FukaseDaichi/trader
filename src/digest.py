@@ -165,6 +165,36 @@ def _signal_counts(signals: list[dict]) -> tuple[int, int, int]:
     return b, mb, s
 
 
+# Digest-only operation: per-ticker pushes are off by default, so the digest is
+# where the user learns WHICH tickers to act on. Names are capped per action to
+# keep one LINE message comfortably under the API text limit.
+_SIGNAL_NAME_GROUPS = [
+    ("BUY", "🔴 買い"),
+    ("MILD_BUY", "🟠 やや買い"),
+    ("MILD_SELL", "🔵 やや売り"),
+    ("SELL", "🟢 売り"),
+]
+_MAX_NAMES_PER_ACTION = 4
+
+
+def _signal_name_lines(signals: list[dict]) -> list[str]:
+    """One line per non-empty action group listing gate-passed ticker names."""
+    lines = []
+    for action, label in _SIGNAL_NAME_GROUPS:
+        names = [
+            sig.get("name") or sig.get("ticker", "?")
+            for sig in (signals or [])
+            if sig.get("gate_passed") and sig.get("action") == action
+        ]
+        if not names:
+            continue
+        line = f"{label}: " + " / ".join(names[:_MAX_NAMES_PER_ACTION])
+        if len(names) > _MAX_NAMES_PER_ACTION:
+            line += f" ほか{len(names) - _MAX_NAMES_PER_ACTION}件"
+        lines.append(line)
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -202,9 +232,10 @@ def build_daily_digest(
     else:
         portfolio_section = _portfolio_unavailable_block(portfolio_latest)
 
-    # --- Signal counts ---
+    # --- Signal counts + per-action ticker names ---
     b, mb, s = _signal_counts(signals)
     signal_line = f"📨 個別シグナル: 買い{b} / やや買い{mb} / 売り{s}"
+    name_lines = _signal_name_lines(signals)
 
     # --- Performance line ---
     perf_line = _performance_line(performance_summary)
@@ -217,6 +248,7 @@ def build_daily_digest(
         portfolio_section,
         _SEP,
         signal_line,
+        *name_lines,
         perf_line,
         f"詳細: {dashboard_url}",
     ]

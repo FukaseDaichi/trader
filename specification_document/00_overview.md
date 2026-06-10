@@ -38,7 +38,7 @@ Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1
 2. 06:00 — preopen core:
    1. マクロスナップショット更新（`scripts/update_macro_snapshots.py`）
    2. `main.py`: 銘柄ごとにデータ更新 → 特徴量（34テクニカル+11マクロ）→ KPI ゲート → 保存済みモデル推論（無ければ legacy 学習）→ 5段階シグナル
-   3. ループ後: Phase 2 クロスセクション推論 + ポートフォリオ snapshot → active 時のみ `target_weight` をシグナルへマージ → LINE 通知（ゲート通過の非HOLD個別 + 日次ダイジェスト）→ DB write-through → `docs/` エクスポート
+   3. ループ後: Phase 2 クロスセクション推論 + ポートフォリオ snapshot → active 時のみ `target_weight` をシグナルへマージ → LINE 通知（日次ダイジェスト 1 通に買い/売り銘柄名を集約。個別通知は既定無効）→ DB write-through → `docs/` エクスポート
    4. 実現結果の決済（`scripts/settle_outcomes.py`、TOPIX ベンチマーク付き）→ settle 当日分の実績 JSON 再エクスポート
    5. ドリフトチェック（`scripts/drift_check.py`）
 3. 06:20 / 06:40 — 当日未更新時のみのリトライ

@@ -1,75 +1,132 @@
 # 既知の課題・運用チェックリスト・バックログ
 
-更新日: 2026-06-11 JST（ソースコード実レビューに基づく）
+更新日: 2026-06-11 JST（コードレビュー結果にユーザー方針を反映）
 
-この文書は「現時点で直っていないこと」だけを扱います。解決済みの修正履歴は git log と本ファイルの履歴を参照してください（旧 `06_priority_matrix.md` の P0/P1 対応済み一覧、および Phase 0〜3 の実装計画は 2026-06-11 に削除済み。`README.md` の運用ルール参照）。
+この文書は「現時点で直っていないこと」と「対応方針」を扱います。各課題は先頭に**かみくだき説明**、最後に開発者向けの技術メモを置いています。解決済みの修正履歴は git log を参照してください。
 
-## P1: 計測・収益性に直結する課題
+## 一覧（まずここだけ読めば OK）
 
-### 1. TOPIX・日経VI・JGB10y のマクロ系列が一度も取得できていない
+| # | 課題 | ひとことで言うと | 状態 |
+|---|---|---|---|
+| 1 | TOPIX 等の指数データが空 | 成績の「比較相手」のデータが最初から取れていない。**放置では直らない** | 🔴 要修正（最優先） |
+| 2 | active 化の安全チェックが甘い | 「合格点だったか」ではなく「テストを受けたか」しか見ていない | 🔴 要修正（active 化前に） |
+| 3 | 相場の警戒ブレーキが未配線 | 「危ない相場では買う量を半分に」する機能が常に OFF | 🟡 要修正（#1 の後で） |
+| 4 | 銘柄数 51 > 上限 50 | 設定上の上限を 1 銘柄だけ超えている | ✅ 対応しない（許容と判断） |
+| 5 | 週次レポートの検品なし | AI が書くレポートの内容チェックが無い | ✅ 対応しない（品質は重視しない） |
+| 6 | 毎晩の事前計算が空回り | 毎晩計算しているが、結果を誰も使っていない | 🟡 削除推奨（判断待ち） |
+| 7 | LINE 通知が多すぎる | 個別通知をやめ、ダイジェスト 1 通に買い/売り銘柄をまとめる | ✅ **対応済み（2026-06-11）** |
 
-**事象**: `data/macro/macro_panel.parquet` で `topix` / `nikkei_vi` / `jgb10y` が**全行 NaN**（2026-06-11 確認: topix 0/15570 行、usdjpy・nikkei は取得できている）。
+---
 
-**影響**:
+## 🔴 要対応
 
-- `scripts/settle_outcomes.py` の TOPIX ベンチマーク決済が常に NULL → `signal_outcomes.benchmark_ret` / `excess_ret` が蓄積されず、`/performance` ページの「資産曲線 vs TOPIX」のベンチマーク曲線と超過リターン指標が機能しない（Phase 3 の主要成果物が実質無効）
-- マクロ 11 特徴量のうち TOPIX・日経VI・JGB10y 系が常時欠損 → レジーム特徴の実効性が大幅に低下（欠損許容設計なので停止はしない）
+### 1. TOPIX・日経VI・JGB10y の指数データが一度も取れていない（最優先）
 
-**原因の見立て**: `src/macro.py` の系列シンボル（Stooq: `^tpx` / `^nkvix` / `10jgby.b`、yfinance: `^TPX` / `^NIVI` / なし）が取得元で無効な可能性が高い。
+**かみくだき**: このシステムは「自分の成績が市場平均（TOPIX）より良いか」を測る設計ですが、その比較相手である TOPIX のデータが**過去一度も取得できていません**（日経VI・10年金利も同様。ドル円と日経平均は取れています）。
 
-**対応案**:
+**「Phase 3 を作ったばかりだから仕方ない？」への回答**: いいえ、Phase 3 は無関係です。指数データの取得処理は Phase 1（2026-06-09 実装）から毎日動いていますが、**取得先に指定している銘柄コード（シンボル）が間違っているらしく、初日から一度も成功していません**。「データがまだ貯まっていない」のではなく「取りに行く住所が間違っていて永遠に届かない」状態なので、待っても直りません。Phase 3 で作った「vs TOPIX」機能が、この既存の問題を**見える化した**というのが正確な関係です。
 
-1. シンボルの再調査（Stooq の実シンボル確認。例: TOPIX 連動 ETF `1306.jp` を代理系列にする選択肢、日経VI・JGB10y は取得不能なら系列を無効化してログを静かにする選択肢）
-2. 修正後に `uv run python scripts/update_macro_snapshots.py` → parquet の非NULL を確認 → `uv run python scripts/settle_outcomes.py --as-of <today> --refill-benchmark` で過去分の NULL を埋める（冪等）
+**直さないとどうなる**: `/performance` ページの「資産曲線 vs TOPIX」に TOPIX 線が永遠に出ず、「市場平均に勝てているか」が判定できません。またマクロ特徴量 11 個のうち 3 系統が常に欠損し、相場環境の判断材料が減ったままになります（システムが止まることはありません）。
 
-### 2. ポートフォリオ KPI ゲートの結果が active 配線に未接続
+**直し方**: シンボルを正しいものに直すだけ。過去の分も再計算コマンド 1 回で埋まります。
 
-**事象**: 週次の `evaluate_portfolio_kpi_gate()`（Sharpe/MaxDD/IR/turnover、`TRADER_PORTFOLIO_BACKTEST_*` 閾値）は計算され `docs/cs_model_quality.json` に `gate_passed` として記録されるが、`docs/portfolio_backtest.json`（`write_portfolio_backtest_report`）には gate キーが含まれない。その結果、active 可否を判定する `portfolio.read_portfolio_gate()` は「バックテストが `available: true` なら通過」という弱い判定になっている（コード内に明示コメントあり。`gate.passed` キーがあれば優先する拡張点は予約済み）。
+> **技術メモ**: `data/macro/macro_panel.parquet` で `topix`/`nikkei_vi`/`jgb10y` が全行 NaN（2026-06-11 確認: topix 0/15570 行）。`src/macro.py` の `DEFAULT_MARKET_SERIES`（Stooq: `^tpx`/`^nkvix`/`10jgby.b`、yfinance: `^TPX`/`^NIVI`）の有効性を再調査。TOPIX 連動 ETF `1306.jp` を代理にする選択肢、取得不能系列は無効化する選択肢あり。修正後は `update_macro_snapshots.py` 実行 → 非NULL確認 → `settle_outcomes.py --as-of <today> --refill-benchmark` で過去の `benchmark_ret`/`excess_ret` NULL を埋める（冪等）。
 
-**影響**: KPI ゲート不合格でも、バックテストが完走してさえいれば (a) `merge_target_weights` の active 配線が作動し得る、(b) `portfolio_shadow_report.json` の `active_readiness.portfolio_gate_passed` も true になる（同じ関数を使用）。shadow 運用中は実害なしだが、**active 化判断の前に直すべき**。
+### 2. active 化の安全チェックが「合格点」を見ていない（active 化前に修正）
 
-**対応案**: `src/portfolio_backtest.py` の `write_portfolio_backtest_report()` に `gate: {passed, failures}` を含める（`weekly_cross_section_retrain.py` は gate 評価済みなので渡すだけ）。`read_portfolio_gate()` 側は変更不要。
+**かみくだき**: 将来 active モード（AI の提案ウェイトを実シグナルに反映する運用）に切り替えるとき、システムは「毎週の模擬運用（バックテスト）が品質基準に合格しているか」を確認してから反映する設計です。ところが今の実装は、**「成績表のファイルが存在するか」だけを見ていて、「合格点だったか」を見ていません**。テストを受けてさえいれば 0 点でも通る、出席確認だけの状態です。
 
-### 3. ポートフォリオ構築のレジームが常に "neutral" 固定
+**「放置してもアクティブにならないってこと？」への回答**: **勝手に active になることはありません**。active への切替は人間が設定ファイルを 1 行変えたときだけ起こります。問題はその「切替後」で、本来なら成績不合格の週は自動でブレーキがかかるはずの安全装置が、実質素通しになっています。つまり「放置しても今は無害。ただし active に切り替える前には必ず直すべき」です。修正は 1 ファイル数行で、合格点の判定計算自体はすでに毎週動いています（書き出す場所が違うだけ）。
 
-**事象**: `main.py` `_run_portfolio_snapshot()` が `regime = "neutral"` をハードコード（コメントで「qualitative regime の loader 未配線」と明示）。`docs/curation/macro_latest.json` の `market_bias` は日次ダイジェスト表示には使われるが、ポートフォリオ構築へは渡らない。
+> **技術メモ**: `evaluate_portfolio_kpi_gate()`（Sharpe/MaxDD/IR/turnover、`TRADER_PORTFOLIO_BACKTEST_*`）の結果は `docs/cs_model_quality.json` にしか書かれず、`portfolio.read_portfolio_gate()` が読む `docs/portfolio_backtest.json` には gate キーが無い。そのため「available なら通過」のフォールバックが効いている（`gate.passed` があれば優先する拡張点は予約済み）。`active_readiness.portfolio_gate_passed` も同じ関数を使うため同様に甘い。**修正**: `src/portfolio_backtest.py` の `write_portfolio_backtest_report()` に `gate: {passed, failures}` を含める（`weekly_cross_section_retrain.py` は評価済みの gate を渡すだけ）。
 
-**影響**: `TRADER_PORTFOLIO_RISK_OFF_GROSS_MULT=0.50`（risk_off 時のグロス半減）が本番で一度も作動しない。リスクオフ局面の自動デレバレッジが無効。
+### 3. 「危ない相場ではポジションを半分に」のブレーキが常に OFF（#1 の後で修正）
 
-**対応案**: `market_bias`（risk_on/neutral/risk_off）を `build_portfolio_snapshot(regime=...)` へ渡す薄い loader を追加（`_build_macro_regime()` の流用で可）。ただし課題1の解消とあわせ、レジーム判定の入力品質を先に確保すること。
+**かみくだき**: ポートフォリオ提案には「相場が危険（リスクオフ）と判定されたら、買う総量を自動で半分にする」というブレーキ機能が組み込まれています。危険かどうかの判定材料は毎週のマクロ AI 分析が作っていて、LINE ダイジェストの「レジーム: リスクオフ」表示にも使われています。ところが、**その判定がポートフォリオの計算部分にだけ渡っておらず、計算上は常に「平常」扱い**です。例えるなら、ブレーキ部品は付いているのにセンサーのケーブルが 1 本つながっていない状態。
 
-## P2: 運用品質
+**いま困るか**: shadow 運用（提案を眺めるだけ）の今は実害ゼロです。active 化後は「暴落局面でも平常時と同じ量を提案してくる」ことになるので、直す価値があります。
+
+**おすすめの順番**: 修正自体は小さいですが、危険判定の精度は課題 #1 の指数データに依存します。**#1 を直してから配線する**のが正しい順序です。
+
+> **技術メモ**: `main.py` `_run_portfolio_snapshot()` が `regime="neutral"` をハードコード（コメントで loader 未配線と明示）。`docs/curation/macro_latest.json` の `market_bias` を `build_portfolio_snapshot(regime=...)` へ渡す薄い loader を追加すれば、`TRADER_PORTFOLIO_RISK_OFF_GROSS_MULT=0.50` が機能する。`_build_macro_regime()` の流用で可。
+
+### 6. 毎晩の特徴量事前計算が完全に空回り（削除推奨・判断待ち）
+
+**かみくだき**: 平日の夜 20 時に「翌朝の処理を速くするため」全銘柄のテクニカル指標を先回り計算するジョブが毎晩動いています。しかし実態は:
+
+1. 計算結果はどこにも保存されない（GitHub Actions のマシンが破棄されると消える）
+2. 朝の本番処理は、どのみち自分でゼロから計算し直す（そういう実装）
+3. 仮に保存して朝に渡しても、**前夜の計算は朝に取得する最新株価を含まないため使えない**（鮮度の問題）
+
+つまり、毎晩 CI 時間を消費して、誰も読まないレポート 1 枚を作るだけのジョブです。
+
+**おすすめの方針: 「まとめる」ではなく「削除」**。朝処理への統合（まとめる）は上記 3. の鮮度問題があるため逆に危険で、メリットがありません。削除しても git 履歴に残るので、将来必要になれば数分で復活できます。削除する場合の作業は以下の 4 点セットです（指示をもらえれば実施します）:
+
+- `.github/workflows/nightly-feature-precompute.yml` を削除
+- `scripts/feature_precompute.py` を削除
+- `docs/feature_precompute_report.json` と publish workflow の同名 exclude 行を削除
+- 仕様書（`03_cicd_workflows.md` / `04_scripts.md` / `05_cross_cutting.md`）から該当記述を削除
+
+---
+
+## ✅ 対応しない（判断済み 2026-06-11）
 
 ### 4. enabled 51 銘柄 > `settings.curation.max_universe: 50`
 
-ユニバース上限と 1 件不整合（2026-06-11 確認）。curation/universe の次回実行で収束するか監視し、収束しなければ `uv run python scripts/universe_select.py --target-size 50 --apply` で是正。
+**判断**: このままで良い（50 超えは問題ない）。
+
+**知っておくと良い挙動**: 上限を超えている間、キュレーションの自動入替は「新規追加なし・入替のみ」の保守モードで動きます（壊れたり暴走したりはしません）。もし将来「もっと銘柄を増やしたい」となったら、`tickers.yml` の `settings.curation.max_universe` の数字を実態に合わせて上げるのが正しい 1 行修正です。
 
 ### 5. 週次レポートの品質検証が未実装
 
-`reports/weekly_*.md` の免責・front matter・銘柄コード実在チェックは agent 手順頼みで、`scripts/curation_notify.py` は検証なしで URL を通知する。通知前の軽量 validator（不合格時は通知スキップ）が望ましい。
+**判断**: 対応しない（レポート品質はこだわらない）。AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE 通知されますが、シグナルや売買判断には一切影響しないため、リスクは「レポートの読み味」だけです。
 
-### 6. `data/features/*.parquet` が運用効果を持たない
+---
 
-`nightly-feature-precompute.yml` は毎晩生成するが、commit もされず日次処理も読まない。レポート生成以上の効果がないため、workflow 停止か日次パイプラインの入力契約への組み込みかを決める。
+## ✅ 対応済み
 
-### 7. LINE 無料枠（200 push/月）と通知件数
+### 7. LINE 通知をダイジェストのみに集約（2026-06-11 実装）
 
-51 銘柄体制で actionable シグナルが増えると、個別通知 + 日次ダイジェスト + 週次系で無料枠を圧迫し得る。`TRADER_NOTIFY_PER_TICKER_ENABLED=false`（ダイジェストのみ運用）への切替が設計済みの緩和策。月の送信数の目安を watchdog 等で可視化できるとなお良い。
+**決定と実装内容**: 個別シグナル通知（1 銘柄 1 通）を**既定で無効**にし、朝のダイジェスト 1 通に「どの銘柄が買い/売りか」の銘柄名リストを追加しました。
+
+```text
+📊 朝のダイジェスト (2026-06-11)
+レジーム: 中立 / ドル円 160.4
+──────────
+🧺 今日の建玉 [shadow / cs-v1-20260610]
+...
+──────────
+📨 個別シグナル: 買い1 / やや買い2 / 売り1
+🔴 買い: 三菱重工業
+🟠 やや買い: トヨタ自動車 / ホンダ
+🟢 売り: 日産自動車
+🎯 直近実績(5日): 的中 58% (n=35) / 平均 +0.6%
+詳細: https://...
+```
+
+- 表示はゲート通過シグナルのみ。各アクション最大 4 銘柄 + 「ほかN件」（LINE の文字数制限対策）
+- これで通常運用の送信数は **日次 1 通 + 週次 2 通**程度になり、無料枠 200 通/月に対し大幅な余裕
+- 個別通知を復活させたい場合は `TRADER_NOTIFY_PER_TICKER_ENABLED=true`（コードはそのまま残してある）
+
+> **技術メモ**: `src/digest.py` `_signal_name_lines()` 追加、`main.py` の既定値を false へ、`daily-preopen-core.yml` / `.env.example` を false へ。テスト `tests/test_digest.py` に 4 件追加（38/38 pass）。
+
+---
 
 ## 低優先・観察
 
 | 項目 | 内容 |
 |---|---|
-| CS 較正の粗さ（旧 I11） | shadow snapshot で複数銘柄の `expected_ret` / `prob_up` が完全同値（score-bucket 較正）。gross も低位（0.24 前後）。バグではなく shadow 期間の観察対象。改善候補: bucket → isotonic 連続化 |
-| `generated_at` の TZ 不統一 | 監査系 7 スクリプトが timezone naive の `datetime.now()`（キュレーション系は `+09:00` 付き）。実害は小さいが揃えると比較が楽 |
-| `usdjpy` の歴史が短い | パネル 15570 行中 7723 行。系列の歴史差によるもので異常ではない（参考情報） |
+| リトライ実行日の計測欠け | 06:20/06:40 の retry workflow は env が最小構成（DB・ポートフォリオ・マクロ更新・決済なし）。core が失敗し retry で救済された日は、シグナルは出るが DB 台帳・建玉 snapshot が欠ける。頻発するようなら core と同じ env/後続ステップを足す |
+| CS 較正の粗さ | shadow の建玉で複数銘柄の `expected_ret`/`prob_up` が同値（score-bucket 較正の粒度）。gross も低め（0.24 前後）。バグではなく shadow 期間の観察対象。改善候補: isotonic 連続化 |
+| `generated_at` の TZ 不統一 | 監査系 7 スクリプトが timezone naive（キュレーション系は `+09:00` 付き）。実害は小さい |
+| `usdjpy` の行数が少ない | 系列の歴史差によるもので異常ではない（参考情報） |
 
 ## 運用チェックリスト（時限・要人間判断）
 
-- [ ] **2026-06-13（土）**: `weekly-model-retrain.yml` の初回実走を確認。`data/models/active_model.json` と `per-ticker-v1-*` バンドルが commit され、翌営業日から日次が保存モデル推論に切り替わること（現状 `active_model.json` 不在のため、全銘柄が legacy 学習フォールバックで動いている）。`docs/model_quality.json` が `available: true` になることも確認
-- [ ] `scripts/backfill_state_signals.py` を本番 DB に対して実行済みか確認（未実行なら 1 回実行。冪等）
-- [ ] **2026-06-24 目安（shadow 開始 2026-06-10 から 10 営業日）**: `docs/portfolio_shadow_report.json` の `active_readiness` を確認し、active 化を判断。**ただし課題 2（ゲート未接続）を先に解消すること**。切替は `.github/workflows/daily-preopen-core.yml` の `TRADER_PORTFOLIO_MODE` を `"active"` へ変える 1 行 PR、ロールバックは同じ 1 行を戻すだけ
-- [ ] active 化後 1 週間: 日次ダイジェストの建玉と DB `signals.target_weight` の一致を毎朝確認
+- [ ] **2026-06-13（土）**: 週次再学習の初回実走を確認。`data/models/active_model.json` と `per-ticker-v1-*` が commit され、翌営業日から日次が保存モデル推論に切り替わること（現状はポインタ不在のため全銘柄 legacy 学習で動作中）。`docs/model_quality.json` が `available: true` になることも確認
+- [ ] `scripts/backfill_state_signals.py` を本番 DB に対して実行済みか確認（未実行なら 1 回。冪等）
+- [ ] **2026-06-24 目安**（shadow 開始 2026-06-10 から 10 営業日）: `docs/portfolio_shadow_report.json` の `active_readiness` を見て active 化を判断。**前提として課題 #2 を先に修正**。切替は `daily-preopen-core.yml` の `TRADER_PORTFOLIO_MODE` を `"active"` にする 1 行、戻すのも同じ 1 行
+- [ ] active 化後 1 週間: ダイジェストの建玉と DB `signals.target_weight` の一致を毎朝確認
 
 ## Phase 4+ バックログ（未着手の将来案）
 

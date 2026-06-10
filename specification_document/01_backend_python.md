@@ -51,7 +51,7 @@
 
 8. Phase 2 推論 + ポートフォリオ snapshot（`run_phase2_inference` → `_run_portfolio_snapshot`）: `TRADER_PORTFOLIO_ENABLED` のときのみ。`docs/portfolio_latest.json` 出力と `portfolio_snapshots` upsert。失敗・条件未達は `fallback` として理由付き JSON を出し Phase 1 へ影響しない
 9. `portfolio.merge_target_weights(signals, snapshot, gate_passed=read_portfolio_gate())`: **active モードかつ snapshot ok かつゲート通過のときだけ** 各シグナルへ `target_weight`（建玉外は 0.0）と理由追記を付与した新リストを返す。shadow / fallback / ゲート未達 / snapshot 無しでは入力をそのまま返す（shadow 完全無変更の保証）。`action` は変更しない
-10. 通知ブロック: `TRADER_NOTIFY_PER_TICKER_ENABLED` のとき、ゲート通過かつ非 HOLD のシグナルを 1 件ずつ `send_notification()`（個別失敗は隔離）。続いて `TRADER_NOTIFY_DIGEST_ENABLED` のとき `digest.build_daily_digest()` を `send_line_text()` で送信
+10. 通知ブロック: 個別シグナル通知は**既定で無効**（`TRADER_NOTIFY_PER_TICKER_ENABLED=false`、2026-06-11〜 ダイジェストのみ運用。true にするとゲート通過かつ非 HOLD を 1 件ずつ `send_notification()`、個別失敗は隔離）。続いて `TRADER_NOTIFY_DIGEST_ENABLED`（既定 true）のとき `digest.build_daily_digest()` を `send_line_text()` で送信
 11. `db.record_run(signals, run_date)`: Phase 0 write-through（merge 後に実行するため `signals.target_weight` が DB に乗る）
 12. `write_backtest_report()` → `update_dashboard()`
 
@@ -130,8 +130,8 @@ legacy 学習（`train_and_predict`）: LightGBM 二値分類、直近 4 年、w
 ## 通知（src/notifier.py, src/digest.py）
 
 - `send_line_text(text)`: LINE Messaging API v3 の共通送信。**リトライ付き**（429/5xx/接続エラーのみ対象、4xx は即時失敗。`TRADER_NOTIFY_RETRY_MAX=3`、backoff は `base × 4^(attempt-1)`）。例外を外へ出さない
-- 個別シグナル通知 `send_notification()`: HOLD はスキップ。現在値・上昇確率・指値/損切り目安・理由・銘柄ページ URL
-- 日次ダイジェスト `digest.build_daily_digest()`: 建玉（モード・グロス・想定ボラ・new/継続/手仕舞い）+ 個別シグナル件数 + 直近実績 + レジーム（`docs/curation/macro_latest.json` の `market_bias` と USD/JPY）を 1 通に集約。portfolio 不在時は縮退文言
+- 日次ダイジェスト `digest.build_daily_digest()`（**通知の主チャネル**）: 建玉（モード・グロス・想定ボラ・new/継続/手仕舞い）+ 個別シグナル件数 + **アクション別の買い/売り銘柄名リスト**（ゲート通過のみ、各アクション最大4銘柄 + ほかN件）+ 直近実績 + レジーム（`docs/curation/macro_latest.json` の `market_bias` と USD/JPY）を 1 通に集約。portfolio 不在時は縮退文言
+- 個別シグナル通知 `send_notification()`: **既定無効**（2026-06-11〜 LINE 無料枠対策のダイジェストのみ運用）。有効時は HOLD スキップで現在値・上昇確率・指値/損切り目安・理由・銘柄ページ URL を 1 銘柄 1 通
 - 週次サマリ `digest.build_weekly_summary()`: `scripts/weekly_performance_notify.py` から送信（実績 0 件なら送らない）
 - LINE 未設定（token/user_id 空）なら送信スキップ。通知失敗は daily を止めない
 

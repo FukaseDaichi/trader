@@ -697,10 +697,12 @@ def main():
     except Exception as e:  # noqa: BLE001
         print(f"merge_target_weights skipped (ignored): {type(e).__name__}: {e}")
 
-    # Notification (post-loop): per-ticker actionable pushes, then the daily digest.
-    # Each push is isolated so one malformed signal can't drop the rest (matches
-    # the previous in-loop behavior where every ticker was independently guarded).
-    if _env_bool("TRADER_NOTIFY_PER_TICKER_ENABLED", True):
+    # Notification (post-loop): the daily digest is the primary channel (it lists
+    # actionable ticker names per action). Per-ticker pushes default OFF to stay
+    # inside the LINE free tier (200 push/month) with a ~50-name universe; set
+    # TRADER_NOTIFY_PER_TICKER_ENABLED=true to bring them back. Each push is
+    # isolated so one malformed signal can't drop the rest.
+    if _env_bool("TRADER_NOTIFY_PER_TICKER_ENABLED", False):
         for signal in signals:
             if signal.get("gate_passed") and signal.get("action") != "HOLD":
                 try:
