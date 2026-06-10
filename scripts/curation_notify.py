@@ -25,6 +25,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.config import get_line_config  # noqa: E402
+from src import notifier  # noqa: E402
 
 
 def resolve_repo_slug() -> str:
@@ -89,25 +90,7 @@ def send_line(text: str) -> bool:
         print("---- would send ----")
         print(text)
         return False
-    try:
-        from linebot.v3.messaging import (
-            ApiClient,
-            Configuration,
-            MessagingApi,
-            PushMessageRequest,
-            TextMessage,
-        )
-
-        configuration = Configuration(access_token=token)
-        with ApiClient(configuration) as api_client:
-            MessagingApi(api_client).push_message(
-                PushMessageRequest(to=user_id, messages=[TextMessage(text=text)])
-            )
-        print("Weekly report notification sent via LINE.")
-        return True
-    except Exception as exc:
-        print(f"Failed to send LINE notification: {exc}")
-        return False
+    return notifier.send_line_text(text)
 
 
 def run(report_path: str, date_str: str) -> int:
