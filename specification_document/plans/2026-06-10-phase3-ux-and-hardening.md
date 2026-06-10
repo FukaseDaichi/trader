@@ -31,7 +31,7 @@
 
 | ID | 重大度 | 内容 | 該当箇所 | 回収 |
 |---|---|---|---|---|
-| **I1** | **P0** | **公開ワークフローが Phase 1/2 の JSON を毎日削除**。`rsync --delete` の exclude リストに `model_quality.json` / `drift_report.json` / `portfolio_latest.json` / `portfolio_backtest.json` / `cs_model_quality.json` が無く、daily commit（55d1c1c）の約 1 分後の Publish commit（2e63ff2）で全削除を確認。実在しない `portfolio_report.json` を除外している（typo と推定）。**結果として Phase 1/2 のダッシュボード機能は本番サイトで一度も表示されていない** | `.github/workflows/daily-publish-dashboard.yml:96-110` | Task 0 |
+| **I1** | **P0** | **公開ワークフローが Phase 1/2 の JSON を毎日削除**。`rsync --delete` の exclude リストに `model_quality.json` / `drift_report.json` / `portfolio_latest.json` / `portfolio_backtest.json` / `cs_model_quality.json` が無く、daily commit（55d1c1c）の約 1 分後の Publish commit（2e63ff2）で全削除を確認。実在しない `portfolio_report.json` を除外している（typo と推定）。**結果として Phase 1/2 のダッシュボード機能は本番サイトで一度も表示されていない** | `.github/workflows/daily-publish-dashboard.yml:96-110` | ✅ 完了 (8c232f9) |
 | **I2** | P1 | Phase 2 active mode で `signals.target_weight` を反映する配線が未実装（コードコメントで Task 10 へ明示的に deferred）。active 化は env 変更だけでは完結しない | `main.py` `_run_portfolio_snapshot` 付近 | Task 1 |
 | **I3** | P1 | `signal_outcomes.benchmark_ret` / `excess_ret` が NULL のまま。Phase 1 で TOPIX 系列（`data/macro/macro_panel.parquet` の `topix` 列）は取得済みなのに settlement に未接続。roadmap Phase 3 の「資産曲線 vs TOPIX」の前提が欠ける | `scripts/settle_outcomes.py` | Task 2 |
 | **I4** | P1 | `performance_summary.json` の export が settle **前**（main.py 内）に走るため、実績反映が常に 1 営業日遅れる | `daily-preopen-core.yml` のステップ順 / `src/dashboard.py` | Task 3 |
@@ -59,7 +59,7 @@
 
 roadmap Phase 3（実績ダッシュボード / 通知強化 W9 / チャート堅牢化）に加え、その前提となる残件を含める。
 
-1. 公開ワークフロー修正と再発防止テスト（I1）— **他のすべてに先行して即日出荷**。
+1. 公開ワークフロー修正と再発防止テスト（I1）— ✅ **完了（2026-06-10, commit 8c232f9）**。
 2. Phase 2 active mode の完了（I2）と shadow→active 判定の運用整備。
 3. 計測の完成: TOPIX ベンチマーク決済（I3）と settle 後 export（I4）。
 4. 通知強化: LINE リトライ（I5）、日次ポートフォリオ・ダイジェスト、週次パフォーマンスサマリ。
@@ -90,8 +90,8 @@ Phase 2 計画は active mode で `signals.action` 自体を portfolio 由来（
 
 | ファイル | 区分 | 責務 |
 |---|---|---|
-| `.github/workflows/daily-publish-dashboard.yml` | 変更 | rsync exclude に Phase 1/2/3 JSON を追加、`portfolio_report.json` を削除 |
-| `tests/test_publish_workflow.py` | 新規 | docs/ 直下に書く JSON が publish の exclude に揃っているかの再発防止ガード |
+| `.github/workflows/daily-publish-dashboard.yml` | 変更 | ✅ 完了 — rsync exclude に Phase 1/2/3 JSON を追加、`portfolio_report.json` を削除 |
+| `tests/test_publish_workflow.py` | 新規 | ✅ 完了 — docs/ 直下に書く JSON が publish の exclude に揃っているかの再発防止ガード |
 | `src/portfolio.py` | 変更 | sector 欠損を「その他」へ正規化（I8）、`merge_target_weights()` 追加 |
 | `main.py` | 変更 | 通知の後段化、active mode の target_weight 反映、digest 送信 |
 | `scripts/portfolio_shadow_report.py` | 変更 | `active_ready`（bool）と判定根拠を report に追加 |
@@ -234,173 +234,14 @@ DB 不通・サンプル不足時は `{"available": false, "reason": "...", "gen
 
 ## 5. 実装タスク
 
-### Task 0: 公開ワークフロー修正（I1）— 最優先・単独で即日出荷
+### Task 0: 公開ワークフロー修正（I1）— ✅ 完了（2026-06-10 / commit 8c232f9）
 
-**Files:**
-- Modify: `.github/workflows/daily-publish-dashboard.yml`
-- Create: `tests/test_publish_workflow.py`
+`.github/workflows/daily-publish-dashboard.yml` の rsync `--delete` exclude に、毎日の Publish コミットで消えていた docs/ 直下の JSON を追加し、typo の `portfolio_report.json` を削除した。再発防止に `tests/test_publish_workflow.py` を新規追加。背景の詳細は §0.2 I1 を参照。
 
-- [ ] **Step 1: 再発防止テストを先に書く**
+- 追加した exclude: `model_quality.json` / `drift_report.json` / `portfolio_latest.json` / `portfolio_backtest.json` / `cs_model_quality.json` / `portfolio_shadow_report.json` / `performance_detail.json` / `signal_outcomes_recent.json`（後 2 つは Task 3 実装前だが先行登録）。
+- 検証: `uv run python tests/test_publish_workflow.py` → 3/3 pass、既存 16 スイート非回帰、workflow YAML パース OK。
 
-`tests/test_publish_workflow.py` を新規作成:
-
-```python
-#!/usr/bin/env python3
-"""
-Guard: every docs/-root JSON the pipeline writes must be excluded from the
-publish workflow's `rsync --delete`, or it is wiped on the next publish
-(this actually happened to Phase 1/2 outputs on 2026-06-10, commit 2e63ff2).
-
-Runnable: uv run python tests/test_publish_workflow.py
-"""
-from __future__ import annotations
-
-import re
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github" / "workflows" / "daily-publish-dashboard.yml"
-
-# Canonical list of docs/-root JSON files written by the pipeline.
-# When you add a new export, add it HERE and to the workflow excludes.
-EXPECTED_PRESERVED = {
-    "state.json", "backtest_report.json", "performance_summary.json",
-    "monthly_audit.json", "universe_refresh_report.json",
-    "weekly_retrain_report.json", "feature_precompute_report.json",
-    "rotating_refresh_report.json", "stress_test_report.json",
-    "model_quality.json", "drift_report.json",
-    "portfolio_latest.json", "portfolio_backtest.json",
-    "cs_model_quality.json", "portfolio_shadow_report.json",
-    "performance_detail.json", "signal_outcomes_recent.json",
-}
-
-# Served from web/public via the build instead of the exclude list.
-BUILD_EMBEDDED = {"dashboard_index.json"}
-
-# Legacy literals still present in code but no longer published to docs/
-# (src/dashboard.py export_history_data / LEGACY_HISTORY_FILE).
-LEGACY_NOT_PUBLISHED = {"history_data.json"}
-
-
-def _workflow_excludes() -> set[str]:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    return set(re.findall(r"--exclude '([^']+)'", text))
-
-
-def _json_literals_in_code() -> set[str]:
-    """Scan src/ and scripts/ for docs-root *.json output names."""
-    found: set[str] = set()
-    pat_docs = re.compile(r"docs/([a-z0-9_]+\.json)")
-    pat_dir = re.compile(r"DOCS_DIR\s*/\s*\"([a-z0-9_]+\.json)\"")
-    for base in (ROOT / "src", ROOT / "scripts"):
-        for path in base.glob("*.py"):
-            text = path.read_text(encoding="utf-8")
-            found.update(pat_docs.findall(text))
-            found.update(pat_dir.findall(text))
-    return found
-
-
-def test_expected_files_are_excluded():
-    excludes = _workflow_excludes()
-    missing = EXPECTED_PRESERVED - excludes
-    assert not missing, f"publish would delete: {sorted(missing)}"
-
-
-def test_no_stale_excludes():
-    excludes = _workflow_excludes()
-    json_excludes = {e for e in excludes if e.endswith(".json")}
-    stale = json_excludes - EXPECTED_PRESERVED - BUILD_EMBEDDED
-    assert not stale, f"excluded but never written (typo?): {sorted(stale)}"
-
-
-def test_code_outputs_covered():
-    known = EXPECTED_PRESERVED | BUILD_EMBEDDED | LEGACY_NOT_PUBLISHED
-    unknown = _json_literals_in_code() - known
-    assert not unknown, (
-        f"docs-root JSON written in code but not in EXPECTED_PRESERVED: "
-        f"{sorted(unknown)} — add to this test AND the publish workflow"
-    )
-
-
-ALL_TESTS = [test_expected_files_are_excluded, test_no_stale_excludes,
-             test_code_outputs_covered]
-
-
-def main() -> int:
-    failures = 0
-    for t in ALL_TESTS:
-        try:
-            t()
-            print(f"PASS {t.__name__}")
-        except AssertionError as exc:
-            failures += 1
-            print(f"FAIL {t.__name__}: {exc}")
-    print(f"\n{len(ALL_TESTS) - failures}/{len(ALL_TESTS)} passed")
-    return 1 if failures else 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-```
-
-- [ ] **Step 2: テストが失敗することを確認**
-
-Run: `uv run python tests/test_publish_workflow.py`
-Expected: `FAIL test_expected_files_are_excluded: publish would delete: ['cs_model_quality.json', 'drift_report.json', 'model_quality.json', 'portfolio_backtest.json', 'portfolio_latest.json', ...]`
-
-- [ ] **Step 3: workflow の exclude を修正**
-
-`.github/workflows/daily-publish-dashboard.yml` の `Sync frontend export to docs` ステップを以下に置換（`portfolio_report.json` を削除し、不足分を追加）:
-
-```yaml
-      - name: Sync frontend export to docs
-        if: ${{ steps.guard.outputs.has_today_update == 'true' }}
-        run: |
-          mkdir -p docs
-          touch docs/.nojekyll
-          rsync -av --delete \
-            --exclude '.nojekyll' \
-            --exclude 'state.json' \
-            --exclude 'backtest_report.json' \
-            --exclude 'performance_summary.json' \
-            --exclude 'performance_detail.json' \
-            --exclude 'signal_outcomes_recent.json' \
-            --exclude 'model_quality.json' \
-            --exclude 'drift_report.json' \
-            --exclude 'portfolio_latest.json' \
-            --exclude 'portfolio_backtest.json' \
-            --exclude 'portfolio_shadow_report.json' \
-            --exclude 'cs_model_quality.json' \
-            --exclude 'monthly_audit.json' \
-            --exclude 'universe_refresh_report.json' \
-            --exclude 'weekly_retrain_report.json' \
-            --exclude 'feature_precompute_report.json' \
-            --exclude 'rotating_refresh_report.json' \
-            --exclude 'stress_test_report.json' \
-            --exclude 'curation' \
-            --exclude 'CNAME' \
-            web/out/ docs/
-```
-
-- [ ] **Step 4: テストが通ることを確認**
-
-Run: `uv run python tests/test_publish_workflow.py`
-Expected: `3/3 passed`（`performance_detail.json` / `signal_outcomes_recent.json` は Task 3 実装前だが exclude 先行登録で pass する設計）。
-
-- [ ] **Step 5: YAML 構文確認と commit**
-
-```bash
-uv run python -c "import yaml; yaml.safe_load(open('.github/workflows/daily-publish-dashboard.yml')); print('OK')"
-git add .github/workflows/daily-publish-dashboard.yml tests/test_publish_workflow.py
-git commit -m "fix(publish): stop deleting phase1/2 dashboard JSONs on publish"
-```
-
-- [ ] **Step 6: 出荷後の運用確認**（merge 後）: `workflow_dispatch` で `Daily Publish Dashboard` を `force_publish=true` 実行し、`docs/portfolio_latest.json` 等が残ること、`https://fukasedaichi.github.io/trader/portfolio_latest.json` が 200 を返すことを確認。
-
-**Acceptance:**
-- Publish 実行後も Phase 1/2 JSON が docs/ に残る。
-- 新しい export を足したときにテストが落ちて気付ける。
+**残（merge 後・運用確認）:** `workflow_dispatch` で `Daily Publish Dashboard` を `force_publish=true` 実行し、`docs/portfolio_latest.json` 等が残ること・`https://fukasedaichi.github.io/trader/portfolio_latest.json` が 200 を返すことを確認。
 
 ---
 
@@ -908,7 +749,7 @@ uv run python scripts/weekly_performance_notify.py
 
 | 順 | タスク | 工数 | 備考 |
 |---|---|---|---|
-| 1 | Task 0（公開バグ） | 小 | **即日。単独 PR で先行 merge** |
+| 1 | Task 0（公開バグ） | 小 | ✅ **完了 (8c232f9)**。merge 後に force_publish で本番 200 を確認 |
 | 2 | Task 2 → Task 3（計測完成） | 中 | 実績データの蓄積は時間が資産。早いほど良い |
 | 3 | Task 4（リトライ） | 小 | Task 5/6 の前提 |
 | 4 | Task 1（active 配線 + 通知後段化） | 中 | Task 5 の前提 |
