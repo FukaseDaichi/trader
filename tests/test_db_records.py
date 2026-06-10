@@ -510,6 +510,17 @@ def test_outbox_queue_and_dedup():
             os.environ.pop("TRADER_DB_ENABLED", None)
 
 
+def test_signal_row_target_weight_passthrough():
+    """target_weight in signal must be preserved in the DB row; absent key -> None."""
+    sig_with_weight = {**OK_SIGNAL, "target_weight": 0.18}
+    row_with = signal_to_signal_row(sig_with_weight, run_date="2026-06-08")
+    assert row_with["target_weight"] == 0.18
+
+    # Original OK_SIGNAL (no target_weight key) must still produce None
+    row_without = signal_to_signal_row(OK_SIGNAL, run_date="2026-06-08")
+    assert row_without["target_weight"] is None
+
+
 ALL_TESTS = [
     test_benchmark_ret_basic,
     test_benchmark_ret_missing_date_is_none,
@@ -545,6 +556,7 @@ ALL_TESTS = [
     test_portfolio_snapshot_row_as_of_date_falls_back_to_run_date,
     test_portfolio_snapshot_row_none_input_is_none,
     test_portfolio_snapshot_row_persists_failed_status,
+    test_signal_row_target_weight_passthrough,
 ]
 
 

@@ -119,7 +119,7 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
         "action": signal.get("action", "HOLD"),
         "raw_action": signal.get("raw_action"),
         "conviction": prob_up,            # calibrated in Phase 1
-        "target_weight": None,            # Phase 2 (portfolio)
+        "target_weight": _as_float(signal.get("target_weight")),  # Phase 2 (portfolio)
         "thresholds": signal.get("thresholds"),
         "gate_passed": bool(signal.get("gate_passed", False)),
         "limit_price": _as_float(signal.get("limit_price")),

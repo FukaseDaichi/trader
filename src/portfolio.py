@@ -53,6 +53,8 @@ __all__ = [
     "apply_hysteresis",
     "diff_positions",
     "build_portfolio_snapshot",
+    "merge_target_weights",
+    "read_portfolio_gate",
 ]
 
 
@@ -872,3 +874,64 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
         "constraints": constraints,
         "warnings": warnings,
     }
+
+
+# ---------------------------------------------------------------------------
+# Active-mode signal wiring
+# ---------------------------------------------------------------------------
+
+def merge_target_weights(signals, snapshot, gate_passed):
+    """Reflect active-mode portfolio target weights into Phase 1 signals.
+
+    Active wiring only: when snapshot mode=="active" AND status=="ok" AND
+    gate_passed, return a NEW list where each signal gets target_weight (0.0 if
+    not a book position) and book members get a reason suffix. ACTION IS NEVER
+    CHANGED. Otherwise (shadow / fallback / gate-fail / no snapshot) return the
+    input list UNCHANGED (shadow byte-for-byte guarantee)."""
+    if not (snapshot and snapshot.get("status") == "ok"
+            and snapshot.get("mode") == "active" and gate_passed):
+        return signals
+    pos_by_ticker = {p.get("ticker"): p for p in (snapshot.get("positions") or [])}
+    out = []
+    for s in signals:
+        s2 = dict(s)
+        p = pos_by_ticker.get(s.get("ticker"))
+        if p:
+            w = float(p.get("target_weight") or 0.0)
+            s2["target_weight"] = w
+            rank = p.get("cs_rank")
+            rank_str = f" (rank {rank})" if rank is not None else ""
+            base = s.get("reason") or ""
+            sep = "／" if base else ""
+            s2["reason"] = f"{base}{sep}建玉 {w:.0%}{rank_str}"
+        else:
+            s2["target_weight"] = 0.0
+        out.append(s2)
+    return out
+
+
+def read_portfolio_gate(path=None) -> bool:
+    """Whether the weekly portfolio backtest cleared its gate (active-mode safety).
+
+    Reads docs/portfolio_backtest.json. Missing/unavailable/error -> False.
+
+    Current contract: ``run_portfolio_backtest`` emits no explicit pass/fail, so a
+    successful weekly OOS backtest (``available==True``) IS the gate. The
+    ``gate.passed`` branch below is a reserved extension point: if a future
+    backtest report carries an explicit ``{"gate": {"passed": bool}}`` it takes
+    precedence over the ``available`` fallback.
+    """
+    from pathlib import Path
+    import json
+    from .config import DOCS_DIR
+    p = Path(path) if path is not None else (DOCS_DIR / "portfolio_backtest.json")
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — missing/corrupt -> not passed
+        return False
+    if not isinstance(data, dict) or not data.get("available"):
+        return False
+    gate = data.get("gate")
+    if isinstance(gate, dict) and "passed" in gate:  # reserved extension point
+        return bool(gate["passed"])
+    return True  # available OOS backtest is the gate today

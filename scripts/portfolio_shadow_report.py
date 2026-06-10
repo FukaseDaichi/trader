@@ -43,9 +43,43 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src import db, portfolio_shadow  # noqa: E402
+from src import db, portfolio, portfolio_shadow  # noqa: E402
 from src.config import get_cross_section_config  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
+
+
+def _active_readiness(report, *, gate_passed, min_shadow_days=10):
+    shadow_days = int(report.get("n_dates", 0))
+    delta = (report.get("comparison") or {}).get("delta") or {}
+    cs_ic_vs_phase1 = delta.get("daily_ic")
+    reasons = []
+    if shadow_days < min_shadow_days:
+        reasons.append(f"shadow_days {shadow_days} < {min_shadow_days}")
+    if not gate_passed:
+        reasons.append("portfolio_gate not passed")
+    if cs_ic_vs_phase1 is None:
+        reasons.append("cs_ic_vs_phase1 unavailable")
+    elif cs_ic_vs_phase1 < -0.005:
+        reasons.append(f"cs_ic_vs_phase1 {cs_ic_vs_phase1:.4f} < -0.005")
+    return {
+        "active_ready": not reasons,
+        "shadow_days": shadow_days,
+        "min_shadow_days": min_shadow_days,
+        "portfolio_gate_passed": bool(gate_passed),
+        "cs_ic_vs_phase1": cs_ic_vs_phase1,
+        "reasons": reasons,
+    }
+
+
+def _unavailable_report(reason: str, generated_at: str, *, window: dict | None = None) -> dict:
+    """Uniform available=false payload; carries active_readiness like the full report."""
+    payload = {"available": False, "reason": reason, "generated_at": generated_at}
+    if window is not None:
+        payload["window"] = window
+    payload["active_readiness"] = _active_readiness(
+        payload, gate_passed=portfolio.read_portfolio_gate()
+    )
+    return payload
 
 
 def _atomic_write_json(path: Path, payload: dict) -> None:
@@ -181,11 +215,7 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
     generated_at = now_jst_iso()
 
     if not db.db_enabled():
-        _atomic_write_json(output_path, {
-            "available": False,
-            "reason": "db_disabled",
-            "generated_at": generated_at,
-        })
+        _atomic_write_json(output_path, _unavailable_report("db_disabled", generated_at))
         print(f"shadow-report: DB disabled; wrote available=false to {output_path}")
         return 0
 
@@ -202,12 +232,8 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001 — never fail the weekly job
-        _atomic_write_json(output_path, {
-            "available": False,
-            "reason": f"db_error: {type(exc).__name__}",
-            "generated_at": generated_at,
-            "window": window,
-        })
+        _atomic_write_json(output_path, _unavailable_report(
+            f"db_error: {type(exc).__name__}", generated_at, window=window))
         print(f"shadow-report: connect failed ({type(exc).__name__}); wrote available=false")
         return 0
 
@@ -216,12 +242,8 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
         weights_by_date = _fetch_snapshot_weights(conn, start_iso, end_iso)
         model_version = _resolve_active_cs_version(conn)
     except Exception as exc:  # noqa: BLE001 — DB read failure must not abort
-        _atomic_write_json(output_path, {
-            "available": False,
-            "reason": f"db_error: {type(exc).__name__}",
-            "generated_at": generated_at,
-            "window": window,
-        })
+        _atomic_write_json(output_path, _unavailable_report(
+            f"db_error: {type(exc).__name__}", generated_at, window=window))
         print(f"shadow-report: DB read failed ({type(exc).__name__}); wrote available=false")
         return 0
     finally:
@@ -234,6 +256,9 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
         window=window,
         generated_at=generated_at,
         model_version=model_version,
+    )
+    report["active_readiness"] = _active_readiness(
+        report, gate_passed=portfolio.read_portfolio_gate()
     )
     _atomic_write_json(output_path, report)
     print(

@@ -19,6 +19,13 @@ from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_
 from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return bool(default)
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _run_date_jst() -> str:
     override = os.environ.get("RUN_DATE_JST", "").strip()
     if override:
@@ -325,10 +332,6 @@ def _process_ticker(ticker_info, ctx):
     if not signal["gate_passed"]:
         print(f"Actionable signal blocked for {code}: {signal.get('confidence_reason', 'gate failed')}")
 
-    # 7. Notify
-    if signal["gate_passed"]:
-        send_notification(signal)
-
     return signal, backtest_entry
 
 
@@ -506,11 +509,9 @@ def _run_portfolio_snapshot(phase2, run_date):
     Build the daily portfolio snapshot from a successful Phase 2 inference
     result, write docs/portfolio_latest.json, and upsert portfolio_snapshots.
 
-    Shadow-mode wiring (plan Task 8A): the snapshot's ``mode`` field carries
-    "shadow"/"active" straight through to the DB + JSON, but we do NOT write
-    ``target_weight`` back into the Phase 1 ``signals`` table — operational
-    active-ization is deferred to plan Task 10 (gated on 10 shadow days). The
-    Phase 1 signal/notification path stays byte-for-byte unchanged.
+    The snapshot is returned to main() where merge_target_weights reflects
+    target weights into signals when mode==active AND the gate passed
+    (shadow path stays unchanged).
     """
     tickers_data = phase2.get("tickers_data") or []
 
@@ -558,6 +559,7 @@ def _run_portfolio_snapshot(phase2, run_date):
     print(f"Phase 2 portfolio snapshot: mode={snapshot.get('mode')} "
           f"status={snapshot.get('status')} gross={snapshot.get('gross_exposure')} "
           f"positions={len(snapshot.get('positions') or [])} diff={diff}")
+    return snapshot
 
 
 def main():
@@ -625,29 +627,20 @@ def main():
         signals.append(signal)
         backtest_entries.append(backtest_entry)
 
-    # Phase 0: write-through predictions/signals to the measurement DB.
-    # Never let DB issues break the daily run (notification + dashboard).
-    try:
-        db_result = db.record_run(signals, _run_date_jst())
-        print(f"DB record_run: {db_result}")
-    except Exception as e:  # defensive: record_run itself should not raise
-        print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
+    run_date = _run_date_jst()
 
-    # Phase 2: cross-sectional inference + portfolio snapshot (Task 8A).
-    # Never breaks Phase 1 — any failure here is caught and logged below.
+    # Phase 2: cross-sectional inference + portfolio snapshot. Never breaks Phase 1.
+    snapshot = None
     try:
-        run_date = _run_date_jst()
         phase2 = run_phase2_inference(macro_panel, model_cfg, run_date)
         if phase2 is None:
-            # Phase 2 disabled -> leave docs/portfolio_latest.json untouched.
-            pass
+            pass  # Phase 2 disabled -> leave docs/portfolio_latest.json untouched.
         else:
             print(f"Phase 2 inference: {phase2.get('status')} "
                   f"(mode={phase2.get('mode')}, model={phase2.get('model_version')})")
             if phase2.get("status") == "ok":
-                _run_portfolio_snapshot(phase2, run_date)
+                snapshot = _run_portfolio_snapshot(phase2, run_date)
             elif phase2.get("status") == "fallback":
-                # Phase 2 was enabled but degraded -> mark the card unavailable.
                 dashboard.export_portfolio_latest(
                     None, reason=phase2.get("reason", "fallback"),
                     run_date=run_date, generated_at=_now_jst_str(),
@@ -655,10 +648,40 @@ def main():
     except Exception as e:  # noqa: BLE001
         print(f"Phase 2 inference skipped (ignored): {type(e).__name__}: {e}")
 
+    # Phase 3: reflect active-mode target weights into signals. No-op in shadow /
+    # gate-fail / no-snapshot, so shadow behavior is byte-for-byte unchanged.
+    try:
+        signals = portfolio.merge_target_weights(
+            signals, snapshot, gate_passed=portfolio.read_portfolio_gate()
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"merge_target_weights skipped (ignored): {type(e).__name__}: {e}")
+
+    # Notification (post-loop): per-ticker actionable pushes, then the daily digest.
+    # Each push is isolated so one malformed signal can't drop the rest (matches
+    # the previous in-loop behavior where every ticker was independently guarded).
+    if _env_bool("TRADER_NOTIFY_PER_TICKER_ENABLED", True):
+        for signal in signals:
+            if signal.get("gate_passed") and signal.get("action") != "HOLD":
+                try:
+                    send_notification(signal)
+                except Exception as e:  # noqa: BLE001
+                    print(f"Notification failed for {signal.get('ticker')} "
+                          f"(ignored): {type(e).__name__}: {e}")
+    # Task 5 hook: the daily digest send is appended here.
+
+    # Phase 0: write-through to the measurement DB AFTER the active-weight merge so
+    # signals.target_weight lands. Never breaks the run.
+    try:
+        db_result = db.record_run(signals, run_date)
+        print(f"DB record_run: {db_result}")
+    except Exception as e:  # defensive: record_run itself should not raise
+        print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
+
     report_path = write_backtest_report(backtest_entries)
     print(f"Backtest KPI report exported to {report_path}")
 
-    # 8. Update Dashboard (always run to keep frontend data in sync with tickers.yml)
+    # Update Dashboard (always run to keep frontend data in sync with tickers.yml)
     update_dashboard(signals)
     if not signals:
         print("No signals generated. Dashboard data was still refreshed.")

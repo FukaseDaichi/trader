@@ -585,6 +585,61 @@ def test_build_snapshot_hysteresis_vs_prev():
 # Runner
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# merge_target_weights
+# ---------------------------------------------------------------------------
+
+def test_merge_target_weights_active_ok():
+    signals = [{"ticker": "7011.JP", "action": "BUY", "reason": "r1"},
+               {"ticker": "9999.JP", "action": "HOLD", "reason": "r2"}]
+    snapshot = {"status": "ok", "mode": "active",
+                "positions": [{"ticker": "7011.JP", "target_weight": 0.18, "cs_rank": 1}]}
+    out = pf.merge_target_weights(signals, snapshot, gate_passed=True)
+    assert out[0]["target_weight"] == 0.18
+    assert "建玉" in out[0]["reason"]
+    assert out[1]["target_weight"] == 0.0
+    assert out[1]["action"] == "HOLD"
+    # Input signals must NOT be mutated (shadow byte-for-byte guarantee relies on this).
+    assert signals[0]["reason"] == "r1"
+    assert "target_weight" not in signals[0]
+
+
+def test_merge_target_weights_noop_on_shadow_or_gate_fail():
+    signals = [{"ticker": "7011.JP", "action": "BUY", "reason": "r"}]
+    shadow = {"status": "ok", "mode": "shadow",
+              "positions": [{"ticker": "7011.JP", "target_weight": 0.18}]}
+    assert "target_weight" not in pf.merge_target_weights(signals, shadow, gate_passed=True)[0]
+    active = {**shadow, "mode": "active"}
+    assert "target_weight" not in pf.merge_target_weights(signals, active, gate_passed=False)[0]
+    # no snapshot -> unchanged
+    assert "target_weight" not in pf.merge_target_weights(signals, None, gate_passed=True)[0]
+
+
+def test_read_portfolio_gate_various_cases():
+    import json
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path_avail = os.path.join(tmp, "avail.json")
+        # available=true, no gate key -> True
+        Path(path_avail).write_text(json.dumps({"available": True}), encoding="utf-8")
+        assert pf.read_portfolio_gate(path_avail) is True
+
+        # available=false -> False
+        Path(path_avail).write_text(json.dumps({"available": False}), encoding="utf-8")
+        assert pf.read_portfolio_gate(path_avail) is False
+
+        # nonexistent path -> False
+        assert pf.read_portfolio_gate(os.path.join(tmp, "nonexistent.json")) is False
+
+        # available=true, gate.passed=false -> False
+        Path(path_avail).write_text(
+            json.dumps({"available": True, "gate": {"passed": False}}), encoding="utf-8"
+        )
+        assert pf.read_portfolio_gate(path_avail) is False
+
+
 ALL_TESTS = [
     test_select_candidates_filter_sort_cap,
     test_select_candidates_missing_er_eligible_only_when_floor_nonpositive,
@@ -617,6 +672,9 @@ ALL_TESTS = [
     test_build_snapshot_risk_off_reduces_gross,
     test_build_snapshot_covariance_fallback_no_crash,
     test_build_snapshot_hysteresis_vs_prev,
+    test_merge_target_weights_active_ok,
+    test_merge_target_weights_noop_on_shadow_or_gate_fail,
+    test_read_portfolio_gate_various_cases,
 ]
 
 

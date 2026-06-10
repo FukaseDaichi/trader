@@ -247,6 +247,50 @@ def test_empty_records():
     assert rep["n_records"] == 0
 
 
+# ---------------------------------------------------------------------------
+# _active_readiness (from scripts/portfolio_shadow_report.py)
+# ---------------------------------------------------------------------------
+
+import importlib  # noqa: E402
+
+def _load_psr():
+    """Import scripts/portfolio_shadow_report as a module."""
+    import sys
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    return importlib.import_module("scripts.portfolio_shadow_report")
+
+
+def test_active_readiness_short_window():
+    psr = _load_psr()
+    report = {"n_dates": 4}
+    result = psr._active_readiness(report, gate_passed=True)
+    assert result["active_ready"] is False
+    assert any("shadow_days" in r for r in result["reasons"])
+
+
+def test_active_readiness_ready_case():
+    psr = _load_psr()
+    report = {
+        "n_dates": 12,
+        "comparison": {"delta": {"daily_ic": 0.012}},
+    }
+    result = psr._active_readiness(report, gate_passed=True)
+    assert result["active_ready"] is True
+    assert result["reasons"] == []
+
+
+def test_active_readiness_gate_false():
+    psr = _load_psr()
+    report = {
+        "n_dates": 12,
+        "comparison": {"delta": {"daily_ic": 0.012}},
+    }
+    result = psr._active_readiness(report, gate_passed=False)
+    assert result["active_ready"] is False
+    assert any("portfolio_gate" in r for r in result["reasons"])
+
+
 ALL_TESTS = [
     test_planted_signal_phase2_beats_phase1,
     test_topn_realized_return_handcomputed,
@@ -259,6 +303,9 @@ ALL_TESTS = [
     test_build_report_available_with_comparison,
     test_none_safety_missing_keys_and_none_returns,
     test_empty_records,
+    test_active_readiness_short_window,
+    test_active_readiness_ready_case,
+    test_active_readiness_gate_false,
 ]
 
 
