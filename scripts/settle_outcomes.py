@@ -155,6 +155,14 @@ def main() -> int:
                 refilled += 1
             print(f"Refill benchmark: updated {refilled}/{len(missing)} rows.")
 
+        try:
+            from src import dashboard
+            dashboard.export_performance_summary()
+            dashboard.export_performance_detail()
+            dashboard.export_signal_outcomes_recent()
+        except Exception as exc:  # noqa: BLE001
+            print(f"settle export (ignored): {type(exc).__name__}: {exc}")
+
         return 0
     finally:
         conn.close()

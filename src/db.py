@@ -711,6 +711,33 @@ def fetch_prediction_outcomes(conn, model_version: str, horizon_days: int) -> li
         return cur.fetchall()
 
 
+def fetch_outcome_detail_rows(conn, horizon_days: int = 5, history_days: int = 180) -> list[dict]:
+    """
+    Joined rows for performance detail exports (Phase 3).
+
+    Returns signal_outcomes joined with signals and tickers for the given
+    horizon and date window. All fields needed by src/performance.py functions.
+    entry_date is normalized to ISO string.
+    """
+    from psycopg.rows import dict_row
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT o.entry_date, s.ticker, t.name, s.action, s.conviction, o.horizon_days,"
+            " o.realized_ret, o.benchmark_ret, o.excess_ret, o.hit, o.mae, o.mfe, o.exit_reason"
+            " FROM signal_outcomes o"
+            " JOIN signals s ON s.id = o.signal_id"
+            " LEFT JOIN tickers t ON t.code = s.ticker"
+            " WHERE o.horizon_days = %(h)s AND o.entry_date >= (CURRENT_DATE - %(d)s::int)"
+            " ORDER BY o.entry_date DESC, s.ticker",
+            {"h": horizon_days, "d": history_days},
+        )
+        rows = cur.fetchall()
+    for r in rows:
+        if r.get("entry_date") is not None:
+            r["entry_date"] = str(r["entry_date"])
+    return rows
+
+
 def insert_drift_report(conn, run_date: str, model_version: str | None, scope: str,
                         status: str, breached: bool, metrics: dict) -> None:
     from psycopg.types.json import Jsonb

@@ -12,7 +12,7 @@ import pandas as pd
 from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
 from .data_loader import load_data
 from .model import add_features
-from . import db, model_store
+from . import db, model_store, performance
 from .db_records import summarize_performance
 
 MAX_HISTORY_DAYS = 30
@@ -24,6 +24,8 @@ DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"
 TICKER_EXPORT_DIR = DOCS_DIR / "tickers"
 LEGACY_HISTORY_FILE = DOCS_DIR / "history_data.json"
 PERFORMANCE_FILE = DOCS_DIR / "performance_summary.json"
+PERFORMANCE_DETAIL_FILE = DOCS_DIR / "performance_detail.json"
+SIGNAL_OUTCOMES_RECENT_FILE = DOCS_DIR / "signal_outcomes_recent.json"
 MODEL_QUALITY_FILE = DOCS_DIR / "model_quality.json"
 DRIFT_REPORT_FILE = DOCS_DIR / "drift_report.json"
 PORTFOLIO_LATEST_FILE = DOCS_DIR / "portfolio_latest.json"
@@ -367,6 +369,109 @@ def export_performance_summary():
         print(f"Performance summary exported to {PERFORMANCE_FILE}")
     except Exception as exc:  # noqa: BLE001
         print(f"performance_summary: export failed (ignored): {type(exc).__name__}: {exc}")
+    finally:
+        conn.close()
+
+
+def export_performance_detail():
+    """
+    Write docs/performance_detail.json (Phase 3). Best-effort: on DB disabled or
+    unreachable, only write an unavailable marker if the file does not already
+    exist (preserve last-good).
+    """
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+
+    if not db.db_enabled():
+        if not PERFORMANCE_DETAIL_FILE.exists():
+            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
+                "available": False, "reason": "db_disabled", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        conn = db.connect()
+    except Exception as exc:  # noqa: BLE001
+        print(f"performance_detail: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        if not PERFORMANCE_DETAIL_FILE.exists():
+            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
+                "available": False, "reason": "db_unreachable", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        horizon = 5
+        history_days = int(os.getenv("TRADER_PERF_HISTORY_DAYS", "180") or 180)
+        n_bins = int(os.getenv("TRADER_PERF_RELIABILITY_BINS", "10") or 10)
+
+        rows = db.fetch_outcome_detail_rows(conn, horizon_days=horizon, history_days=history_days)
+        mv = db.active_model_version(conn)
+        pred_rows = db.fetch_prediction_outcomes(conn, mv, horizon) if mv else []
+
+        if not rows:
+            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
+                "available": False, "reason": "insufficient_data", "generated_at": now_str,
+            }, indent=2)
+        else:
+            detail = performance.build_performance_detail(rows, pred_rows, horizon,
+                                                          history_days, n_bins)
+            payload = {
+                "available": True,
+                "generated_at": now_str,
+                "as_of": _resolve_run_date_jst(datetime.now(JST)),
+                **detail,
+            }
+            _atomic_write_json(PERFORMANCE_DETAIL_FILE, payload, indent=2)
+            print(f"Performance detail exported to {PERFORMANCE_DETAIL_FILE}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"performance_detail: export failed (ignored): {type(exc).__name__}: {exc}")
+    finally:
+        conn.close()
+
+
+def export_signal_outcomes_recent():
+    """
+    Write docs/signal_outcomes_recent.json (Phase 3). Best-effort: on DB disabled or
+    unreachable, only write an unavailable marker if the file does not already
+    exist (preserve last-good).
+    """
+    now_str = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+
+    if not db.db_enabled():
+        if not SIGNAL_OUTCOMES_RECENT_FILE.exists():
+            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
+                "available": False, "reason": "db_disabled", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        conn = db.connect()
+    except Exception as exc:  # noqa: BLE001
+        print(f"signal_outcomes_recent: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        if not SIGNAL_OUTCOMES_RECENT_FILE.exists():
+            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
+                "available": False, "reason": "db_unreachable", "generated_at": now_str,
+            }, indent=2)
+        return
+
+    try:
+        history_days = int(os.getenv("TRADER_PERF_HISTORY_DAYS", "180") or 180)
+        rows = db.fetch_outcome_detail_rows(conn, horizon_days=5, history_days=history_days)
+        recent = performance.build_recent_outcomes(rows, limit=200)
+
+        if not recent:
+            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
+                "available": False, "reason": "insufficient_data", "generated_at": now_str,
+            }, indent=2)
+        else:
+            payload = {
+                "available": True,
+                "generated_at": now_str,
+                "rows": recent,
+            }
+            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, payload, indent=2)
+            print(f"Signal outcomes recent exported to {SIGNAL_OUTCOMES_RECENT_FILE}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"signal_outcomes_recent: export failed (ignored): {type(exc).__name__}: {exc}")
     finally:
         conn.close()
 
