@@ -541,6 +541,37 @@ def fetch_outcome_rows(conn) -> list[dict]:
     return rows
 
 
+def fetch_outcomes_missing_benchmark(conn) -> list[dict]:
+    """Settled rows that still need a benchmark return."""
+    from psycopg.rows import dict_row
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret"
+            " FROM signal_outcomes"
+            " WHERE benchmark_ret IS NULL AND realized_ret IS NOT NULL"
+        )
+        rows = cur.fetchall()
+    for r in rows:
+        if r.get("entry_date") is not None:
+            r["entry_date"] = str(r["entry_date"])
+        if r.get("eval_date") is not None:
+            r["eval_date"] = str(r["eval_date"])
+    return rows
+
+
+def update_outcome_benchmark(conn, signal_id: int, horizon_days: int,
+                             benchmark_ret: float | None,
+                             excess_ret: float | None) -> None:
+    """Idempotently write benchmark_ret/excess_ret for one settled outcome row."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE signal_outcomes SET benchmark_ret=%s, excess_ret=%s"
+            " WHERE signal_id=%s AND horizon_days=%s",
+            (benchmark_ret, excess_ret, signal_id, horizon_days),
+        )
+    conn.commit()
+
+
 def db_size_mb(conn) -> float:
     with conn.cursor() as cur:
         cur.execute("SELECT pg_database_size(current_database())")

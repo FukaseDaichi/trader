@@ -248,6 +248,17 @@ def portfolio_snapshot_row(snapshot: dict, *, run_date=None) -> dict | None:
     }
 
 
+def compute_benchmark_ret(benchmark_by_date: dict, entry_date: str,
+                          eval_date: str) -> float | None:
+    """TOPIX close-to-close return over the holding window; None when either
+    date is missing from the series (settlement keeps going with NULL)."""
+    entry = benchmark_by_date.get(str(entry_date))
+    exit_ = benchmark_by_date.get(str(eval_date))
+    if not entry or not exit_:  # missing date or a zero/None level (data error)
+        return None
+    return float(exit_) / float(entry) - 1.0
+
+
 def compute_outcome(action: str, entry_close: float, exit_close: float,
                     path_highs, path_lows) -> dict:
     """
