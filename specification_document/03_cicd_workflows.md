@@ -1,18 +1,18 @@
 # GitHub Actions仕様
 
-更新日: 2026-06-06 JST
+更新日: 2026-06-11 JST
 
 ## ワークフロー一覧
 
 | Workflow | ファイル | JST | 主処理 | commit対象 |
 |---|---|---:|---|---|
-| Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 04:30 | JPX営業日なら候補warmup、テクニカルscreen、Claude技術分析、決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
-| Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | JPX営業日なら `main.py` | `data/`, `docs/` |
-| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら `main.py` | `data/`, `docs/` |
+| Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 04:30 | 候補warmup → テクニカルscreen → Claude技術分析 → 決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
+| Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | マクロ更新 → `main.py` → 実現結果決済 → ドリフトチェック | `data/`, `docs/` |
+| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら core と同処理 | `data/`, `docs/` |
 | Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js 静的ビルドを `docs/` へ同期 | `docs/` |
-| Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 日次成果物チェック、失敗時 Issue 作成 | なし |
-| Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | ファンダ評価、週次Markdownレポート、LINE通知 | `reports/`, `docs/curation/` |
-| Weekly Model Retrain | `weekly-model-retrain.yml` | 土曜 08:00 | `weekly_model_retrain.py` でデータ更新と学習可否レポート | `data/`, `docs/weekly_retrain_report.json` |
+| Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 成果物の鮮度・完全性 + ドリフト検証。失敗/ドリフト時に GitHub Issue 起票 | なし |
+| Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/` |
+| Weekly Model Retrain | `weekly-model-retrain.yml` | 土曜 08:00 | マクロ更新 → universe選定(report) → **Phase 1 実学習・版登録** → **Phase 2 CS再学習** → **shadow検証レポート** | `data/models/`, `docs/weekly_retrain_report.json`, `docs/cs_model_quality.json`, `docs/portfolio_backtest.json`, `docs/portfolio_shadow_report.json` |
 | Weekly Universe Refresh | `weekly-universe-refresh.yml` | 日曜 07:00 | ユニバーススナップショット | `docs/universe_refresh_report.json` |
 | Monthly Calendar Sync | `monthly-calendar-sync.yml` | 毎月1日 09:15 | JPX休日キャッシュ更新 | `data/jpx_holidays.json` |
 | Monthly Full Audit | `monthly-full-audit.yml` | 第1日曜 09:00 | KPI月次監査 | `docs/monthly_audit.json` |
@@ -22,56 +22,40 @@
 
 ## 日次処理
 
-`daily-ticker-curation`、`daily-preopen-core`、`daily-preopen-retry`、`daily-watchdog` は `jpx_calendar.py is-open` で JPX 営業日を確認します。休場日は処理をスキップします。
+`daily-ticker-curation` / `daily-preopen-core` / `daily-preopen-retry` / `daily-watchdog` は `scripts/jpx_calendar.py is-open` で JPX 営業日を確認し、休場日はスキップします。
 
-`daily-ticker-curation` は `curation_guard.py needs-run` で当日の `docs/curation/decision_YYYY-MM-DD.json` または `decision_latest.json` を確認し、すでに実行済みならスキップします。
+`daily-preopen-core` のステップ順（Phase 0〜3 を含む現行）:
 
-`daily-preopen-retry` は `run_guard.py needs-core-run` で `docs/state.json` の当日エントリを確認し、すでに更新済みなら実行しません。
+1. `scripts/update_macro_snapshots.py --as-of <today>`: マクロ系列取得 → `data/macro/macro_panel.parquet` 更新 + `macro_snapshots` upsert（失敗しても続行）
+2. `main.py`: 日次シグナル + Phase 2 snapshot + 通知 + DB write-through + ダッシュボード出力。`DATABASE_URL` / LINE secrets / `TRADER_PORTFOLIO_*` などの env はこのステップに集約
+3. `scripts/settle_outcomes.py --as-of <today>`: 1/5/10日実現結果 + TOPIX ベンチマーク決済 + settle 当日分の実績 JSON 再エクスポート（失敗は warning で続行）
+4. `scripts/drift_check.py --as-of <today> || true`: `docs/drift_report.json` 出力
+5. `.github/scripts/commit-and-push.sh` で commit/push
 
-`daily-publish-dashboard` は `workflow_run` で core/retry 成功後に起動します。手動実行時は `force_publish=true` で当日更新チェックを回避できます。
+`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
 
-## AI銘柄キュレーション
+`daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加えてドリフトチェックを実行し、それぞれ失敗時に GitHub Issue を起票します。
 
-日次キュレーションの流れ:
+## 週次処理
 
-1. `curation_warmup.py --pool curation_pool.yml --out-dir data/watchlist` で未enabled候補の価格データを取得
-2. `technical_screen.py --pool curation_pool.yml --date <JST>` で決定論ベースラインを出力
-3. Claude Code Action の `/jp-stock-technical-screen` が `technical_latest.json` を必要に応じて精査
-4. `curation_merge.py --technical docs/curation/technical_latest.json --date <JST> --apply|--dry-run` が、週次キャッシュ `fundamental_latest.json` と合成して `tickers.yml` を更新
-5. `src.config.load_tickers()` で `tickers.yml` を検証
-6. `.github/scripts/commit-and-push.sh` で commit/push
-
-週次ファンダ・レポートの流れ:
-
-1. `technical_screen.py` を実行して週次レポート用の最新テクニカルを用意
-2. Claude Code Action の `/jp-stock-fundamental-screen` が `docs/curation/fundamental_latest.json` と日付版を出力
-3. Claude Code Action の `/weekly-stock-report` が `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` を出力
-4. commit/push 後、`curation_notify.py` がレポートの GitHub URL を LINE 通知
-
-Claude agent ステップは `continue-on-error: true` です。エージェント失敗時でも、日次側は決定論ベースラインと merge の保守挙動で現状維持できます。
+- **weekly-model-retrain（土曜 08:00）**: `weekly_model_retrain.py` が銘柄別モデルを実学習して `data/models/<version>/` + `active_model.json` + `model_registry` に登録（学習可否レポートではなく実学習）。続いて `weekly_cross_section_retrain.py` が CS モデルを学習し、ポートフォリオ walk-forward バックテスト + `evaluate_portfolio_kpi_gate()` を実行して `docs/cs_model_quality.json` / `docs/portfolio_backtest.json` を出力。最後に `portfolio_shadow_report.py` が Phase 1 vs Phase 2 の比較と `active_readiness` を `docs/portfolio_shadow_report.json` へ出力
+- **weekly-fundamental-report（土曜 07:00）**: テクニカル更新 → Claude のマクロ/ファンダ/レポートライター agent（いずれも `continue-on-error: true`）→ commit → `curation_notify.py` でレポート URL を LINE 通知 → `weekly_performance_notify.py` で週間実績サマリを LINE 通知（DB 不通・実績ゼロは no-op）
 
 ## publishの同期仕様
 
-publish workflow は以下を行います。
+publish workflow は `docs/dashboard_index.json` と `docs/tickers/` を `web/public/` へコピー → `npm ci` → `npm run build:prod` → `web/out/` を `docs/` へ `rsync --delete` します。
 
-1. `docs/dashboard_index.json` を `web/public/dashboard_index.json` へコピー
-2. `docs/tickers/` を `web/public/tickers/` へコピー
-3. `web/public/history_data.json` を削除
-4. `npm ci --prefix web`
-5. `npm run build:prod --prefix web`
-6. `web/out/` を `docs/` へ `rsync --delete`
+rsync の `--exclude` リストには、パイプラインが `docs/` 直下に書く**すべての**データ JSON（`state.json`、`backtest_report.json`、`performance_summary.json`、`performance_detail.json`、`signal_outcomes_recent.json`、`model_quality.json`、`drift_report.json`、`portfolio_latest.json`、`portfolio_backtest.json`、`portfolio_shadow_report.json`、`cs_model_quality.json`、監査系レポート、`curation/`、`CNAME`、`.nojekyll` 等）が登録されています。
 
-`rsync` では `state.json`、`backtest_report.json`、監査系 JSON、`CNAME`、`.nojekyll`、`docs/curation/` などを除外します。週次レポートは `reports/` に出力されるため publish の削除対象外です。
+**重要**: `docs/` 直下に新しいデータファイルを追加する場合は、必ずこの exclude リストにも追加すること。漏れると次回 publish で削除されます。`tests/test_publish_workflow.py` がコード側の出力と exclude リストの整合を再発防止ガードとして検査します。
 
 ## 権限と排他
 
-書き込み系 workflow は `contents: write` です。watchdog は `contents: read` と `issues: write` です。
+書き込み系 workflow は `contents: write`、watchdog は `contents: read` + `issues: write`。日次 core/retry は concurrency group `daily-core-main` で直列化、publish は `daily-publish-main`、キュレーション系は `daily-curation-main` / `weekly-fundamental-main`。
 
-日次 core/retry は同じ `daily-core-main` で直列化されます。publish は `daily-publish-main` で最新実行を優先します。キュレーション系は `daily-curation-main` と `weekly-fundamental-main` でそれぞれ直列化されます。
-
-書き込み系 workflow の commit/push は `.github/scripts/commit-and-push.sh` へ集約しています。このスクリプトは `git add -A`、commit、`git pull --rebase --autostash`、push 最大 3 回リトライを行い、差分がなければ正常終了します。
+commit/push は `.github/scripts/commit-and-push.sh` に集約（`git add -A` → commit → `git pull --rebase --autostash` → push 最大 3 回リトライ、差分なしは正常終了）。
 
 ## 現行制約
 
-- `nightly-feature-precompute` が生成する `data/features/*.parquet` は commit 対象にも日次処理の入力にもなっていない
-- Claude agent の細粒度ツール制限は workflow の `claude_args` と `.claude/settings.local.json` による補助で、最終的な不可逆変更は決定論スクリプトと commit helper で担保している
+- `nightly-feature-precompute` の生成物 `data/features/*.parquet` は commit 対象でも日次処理の入力でもない（`06_issues_and_backlog.md` 参照）
+- Claude agent の細粒度ツール制限は workflow の `claude_args` と `.claude/settings.local.json` による補助で、最終的な不可逆変更は決定論スクリプトと commit helper が担保

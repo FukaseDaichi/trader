@@ -1,104 +1,77 @@
 # フロントエンド仕様
 
-更新日: 2026-06-06 JST
+更新日: 2026-06-11 JST
 
 ## 技術スタック
 
-- Next.js 16.1.2
-- React 19.2.3
-- TypeScript
-- Tailwind CSS 4
-- Recharts
-- lucide-react
-- 静的エクスポート: `output: "export"`
-
-本番ビルドでは`NEXT_PUBLIC_BASE_PATH=/trader`を指定し、GitHub Pagesの`/trader`配下で動くようにします。
+- Next.js 16.1.2 / React 19.2.3 / TypeScript
+- Tailwind CSS 4、Recharts 3、lucide-react
+- 静的エクスポート: `output: "export"`。GitHub Pages の `/trader` 配下で動かすため、本番ビルドは `NEXT_PUBLIC_BASE_PATH=/trader`
+- 日本語 UI・ダークテーマ。**赤=上昇系、青=下落系**（日本株配色規約）
 
 ## データ取得
 
-フロントエンドは静的JSONをクライアント側でfetchします。
+静的 JSON をクライアント側で fetch します。`src/lib/fetchJson.ts` の `fetchJson<T>(path, isValid)` が共通入口で、**ランタイム型ガードに通らない JSON は null 扱い**（=カード非表示）になります。HTTP エラー・parse 失敗・検証失敗のどれでも UI 全体は壊れません。
 
-| 画面 | 読み込み先 |
-|---|---|
-| 一覧画面 `web/src/app/page.tsx` | `${basePath}/dashboard_index.json` |
-| 銘柄詳細 `web/src/app/stocks/[ticker]/StockDetailContent.tsx` | `${basePath}/tickers/{ticker}.json` |
+| 画面/部品 | 読み込み先 | 契約 |
+|---|---|---|
+| 一覧 `app/page.tsx` | `dashboard_index.json` | 必須 |
+| 銘柄詳細 `app/stocks/[ticker]/StockDetailContent.tsx` | `tickers/{code}.json` | 必須 |
+| `RegimeBanner` | `curation/macro_latest.json` | 任意（欠損でバナー非表示） |
+| `PerformanceCard` | `performance_summary.json` | 任意 |
+| `ModelQualityCard` | `model_quality.json` | 任意 |
+| `PortfolioCard` | `portfolio_latest.json` | 任意 |
+| 実績ページ `app/performance/page.tsx`（`PerformanceDetail`） | `performance_detail.json` + `signal_outcomes_recent.json` | 任意（「データ蓄積中」表示に縮退） |
 
-`basePath`は`process.env.NEXT_PUBLIC_BASE_PATH`から取得します。
+任意契約はファイル欠損または `available: false` でセクション単位の非表示・縮退表示になります。
 
-## 一覧画面
+## 画面構成
 
-`page.tsx`は`DashboardIndexData`を読み込み、監視銘柄一覧を表示します。
+### 一覧画面（`/`）
 
-表示内容:
+- ヘッダ直下に `RegimeBanner`: `market_bias`（risk_on=赤 / neutral=slate / risk_off=青）と as_of を表示し、週次レポート（GitHub `reports/`）とキュレーション決定ログ（`curation/decision_latest.json`）へのリンクを持つ
+- `PerformanceCard`（実現実績サマリ + `/performance` への導線）、`ModelQualityCard`、`PortfolioCard`（目標建玉・セクター露出・警告）
+- 銘柄カード: 最新終値、シグナル、KPI ゲート由来の自信度、上昇確率、RSI、出来高比、実際に使った銘柄別閾値の説明
 
-- 銘柄名とコード
-- 最新終値
-- 最新シグナル
-- KPIゲート由来の自信度
-- 上昇確率
-- RSI(14)の状態説明
-- 出来高の20日平均比
-- RSI、出来高、アルゴリズム条件の初心者向け説明
+### 実績ページ（`/performance`）
 
-注意: 一覧画面のアルゴリズム説明は既定閾値の説明です。実際に最新判定で使った銘柄別閾値は、各カードと詳細画面の`SignalCard`に表示します。
+`PerformanceDetail`（client component）が表示:
 
-## 銘柄詳細画面
+- 資産曲線: 戦略=赤 vs TOPIX=slate の `LineChart`
+- ドローダウン `AreaChart`（青）
+- 信頼性（較正）: `mean_prob` vs `frac_up` の `BarChart` + Brier スコア
+- 直近結果テーブル: 日付/銘柄/action/conviction/実現/超過/hit/MAE/MFE（hit は赤/青バッジ）
 
-`stocks/[ticker]/page.tsx`は静的エクスポート用に`generateStaticParams()`を実装しています。
+### 銘柄詳細（`/stocks/[ticker]`）
 
-生成順:
-
-1. `../docs/dashboard_index.json`からticker一覧を読む
-2. 読めない場合は`../tickers.yml`を正規表現で読み、`code`を抽出
-3. それも失敗した場合は空配列
-
-`StockDetailContent.tsx`は銘柄別JSONをfetchして以下を表示します。
-
-- ローソク足チャート
-- 終値ライン
-- MA5/MA20/MA60トグル
-- 出来高サブチャート
-- RSIサブチャート
-- 最新予測カード
-- 最新判定で使ったシグナル閾値
-- シグナル履歴
+`generateStaticParams()` は `../docs/dashboard_index.json` → 失敗時 `../tickers.yml` 正規表現 → 空配列の順でフォールバック。ローソク足 + MA トグル + 出来高 + RSI チャート、最新予測カード、使用閾値、シグナル履歴。
 
 ## コンポーネント
 
 | ファイル | 役割 |
 |---|---|
-| `components/StockChart.tsx` | Rechartsで価格、出来高、RSIを描画 |
-| `components/SignalCard.tsx` | 最新シグナルと自信度を表示 |
-| `lib/signal.ts` | アクション表記、色、信頼度ラベルの共通関数 |
-| `types/index.ts` | ダッシュボードJSONのTypeScript型 |
+| `components/StockChart.tsx` | 価格・出来高・RSI 描画。**空データガード実装済み**（価格が 1 件もなければ「価格データがありません」プレースホルダ） |
+| `components/SignalCard.tsx` | 最新シグナルと自信度 |
+| `components/PerformanceCard.tsx` | 実績サマリタイル + 詳細導線 |
+| `components/PerformanceDetail.tsx` | 実績ページ本体 |
+| `components/ModelQualityCard.tsx` | Phase 1 モデル品質・ドリフト警告 |
+| `components/PortfolioCard.tsx` | 目標建玉・diff・セクター露出 |
+| `components/RegimeBanner.tsx` | マクロレジームバナー + レポート/決定ログ導線 |
+| `lib/fetchJson.ts` | fetch + ランタイム型ガード共通化（`isAvailablePayload` 等） |
+| `lib/signal.ts` | アクション表記・色・信頼度ラベル |
+| `types/index.ts` | ダッシュボード JSON の TypeScript 型（`PerformanceDetail` / `SignalOutcomeRow` 含む） |
 
 ## ビルド
 
-開発:
-
 ```bash
-npm run dev --prefix web
+npm run dev --prefix web          # 開発
+npm run build --prefix web        # 通常ビルド
+npm run build:prod --prefix web   # GitHub Pages 向け（NEXT_PUBLIC_BASE_PATH=/trader）
+npm run lint --prefix web
 ```
-
-通常ビルド:
-
-```bash
-npm run build --prefix web
-```
-
-GitHub Pages向け:
-
-```bash
-npm run build:prod --prefix web
-```
-
-`build:prod`は`cross-env NEXT_PUBLIC_BASE_PATH=/trader next build`です。
 
 ## 現行制約
 
-- JSONレスポンスのランタイムバリデーションは未実装
-- エラーバウンダリ、専用404、専用loadingページは未実装
+- エラーバウンダリ、専用 404、専用 loading ページは未実装
 - チャートのアクセシビリティ対応は限定的
-- チャート入力が空の場合の描画ガードは十分ではない
-- `tailwind-merge`は依存にあるが現時点では使われていない
-- AI銘柄キュレーションの `docs/curation/decision_latest.json` や `reports/weekly_latest.md` へのリンク表示は未実装
+- `tailwind-merge` は依存にあるが未使用

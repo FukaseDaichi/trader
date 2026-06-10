@@ -33,9 +33,9 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   reflects `target_weight` into signals with no further code change (the flip
   itself stays a deliberate manual step gated on the shadow report).
 
-Implementation plan & full specs:
-`specification_document/plans/2026-06-10-phase3-ux-and-hardening.md` and
-`specification_document/`.
+Full as-built specs, known issues, and backlog: `specification_document/`
+(start at its `README.md`; completed phase plans were deleted and live in git
+history — that README documents the retrieval command and the plan lifecycle).
 
 ## Commands
 

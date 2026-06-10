@@ -9,7 +9,7 @@
 - **Phase 2（ポートフォリオ・シャドー運用中）**: ユニバース全体を1つのクロスセクショナルモデルで予測し、リスク制約付きロングオンリーの目標ポートフォリオを毎日提案（シャドー中はPhase 1のシグナル・通知に影響しない）
 - **Phase 3（手動トレードUX・運用堅牢化）**: TOPIX超過リターンの決済、実績ページ（資産曲線 vs TOPIX・ドローダウン・較正・個別結果履歴／`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、active mode配線（`TRADER_PORTFOLIO_MODE=active`で`target_weight`をシグナルへ反映。切替はシャドー実績確認後の手動env変更）
 
-このREADMEは2026-06-10時点のソースコードを正として更新しています。Phase 3（手動トレードUX・運用堅牢化）は実装済みです（`specification_document/plans/2026-06-10-phase3-ux-and-hardening.md`）。
+このREADMEは2026-06-11時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様・既知課題・バックログは`specification_document/`（`README.md`が索引）を参照してください。
 
 ## 公開ダッシュボード
 
