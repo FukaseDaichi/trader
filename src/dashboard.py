@@ -158,6 +158,22 @@ def _calc_avg_volume(records: list[dict[str, Any]], window: int = 20) -> float |
     return float(sum(volumes) / len(volumes))
 
 
+def _latest_change(records: list[dict[str, Any]]) -> tuple[float | None, float | None]:
+    """Return (prev_close, change_pct) from the last two records, or (None, None)."""
+    if len(records) < 2:
+        return None, None
+    prev = records[-2].get("close")
+    last = records[-1].get("close")
+    for value in (prev, last):
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return None, None
+    prev_f = float(prev)
+    last_f = float(last)
+    if prev_f == 0:
+        return None, None
+    return prev_f, (last_f - prev_f) / prev_f
+
+
 def _sync_dev_public_assets() -> None:
     # Also copy to web/public/ for local development (npm run dev).
     dev_public_dir = BASE_DIR / "web" / "public"
@@ -285,6 +301,7 @@ def export_dashboard_data():
 
         latest_data = records[-1] if records else None
         avg_volume_20 = _calc_avg_volume(records, window=20)
+        prev_close, change_pct = _latest_change(records)
 
         ticker_payload = {
             "last_update": last_update,
@@ -301,6 +318,8 @@ def export_dashboard_data():
             "name": name,
             "latest_data": latest_data,
             "avg_volume_20": avg_volume_20,
+            "prev_close": prev_close,
+            "change_pct": change_pct,
             "latest_signal": latest_signal,
             "data_file": f"tickers/{code}.json",
             "rows": len(records),
