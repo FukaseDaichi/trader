@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PortfolioLatest, PortfolioDiffType } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
+import Term from "./Term";
 
 const DIFF_LABEL: Record<PortfolioDiffType, string> = {
   new: "新規",
@@ -43,15 +44,15 @@ export default function PortfolioCard() {
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
       <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-        <h3 className="text-lg font-bold text-white">今日の建玉（ポートフォリオ提案）</h3>
+        <h3 className="text-lg font-bold text-white">AIのおすすめ配分</h3>
         <div className="flex items-center gap-2">
           {pf.mode === "active" ? (
-            <span className="px-2 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-              本番反映
+            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-300">
+              自動反映中
             </span>
           ) : (
-            <span className="px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              シャドー検証
+            <span className="rounded-full border border-amber-500/40 bg-amber-500/20 px-2 py-1 text-xs font-bold text-amber-300">
+              <Term k="shadow_mode">提案モード</Term>
             </span>
           )}
         </div>
@@ -66,16 +67,16 @@ export default function PortfolioCard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div>
-          <div className="text-xs text-slate-500 uppercase mb-1">グロス</div>
-          <div className="text-2xl font-bold text-emerald-300">{fmtPct(pf.gross_exposure)}</div>
+          <div className="mb-1 text-xs text-slate-500">投資にあてる割合</div>
+          <div className="text-2xl font-bold text-slate-100">{fmtPct(pf.gross_exposure)}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500 uppercase mb-1">想定ボラ</div>
-          <div className="text-2xl font-bold text-blue-300">{fmtPct(pf.expected_vol)}</div>
+          <div className="mb-1 text-xs text-slate-500">想定の値動き幅</div>
+          <div className="text-2xl font-bold text-slate-100">{fmtPct(pf.expected_vol)}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500 uppercase mb-1">想定リターン</div>
-          <div className="text-2xl font-bold text-slate-200">{fmtPct(pf.expected_ret)}</div>
+          <div className="mb-1 text-xs text-slate-500">期待リターン</div>
+          <div className="text-2xl font-bold text-slate-100">{fmtPct(pf.expected_ret)}</div>
         </div>
         {ds && (
           <div>
@@ -96,13 +97,13 @@ export default function PortfolioCard() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-xs text-slate-500 uppercase border-b border-slate-800">
-              <th className="text-left pb-2 pr-4">銘柄</th>
-              <th className="text-right pb-2 pr-4">比率</th>
-              <th className="text-center pb-2 pr-4">増減</th>
-              <th className="text-right pb-2 pr-4">ランク</th>
-              <th className="text-right pb-2 pr-4">期待リターン</th>
-              <th className="text-right pb-2">上昇確率</th>
+            <tr className="border-b border-slate-800 text-xs text-slate-500">
+              <th className="pb-2 pr-4 text-left">銘柄</th>
+              <th className="pb-2 pr-4 text-right">配分</th>
+              <th className="pb-2 pr-4 text-center">前回比</th>
+              <th className="pb-2 pr-4 text-right"><Term k="cs_rank">AI順位</Term></th>
+              <th className="pb-2 pr-4 text-right">期待リターン</th>
+              <th className="pb-2 text-right"><Term k="prob_up">上がる確率</Term></th>
             </tr>
           </thead>
           <tbody>
