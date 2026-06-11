@@ -1,7 +1,7 @@
 # UI全面リデザイン 設計書
 
 作成日: 2026-06-11 JST
-状態: 設計承認済み(実装計画は本書の末尾に追記予定)
+状態: 設計承認済み(実装計画: [2026-06-11-ui-redesign-plan.md](2026-06-11-ui-redesign-plan.md))
 ライフサイクル: 本書は `specification_document/README.md` 運用ルール2に従い、実装・検証完了後に削除し、積み残しは `06_issues_and_backlog.md` へ移す。
 
 ## 1. 目的と要件
@@ -140,7 +140,7 @@
 ## 6. データ契約・バックエンド変更
 
 - **新規 JSON ファイルなし** → `daily-publish-dashboard.yml` の `--exclude` 変更は不要(`tests/test_publish_workflow.py` 影響なし)。
-- 唯一のバックエンド変更: `src/dashboard.py` の index 出力(`dashboard_index.json` の `latest_data`)に `prev_close` と `change_pct` を**追加**(additive・optional)。前日比表示に使用。
+- 唯一のバックエンド変更: `src/dashboard.py` の index 出力(`dashboard_index.json` の各 `tickers.{code}` 直下)に `prev_close` と `change_pct` を**追加**(additive・optional)。前日比表示に使用。`latest_data` の dict には入れない(`records[-1]` は詳細 JSON の `data` 配列と同一オブジェクトのため)。
   - フィールドが無い旧 JSON ではフロントは前日比を非表示にして劣化運転(後方互換)。
   - `web/src/types/index.ts` に optional フィールドとして追記。
 - 取得系は現行どおり `fetchJson.ts` 経由。バリデーション失敗・ファイル欠如はカード/セクション非表示(現行の安全設計を維持)。
