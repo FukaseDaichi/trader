@@ -20,7 +20,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "daily-publish-dashboard.yml"
 EXPECTED_PRESERVED = {
     "state.json", "backtest_report.json", "performance_summary.json",
     "monthly_audit.json", "universe_refresh_report.json",
-    "weekly_retrain_report.json", "feature_precompute_report.json",
+    "weekly_retrain_report.json",
     "rotating_refresh_report.json", "stress_test_report.json",
     "model_quality.json", "drift_report.json",
     "portfolio_latest.json", "portfolio_backtest.json",

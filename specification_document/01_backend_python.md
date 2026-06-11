@@ -83,7 +83,7 @@
 - **テクニカル 34 列**（`src/model.py` `FEATURE_COLS`）: リターン(1〜20日)、MA5/10/20/60 と乖離・クロス、RSI、MACD、Bollinger、ATR%・20日ボラ、出来高比率、ローソク足形状、カレンダー、ストリーク、ギャップ、20日高安レンジ内位置
 - **マクロ 11 列**（`src/macro.py` `MACRO_FEATURE_COLS`）: USD/JPY リターン/ボラ、TOPIX・日経のトレンド/リターン、日経VI、JGB10y、リスクバイアススコアなど。`data/macro/macro_panel.parquet` を `merge_asof(direction="backward")` で結合（未来参照なし）。パネル欠損・列欠損は該当特徴量を NaN として処理を継続
 
-`build_feature_frame(df, macro_panel, ticker_info, macro_enabled)` が両者を結合します。学習・ゲートでは `dropna=True`、ダッシュボード出力と事前計算では `dropna=False`。
+`build_feature_frame(df, macro_panel, ticker_info, macro_enabled)` が両者を結合します。学習・ゲートでは `dropna=True`、ダッシュボード出力では `dropna=False`。
 
 ## ラベル（src/labels.py）
 
@@ -117,14 +117,14 @@ legacy 学習（`train_and_predict`）: LightGBM 二値分類、直近 4 年、w
 
 既定の基本閾値は `BUY=0.80` / `MILD_BUY=0.65` / `MILD_SELL=0.25` / `SELL=0.10` / `volatility_limit=0.04`。ゲート有効時は銘柄ごとの最適化閾値が実シグナルに使われます。`TRADER_KPI_GATE_ENABLED=false` では `skipped: true` の通過扱い。
 
-ポートフォリオ単位のゲート `evaluate_portfolio_kpi_gate()`（Sharpe / MaxDD / 情報比 / 回転率、`TRADER_PORTFOLIO_BACKTEST_*`）は週次のクロスセクション再学習時に評価されます（接続上の課題は `06_issues_and_backlog.md` 参照）。
+ポートフォリオ単位のゲート `evaluate_portfolio_kpi_gate()`（Sharpe / MaxDD / 情報比 / 回転率、`TRADER_PORTFOLIO_BACKTEST_*`）は週次のクロスセクション再学習時に評価され、結果は `docs/cs_model_quality.json` に加えて `docs/portfolio_backtest.json` の `gate: {passed, failures}` にも書き出されます。`portfolio.read_portfolio_gate()` はこの `gate.passed` を優先して参照します（gate キーが無い旧レポートのみ availability にフォールバック。2026-06-11 修正、課題 #2）。
 
 ## Phase 2 クロスセクション + ポートフォリオ
 
 - `cross_section.py`: 全銘柄×全日付のパネルを構築し、各特徴量を**日付内で** z-score/ランク正規化（`groupby("date").transform` のみ、リークなし）
 - `cs_model.py`: LightGBM ランカ（`lambdarank`、日付 = group）または回帰。週次学習（`scripts/weekly_cross_section_retrain.py`）で `data/models/cs-v1-*/` に保存、`active_cs_model.json` がポインタ
 - 日次推論（`main.py` `run_phase2_inference`）: active CS モデル・最小ユニバース（`TRADER_CS_MIN_UNIVERSE=30`）・使用可能データ数を満たすときのみ実行し、`predictions`（`cs_rank` 付き）を DB へ記録。満たさなければ理由付き fallback
-- `portfolio.py` `build_portfolio_snapshot()`: スコア上位 `top_n` → 逆ボラ初期ウェイト → 銘柄キャップ（20%）・セクターキャップ（40%）→ ボラターゲット（年率 12%、`risk_off` レジームでグロス半減）→ ヒステリシス（無トレード幅 2%）→ 前日比 diff（new/add/trim/exit）。出力は `docs/portfolio_latest.json` + `portfolio_snapshots`
+- `portfolio.py` `build_portfolio_snapshot()`: スコア上位 `top_n` → 逆ボラ初期ウェイト → 銘柄キャップ（20%）・セクターキャップ（40%）→ ボラターゲット（年率 12%、`risk_off` レジームでグロス半減）→ ヒステリシス（無トレード幅 2%）→ 前日比 diff（new/add/trim/exit）。出力は `docs/portfolio_latest.json` + `portfolio_snapshots`。regime は `main.py` `_load_portfolio_regime()` が `docs/curation/macro_latest.json` の `market_bias` から供給（`risk_on`/`neutral`/`risk_off` 以外は neutral 縮退。2026-06-11 配線、課題 #3）
 - **shadow 契約**: shadow モードでは Phase 1 のシグナル・通知をバイト単位で変更しない。active 配線は `merge_target_weights()`（上記 main.py 手順 9）のみで、`signals.action` は active でもモデル由来のまま
 
 ## 通知（src/notifier.py, src/digest.py）

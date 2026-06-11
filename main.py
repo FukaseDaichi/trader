@@ -150,6 +150,23 @@ def _build_macro_regime(macro_panel):
         return {}
 
 
+def _load_portfolio_regime(macro_regime=None):
+    """Qualitative regime label for the Phase 2 risk brake (issue #3).
+
+    Reads market_bias from docs/curation/macro_latest.json (weekly macro
+    screen) via _build_macro_regime. Only the documented labels pass through;
+    a missing file / unknown label degrades to "neutral" (brake off). Never
+    raises. build_portfolio_snapshot applies risk_off_gross_mult when this
+    returns "risk_off".
+    """
+    try:
+        src = macro_regime if macro_regime is not None else _build_macro_regime(None)
+        bias = str((src or {}).get("market_bias") or "").strip().lower()
+        return bias if bias in ("risk_on", "neutral", "risk_off") else "neutral"
+    except Exception:  # noqa: BLE001
+        return "neutral"
+
+
 def _label_config_for_mode(model_cfg):
     """`legacy` is the operational rollback path: old next-day binary labels."""
     label_cfg = get_label_config()
@@ -573,11 +590,9 @@ def _run_portfolio_snapshot(phase2, run_date):
 
     prev_weights = _prev_target_weights()
 
-    # Qualitative regime accessor: none is wired into the daily pipeline yet
-    # (the macro panel only carries a numeric bias score; the qualitative
-    # "regime" string lives in docs/curation/macro_latest.json without a loader).
-    # Default to "neutral" per plan; revisit when a regime accessor exists.
-    regime = "neutral"
+    # Qualitative regime from the weekly macro screen: risk_off halves gross
+    # via risk_off_gross_mult (issue #3 wiring; defaults to neutral on any gap).
+    regime = _load_portfolio_regime()
 
     cfg = get_portfolio_config()
     cfg["top_n"] = get_cross_section_config().get("top_n", 8)

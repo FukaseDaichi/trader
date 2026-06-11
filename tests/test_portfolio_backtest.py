@@ -326,6 +326,47 @@ def test_write_report_roundtrip():
         assert data3["available"] is False, data3
 
 
+def test_write_report_embeds_gate_and_reader_honors_it():
+    """Issue #2: the weekly report must carry the evaluated KPI gate so
+    read_portfolio_gate() (active-mode safety + active_readiness) checks the
+    actual pass/fail instead of mere report existence."""
+    from src.portfolio import read_portfolio_gate
+
+    ok_result = {"status": "ok", "n_periods": 10, "metrics": {"sharpe": 0.1},
+                 "equity": [], "params": {}}
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Failing gate on an available backtest -> gate key present, reader False.
+        out = str(Path(tmp) / "portfolio_backtest.json")
+        failing_gate = {"passed": False, "skipped": False, "reason": "kpi_failed",
+                        "metrics": {"sharpe": 0.1},
+                        "failures": ["sharpe 0.10 < min 0.30"]}
+        pbt.write_portfolio_backtest_report(ok_result, output_path=out,
+                                            gate=failing_gate)
+        data = json.loads(Path(out).read_text(encoding="utf-8"))
+        assert data["available"] is True
+        assert data["gate"] == {"passed": False,
+                                "failures": ["sharpe 0.10 < min 0.30"]}
+        assert read_portfolio_gate(out) is False
+
+        # Passing gate -> reader True.
+        out2 = str(Path(tmp) / "passing.json")
+        passing_gate = {"passed": True, "skipped": False, "reason": "ok",
+                        "metrics": {"sharpe": 0.9}, "failures": []}
+        pbt.write_portfolio_backtest_report(ok_result, output_path=out2,
+                                            gate=passing_gate)
+        data2 = json.loads(Path(out2).read_text(encoding="utf-8"))
+        assert data2["gate"] == {"passed": True, "failures": []}
+        assert read_portfolio_gate(out2) is True
+
+        # No gate supplied -> no gate key (legacy availability fallback).
+        out3 = str(Path(tmp) / "legacy.json")
+        pbt.write_portfolio_backtest_report(ok_result, output_path=out3)
+        data3 = json.loads(Path(out3).read_text(encoding="utf-8"))
+        assert "gate" not in data3
+        assert read_portfolio_gate(out3) is True
+
+
 # ---------------------------------------------------------------------------
 # Portfolio KPI gate tests
 # ---------------------------------------------------------------------------
@@ -464,6 +505,7 @@ ALL_TESTS = [
     test_backtest_benchmark_alpha_beta,
     test_backtest_insufficient_periods,
     test_write_report_roundtrip,
+    test_write_report_embeds_gate_and_reader_honors_it,
     test_gate_passes_when_all_metrics_ok,
     test_gate_fails_on_max_dd_breach,
     test_gate_fails_on_low_sharpe,

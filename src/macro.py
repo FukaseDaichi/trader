@@ -28,12 +28,25 @@ MACRO_PANEL_FILE = MACRO_DIR / "macro_panel.parquet"
 
 # Series we try to fetch. Symbols are configurable so they are not hard-coded
 # into the fetch logic (Stooq and yfinance disagree on index/FX tickers).
+#
+# Source reality as of 2026-06-11 (issue #1): Stooq's CSV endpoint returns 404
+# for EVERY symbol (also from GitHub Actions), so each series lives or dies by
+# its yfinance fallback. The Stooq symbols are kept as a dormant primary in
+# case the endpoint revives.
+#   - topix: the index itself has no daily history on Yahoo (^TPX is an empty
+#     stub), so the largest TOPIX ETF (1306) serves as the benchmark proxy —
+#     its daily returns track the index within bps, which is all that
+#     benchmark_ret / the shape-based macro features consume.
+#   - nikkei_vi / jgb10y: disabled — no Yahoo listing exists and the Stooq
+#     symbols are unverifiable while the endpoint is down (JGB 10y candidate:
+#     `10jpy.b`). Their levels/features stay NaN per the robustness rule;
+#     re-enable only with a source verified end-to-end.
 DEFAULT_MARKET_SERIES = {
     "usdjpy": {"stooq": "usdjpy", "yfinance": "JPY=X"},
-    "topix": {"stooq": "^tpx", "yfinance": "^TPX"},
+    "topix": {"stooq": "1306.jp", "yfinance": "1306.T"},
     "nikkei": {"stooq": "^nkx", "yfinance": "^N225"},
-    "nikkei_vi": {"stooq": "^nkvix", "yfinance": "^NIVI"},
-    "jgb10y": {"stooq": "10jgby.b", "yfinance": None},
+    "nikkei_vi": {"stooq": None, "yfinance": None},
+    "jgb10y": {"stooq": None, "yfinance": None},
 }
 
 # Raw level columns kept in the panel (for the macro_snapshots DB row).
@@ -82,12 +95,17 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
 
     yf_symbol = spec.get("yfinance")
     if yf_symbol:
-        try:
-            import yfinance as yf
+        # period="max" breaks yfinance's range resolution for some symbols
+        # (e.g. 1306.T comes back empty / TypeError), so retry once with a
+        # bounded period — 10y of daily closes covers every macro feature.
+        for period in ("max", "10y"):
+            try:
+                import yfinance as yf
 
-            raw = yf.download(yf_symbol, period="max", interval="1d",
-                              auto_adjust=False, progress=False, threads=False)
-            if raw is not None and not raw.empty:
+                raw = yf.download(yf_symbol, period=period, interval="1d",
+                                  auto_adjust=False, progress=False, threads=False)
+                if raw is None or raw.empty:
+                    continue
                 if isinstance(raw.columns, pd.MultiIndex):
                     raw.columns = [c[0] if isinstance(c, tuple) else c for c in raw.columns]
                 raw = raw.reset_index()
@@ -96,9 +114,12 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
                 if close_col in raw.columns and "date" in raw.columns:
                     out = raw[["date", close_col]].rename(columns={close_col: "close"})
                     out["date"] = pd.to_datetime(out["date"]).dt.tz_localize(None)
-                    return out.dropna()
-        except Exception as exc:  # noqa: BLE001
-            print(f"macro: yfinance fetch failed for {yf_symbol}: {type(exc).__name__}: {exc}")
+                    out = out.dropna()
+                    if not out.empty:
+                        return out
+            except Exception as exc:  # noqa: BLE001
+                print(f"macro: yfinance fetch failed for {yf_symbol} "
+                      f"(period={period}): {type(exc).__name__}: {exc}")
     return None
 
 

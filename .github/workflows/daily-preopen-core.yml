@@ -89,7 +89,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
-        run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}"
+        # --refill-benchmark is idempotent (fills only NULL benchmark_ret rows),
+        # so past settlements self-heal whenever TOPIX-proxy data is available.
+        run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Publish model drift report
         if: ${{ steps.market.outputs.is_open == 'true' }}

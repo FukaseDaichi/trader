@@ -606,13 +606,18 @@ def _date_str(value) -> str:
 
 def write_portfolio_backtest_report(result, output_path="docs/portfolio_backtest.json", *,
                                     model_version=None, run_date=None,
-                                    generated_at=None) -> str:
+                                    generated_at=None, gate=None) -> str:
     """Write the portfolio backtest report JSON (no DB needed).
 
     Produces ``{available: result['status']=='ok', generated_at, run_date,
     model_version, **result}``. When ``result`` is ``None`` or its status is not
     ``"ok"`` (e.g. ``"insufficient"``) the file is still written with
     ``{available: false, reason: ...}`` plus whatever fields the result carries.
+
+    ``gate`` is the (already evaluated) ``evaluate_portfolio_kpi_gate`` result;
+    when supplied it is embedded as ``{"gate": {"passed", "failures"}}`` so
+    ``portfolio.read_portfolio_gate`` checks the actual KPI verdict instead of
+    falling back to mere availability (active-mode safety, issue #2).
 
     ``generated_at`` is only stamped when a (string) value is supplied — the
     caller passes a timestamp; we never call ``datetime.now`` so tests stay
@@ -633,6 +638,11 @@ def write_portfolio_backtest_report(result, output_path="docs/portfolio_backtest
         }
         payload.update(result)
 
+    if isinstance(gate, dict):
+        payload["gate"] = {
+            "passed": bool(gate.get("passed")),
+            "failures": list(gate.get("failures") or []),
+        }
     if generated_at:
         payload["generated_at"] = generated_at
     if run_date is not None:

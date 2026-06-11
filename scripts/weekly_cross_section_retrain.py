@@ -278,7 +278,9 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         gate_summary = format_portfolio_gate_summary(gate)
         print(f"cs-retrain: portfolio backtest {gate_summary}")
 
-        # Write docs/portfolio_backtest.json (always, even in dry-run).
+        # Write docs/portfolio_backtest.json (always, even in dry-run). The
+        # evaluated KPI gate rides along so read_portfolio_gate() checks the
+        # real pass/fail (active-mode safety, issue #2).
         bt_report_path = Path(ROOT_DIR) / "docs" / "portfolio_backtest.json"
         write_portfolio_backtest_report(
             bt_result,
@@ -286,6 +288,7 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
             model_version=version,
             run_date=today_jst_iso(),
             generated_at=generated_at,
+            gate=gate,
         )
         print(f"cs-retrain: portfolio backtest report written to {bt_report_path}")
 

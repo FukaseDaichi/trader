@@ -211,7 +211,6 @@ settings:
 | `docs/monthly_audit.json` | 月次KPI監査 |
 | `docs/universe_refresh_report.json` | 有効ユニバースの週次スナップショット |
 | `docs/rotating_refresh_report.json` | 夜間ローテ更新結果 |
-| `docs/feature_precompute_report.json` | 特徴量事前計算レポート |
 | `docs/stress_test_report.json` | 高コスト前提の四半期ストレステスト |
 | `docs/curation/decision_*.json` | AI銘柄キュレーションの日次判断（監査ログ） |
 | `docs/curation/technical_*.json` | テクニカル候補スコア（baseline/agent精査後） |
@@ -305,7 +304,6 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 | `Monthly Calendar Sync` | 毎月1日 09:15 | JPX休日キャッシュ更新 |
 | `Monthly Full Audit` | 第1日曜 09:00 | 月次KPI監査 |
 | `Nightly Rotating Refresh` | 平日 19:30 | 有効銘柄を分割して夜間更新 |
-| `Nightly Feature Precompute` | 平日 20:00 | 特徴量ファイル生成とレポート |
 | `Quarterly Stress Test` | 四半期初日 10:00 | 高コスト前提のKPI確認 |
 
 すべての書き込み系workflowは、commit/pushを共通ヘルパ`.github/scripts/commit-and-push.sh`（`git pull --rebase --autostash`＋最大3回リトライ）に集約しています。

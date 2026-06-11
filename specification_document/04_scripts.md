@@ -80,10 +80,6 @@ DB から直近 7 日分の outcome を取得し、`digest.build_weekly_summary(
 
 有効銘柄を `--buckets`（既定5）で分割し、JST 曜日に対応するバケットだけ `update_data()`。失敗銘柄があれば exit 1。
 
-### `scripts/feature_precompute.py`
-
-有効銘柄の特徴量を `data/features/{code}.parquet` へ保存し、レポートを出力。**現状この生成物はどの処理からも読まれず commit もされない**（`06_issues_and_backlog.md` 参照）。
-
 ### `scripts/monthly_audit.py`
 
 全有効銘柄の `evaluate_kpi_gate()` を実行し、集計（passed/failed 件数、平均 CAGR/MaxDD/Sharpe/期待値/turnover）を `docs/monthly_audit.json` へ出力。

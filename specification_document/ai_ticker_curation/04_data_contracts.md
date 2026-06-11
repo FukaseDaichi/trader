@@ -227,7 +227,7 @@ Claude fundamental agent が生成します。
 
 ## 8. `macro_latest.json`
 
-Claude global-macro agent が生成します（週次）。`curation_merge.py` は参照せず、ファンダ agent とレポートライターのみが消費します。
+Claude global-macro agent が生成します（週次）。`curation_merge.py` は参照しません。消費者はファンダ agent・レポートライターに加え、コアパイプライン側の `update_macro_snapshots.py`（qualitative bias）、日次ダイジェスト（`market_bias` 表示）、Phase 2 ポートフォリオのリスクブレーキ（`main.py` `_load_portfolio_regime()`、`market_bias=risk_off` でグロス半減。2026-06-11〜）です。
 
 ```json
 {
