@@ -19,9 +19,10 @@ import {
 import {
   PerformanceDetail as PerformanceDetailType,
   SignalOutcomesRecent,
-  SignalOutcomeRow,
 } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
+import Term from "./Term";
+import { actionLabel } from "../lib/signal";
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -29,17 +30,6 @@ function pct(v: number | null | undefined, signed = false): string {
   if (v == null) return "—";
   const val = (v * 100).toFixed(2);
   return signed ? `${v >= 0 ? "+" : ""}${val}%` : `${val}%`;
-}
-
-function actionLabel(action: SignalOutcomeRow["action"]): string {
-  switch (action) {
-    case "BUY":       return "BUY";
-    case "MILD_BUY":  return "やや買い";
-    case "HOLD":      return "HOLD";
-    case "MILD_SELL": return "やや売り";
-    case "SELL":      return "SELL";
-    default:          return action;
-  }
 }
 
 // ---- sub-sections -----------------------------------------------------------
@@ -51,10 +41,10 @@ function NoData() {
 function RollingStats({ rolling }: { rolling: PerformanceDetailType["rolling"] }) {
   if (!rolling) return null;
   const stats = [
-    { label: "的中率(20d)", value: pct(rolling.hit_rate_20d) },
-    { label: "平均リターン(20d)", value: pct(rolling.avg_return_20d) },
-    { label: "超過リターン(20d)", value: pct(rolling.excess_return_20d) },
-    { label: "シャープ(60d)", value: rolling.sharpe_60d == null ? "—" : rolling.sharpe_60d.toFixed(2) },
+    { label: "的中率(直近20日)", value: pct(rolling.hit_rate_20d) },
+    { label: "平均リターン(直近20日)", value: pct(rolling.avg_return_20d) },
+    { label: "市場平均との差(直近20日)", value: pct(rolling.excess_return_20d) },
+    { label: "安定度(60日)", value: rolling.sharpe_60d == null ? "—" : rolling.sharpe_60d.toFixed(2) },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -72,7 +62,12 @@ function EquityCurveSection({ detail }: { detail: PerformanceDetailType | null }
   const curve = detail?.equity_curve ?? [];
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
-      <h3 className="text-lg font-bold text-white mb-4">資産曲線 vs TOPIX</h3>
+      <h3 className="mb-4 text-lg font-bold text-white">
+        <Term k="equity_curve">資産の伸び</Term>
+        <span className="ml-2 text-sm font-normal text-slate-400">
+          vs <Term k="topix">市場平均</Term>
+        </span>
+      </h3>
       <RollingStats rolling={detail?.rolling} />
       {curve.length === 0 ? (
         <NoData />
@@ -87,8 +82,8 @@ function EquityCurveSection({ detail }: { detail: PerformanceDetailType | null }
               formatter={(v: number | undefined) => [v == null ? "—" : `${((v - 1) * 100).toFixed(2)}%`]}
             />
             <Legend />
-            <Line dataKey="strategy" stroke="#f87171" dot={false} name="戦略" strokeWidth={2} />
-            <Line dataKey="benchmark" stroke="#94a3b8" dot={false} name="TOPIX" strokeWidth={1.5} />
+            <Line dataKey="strategy" stroke="#f87171" dot={false} name="AI" strokeWidth={2} />
+            <Line dataKey="benchmark" stroke="#94a3b8" dot={false} name="市場平均" strokeWidth={1.5} />
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -100,7 +95,9 @@ function DrawdownSection({ detail }: { detail: PerformanceDetailType | null }) {
   const curve = detail?.drawdown_curve ?? [];
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
-      <h3 className="text-lg font-bold text-white mb-4">ドローダウン</h3>
+      <h3 className="mb-4 text-lg font-bold text-white">
+        <Term k="drawdown">一時的な落ち込み</Term>
+      </h3>
       {curve.length === 0 ? (
         <NoData />
       ) : (
@@ -135,18 +132,20 @@ function ReliabilitySection({ detail }: { detail: PerformanceDetailType | null }
 
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
-      <div className="flex items-center gap-4 mb-4">
-        <h3 className="text-lg font-bold text-white">信頼性（較正）</h3>
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <h3 className="text-lg font-bold text-white">
+          <Term k="calibration">確率の正直さ</Term>
+        </h3>
         <span className="text-sm text-slate-400">
-          Brier: {rel?.brier == null ? "—" : rel.brier.toFixed(4)}
+          <Term k="brier">予測のズレ点数</Term>: {rel?.brier == null ? "—" : rel.brier.toFixed(4)}
         </span>
       </div>
       {bins.length === 0 ? (
         <NoData />
       ) : (
         <>
-          <p className="text-xs text-slate-400 mb-3">
-            赤: 実際の上昇率（frac_up）　グレー: 予測確率（mean_prob）　完全較正なら一致
+          <p className="mb-3 text-xs text-slate-400">
+            「70%」と言ったとき本当に70%上がっているか。赤(実際)とグレー(予測)が近いほど正直な予測です。
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData}>
@@ -173,23 +172,23 @@ function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) 
   const rows = outcomes?.rows ?? [];
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
-      <h3 className="text-lg font-bold text-white mb-4">個別シグナル結果（直近）</h3>
+      <h3 className="mb-4 text-lg font-bold text-white">最近のサインの結果</h3>
       {rows.length === 0 ? (
         <NoData />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-slate-300 min-w-[700px]">
             <thead>
-              <tr className="text-xs text-slate-500 uppercase border-b border-slate-800">
-                <th className="text-left py-2 pr-3">日付</th>
-                <th className="text-left py-2 pr-3">銘柄</th>
-                <th className="text-left py-2 pr-3">アクション</th>
-                <th className="text-right py-2 pr-3">確信度</th>
-                <th className="text-right py-2 pr-3">実現</th>
-                <th className="text-right py-2 pr-3">超過</th>
-                <th className="text-center py-2 pr-3">的中</th>
-                <th className="text-right py-2 pr-3">MAE</th>
-                <th className="text-right py-2">MFE</th>
+              <tr className="border-b border-slate-800 text-xs text-slate-500">
+                <th className="py-2 pr-3 text-left">いつ</th>
+                <th className="py-2 pr-3 text-left">銘柄</th>
+                <th className="py-2 pr-3 text-left">判断</th>
+                <th className="py-2 pr-3 text-right"><Term k="prob_up">上がる確率</Term></th>
+                <th className="py-2 pr-3 text-right">結果</th>
+                <th className="py-2 pr-3 text-right"><Term k="excess_return">市場平均との差</Term></th>
+                <th className="py-2 pr-3 text-center">当たった?</th>
+                <th className="py-2 pr-3 text-right"><Term k="mae_mfe">最大逆行</Term></th>
+                <th className="py-2 text-right"><Term k="mae_mfe">最大順行</Term></th>
               </tr>
             </thead>
             <tbody>
@@ -216,9 +215,9 @@ function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) 
                   </td>
                   <td className="py-2 pr-3 text-center">
                     {row.hit === true ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-300">的中</span>
+                      <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-300">○ 当たり</span>
                     ) : row.hit === false ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300">外れ</span>
+                      <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">× はずれ</span>
                     ) : (
                       "—"
                     )}

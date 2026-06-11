@@ -1,20 +1,22 @@
-import Link from "next/link";
+"use client";
+
+import SiteHeader from "../../components/SiteHeader";
+import SiteFooter from "../../components/SiteFooter";
+import PerformanceHeadline from "../../components/PerformanceHeadline";
 import PerformanceDetail from "../../components/PerformanceDetail";
+import ModelQualityCard from "../../components/ModelQualityCard";
 
 export default function PerformancePage() {
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
-      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <Link href="/" className="text-blue-400 text-sm hover:underline mb-2 inline-block">
-            ← ホーム
-          </Link>
-          <h1 className="text-3xl font-bold text-white tracking-tight">実績トラックレコード</h1>
-        </div>
-      </header>
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-slate-950 p-4 text-slate-200 md:p-8">
+      <SiteHeader />
+      <div className="mx-auto max-w-7xl">
+        <h1 className="mb-4 text-2xl font-bold tracking-tight text-white">AIの成績</h1>
+        <PerformanceHeadline />
         <PerformanceDetail />
+        <ModelQualityCard />
       </div>
+      <SiteFooter />
     </main>
   );
 }
