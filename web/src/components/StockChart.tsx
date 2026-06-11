@@ -179,7 +179,7 @@ const CustomPriceTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 };
 
 export default function StockChart({ data, tickerName }: StockChartProps) {
-  const [dateRange, setDateRange] = useState<DateRange>("1m");
+  const [dateRange, setDateRange] = useState<DateRange>("3m");
   const [indicators, setIndicators] = useState<IndicatorToggles>({
     ma5: true,
     ma20: true,
@@ -538,7 +538,7 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
             />
             <ReferenceLine
               y={30}
-              stroke="#22c55e"
+              stroke="#06b6d4"
               strokeDasharray="3 3"
               strokeWidth={1}
             />
