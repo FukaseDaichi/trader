@@ -1,0 +1,56 @@
+name: Manual DB Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Show pending migrations without applying them"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Check DATABASE_URL secret
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not configured."
+            exit 1
+          fi
+
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          PYTHONUNBUFFERED: "1"
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            uv run python scripts/db_migrate.py --dry-run
+          else
+            uv run python scripts/db_migrate.py
+          fi
