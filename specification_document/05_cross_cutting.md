@@ -76,7 +76,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | ファイル | 区分 | 生成元 | 内容 |
 |---|---|---|---|
 | `state.json` | 必須(内部) | `main.py` | シグナル履歴（最大30日、1日1エントリ、同日再実行は置換、`RUN_DATE_JST` で上書き可） |
-| `dashboard_index.json` | 必須 | `main.py` | 一覧画面用インデックス（銘柄ごとの latest_data / latest_signal / rows） |
+| `dashboard_index.json` | 必須 | `main.py` | 一覧画面用インデックス（銘柄ごとの latest_data / latest_signal / rows / prev_close / change_pct） |
 | `tickers/{code}.json` | 必須 | `main.py` | 銘柄詳細（`data` 最大500行: date/OHLCV/ma_5/ma_20/ma_60/rsi + シグナル履歴） |
 | `backtest_report.json` | 内部 | `main.py` | KPI ゲート結果（entries[].passed/metrics/thresholds/threshold_optimization/data_validation_warnings） |
 | `performance_summary.json` | 任意 | `main.py` + settle | 実現的中率・平均リターン・DB 容量警告 |
@@ -91,6 +91,11 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | `weekly_retrain_report.json` | 内部 | 週次再学習 | 銘柄別学習結果 |
 | `curation/*.json` | 内部/任意 | キュレーション | technical/fundamental/decision/warmup/macro_latest（スキーマは `ai_ticker_curation/04_data_contracts.md` が正） |
 | `monthly_audit.json` ほか監査系 | 内部 | 各スクリプト | 監査レポート |
+
+`dashboard_index.json` の前日比フィールド（2026-06 UI 刷新で追加、optional）:
+
+- `tickers.{code}.prev_close` (number|null, optional): 前営業日終値。データ2日分未満なら null。
+- `tickers.{code}.change_pct` (number|null, optional): 前日比 (last/prev - 1)。フロントは欠如時に前日比表示を隠す。
 
 ### Signal オブジェクト（state.json / dashboard_index / tickers JSON 共通）
 

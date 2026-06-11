@@ -1,4 +1,4 @@
-import type { Signal, SignalAction, SignalThresholds } from "../types";
+import type { Signal, SignalAction } from "../types";
 
 export interface ActionStyle {
   label: string;
@@ -144,24 +144,4 @@ export function changeTextClass(v: number | null | undefined): string {
   if (v > 0) return "text-red-300";
   if (v < 0) return "text-blue-300";
   return "text-slate-300";
-}
-
-// ---- 旧API(最終クリーンアップで削除予定。Task 3時点では既存ページが参照) ----
-
-export function confidenceBadgeClass(signal: Signal): string {
-  const label = confidenceLabel(signal);
-  if (label === "自信あり") return "bg-emerald-500/20 text-emerald-300 border-emerald-500/40";
-  if (label === "自信なし") return "bg-amber-500/20 text-amber-300 border-amber-500/40";
-  return "bg-slate-700 text-slate-300 border-slate-600";
-}
-
-export function formatThresholds(thresholds: SignalThresholds | null | undefined): string {
-  if (!thresholds) return "---";
-  return [
-    `B ${(thresholds.buy * 100).toFixed(0)}%`,
-    `MB ${(thresholds.mild_buy * 100).toFixed(0)}%`,
-    `MS ${(thresholds.mild_sell * 100).toFixed(0)}%`,
-    `S ${(thresholds.sell * 100).toFixed(0)}%`,
-    `Vol ${(thresholds.volatility_limit * 100).toFixed(1)}%`,
-  ].join(" / ");
 }

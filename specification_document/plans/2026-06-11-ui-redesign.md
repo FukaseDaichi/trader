@@ -1,7 +1,7 @@
 # UI全面リデザイン 設計書
 
 作成日: 2026-06-11 JST
-状態: 設計承認済み(実装計画: [2026-06-11-ui-redesign-plan.md](2026-06-11-ui-redesign-plan.md))
+状態: 実装完了・検証待ち(実装計画: [2026-06-11-ui-redesign-plan.md](2026-06-11-ui-redesign-plan.md)、Task 1-15 実装済み・Task 16 実機確認待ち)
 ライフサイクル: 本書は `specification_document/README.md` 運用ルール2に従い、実装・検証完了後に削除し、積み残しは `06_issues_and_backlog.md` へ移す。
 
 ## 1. 目的と要件
