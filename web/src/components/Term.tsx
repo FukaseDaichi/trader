@@ -17,7 +17,7 @@ export default function Term({ k, children, className = "" }: TermProps) {
   const entry = GLOSSARY[k];
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLSpanElement>(null);
   const [shiftX, setShiftX] = useState(0);
 
   useEffect(() => {
@@ -74,24 +74,25 @@ export default function Term({ k, children, className = "" }: TermProps) {
       >
         {children ?? entry.term}
       </button>
+      {/* <p> の内側でも使えるよう、ポップアップは span(+block) のみで構成する(div/p は HTML 入れ子違反) */}
       {open && (
-        <div
+        <span
           ref={popRef}
           role="tooltip"
           style={{ marginLeft: shiftX }}
-          className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-xl border border-slate-600 bg-slate-800 p-3 text-left font-normal normal-case shadow-xl"
+          className="absolute left-1/2 top-full z-50 mt-2 block w-72 -translate-x-1/2 rounded-xl border border-slate-600 bg-slate-800 p-3 text-left font-normal normal-case shadow-xl"
         >
-          <div className="text-sm font-bold text-slate-100">{entry.term}</div>
-          <p className="mt-1 text-xs leading-relaxed text-slate-300">{entry.short}</p>
+          <span className="block text-sm font-bold text-slate-100">{entry.term}</span>
+          <span className="mt-1 block text-xs leading-relaxed text-slate-300">{entry.short}</span>
           {entry.analogy && (
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">💡 {entry.analogy}</p>
+            <span className="mt-2 block text-xs leading-relaxed text-slate-400">💡 {entry.analogy}</span>
           )}
           {entry.formal && (
-            <p className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-500">
+            <span className="mt-2 block border-t border-slate-700 pt-2 text-xs text-slate-500">
               正式名: {entry.formal}
-            </p>
+            </span>
           )}
-        </div>
+        </span>
       )}
     </span>
   );
