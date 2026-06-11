@@ -28,6 +28,14 @@ def main() -> None:
     assert _latest_change([{"close": True}, {"close": 103}]) == (None, None)
     assert _latest_change([{}, {"close": 103}]) == (None, None)
 
+    # last 側の異常値も対称に弾く
+    assert _latest_change([{"close": 100}, {"close": True}]) == (None, None)
+    assert _latest_change([{"close": 100}, {}]) == (None, None)
+
+    # 非有限値 (NaN/inf) も (None, None)
+    assert _latest_change([{"close": float("nan")}, {"close": 103}]) == (None, None)
+    assert _latest_change([{"close": 100}, {"close": float("inf")}]) == (None, None)
+
     print("OK: test_dashboard_index_change")
 
 

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import shutil
 from datetime import datetime
@@ -165,7 +166,7 @@ def _latest_change(records: list[dict[str, Any]]) -> tuple[float | None, float |
     prev = records[-2].get("close")
     last = records[-1].get("close")
     for value in (prev, last):
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
             return None, None
     prev_f = float(prev)
     last_f = float(last)
