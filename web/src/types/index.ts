@@ -51,6 +51,8 @@ export interface TickerSummary {
   name: string;
   latest_data: TickerData | null;
   avg_volume_20: number | null;
+  prev_close?: number | null;
+  change_pct?: number | null;
   latest_signal: Signal | null;
   data_file: string;
   rows: number;
