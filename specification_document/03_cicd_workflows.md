@@ -11,7 +11,7 @@
 | Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら core と同処理 | `data/`, `docs/` |
 | Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js 静的ビルドを `docs/` へ同期 | `docs/` |
 | Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 成果物の鮮度・完全性 + ドリフト検証。失敗/ドリフト時に GitHub Issue 起票 | なし |
-| Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/` |
+| Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → **[隔週]プールagent＋決定論merge** → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/`, `curation_pool.yml` |
 | Weekly Model Retrain | `weekly-model-retrain.yml` | 土曜 08:00 | マクロ更新 → universe選定(report) → **Phase 1 実学習・版登録** → **Phase 2 CS再学習** → **shadow検証レポート** | `data/models/`, `docs/weekly_retrain_report.json`, `docs/cs_model_quality.json`, `docs/portfolio_backtest.json`, `docs/portfolio_shadow_report.json` |
 | Weekly Universe Refresh | `weekly-universe-refresh.yml` | 日曜 07:00 | ユニバーススナップショット | `docs/universe_refresh_report.json` |
 | Monthly Calendar Sync | `monthly-calendar-sync.yml` | 毎月1日 09:15 | JPX休日キャッシュ更新 | `data/jpx_holidays.json` |
@@ -39,7 +39,7 @@
 ## 週次処理
 
 - **weekly-model-retrain（土曜 08:00）**: `weekly_model_retrain.py` が銘柄別モデルを実学習して `data/models/<version>/` + `active_model.json` + `model_registry` に登録。続いて `weekly_cross_section_retrain.py` が CS モデルを学習し、ポートフォリオ walk-forward バックテスト + `evaluate_portfolio_kpi_gate()` を実行して `docs/cs_model_quality.json` / `docs/portfolio_backtest.json` を出力。最後に `portfolio_shadow_report.py` が Phase 1 vs Phase 2 の比較と `active_readiness` を `docs/portfolio_shadow_report.json` へ出力
-- **weekly-fundamental-report（土曜 07:00）**: テクニカル更新 → Claude のマクロ/ファンダ/レポートライター agent（いずれも `continue-on-error: true`）→ commit → `curation_notify.py` でレポート URL を LINE 通知 → `weekly_performance_notify.py` で週間実績サマリを LINE 通知（DB 不通・実績ゼロは no-op）
+- **weekly-fundamental-report（土曜 07:00）**: テクニカル更新 → Claude のマクロ/ファンダ agent → **隔週（14日）の pool refresh**（cadence ガード → `/jp-stock-pool-screen` → 決定論 `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新。いずれも `continue-on-error: true` で週次本体を巻き込まない）→ レポートライター agent → commit（`reports` / `docs/curation` / `curation_pool.yml`）→ `curation_notify.py` でレポート URL を LINE 通知 → 隔週 `curation_pool_notify.py` でプール変更を通知 → `weekly_performance_notify.py` で週間実績サマリを LINE 通知（DB 不通・実績ゼロは no-op）。詳細は `ai_ticker_curation/07_pool_refresh.md`
 
 ## publishの同期仕様
 

@@ -29,7 +29,7 @@ settings:
 
 ### `curation_pool.yml`
 
-AI キュレーションの候補プール（`pool[].code/name/sector`）。`technical_screen.py` と `curation_warmup.py` が読みます。
+AI キュレーションの候補プール（`pool[].code/name/sector`）。`technical_screen.py` と `curation_warmup.py` が読みます。書き手は隔週の決定論 `curation_pool_merge.py` のみ（`ai_ticker_curation/07_pool_refresh.md`）。
 
 ### `.env` / 環境変数
 
@@ -89,7 +89,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | `portfolio_shadow_report.json` | 内部 | 週次 | Phase 1 vs 2 比較 + `active_readiness` |
 | `cs_model_quality.json` | 内部 | 週次 CS 再学習 | CS モデル品質 + ポートフォリオゲート結果 |
 | `weekly_retrain_report.json` | 内部 | 週次再学習 | 銘柄別学習結果 |
-| `curation/*.json` | 内部/任意 | キュレーション | technical/fundamental/decision/warmup/macro_latest（スキーマは `ai_ticker_curation/04_data_contracts.md` が正） |
+| `curation/*.json` | 内部/任意 | キュレーション | technical/fundamental/decision/warmup/macro_latest/pool_candidates/pool_decision（スキーマは `ai_ticker_curation/04_data_contracts.md` が正） |
 | `monthly_audit.json` ほか監査系 | 内部 | 各スクリプト | 監査レポート |
 
 `dashboard_index.json` の前日比フィールド（optional）:

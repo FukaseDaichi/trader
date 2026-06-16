@@ -1,8 +1,8 @@
 # エージェント設計（テクニカル / ファンダメンタル / レポートライター）
 
-更新日: 2026-06-06 JST
+更新日: 2026-06-16 JST
 
-エージェントは 4 体です。すべて `claude-code-action@v1` で起動します。共通の鉄則は「`tickers.yml` を編集しない」「git 操作をしない」「所定パスの成果物だけを書く」です。ユニバース変更は `scripts/curation_merge.py` が担います。
+エージェントは 5 体です（日次テクニカル、週次マクロ／ファンダ／レポートライター、隔週プール）。すべて `claude-code-action@v1` で起動します。共通の鉄則は「`tickers.yml` を編集しない」「git 操作をしない」「所定パスの成果物だけを書く」です。enabled ユニバース変更は `scripts/curation_merge.py`、候補母集団 `curation_pool.yml` の変更は `scripts/curation_pool_merge.py` が担います。
 
 ## 1. 役割・頻度
 
@@ -96,4 +96,17 @@ agent は baseline を精査して `technical_latest.json` を必要に応じて
 
 workflow の `claude_args` で `git commit`、`git push`、`rm` などを抑止しています。さらに構造上、agent 後の不可逆変更は `curation_merge.py` と `.github/scripts/commit-and-push.sh` に限定されています。
 
-agent step は `continue-on-error: true` です。テクニカル agent が失敗しても baseline が残り、ファンダ/レポート agent が失敗しても commit helper は差分なしなら正常終了します。
+agent step は `continue-on-error: true` です。テクニカル agent が失敗しても baseline が残り、ファンダ/レポート agent が失敗しても commit helper は差分なしなら正常終了します。プールの cadence ガード／merge ステップも `continue-on-error: true` で、例外が週次本体（レポート・実績通知）を巻き込みません。
+
+## 7. プール・エージェント（隔週）
+
+候補母集団 `curation_pool.yml` をファンダメンタル＋流動性で見直す 5 体目の agent です。週次 workflow 内で隔週（14日）に実行します。
+
+### skill の要点
+
+- 出力は `docs/curation/pool_candidates_latest.json` と `pool_candidates_<as_of>.json` のみ（提案）。`curation_pool.yml`・`tickers.yml`・`data/`・`src/`・`web/`・`.github/` は編集禁止、git 不可。
+- ファンダが強く流動性のある日本の大型株を一次情報で調査。短期テクニカルは対象外（日次レイヤの担当）。
+- `fund_score`（0-100、70 以上で追加目安・80 以上で高確信）と参考 `liquidity_jpy` を付ける。流動性の権威は merge 側のローカル parquet 実測値で、AI 提供値は文脈情報。
+- モデルは `claude-sonnet-4-6`、`--max-turns 20`。
+
+決定論 merge・ガードレール・cadence・warmup 掃除・通知の詳細は `07_pool_refresh.md` を正とします。

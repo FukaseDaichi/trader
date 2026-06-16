@@ -135,7 +135,8 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   publish dashboard (on success) → watchdog 12:30 (freshness + drift;
   opens GitHub Issues on failure).
 - **Weekly**: model retrain Sat 08:00 (Phase 1 + Phase 2 CS + shadow report),
-  fundamental & report Sat 07:00, universe refresh Sun 07:00.
+  fundamental & report Sat 07:00 (also runs the **biweekly** pool refresh,
+  every 14 days), universe refresh Sun 07:00.
 - **Nightly**: rotating refresh 19:30.
 - **Monthly/Quarterly**: calendar sync, full audit, stress test.
 
@@ -183,14 +184,28 @@ design and contracts: `specification_document/ai_ticker_curation/`.
 - Cadence: technical screen runs **daily** (drives small universe swaps);
   a global-macro screen (rates/FX), the fundamental screen, and a casual
   girl-narrator weekly report run **weekly** (Saturday), notifying the
-  report's GitHub URL via LINE.
+  report's GitHub URL via LINE; an AI **pool refresh** (fundamentals +
+  liquidity) reviews `curation_pool.yml` itself **biweekly** (every 14 days,
+  as steps inside the Saturday workflow).
 - Agents emit JSON/Markdown only; the deterministic
-  `scripts/curation_merge.py` owns `tickers.yml` edits under guardrails
-  (churn cap, sector cap, warmup, cooldown, fundamental freshness).
-- CI skills: `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,weekly-stock-report}/`.
-- Scripts: `scripts/{technical_screen,curation_warmup,curation_merge,curation_guard,curation_notify}.py`
+  `scripts/curation_merge.py` owns `tickers.yml` edits and
+  `scripts/curation_pool_merge.py` owns `curation_pool.yml` edits — both under
+  guardrails (churn cap, sector cap, warmup, cooldown, fundamental freshness;
+  the pool adds a local-parquet liquidity floor + add-only/replace mode).
+- Pool refresh (the candidate母集団): `/jp-stock-pool-screen` proposes
+  fundamentally strong, liquid large-caps → `pool_candidates_latest.json`;
+  `curation_pool_merge.py` is the **sole writer** of `curation_pool.yml`
+  (rollout phase 1 is add-only — `max_drops_per_run: 0` — growing toward
+  `pool_target_size: 60`, auto-flipping to replace-only at target). It also
+  cleans stale `data/watchlist/` parquet and notifies via
+  `curation_pool_notify.py`. Full as-built:
+  `specification_document/ai_ticker_curation/07_pool_refresh.md`.
+- CI skills: `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,jp-stock-pool-screen,weekly-stock-report}/`.
+- Scripts: `scripts/{technical_screen,curation_warmup,curation_merge,curation_pool_merge,curation_guard,curation_notify,curation_pool_notify}.py`
   (+ `scripts/curation_common.py`). Pool: `curation_pool.yml`.
-  Tests: `tests/test_curation_merge.py`.
-- Workflows: `.github/workflows/{daily-ticker-curation,weekly-fundamental-report}.yml`.
-- Tuning knobs live in `tickers.yml` `settings.curation`. `data/watchlist/`
-  is gitignored (warmup data is re-fetched each run).
+  Tests: `tests/{test_curation_merge,test_curation_pool_merge}.py`.
+- Workflows: `.github/workflows/{daily-ticker-curation,weekly-fundamental-report}.yml`
+  (the weekly workflow also runs the biweekly pool refresh).
+- Tuning knobs live in `tickers.yml` `settings.curation` (pool knobs under
+  `settings.curation.pool`). `data/watchlist/` is gitignored (warmup data is
+  re-fetched each run).

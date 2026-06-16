@@ -14,7 +14,7 @@
 | 補助スクリプト | `scripts/*.py`, `.claude/skills/` | `04_scripts.md` |
 | データ契約・横断仕様 | `tickers.yml`, `curation_pool.yml`, `data/`, `docs/`, `migrations/`, env | `05_cross_cutting.md` |
 | 課題・バックログ | 実装レビュー結果と運用チェック | `06_issues_and_backlog.md` |
-| AI銘柄キュレーション | 日次/週次キュレーション実装 | `ai_ticker_curation/` |
+| AI銘柄キュレーション | 日次/週次/隔週キュレーション実装 | `ai_ticker_curation/` |
 
 ## レイヤ構成
 

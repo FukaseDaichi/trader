@@ -6,7 +6,7 @@ The pool-screen agent writes proposal JSON only. This script is the sole writer
 of curation_pool.yml, applies deterministic guardrails, writes an audit log, and
 cleans stale warmup parquets from data/watchlist/.
 
-See docs/superpowers/specs/2026-06-16-pool-refresh-design.md.
+See specification_document/ai_ticker_curation/07_pool_refresh.md.
 """
 
 from __future__ import annotations

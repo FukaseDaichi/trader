@@ -1,6 +1,6 @@
 # AI銘柄キュレーション 現行仕様 — 概要
 
-更新日: 2026-06-06 JST
+更新日: 2026-06-16 JST
 ステータス: 実装済み機能の As-built 仕様。
 
 このサブディレクトリは、AI 銘柄キュレーションの現行仕様です。実装は `.github/workflows/daily-ticker-curation.yml`、`.github/workflows/weekly-fundamental-report.yml`、`scripts/curation_*`、`scripts/technical_screen.py`、`.claude/skills/*`、`curation_pool.yml`、`tickers.yml settings.curation` にあります。
@@ -21,6 +21,7 @@
 | テクニカル頻度 | 平日 04:30 JST の日次 |
 | マクロ頻度 | 土曜 07:00 JST の週次、ファンダ前。`macro_latest.json` をファンダ/レポートが消費（merge は不参照） |
 | ファンダ頻度 | 土曜 07:00 JST の週次。日次 merge は直近 `fundamental_latest.json` をキャッシュ利用 |
+| プール頻度 | 土曜の**隔週（14日）**。ファンダ後に `/jp-stock-pool-screen` → `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新（`07_pool_refresh.md`） |
 | 週次レポート | `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` |
 | 通知 | `curation_notify.py` が週次レポートの GitHub blob URL を LINE 通知 |
 
@@ -30,7 +31,8 @@
 
 - 日次: 候補データ warmup、決定論テクニカル baseline、Claude technical agent、決定論 merge、`tickers.yml` 更新
 - 週次: Claude macro agent（金利・為替）、Claude fundamental agent、Claude report writer、レポート URL の LINE 通知
-- 決定ログを `docs/curation/decision_*.json` に残す
+- 隔週(14日): Claude pool agent（ファンダ+流動性）→ 決定論 `curation_pool_merge.py` で候補母集団 `curation_pool.yml` を更新し、変更を LINE 通知
+- 決定ログを `docs/curation/decision_*.json`、プール判断を `docs/curation/pool_decision_*.json` に残す
 - 新規候補は `data/watchlist/` で warmup し、十分な履歴がある場合だけ昇格させる
 
 ### やらないこと
@@ -58,9 +60,12 @@
   checkout → uv sync → technical_screen.py
     → /global-macro-screen（金利・為替・世界情勢のWeb調査、continue-on-error）
     → /jp-stock-fundamental-screen（Web調査、continue-on-error）
+    → [隔週] pool cadence guard → /jp-stock-pool-screen（continue-on-error）
+        → curation_pool_merge.py --apply（continue-on-error、curation_pool.yml の唯一の書き手）
     → /weekly-stock-report（Markdown生成、continue-on-error）
-    → commit-and-push.sh
+    → commit-and-push.sh（reports / docs/curation / curation_pool.yml）
     → curation_notify.py（LINE、失敗は非致命）
+    → [隔週] curation_pool_notify.py（LINE、失敗は非致命）
 ```
 
 ## 5. 主な設計判断
@@ -83,10 +88,11 @@
 | `04_data_contracts.md` | ファイルスキーマと統合制約 |
 | `05_weekly_report.md` | 週次レポートの構成、文体、LINE通知 |
 | `06_rollout_risks.md` | 段階導入、残課題、ロールバック |
+| `07_pool_refresh.md` | 候補プール（母集団）の隔週リフレッシュ：agent・決定論 merge・ガード・掃除 |
 
 ## 7. 技術前提
 
-- Claude skills は `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,weekly-stock-report}/` に配置済み
+- Claude skills は `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,jp-stock-pool-screen,weekly-stock-report}/` に配置済み
 - `curation_pool.yml` は流動性のある日本株候補を保持
 - `tickers.yml settings.curation` が運用パラメータを保持
 - `data/watchlist/` は `.gitignore` 対象
