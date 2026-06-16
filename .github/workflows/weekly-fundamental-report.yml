@@ -5,6 +5,15 @@ on:
     # 22:00 UTC Friday = 07:00 JST Saturday.
     - cron: "0 22 * * 5"
   workflow_dispatch:
+    inputs:
+      pool_refresh_force:
+        description: "force biweekly pool refresh even if cadence has not elapsed"
+        required: false
+        default: "false"
+      pool_refresh_apply:
+        description: "apply curation_pool.yml changes (true) or dry-run (false)"
+        required: false
+        default: "true"
 
 permissions:
   contents: write
@@ -69,6 +78,44 @@ jobs:
             --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash"
             --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(rm:*)"
 
+      - name: Pool refresh cadence guard
+        id: pool_guard
+        continue-on-error: true
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.pool_refresh_force }}" = "true" ]; then FORCE_FLAG="--force"; fi
+          uv run python scripts/curation_pool_merge.py \
+            --check-due \
+            --date "${{ steps.dt.outputs.today_jst }}" \
+            --github-output \
+            $FORCE_FLAG
+
+      # Pool agent (Sonnet / web research) -> pool_candidates_latest.json.
+      # Runs every 14 days by default; the deterministic merge owns curation_pool.yml.
+      - name: Pool analysis agent
+        if: ${{ steps.pool_guard.outputs.due == 'true' }}
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: "/jp-stock-pool-screen as_of=${{ steps.dt.outputs.today_jst }}"
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 20
+            --allowedTools "Read,Write,Glob,Grep,WebSearch,WebFetch"
+            --disallowedTools "Bash,Edit"
+
+      - name: Merge pool proposal
+        if: ${{ steps.pool_guard.outputs.due == 'true' }}
+        continue-on-error: true
+        run: |
+          APPLY_FLAG="--apply"
+          if [ "${{ github.event.inputs.pool_refresh_apply }}" = "false" ]; then APPLY_FLAG="--dry-run"; fi
+          uv run python scripts/curation_pool_merge.py \
+            --proposal docs/curation/pool_candidates_latest.json \
+            --date "${{ steps.dt.outputs.today_jst }}" \
+            $APPLY_FLAG
+
       # Report writer agent (Sonnet / girl persona) -> reports/weekly_<DATE>.md
       - name: Weekly report writer agent
         uses: anthropics/claude-code-action@v1
@@ -89,7 +136,7 @@ jobs:
         run: |
           TODAY_JST="${{ steps.dt.outputs.today_jst }}"
           mkdir -p reports docs/curation
-          bash .github/scripts/commit-and-push.sh "Weekly fundamental & report ($TODAY_JST)" reports docs/curation
+          bash .github/scripts/commit-and-push.sh "Weekly fundamental & report ($TODAY_JST)" reports docs/curation curation_pool.yml
 
       # Notify the GitHub URL of the report via LINE (casual persona)
       - name: Notify report URL via LINE
@@ -101,6 +148,17 @@ jobs:
         run: |
           uv run python scripts/curation_notify.py \
             --report "reports/weekly_${{ steps.dt.outputs.today_jst }}.md" \
+            --date "${{ steps.dt.outputs.today_jst }}" || true
+
+      - name: Notify pool changes via LINE
+        if: ${{ steps.pool_guard.outputs.due == 'true' }}
+        continue-on-error: true
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          uv run python scripts/curation_pool_notify.py \
+            --decision docs/curation/pool_decision_latest.json \
             --date "${{ steps.dt.outputs.today_jst }}" || true
 
       - name: Notify weekly performance summary via LINE
