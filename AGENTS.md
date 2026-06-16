@@ -136,7 +136,7 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   opens GitHub Issues on failure).
 - **Weekly**: model retrain Sat 08:00 (Phase 1 + Phase 2 CS + shadow report),
   fundamental & report Sat 07:00, universe refresh Sun 07:00.
-- **Nightly**: rotating refresh 19:30, feature precompute 20:00.
+- **Nightly**: rotating refresh 19:30.
 - **Monthly/Quarterly**: calendar sync, full audit, stress test.
 
 ## Key Conventions

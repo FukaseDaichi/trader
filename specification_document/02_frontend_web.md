@@ -1,6 +1,6 @@
 # フロントエンド仕様
 
-更新日: 2026-06-12 JST
+更新日: 2026-06-16 JST
 
 ## 技術スタック
 
@@ -9,7 +9,7 @@
 - 静的エクスポート: `output: "export"`。GitHub Pages の `/trader` 配下で動かすため、本番ビルドは `NEXT_PUBLIC_BASE_PATH=/trader`
 - 日本語 UI・ダークテーマ
 
-## 表示規約（2026-06 UI 刷新で確定）
+## 表示規約
 
 - **売買色**: 買い=赤系（`red`/`orange`）、売り=青系（`blue`/`cyan`）。**緑（`emerald`）は健全性専用**（成績テスト合格・モデル健康診断「良好」・active モードピル）。例外として StockChart の MA60 線とそのトグル/凡例（`#4ade80` = green-400）はチャート用パレットとして許容
 - **アクション表示名**: `BUY`=買い / `MILD_BUY`=やや買い / `HOLD`=**様子見** / `MILD_SELL`=やや売り / `SELL`=売り。表示トークン（ラベル・バッジ色・行ティント・バー色・カード枠）は `lib/signal.ts` の `ACTION_STYLE` が単一ソース
@@ -64,11 +64,11 @@
 
 | ファイル | 役割 |
 |---|---|
-| `components/SiteHeader.tsx` | 共通ヘッダ（ナビ+市場ムードピル）。旧 `RegimeBanner` の後継 |
+| `components/SiteHeader.tsx` | 共通ヘッダ（ナビ+市場ムードピル） |
 | `components/SiteFooter.tsx` | 共通フッタ（免責+レポート/決定ログ導線） |
 | `components/TodayHero.tsx` | 今日のAI判断ヒーロー |
 | `components/StockExplorer.tsx` | 検索+絞り込み+並び替え+全銘柄リスト |
-| `components/SignalNarrative.tsx` | AIのひとこと（シグナル説明文の自動合成）。旧 `SignalCard` の後継 |
+| `components/SignalNarrative.tsx` | AIのひとこと（シグナル説明文の自動合成） |
 | `components/ThresholdGauge.tsx` | 判断ラインゲージ |
 | `components/StockChart.tsx` | 価格・出来高・RSI 描画。**空データガード実装済み** |
 | `components/PerformanceCard.tsx` | ホーム用スリム成績カード |
@@ -84,8 +84,6 @@
 | `lib/search.ts` | 検索正規化（NFKC+カナ→かな折りたたみ）と `matchesTicker` |
 | `lib/indicators.ts` | やさしい指標ラベル（RSI→過熱感 等） |
 | `types/index.ts` | ダッシュボード JSON の TypeScript 型（`PerformanceDetail` / `SignalOutcomeRow` / `prev_close` / `change_pct` 含む） |
-
-削除済み: `RegimeBanner.tsx`（→ `SiteHeader` の MoodPill）、`SignalCard.tsx`（→ `SignalNarrative`）。
 
 ## ビルド
 

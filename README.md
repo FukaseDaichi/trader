@@ -9,7 +9,7 @@
 - **Phase 2（ポートフォリオ・シャドー運用中）**: ユニバース全体を1つのクロスセクショナルモデルで予測し、リスク制約付きロングオンリーの目標ポートフォリオを毎日提案（シャドー中はPhase 1のシグナル・通知に影響しない）
 - **Phase 3（手動トレードUX・運用堅牢化）**: TOPIX超過リターンの決済、実績ページ（資産曲線 vs TOPIX・ドローダウン・較正・個別結果履歴／`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、active mode配線（`TRADER_PORTFOLIO_MODE=active`で`target_weight`をシグナルへ反映。切替はシャドー実績確認後の手動env変更）
 
-このREADMEは2026-06-11時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様・既知課題・バックログは`specification_document/`（`README.md`が索引）を参照してください。
+このREADMEは2026-06-16時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様・既知課題・バックログは`specification_document/`（`README.md`が索引）を参照してください。
 
 ## 公開ダッシュボード
 
@@ -80,6 +80,8 @@ npm run dev --prefix web
 ```bash
 uv run python scripts/db_migrate.py
 ```
+
+GitHub Actions上では`Manual DB Migrate`ワークフロー（`workflow_dispatch`）からも適用できます（`dry_run`で保留中マイグレーションのプレビュー可）。
 
 `DATABASE_URL`未設定でもシステムは動作します（DB書き込みはスキップされ、イベントは`data/outbox/`へ退避されます）。
 
@@ -305,6 +307,7 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 | `Monthly Full Audit` | 第1日曜 09:00 | 月次KPI監査 |
 | `Nightly Rotating Refresh` | 平日 19:30 | 有効銘柄を分割して夜間更新 |
 | `Quarterly Stress Test` | 四半期初日 10:00 | 高コスト前提のKPI確認 |
+| `Manual DB Migrate` | 手動 | `migrations/*.sql`を冪等適用（DB初期化/更新。`dry_run`でプレビュー） |
 
 すべての書き込み系workflowは、commit/pushを共通ヘルパ`.github/scripts/commit-and-push.sh`（`git pull --rebase --autostash`＋最大3回リトライ）に集約しています。
 
