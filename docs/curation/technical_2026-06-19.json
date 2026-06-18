@@ -1,37 +1,16 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-4-6",
-  "generated_at": "2026-06-19T07:10:00+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-06-19T06:35:20+09:00",
   "as_of": "2026-06-19",
   "data_through": "2026-06-18",
   "candidates": [
     {
-      "code": "6857.JP",
-      "name": "アドバンテスト",
-      "sector": "半導体製造装置",
-      "score": 92,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 63.48803480783176,
-        "macd": "bull",
-        "atr_pct": 0.05186056458511548,
-        "vol_ratio": 1.088549136513276,
-        "breakout_20d": false,
-        "ret_20d": 0.17307317073170725,
-        "ret_5d": 0.1912026946701011
-      },
-      "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60完全上昇スタック、RSI63で過熱感なく上値余地十分、MACDヒスト急拡大(+83)、5d+19%/20d+17%の強モメンタム、出来高も堅調",
-      "rows_available": 6601,
-      "warmup_ok": true
-    },
-    {
       "code": "6146.JP",
       "name": "ディスコ",
       "sector": "半導体製造装置",
-      "score": 91,
+      "score": 92.3,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -44,7 +23,7 @@
         "ret_5d": 0.21362273311437963
       },
       "horizon_days": 5,
-      "rationale": "MA完全上昇スタック・出来高1.45倍の強い買い支え、5d+21%/20d+29%の急騰、RSI73でやや過熱ライン接近だが価格勢い圧倒的",
+      "rationale": "上昇トレンド・MACD強気・RSI73",
       "rows_available": 6343,
       "warmup_ok": true
     },
@@ -52,7 +31,7 @@
       "code": "6920.JP",
       "name": "レーザーテック",
       "sector": "半導体製造装置",
-      "score": 90,
+      "score": 91.3,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -65,15 +44,36 @@
         "ret_5d": 0.2964329643296433
       },
       "horizon_days": 5,
-      "rationale": "5d+30%/20d+48%の爆発的上昇・MACD急拡大(+416)・出来高1.33倍、RSI73で過熱ライン近接、MA60比+31%の大幅乖離に短期注意",
+      "rationale": "上昇トレンド・MACD強気・RSI73",
       "rows_available": 4011,
+      "warmup_ok": true
+    },
+    {
+      "code": "6857.JP",
+      "name": "アドバンテスト",
+      "sector": "半導体製造装置",
+      "score": 90.8,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 63.48803480783176,
+        "macd": "bull",
+        "atr_pct": 0.05186056458511548,
+        "vol_ratio": 1.088549136513276,
+        "breakout_20d": false,
+        "ret_20d": 0.17307317073170725,
+        "ret_5d": 0.1912026946701011
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI63",
+      "rows_available": 6601,
       "warmup_ok": true
     },
     {
       "code": "8035.JP",
       "name": "東京エレクトロン",
       "sector": "半導体製造装置",
-      "score": 87,
+      "score": 89.2,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -86,57 +86,15 @@
         "ret_5d": 0.17483422286915729
       },
       "horizon_days": 5,
-      "rationale": "MA全段上抜け・20d+58%の超強勢、RSI74.5で過熱警戒域、MA60比+48%の大幅乖離あり短期調整リスク残る",
+      "rationale": "上昇トレンド・MACD強気・RSI75",
       "rows_available": 6600,
-      "warmup_ok": true
-    },
-    {
-      "code": "9983.JP",
-      "name": "ファーストリテイリング",
-      "sector": "小売",
-      "score": 85,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 64.58064516129032,
-        "macd": "bull",
-        "atr_pct": 0.02537480613475788,
-        "vol_ratio": 0.9376431455196405,
-        "breakout_20d": false,
-        "ret_20d": 0.10917848541610908,
-        "ret_5d": 0.047643118918235805
-      },
-      "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60クリーンスタック、RSI64.6で理想圏内（過熱なし）、MACDヒスト急拡大(+93)、20日高値圏(92%)で強い",
-      "rows_available": 6601,
-      "warmup_ok": true
-    },
-    {
-      "code": "6981.JP",
-      "name": "村田製作所",
-      "sector": "電子部品",
-      "score": 84,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 62.68672990949733,
-        "macd": "bear",
-        "atr_pct": 0.10624548024455986,
-        "vol_ratio": 0.9697439179400742,
-        "breakout_20d": false,
-        "ret_20d": 0.7626541207008437,
-        "ret_5d": 0.25606936416184967
-      },
-      "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60・20d+76%/60d+183%の爆発的上昇、RSI63で理想圏内、MACDヒストは微マイナスだがヒスト変化+56で急反転中",
-      "rows_available": 6339,
       "warmup_ok": true
     },
     {
       "code": "8411.JP",
       "name": "みずほフィナンシャルグループ",
       "sector": "銀行",
-      "score": 83,
+      "score": 85.5,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -149,15 +107,57 @@
         "ret_5d": 0.11563429807952397
       },
       "horizon_days": 5,
-      "rationale": "MA完全上昇スタック・5d+12%/20d+13%の強モメンタム、RSI75.8で過熱警戒域、MACDヒスト上昇継続",
+      "rationale": "上昇トレンド・MACD強気・RSI76",
       "rows_available": 5770,
+      "warmup_ok": true
+    },
+    {
+      "code": "9983.JP",
+      "name": "ファーストリテイリング",
+      "sector": "小売",
+      "score": 85.3,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 64.58064516129032,
+        "macd": "bull",
+        "atr_pct": 0.02537480613475788,
+        "vol_ratio": 0.9376431455196405,
+        "breakout_20d": false,
+        "ret_20d": 0.10917848541610908,
+        "ret_5d": 0.047643118918235805
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI65",
+      "rows_available": 6601,
+      "warmup_ok": true
+    },
+    {
+      "code": "6981.JP",
+      "name": "村田製作所",
+      "sector": "電子部品",
+      "score": 84.2,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 62.68672990949733,
+        "macd": "bear",
+        "atr_pct": 0.10624548024455986,
+        "vol_ratio": 0.9697439179400742,
+        "breakout_20d": false,
+        "ret_20d": 0.7626541207008437,
+        "ret_5d": 0.25606936416184967
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・RSI63",
+      "rows_available": 6339,
       "warmup_ok": true
     },
     {
       "code": "6273.JP",
       "name": "SMC",
       "sector": "機械",
-      "score": 83,
+      "score": 83.4,
       "signals": {
         "trend": "mixed",
         "ma_stack": "MA5>MA20",
@@ -170,7 +170,7 @@
         "ret_5d": 0.1739974126778785
       },
       "horizon_days": 5,
-      "rationale": "20日高値ブレイク・MACDヒスト急拡大(+371)・5d+17%/20d+12%、RSI59良好、MA200比+21%の中期上昇継続",
+      "rationale": "もみ合い・MACD強気・20日高値圏ブレイク・RSI59",
       "rows_available": 6342,
       "warmup_ok": true
     },
@@ -178,7 +178,7 @@
       "code": "4063.JP",
       "name": "信越化学工業",
       "sector": "化学",
-      "score": 82,
+      "score": 80.8,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -191,57 +191,15 @@
         "ret_5d": 0.1275578790141898
       },
       "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60・RSI53で過熱感ゼロ上値余地十分、MACDヒスト急反転(+19)、5d+13%/20d+10%の堅実な上昇モメンタム",
+      "rationale": "上昇トレンド・MACD強気・RSI53",
       "rows_available": 6601,
-      "warmup_ok": true
-    },
-    {
-      "code": "1801.JP",
-      "name": "大成建設",
-      "sector": "建設",
-      "score": 75,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 53.8235294117647,
-        "macd": "bull",
-        "atr_pct": 0.04207536175585122,
-        "vol_ratio": 1.0289447032610897,
-        "breakout_20d": false,
-        "ret_20d": 0.07726107652874403,
-        "ret_5d": 0.08681196896933874
-      },
-      "horizon_days": 5,
-      "rationale": "短中期反発強め・MACD正転継続・出来高平均超、60日線は上方が抵抗帯だが回復基調",
-      "rows_available": 6601,
-      "warmup_ok": true
-    },
-    {
-      "code": "7741.JP",
-      "name": "HOYA",
-      "sector": "精密機器",
-      "score": 74,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 54.81481481481482,
-        "macd": "bull",
-        "atr_pct": 0.027671459604841214,
-        "vol_ratio": 1.011989798411132,
-        "breakout_20d": false,
-        "ret_20d": 0.042264150943396306,
-        "ret_5d": 0.07429015947102302
-      },
-      "horizon_days": 5,
-      "rationale": "もみ合い・MACDヒスト急拡大(+74)・RSI55良好、20日高値圏(92%)、60日線は依然上方だが短期反発",
-      "rows_available": 6342,
       "warmup_ok": true
     },
     {
       "code": "8306.JP",
       "name": "三菱UFJフィナンシャル・グループ",
       "sector": "銀行",
-      "score": 73,
+      "score": 77.5,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -254,15 +212,57 @@
         "ret_5d": 0.07418019738936654
       },
       "horizon_days": 5,
-      "rationale": "MA完全上昇スタック・MACD強気継続、RSI81.8で明確な過熱圏・短期調整リスク高い、20日高値圏(95%)",
+      "rationale": "上昇トレンド・MACD強気・RSI82",
       "rows_available": 5104,
+      "warmup_ok": true
+    },
+    {
+      "code": "1801.JP",
+      "name": "大成建設",
+      "sector": "建設",
+      "score": 75.1,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "MA5>MA20",
+        "rsi14": 53.8235294117647,
+        "macd": "bull",
+        "atr_pct": 0.04207536175585122,
+        "vol_ratio": 1.0289447032610897,
+        "breakout_20d": false,
+        "ret_20d": 0.07726107652874403,
+        "ret_5d": 0.08681196896933874
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・MACD強気・RSI54",
+      "rows_available": 6601,
+      "warmup_ok": true
+    },
+    {
+      "code": "7741.JP",
+      "name": "HOYA",
+      "sector": "精密機器",
+      "score": 74.7,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "MA5>MA20",
+        "rsi14": 54.81481481481482,
+        "macd": "bull",
+        "atr_pct": 0.027671459604841214,
+        "vol_ratio": 1.011989798411132,
+        "breakout_20d": false,
+        "ret_20d": 0.042264150943396306,
+        "ret_5d": 0.07429015947102302
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・MACD強気・RSI55",
+      "rows_available": 6342,
       "warmup_ok": true
     },
     {
       "code": "8316.JP",
       "name": "三井住友フィナンシャルグループ",
       "sector": "銀行",
-      "score": 72,
+      "score": 73.9,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -275,36 +275,15 @@
         "ret_5d": 0.03581178737754942
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気・出来高良好、RSI74.7で過熱警戒・MACDヒスト変化若干マイナスで勢い鈍化の兆し",
+      "rationale": "上昇トレンド・MACD強気・RSI75",
       "rows_available": 6600,
-      "warmup_ok": true
-    },
-    {
-      "code": "7013.JP",
-      "name": "IHI",
-      "sector": "機械・重工",
-      "score": 71,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 54.17190775681342,
-        "macd": "bull",
-        "atr_pct": 0.05360881268068986,
-        "vol_ratio": 1.075583490076106,
-        "breakout_20d": false,
-        "ret_20d": 0.07140186915887847,
-        "ret_5d": 0.21543681085665822
-      },
-      "horizon_days": 5,
-      "rationale": "もみ合い・MACD強気・RSI54良好・5d+22%の強い短期リバウンド、60日線回復途上（60d -24%が重し）",
-      "rows_available": 6602,
       "warmup_ok": true
     },
     {
       "code": "6723.JP",
       "name": "ルネサスエレクトロニクス",
       "sector": "半導体",
-      "score": 70,
+      "score": 72.0,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -317,36 +296,36 @@
         "ret_5d": 0.03922934076137419
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・RSI54良好、MACDはマイナス継続で短期勢い鈍化、出来高0.76倍と低水準が懸念",
+      "rationale": "上昇トレンド・RSI54",
       "rows_available": 5674,
       "warmup_ok": true
     },
     {
-      "code": "6762.JP",
-      "name": "TDK",
-      "sector": "電子部品",
-      "score": 65,
+      "code": "7013.JP",
+      "name": "IHI",
+      "sector": "機械・重工",
+      "score": 71.6,
       "signals": {
         "trend": "mixed",
-        "ma_stack": "mixed",
-        "rsi14": 50.76784101174345,
-        "macd": "bear",
-        "atr_pct": 0.07320029839612084,
-        "vol_ratio": 0.8854813638355855,
+        "ma_stack": "MA5>MA20",
+        "rsi14": 54.17190775681342,
+        "macd": "bull",
+        "atr_pct": 0.05360881268068986,
+        "vol_ratio": 1.075583490076106,
         "breakout_20d": false,
-        "ret_20d": 0.30139313625552155,
-        "ret_5d": 0.052197802197802234
+        "ret_20d": 0.07140186915887847,
+        "ret_5d": 0.21543681085665822
       },
       "horizon_days": 5,
-      "rationale": "20d+30%/60d+75%の強い上昇、RSI51で健全、MACDヒストは負だが回復傾向(+5)、MA5<MA20でキャッチアップ中",
-      "rows_available": 6601,
+      "rationale": "もみ合い・MACD強気・RSI54",
+      "rows_available": 6602,
       "warmup_ok": true
     },
     {
       "code": "7751.JP",
       "name": "キヤノン",
       "sector": "精密機器",
-      "score": 64,
+      "score": 66.1,
       "signals": {
         "trend": "mixed",
         "ma_stack": "MA5>MA20",
@@ -359,7 +338,7 @@
         "ret_5d": 0.011100832562442209
       },
       "horizon_days": 5,
-      "rationale": "もみ合い・MACD強気・RSI62良好、短期モメンタム弱め(5d+1%)、低ボラで安定",
+      "rationale": "もみ合い・MACD強気・RSI62",
       "rows_available": 6601,
       "warmup_ok": true
     },
@@ -367,7 +346,7 @@
       "code": "8725.JP",
       "name": "MS&ADインシュアランスグループホールディングス",
       "sector": "保険",
-      "score": 62,
+      "score": 65.7,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -380,8 +359,29 @@
         "ret_5d": -0.008701326952360255
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気ながらヒスト急減速(-8)、RSI70接近で過熱懸念、出来高0.76倍の低水準・5d小幅マイナス",
+      "rationale": "上昇トレンド・MACD強気・RSI70",
       "rows_available": 4472,
+      "warmup_ok": true
+    },
+    {
+      "code": "6762.JP",
+      "name": "TDK",
+      "sector": "電子部品",
+      "score": 62.6,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "mixed",
+        "rsi14": 50.76784101174345,
+        "macd": "bear",
+        "atr_pct": 0.07320029839612084,
+        "vol_ratio": 0.8854813638355855,
+        "breakout_20d": false,
+        "ret_20d": 0.30139313625552155,
+        "ret_5d": 0.052197802197802234
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・RSI51",
+      "rows_available": 6601,
       "warmup_ok": true
     },
     {
@@ -658,27 +658,6 @@
       "warmup_ok": true
     },
     {
-      "code": "6503.JP",
-      "name": "三菱電機",
-      "sector": "電機",
-      "score": 43,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "mixed",
-        "rsi14": 39.24592973436161,
-        "macd": "bear",
-        "atr_pct": 0.04907765616153992,
-        "vol_ratio": 0.8713403081874349,
-        "breakout_20d": false,
-        "ret_20d": -0.002142033283901834,
-        "ret_5d": 0.11200881380829975
-      },
-      "horizon_days": 5,
-      "rationale": "5d+11%の強い短期リバウンド・MACDヒスト急反転(+25.6)、RSI39でやや弱い、MA5がMA20を下抜き中",
-      "rows_available": 6602,
-      "warmup_ok": true
-    },
-    {
       "code": "7974.JP",
       "name": "任天堂",
       "sector": "ゲーム",
@@ -718,6 +697,27 @@
       "horizon_days": 5,
       "rationale": "下降トレンド・MACD強気・RSI46",
       "rows_available": 6601,
+      "warmup_ok": true
+    },
+    {
+      "code": "6503.JP",
+      "name": "三菱電機",
+      "sector": "電機",
+      "score": 40.5,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "mixed",
+        "rsi14": 39.24592973436161,
+        "macd": "bear",
+        "atr_pct": 0.04907765616153992,
+        "vol_ratio": 0.8713403081874349,
+        "breakout_20d": false,
+        "ret_20d": -0.002142033283901834,
+        "ret_5d": 0.11200881380829975
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・RSI39",
+      "rows_available": 6602,
       "warmup_ok": true
     },
     {
@@ -1109,5 +1109,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "半導体製造装置セクターが上位を独占（6857/6146/6920/8035）。6857はRSI63で理想圏内かつMACDヒスト急拡大で最高評価。6146/6920はRSI73で過熱ライン接近のため小幅減点。銀行セクター（8411/8306/8316）は上昇トレンド継続だがRSI75-82の過熱圏に注意。9983（ファストリ）はRSI65・MACD急拡大でクリーンな強気。商社・自動車・通信は総じて下落トレンド継続。"
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
