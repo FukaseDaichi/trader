@@ -1,70 +1,160 @@
-# Technical screening candidate pool for AI ticker curation.
-#
-# The technical agent screens these (plus current enabled + watchlist) every
-# trading day. Keep this to liquid, large-cap JP names. Refresh roughly weekly.
-# See specification_document/ai_ticker_curation/04_data_contracts.md (§3).
-#
-# Codes use the NNNN.JP format. `sector` feeds the diversification guardrail.
 pool:
-  # --- 自動車・輸送機器 ---
-  - { code: "7203.JP", name: "トヨタ自動車", sector: "自動車" }
-  - { code: "7267.JP", name: "ホンダ", sector: "自動車" }
-  - { code: "7201.JP", name: "日産自動車", sector: "自動車" }
-  # --- 半導体・製造装置 ---
-  - { code: "8035.JP", name: "東京エレクトロン", sector: "半導体製造装置" }
-  - { code: "6920.JP", name: "レーザーテック", sector: "半導体製造装置" }
-  - { code: "6857.JP", name: "アドバンテスト", sector: "半導体製造装置" }
-  - { code: "6146.JP", name: "ディスコ", sector: "半導体製造装置" }
-  - { code: "6723.JP", name: "ルネサスエレクトロニクス", sector: "半導体" }
-  # --- 電機・精密 ---
-  - { code: "6758.JP", name: "ソニーグループ", sector: "電機" }
-  - { code: "6501.JP", name: "日立製作所", sector: "電機" }
-  - { code: "6503.JP", name: "三菱電機", sector: "電機" }
-  - { code: "6701.JP", name: "日本電気", sector: "電機" }
-  - { code: "6702.JP", name: "富士通", sector: "電機" }
-  - { code: "6981.JP", name: "村田製作所", sector: "電子部品" }
-  - { code: "6762.JP", name: "TDK", sector: "電子部品" }
-  - { code: "7751.JP", name: "キヤノン", sector: "精密機器" }
-  - { code: "6861.JP", name: "キーエンス", sector: "電機" }
-  - { code: "7741.JP", name: "HOYA", sector: "精密機器" }
-  # --- 機械・重工 ---
-  - { code: "7011.JP", name: "三菱重工業", sector: "機械・重工" }
-  - { code: "7013.JP", name: "IHI", sector: "機械・重工" }
-  - { code: "6301.JP", name: "コマツ", sector: "機械" }
-  - { code: "6367.JP", name: "ダイキン工業", sector: "機械" }
-  - { code: "6273.JP", name: "SMC", sector: "機械" }
-  # --- 商社 ---
-  - { code: "8058.JP", name: "三菱商事", sector: "商社" }
-  - { code: "8031.JP", name: "三井物産", sector: "商社" }
-  - { code: "8001.JP", name: "伊藤忠商事", sector: "商社" }
-  - { code: "8053.JP", name: "住友商事", sector: "商社" }
-  # --- 銀行・金融・保険 ---
-  - { code: "8306.JP", name: "三菱UFJフィナンシャル・グループ", sector: "銀行" }
-  - { code: "8316.JP", name: "三井住友フィナンシャルグループ", sector: "銀行" }
-  - { code: "8411.JP", name: "みずほフィナンシャルグループ", sector: "銀行" }
-  - { code: "8591.JP", name: "オリックス", sector: "金融" }
-  - { code: "8766.JP", name: "東京海上ホールディングス", sector: "保険" }
-  - { code: "8725.JP", name: "MS&ADインシュアランスグループホールディングス", sector: "保険" }
-  # --- 医薬品 ---
-  - { code: "4519.JP", name: "中外製薬", sector: "医薬品" }
-  - { code: "4502.JP", name: "武田薬品工業", sector: "医薬品" }
-  - { code: "4568.JP", name: "第一三共", sector: "医薬品" }
-  # --- 化学・素材 ---
-  - { code: "4063.JP", name: "信越化学工業", sector: "化学" }
-  - { code: "4901.JP", name: "富士フイルムホールディングス", sector: "化学" }
-  # --- 情報・通信 ---
-  - { code: "9432.JP", name: "日本電信電話", sector: "通信" }
-  - { code: "9433.JP", name: "KDDI", sector: "通信" }
-  - { code: "9434.JP", name: "ソフトバンク", sector: "通信" }
-  - { code: "9984.JP", name: "ソフトバンクグループ", sector: "情報・通信" }
-  # --- 消費・小売・サービス ---
-  - { code: "9983.JP", name: "ファーストリテイリング", sector: "小売" }
-  - { code: "7974.JP", name: "任天堂", sector: "ゲーム" }
-  - { code: "6098.JP", name: "リクルートホールディングス", sector: "サービス" }
-  - { code: "2914.JP", name: "日本たばこ産業", sector: "食品" }
-  - { code: "4661.JP", name: "オリエンタルランド", sector: "サービス" }
-  # --- 建設 ---
-  - { code: "1802.JP", name: "大林組", sector: "建設" }
-  - { code: "1801.JP", name: "大成建設", sector: "建設" }
-  # --- 運輸 ---
-  - { code: "9020.JP", name: "東日本旅客鉄道", sector: "運輸" }
+- code: 7203.JP
+  name: トヨタ自動車
+  sector: 自動車
+- code: 7267.JP
+  name: ホンダ
+  sector: 自動車
+- code: 7201.JP
+  name: 日産自動車
+  sector: 自動車
+- code: 8035.JP
+  name: 東京エレクトロン
+  sector: 半導体製造装置
+- code: 6920.JP
+  name: レーザーテック
+  sector: 半導体製造装置
+- code: 6857.JP
+  name: アドバンテスト
+  sector: 半導体製造装置
+- code: 6146.JP
+  name: ディスコ
+  sector: 半導体製造装置
+- code: 6723.JP
+  name: ルネサスエレクトロニクス
+  sector: 半導体
+- code: 6758.JP
+  name: ソニーグループ
+  sector: 電機
+- code: 6501.JP
+  name: 日立製作所
+  sector: 電機
+- code: 6503.JP
+  name: 三菱電機
+  sector: 電機
+- code: 6701.JP
+  name: 日本電気
+  sector: 電機
+- code: 6702.JP
+  name: 富士通
+  sector: 電機
+- code: 6981.JP
+  name: 村田製作所
+  sector: 電子部品
+- code: 6762.JP
+  name: TDK
+  sector: 電子部品
+- code: 7751.JP
+  name: キヤノン
+  sector: 精密機器
+- code: 6861.JP
+  name: キーエンス
+  sector: 電機
+- code: 7741.JP
+  name: HOYA
+  sector: 精密機器
+- code: 7011.JP
+  name: 三菱重工業
+  sector: 機械・重工
+- code: 7013.JP
+  name: IHI
+  sector: 機械・重工
+- code: 6301.JP
+  name: コマツ
+  sector: 機械
+- code: 6367.JP
+  name: ダイキン工業
+  sector: 機械
+- code: 6273.JP
+  name: SMC
+  sector: 機械
+- code: 8058.JP
+  name: 三菱商事
+  sector: 商社
+- code: 8031.JP
+  name: 三井物産
+  sector: 商社
+- code: 8001.JP
+  name: 伊藤忠商事
+  sector: 商社
+- code: 8053.JP
+  name: 住友商事
+  sector: 商社
+- code: 8306.JP
+  name: 三菱UFJフィナンシャル・グループ
+  sector: 銀行
+- code: 8316.JP
+  name: 三井住友フィナンシャルグループ
+  sector: 銀行
+- code: 8411.JP
+  name: みずほフィナンシャルグループ
+  sector: 銀行
+- code: 8591.JP
+  name: オリックス
+  sector: 金融
+- code: 8766.JP
+  name: 東京海上ホールディングス
+  sector: 保険
+- code: 8725.JP
+  name: MS&ADインシュアランスグループホールディングス
+  sector: 保険
+- code: 4519.JP
+  name: 中外製薬
+  sector: 医薬品
+- code: 4502.JP
+  name: 武田薬品工業
+  sector: 医薬品
+- code: 4568.JP
+  name: 第一三共
+  sector: 医薬品
+- code: 4063.JP
+  name: 信越化学工業
+  sector: 化学
+- code: 4901.JP
+  name: 富士フイルムホールディングス
+  sector: 化学
+- code: 9432.JP
+  name: 日本電信電話
+  sector: 通信
+- code: 9433.JP
+  name: KDDI
+  sector: 通信
+- code: 9434.JP
+  name: ソフトバンク
+  sector: 通信
+- code: 9984.JP
+  name: ソフトバンクグループ
+  sector: 情報・通信
+- code: 9983.JP
+  name: ファーストリテイリング
+  sector: 小売
+- code: 7974.JP
+  name: 任天堂
+  sector: ゲーム
+- code: 6098.JP
+  name: リクルートホールディングス
+  sector: サービス
+- code: 2914.JP
+  name: 日本たばこ産業
+  sector: 食品
+- code: 4661.JP
+  name: オリエンタルランド
+  sector: サービス
+- code: 1802.JP
+  name: 大林組
+  sector: 建設
+- code: 1801.JP
+  name: 大成建設
+  sector: 建設
+- code: 9020.JP
+  name: 東日本旅客鉄道
+  sector: 運輸
+- code: 4452.JP
+  name: 花王
+  sector: 消費財
+- code: 4543.JP
+  name: テルモ
+  sector: 医療機器
+- code: 8604.JP
+  name: 野村ホールディングス
+  sector: 証券
