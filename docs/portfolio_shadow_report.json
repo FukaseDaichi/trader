@@ -1,26 +1,64 @@
 {
-  "available": false,
-  "n_dates": 0,
-  "n_records": 0,
+  "available": true,
+  "n_dates": 8,
+  "n_records": 400,
   "top_n": 8,
-  "generated_at": "2026-06-13T09:26:45+09:00",
+  "generated_at": "2026-06-20T09:16:59+09:00",
   "window": {
-    "start": "2026-04-14",
-    "end": "2026-06-13",
+    "start": "2026-04-21",
+    "end": "2026-06-20",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20260613",
-  "reason": "insufficient_shadow_history",
-  "min_dates_required": 5,
+  "model_version": "cs-v1-20260620",
+  "comparison": {
+    "phase1": {
+      "daily_ic": 0.5906520311316203,
+      "rank_ic": 0.5666666666666667,
+      "topn_realized_return": 0.07784893386772773,
+      "hit_rate": 0.8,
+      "max_drawdown": 0.0,
+      "turnover": null,
+      "n_dates_with_topn": 3
+    },
+    "phase2": {
+      "daily_ic": null,
+      "rank_ic": null,
+      "topn_realized_return": null,
+      "hit_rate": null,
+      "max_drawdown": null,
+      "turnover": 0.05835516617571336,
+      "expected_ret_calibration": {
+        "mean_expected_ret": 0.017596935149949176,
+        "mean_realized_ret": null,
+        "bias": null,
+        "n": 40
+      },
+      "n_dates_with_topn": 0
+    },
+    "delta": {
+      "daily_ic": null,
+      "rank_ic": null,
+      "topn_realized_return": null,
+      "hit_rate": null,
+      "max_drawdown": null
+    },
+    "verdict": {
+      "phase2_ic_ge_phase1": null,
+      "phase2_rank_ic_ge_phase1": null,
+      "phase2_topn_ge_phase1": null,
+      "phase2_hit_rate_ge_phase1": null,
+      "phase2_drawdown_no_worse": null
+    }
+  },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 0,
+    "shadow_days": 8,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
     "cs_ic_vs_phase1": null,
     "reasons": [
-      "shadow_days 0 < 10",
+      "shadow_days 8 < 10",
       "portfolio_gate not passed",
       "cs_ic_vs_phase1 unavailable"
     ]
