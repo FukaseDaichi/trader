@@ -177,35 +177,20 @@ Local instruction sets stored in `SKILL.md` files. For this repository:
 
 ## AI Ticker Curation (automated)
 
-An automated system curates the `tickers.yml` universe via Claude running in
-GitHub Actions (`claude-code-action@v1` + `CLAUDE_CODE_OAUTH_TOKEN`). Full
-design and contracts: `specification_document/ai_ticker_curation/`.
+`tickers.yml` and `curation_pool.yml` are curated automatically by Claude
+running in GitHub Actions (`claude-code-action@v1`). Cadence: technical screen
+**daily**, fundamental + global-macro + weekly report **weekly** (Sat), pool
+refresh **biweekly** (inside the Saturday workflow).
 
-- Cadence: technical screen runs **daily** (drives small universe swaps);
-  a global-macro screen (rates/FX), the fundamental screen, and a casual
-  girl-narrator weekly report run **weekly** (Saturday), notifying the
-  report's GitHub URL via LINE; an AI **pool refresh** (fundamentals +
-  liquidity) reviews `curation_pool.yml` itself **biweekly** (every 14 days,
-  as steps inside the Saturday workflow).
-- Agents emit JSON/Markdown only; the deterministic
-  `scripts/curation_merge.py` owns `tickers.yml` edits and
-  `scripts/curation_pool_merge.py` owns `curation_pool.yml` edits — both under
-  guardrails (churn cap, sector cap, warmup, cooldown, fundamental freshness;
-  the pool adds a local-parquet liquidity floor + add-only/replace mode).
-- Pool refresh (the candidate母集団): `/jp-stock-pool-screen` proposes
-  fundamentally strong, liquid large-caps → `pool_candidates_latest.json`;
-  `curation_pool_merge.py` is the **sole writer** of `curation_pool.yml`
-  (rollout phase 1 is add-only — `max_drops_per_run: 0` — growing toward
-  `pool_target_size: 60`, auto-flipping to replace-only at target). It also
-  cleans stale `data/watchlist/` parquet and notifies via
-  `curation_pool_notify.py`. Full as-built:
-  `specification_document/ai_ticker_curation/07_pool_refresh.md`.
-- CI skills: `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,jp-stock-pool-screen,weekly-stock-report}/`.
-- Scripts: `scripts/{technical_screen,curation_warmup,curation_merge,curation_pool_merge,curation_guard,curation_notify,curation_pool_notify}.py`
-  (+ `scripts/curation_common.py`). Pool: `curation_pool.yml`.
-  Tests: `tests/{test_curation_merge,test_curation_pool_merge}.py`.
-- Workflows: `.github/workflows/{daily-ticker-curation,weekly-fundamental-report}.yml`
-  (the weekly workflow also runs the biweekly pool refresh).
-- Tuning knobs live in `tickers.yml` `settings.curation` (pool knobs under
-  `settings.curation.pool`). `data/watchlist/` is gitignored (warmup data is
-  re-fetched each run).
+**Critical invariant**: curation agents emit JSON/Markdown only and never edit
+those two files directly. The deterministic `scripts/curation_merge.py`
+(→ `tickers.yml`) and `scripts/curation_pool_merge.py` (→ `curation_pool.yml`)
+are the **sole writers**, under guardrails (churn/sector cap, warmup, cooldown,
+freshness, pool liquidity floor + add-only/replace). A PreToolUse hook
+(`.claude/hooks/protect-deterministic-files.sh`) enforces the no-direct-edit
+rule. CI skills live in `.claude/skills/`; tuning knobs in `tickers.yml`
+`settings.curation` (pool knobs under `.pool`).
+
+Full design, data contracts, cadence, guardrails, scripts, and rollout:
+`specification_document/ai_ticker_curation/` (start at `00_overview.md`;
+`07_pool_refresh.md` covers the candidate pool / 母集団).
