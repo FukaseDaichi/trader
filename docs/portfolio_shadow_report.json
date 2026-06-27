@@ -1,51 +1,51 @@
 {
   "available": true,
-  "n_dates": 8,
-  "n_records": 400,
+  "n_dates": 13,
+  "n_records": 650,
   "top_n": 8,
-  "generated_at": "2026-06-20T09:16:59+09:00",
+  "generated_at": "2026-06-27T09:15:37+09:00",
   "window": {
-    "start": "2026-04-21",
-    "end": "2026-06-20",
+    "start": "2026-04-28",
+    "end": "2026-06-27",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20260620",
+  "model_version": "cs-v1-20260627",
   "comparison": {
     "phase1": {
-      "daily_ic": 0.5906520311316203,
-      "rank_ic": 0.5666666666666667,
-      "topn_realized_return": 0.07784893386772773,
-      "hit_rate": 0.8,
-      "max_drawdown": 0.0,
+      "daily_ic": 0.4811834124017447,
+      "rank_ic": 0.44000000000000006,
+      "topn_realized_return": 0.05367073501854734,
+      "hit_rate": 0.75,
+      "max_drawdown": -0.005023573154950722,
       "turnover": null,
-      "n_dates_with_topn": 3
+      "n_dates_with_topn": 5
     },
     "phase2": {
-      "daily_ic": null,
-      "rank_ic": null,
+      "daily_ic": 0.22806542607757752,
+      "rank_ic": 0.3269483764063866,
       "topn_realized_return": null,
       "hit_rate": null,
       "max_drawdown": null,
-      "turnover": 0.05835516617571336,
+      "turnover": 0.04880884722166313,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.017596935149949176,
+        "mean_expected_ret": 0.017736810197796972,
         "mean_realized_ret": null,
         "bias": null,
-        "n": 40
+        "n": 80
       },
       "n_dates_with_topn": 0
     },
     "delta": {
-      "daily_ic": null,
-      "rank_ic": null,
+      "daily_ic": -0.2531179863241672,
+      "rank_ic": -0.11305162359361348,
       "topn_realized_return": null,
       "hit_rate": null,
       "max_drawdown": null
     },
     "verdict": {
-      "phase2_ic_ge_phase1": null,
-      "phase2_rank_ic_ge_phase1": null,
+      "phase2_ic_ge_phase1": false,
+      "phase2_rank_ic_ge_phase1": false,
       "phase2_topn_ge_phase1": null,
       "phase2_hit_rate_ge_phase1": null,
       "phase2_drawdown_no_worse": null
@@ -53,14 +53,13 @@
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 8,
+    "shadow_days": 13,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": null,
+    "cs_ic_vs_phase1": -0.2531179863241672,
     "reasons": [
-      "shadow_days 8 < 10",
       "portfolio_gate not passed",
-      "cs_ic_vs_phase1 unavailable"
+      "cs_ic_vs_phase1 -0.2531 < -0.005"
     ]
   }
 }
