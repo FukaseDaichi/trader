@@ -15,3 +15,14 @@ dependencies = [
     "yfinance>=0.2.54",
     "psycopg[binary]>=3.2",
 ]
+
+# Used by the run-ruff.sh PostToolUse hook (via `uvx ruff`); ruff itself is not
+# a project dependency. Conservative defaults to keep auto-fix diffs small.
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+# Default rule set (pyflakes F + pycodestyle E) only — no opinionated extras,
+# so --fix mostly removes unused imports / trivial issues rather than churning.
+select = ["E", "F"]
