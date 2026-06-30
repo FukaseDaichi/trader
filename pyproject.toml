@@ -23,6 +23,12 @@ target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
-# Default rule set (pyflakes F + pycodestyle E) only — no opinionated extras,
-# so --fix mostly removes unused imports / trivial issues rather than churning.
+# pyflakes (F) + pycodestyle (E), minus two rules that fight this codebase:
+#   E501 line-too-long  — `ruff format` owns line width; long string/url literals
+#                         it won't wrap shouldn't nag on every edit.
+#   E402 import-not-at-top — runnable scripts/ intentionally set sys.path before
+#                            importing src.*.
+# This keeps the run-ruff.sh hook quiet unless a genuine new issue (unused
+# import/variable, undefined name, …) appears.
 select = ["E", "F"]
+ignore = ["E501", "E402"]

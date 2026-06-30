@@ -61,6 +61,7 @@ DEFAULT_POOL_SETTINGS = {
 # Small pure helpers
 # ---------------------------------------------------------------------------
 
+
 def _deep_merge(base: dict, override: dict | None) -> dict:
     out = dict(base)
     for key, value in (override or {}).items():
@@ -115,7 +116,9 @@ def _sector_cap_ok(pool_after: list[dict], candidate: dict, cap_pct: float) -> b
     return (count / total) <= (cap_pct / 100.0) + 1e-9
 
 
-def _candidate_identity(code: str, proposal_item: dict | None, pool_item: dict | None) -> dict:
+def _candidate_identity(
+    code: str, proposal_item: dict | None, pool_item: dict | None
+) -> dict:
     proposal_item = proposal_item or {}
     pool_item = pool_item or {}
     return {
@@ -149,6 +152,7 @@ def _rank_drop(record: dict) -> tuple:
 # Pure decision logic (unit-testable)
 # ---------------------------------------------------------------------------
 
+
 def compute_pool_decision(
     proposal: dict | None,
     current_pool: list[dict],
@@ -163,9 +167,7 @@ def compute_pool_decision(
     cooldown_codes = cooldown_codes or set()
     pmap = _proposal_candidates(proposal)
     pool_by_code = {
-        p["code"]: p
-        for p in current_pool
-        if isinstance(p, dict) and p.get("code")
+        p["code"]: p for p in current_pool if isinstance(p, dict) and p.get("code")
     }
     pool_codes = list(pool_by_code)
     enabled_set = set(enabled_codes(cfg))
@@ -238,7 +240,9 @@ def compute_pool_decision(
             drop_candidates.append(r)
     drop_candidates.sort(key=_rank_drop)
 
-    pool_after = [dict(p) for p in current_pool if isinstance(p, dict) and p.get("code")]
+    pool_after = [
+        dict(p) for p in current_pool if isinstance(p, dict) and p.get("code")
+    ]
     dropped: list[str] = []
     added: list[str] = []
     rejected_after_guard: dict[str, str] = {}
@@ -247,7 +251,11 @@ def compute_pool_decision(
         return {p["code"] for p in pool_after}
 
     if mode == "grow":
-        add_limit = min(max_adds, max(0, target_size - len(pool_after)), max(0, max_size - len(pool_after)))
+        add_limit = min(
+            max_adds,
+            max(0, target_size - len(pool_after)),
+            max(0, max_size - len(pool_after)),
+        )
         for r in add_candidates:
             if len(added) >= add_limit:
                 rejected_after_guard[r["code"]] = "add_limit_reached"
@@ -298,7 +306,9 @@ def compute_pool_decision(
         records[code]["reason"] = "accepted"
     for code in dropped_set:
         records[code]["action"] = "drop"
-        records[code]["reason"] = "paired_replacement" if mode == "replace" else "dropped"
+        records[code]["reason"] = (
+            "paired_replacement" if mode == "replace" else "dropped"
+        )
     for code in final_codes:
         if code not in added_set and code not in dropped_set:
             records[code]["action"] = "keep"
@@ -308,7 +318,9 @@ def compute_pool_decision(
                 records[code]["reason"] = "kept"
 
     ranking = []
-    for code in sorted(records, key=lambda c: (records[c]["action"] != "add", _rank_add(records[c]))):
+    for code in sorted(
+        records, key=lambda c: (records[c]["action"] != "add", _rank_add(records[c]))
+    ):
         r = records[code]
         ranking.append(
             {
@@ -328,7 +340,9 @@ def compute_pool_decision(
 
     return {
         "mode": mode,
-        "pool_before": [p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")],
+        "pool_before": [
+            p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")
+        ],
         "pool_after": [p["code"] for p in pool_after],
         "new_pool": pool_after,
         "ranking": ranking,
@@ -351,6 +365,7 @@ def compute_pool_decision(
 # Filesystem helpers
 # ---------------------------------------------------------------------------
 
+
 def _read_parquet_for_code(code: str) -> pd.DataFrame | None:
     for path in (WATCHLIST_DIR / f"{code}.parquet", DATA_DIR / f"{code}.parquet"):
         if not path.exists():
@@ -362,7 +377,9 @@ def _read_parquet_for_code(code: str) -> pd.DataFrame | None:
     return None
 
 
-def compute_median_turnover_jpy(df: pd.DataFrame | None, window: int = 60) -> float | None:
+def compute_median_turnover_jpy(
+    df: pd.DataFrame | None, window: int = 60
+) -> float | None:
     if df is None or df.empty or not {"close", "volume"}.issubset(df.columns):
         return None
     trading_value = (df.tail(window)["close"] * df.tail(window)["volume"]).dropna()
@@ -372,7 +389,10 @@ def compute_median_turnover_jpy(df: pd.DataFrame | None, window: int = 60) -> fl
 
 
 def _local_liquidity_lookup(codes: list[str]) -> dict[str, float | None]:
-    return {code: compute_median_turnover_jpy(_read_parquet_for_code(code)) for code in codes}
+    return {
+        code: compute_median_turnover_jpy(_read_parquet_for_code(code))
+        for code in codes
+    }
 
 
 def _fetch_missing_parquets(codes: list[str]) -> list[dict]:
@@ -381,7 +401,9 @@ def _fetch_missing_parquets(codes: list[str]) -> list[dict]:
     fetched = []
     WATCHLIST_DIR.mkdir(parents=True, exist_ok=True)
     for code in codes:
-        if (WATCHLIST_DIR / f"{code}.parquet").exists() or (DATA_DIR / f"{code}.parquet").exists():
+        if (WATCHLIST_DIR / f"{code}.parquet").exists() or (
+            DATA_DIR / f"{code}.parquet"
+        ).exists():
             continue
         try:
             df = update_data(code, dest_dir=WATCHLIST_DIR)
@@ -389,7 +411,9 @@ def _fetch_missing_parquets(codes: list[str]) -> list[dict]:
             fetched.append({"code": code, "status": "error", "error": str(exc)})
             continue
         rows = int(len(df)) if df is not None else 0
-        fetched.append({"code": code, "status": "ok" if rows else "empty", "rows": rows})
+        fetched.append(
+            {"code": code, "status": "ok" if rows else "empty", "rows": rows}
+        )
     return fetched
 
 
@@ -403,7 +427,9 @@ def save_pool(pool: list[dict], path: Path | None = None) -> None:
         clean_pool.append(item)
     payload = {"pool": clean_pool}
     with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(payload, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        yaml.safe_dump(
+            payload, f, allow_unicode=True, sort_keys=False, default_flow_style=False
+        )
 
 
 def _cleanup_warmup_files(keep_codes: set[str], apply: bool) -> dict:
@@ -441,13 +467,21 @@ def _load_pool_cooldowns(today: date, cooldown_days: int) -> set[str]:
         if not d or (today - d).days >= cooldown_days:
             continue
         for item in (payload or {}).get("ranking", []):
-            if isinstance(item, dict) and item.get("action") == "drop" and item.get("code"):
+            if (
+                isinstance(item, dict)
+                and item.get("action") == "drop"
+                and item.get("code")
+            ):
                 cooldown.add(item["code"])
     latest = read_json(CURATION_DIR / "pool_decision_latest.json")
     d = parse_iso_date((latest or {}).get("date"))
     if d and (today - d).days < cooldown_days:
         for item in (latest or {}).get("ranking", []):
-            if isinstance(item, dict) and item.get("action") == "drop" and item.get("code"):
+            if (
+                isinstance(item, dict)
+                and item.get("action") == "drop"
+                and item.get("code")
+            ):
                 cooldown.add(item["code"])
     return cooldown
 
@@ -458,10 +492,20 @@ def should_run_pool_refresh(settings: dict, today: date, force: bool = False) ->
     cadence = int(settings["cadence_days"])
     latest = read_json(CURATION_DIR / "pool_decision_latest.json")
     if latest and latest.get("proposal_valid") is False:
-        return {"due": True, "reason": "previous_proposal_invalid", "last_date": None, "days_since": None}
+        return {
+            "due": True,
+            "reason": "previous_proposal_invalid",
+            "last_date": None,
+            "days_since": None,
+        }
     last_date = parse_iso_date((latest or {}).get("date"))
     if not last_date:
-        return {"due": True, "reason": "no_previous_pool_decision", "last_date": None, "days_since": None}
+        return {
+            "due": True,
+            "reason": "no_previous_pool_decision",
+            "last_date": None,
+            "days_since": None,
+        }
     days_since = (today - last_date).days
     due = days_since >= cadence
     return {
@@ -488,6 +532,7 @@ def _write_github_output(values: dict) -> None:
 # ---------------------------------------------------------------------------
 # Main side-effect runner
 # ---------------------------------------------------------------------------
+
 
 def run(
     proposal_path: Path,
@@ -522,8 +567,12 @@ def run(
                 "pool_target_size": int(settings["pool_target_size"]),
                 "pool_max_size": int(settings["pool_max_size"]),
             },
-            "pool_before": [p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")],
-            "pool_after": [p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")],
+            "pool_before": [
+                p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")
+            ],
+            "pool_after": [
+                p["code"] for p in current_pool if isinstance(p, dict) and p.get("code")
+            ],
             "skipped_reason": "missing_or_invalid_proposal",
         }
         write_json(CURATION_DIR / "pool_decision_latest.json", audit)
@@ -537,7 +586,9 @@ def run(
     if fetch_missing and proposal_codes:
         fetched = _fetch_missing_parquets(proposal_codes)
 
-    liquidity = _local_liquidity_lookup(sorted(set(proposal_codes) | {p["code"] for p in current_pool}))
+    liquidity = _local_liquidity_lookup(
+        sorted(set(proposal_codes) | {p["code"] for p in current_pool})
+    )
     cooldown_codes = _load_pool_cooldowns(today, int(settings["pool_cooldown_days"]))
     decision = compute_pool_decision(
         proposal,
@@ -555,7 +606,11 @@ def run(
         save_pool(decision["new_pool"])
         pool_written = True
 
-    keep_codes = set(decision["pool_after"]) | set(enabled_codes(cfg)) | _cfg_watchlist_codes(cfg)
+    keep_codes = (
+        set(decision["pool_after"])
+        | set(enabled_codes(cfg))
+        | _cfg_watchlist_codes(cfg)
+    )
     cleanup = _cleanup_warmup_files(keep_codes, apply=apply)
 
     audit = {
@@ -592,15 +647,33 @@ def run(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Deterministic merge for curation_pool.yml")
-    p.add_argument("--proposal", default=None, help="path to pool_candidates_latest.json")
+    p.add_argument(
+        "--proposal", default=None, help="path to pool_candidates_latest.json"
+    )
     p.add_argument("--date", default=None, help="YYYY-MM-DD JST (default: today JST)")
     g = p.add_mutually_exclusive_group()
-    g.add_argument("--apply", action="store_true", help="apply changes to curation_pool.yml")
-    g.add_argument("--dry-run", action="store_true", help="compute decision only (default)")
-    p.add_argument("--no-fetch-missing", action="store_true", help="do not fetch missing candidate parquets")
-    p.add_argument("--check-due", action="store_true", help="only check the biweekly cadence guard")
-    p.add_argument("--force", action="store_true", help="force cadence guard to due=true")
-    p.add_argument("--github-output", action="store_true", help="write due outputs to $GITHUB_OUTPUT")
+    g.add_argument(
+        "--apply", action="store_true", help="apply changes to curation_pool.yml"
+    )
+    g.add_argument(
+        "--dry-run", action="store_true", help="compute decision only (default)"
+    )
+    p.add_argument(
+        "--no-fetch-missing",
+        action="store_true",
+        help="do not fetch missing candidate parquets",
+    )
+    p.add_argument(
+        "--check-due", action="store_true", help="only check the biweekly cadence guard"
+    )
+    p.add_argument(
+        "--force", action="store_true", help="force cadence guard to due=true"
+    )
+    p.add_argument(
+        "--github-output",
+        action="store_true",
+        help="write due outputs to $GITHUB_OUTPUT",
+    )
     return p
 
 
@@ -628,7 +701,11 @@ def main() -> int:
             )
         return 0
 
-    proposal_path = Path(args.proposal) if args.proposal else (CURATION_DIR / "pool_candidates_latest.json")
+    proposal_path = (
+        Path(args.proposal)
+        if args.proposal
+        else (CURATION_DIR / "pool_candidates_latest.json")
+    )
     apply = bool(args.apply) and not args.dry_run
     return run(proposal_path, date_str, apply, fetch_missing=not args.no_fetch_missing)
 

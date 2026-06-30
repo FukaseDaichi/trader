@@ -67,8 +67,13 @@ MACRO_FEATURE_COLS = [
     "macro_bias_score",
 ]
 
-_BIAS_SCORE = {"risk_on": 1.0, "neutral": 0.0, "risk_off": -1.0,
-               "bullish": 1.0, "bearish": -1.0}
+_BIAS_SCORE = {
+    "risk_on": 1.0,
+    "neutral": 0.0,
+    "risk_off": -1.0,
+    "bullish": 1.0,
+    "bearish": -1.0,
+}
 
 
 def encode_market_bias(value) -> float:
@@ -79,6 +84,7 @@ def encode_market_bias(value) -> float:
 
 
 # --- network fetch (best-effort) -------------------------------------------
+
 
 def fetch_market_series(spec: dict) -> pd.DataFrame | None:
     """
@@ -102,12 +108,20 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
             try:
                 import yfinance as yf
 
-                raw = yf.download(yf_symbol, period=period, interval="1d",
-                                  auto_adjust=False, progress=False, threads=False)
+                raw = yf.download(
+                    yf_symbol,
+                    period=period,
+                    interval="1d",
+                    auto_adjust=False,
+                    progress=False,
+                    threads=False,
+                )
                 if raw is None or raw.empty:
                     continue
                 if isinstance(raw.columns, pd.MultiIndex):
-                    raw.columns = [c[0] if isinstance(c, tuple) else c for c in raw.columns]
+                    raw.columns = [
+                        c[0] if isinstance(c, tuple) else c for c in raw.columns
+                    ]
                 raw = raw.reset_index()
                 raw.columns = [str(c).lower() for c in raw.columns]
                 close_col = "close" if "close" in raw.columns else "adj close"
@@ -118,8 +132,10 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
                     if not out.empty:
                         return out
             except Exception as exc:  # noqa: BLE001
-                print(f"macro: yfinance fetch failed for {yf_symbol} "
-                      f"(period={period}): {type(exc).__name__}: {exc}")
+                print(
+                    f"macro: yfinance fetch failed for {yf_symbol} "
+                    f"(period={period}): {type(exc).__name__}: {exc}"
+                )
     return None
 
 
@@ -131,7 +147,9 @@ def fetch_all_series(series_config: dict | None = None) -> dict[str, pd.DataFram
         if df is not None and not df.empty:
             df = df.copy()
             df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
-            out[key] = df.sort_values("date").drop_duplicates("date").reset_index(drop=True)
+            out[key] = (
+                df.sort_values("date").drop_duplicates("date").reset_index(drop=True)
+            )
             print(f"macro: fetched {key} ({len(out[key])} rows)")
         else:
             print(f"macro: series unavailable, skipping: {key}")
@@ -139,6 +157,7 @@ def fetch_all_series(series_config: dict | None = None) -> dict[str, pd.DataFram
 
 
 # --- panel construction (pure) ---------------------------------------------
+
 
 def _aligned_levels(series_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Outer-join each series' close on date, forward-filled, into one frame."""
@@ -159,8 +178,9 @@ def _aligned_levels(series_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return panel
 
 
-def build_macro_panel(series_data: dict[str, pd.DataFrame],
-                      qualitative: dict | None = None) -> pd.DataFrame:
+def build_macro_panel(
+    series_data: dict[str, pd.DataFrame], qualitative: dict | None = None
+) -> pd.DataFrame:
     """
     Build a date-indexed panel with raw levels + derived MACRO_FEATURE_COLS.
     Missing series leave their derived columns as NaN. Pure (no network).
@@ -178,7 +198,11 @@ def build_macro_panel(series_data: dict[str, pd.DataFrame],
         return series / series.shift(n) - 1.0
 
     def _vol(series, n):
-        return series.pct_change(fill_method=None).rolling(n, min_periods=max(2, n // 2)).std()
+        return (
+            series.pct_change(fill_method=None)
+            .rolling(n, min_periods=max(2, n // 2))
+            .std()
+        )
 
     def _above_200(series):
         ma = series.rolling(200, min_periods=100).mean()
@@ -202,8 +226,11 @@ def build_macro_panel(series_data: dict[str, pd.DataFrame],
     return panel[[c for c in cols if c in panel.columns]].reset_index(drop=True)
 
 
-def add_macro_features(stock_df: pd.DataFrame, macro_panel: pd.DataFrame | None,
-                       ticker_info: dict | None = None) -> pd.DataFrame:
+def add_macro_features(
+    stock_df: pd.DataFrame,
+    macro_panel: pd.DataFrame | None,
+    ticker_info: dict | None = None,
+) -> pd.DataFrame:
     """
     Join macro features onto a stock frame with a backward as-of merge so each
     stock date only sees macro data from on/before that date (no future leak).
@@ -235,7 +262,9 @@ def add_macro_features(stock_df: pd.DataFrame, macro_panel: pd.DataFrame | None,
     return merged
 
 
-def latest_snapshot_row(panel: pd.DataFrame, qualitative: dict | None = None) -> dict | None:
+def latest_snapshot_row(
+    panel: pd.DataFrame, qualitative: dict | None = None
+) -> dict | None:
     """Extract the most recent row as a macro_snapshots DB payload, or None."""
     if panel is None or panel.empty:
         return None
@@ -261,12 +290,16 @@ def latest_snapshot_row(panel: pd.DataFrame, qualitative: dict | None = None) ->
         "nikkei_vi": _num("nikkei_vi"),
         "jgb10y": _num("jgb10y"),
         "market_bias": qualitative.get("market_bias"),
-        "regime": (qualitative.get("regime") if isinstance(qualitative.get("regime"), str)
-                   else None),
+        "regime": (
+            qualitative.get("regime")
+            if isinstance(qualitative.get("regime"), str)
+            else None
+        ),
     }
 
 
 # --- panel parquet I/O ------------------------------------------------------
+
 
 def save_macro_panel(panel: pd.DataFrame, path: str | Path | None = None) -> str:
     out_path = Path(path or MACRO_PANEL_FILE)

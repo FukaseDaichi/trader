@@ -30,6 +30,7 @@ _TOL = 1e-9
 # Synthetic input builders
 # ---------------------------------------------------------------------------
 
+
 def _make_predictions(n=12, n_sectors=3, seed=1):
     """Build n synthetic candidate prediction dicts across n_sectors sectors.
 
@@ -40,17 +41,19 @@ def _make_predictions(n=12, n_sectors=3, seed=1):
     rows = []
     for i in range(n):
         rank = i + 1
-        rows.append({
-            "ticker": f"{1000 + i}.JP",
-            "name": f"Corp {1000 + i}",
-            "sector": f"SEC{i % n_sectors}",
-            "cs_rank": rank,
-            "raw_score": float(n - i),
-            "prob_up": float(0.85 - 0.02 * i),
-            "expected_ret": float(0.05 - 0.003 * i),  # all > 0 for n=12
-            "volatility": float(0.15 + 0.05 * rng.random()),
-            "close": float(1000 + 50 * i),
-        })
+        rows.append(
+            {
+                "ticker": f"{1000 + i}.JP",
+                "name": f"Corp {1000 + i}",
+                "sector": f"SEC{i % n_sectors}",
+                "cs_rank": rank,
+                "raw_score": float(n - i),
+                "prob_up": float(0.85 - 0.02 * i),
+                "expected_ret": float(0.05 - 0.003 * i),  # all > 0 for n=12
+                "volatility": float(0.15 + 0.05 * rng.random()),
+                "close": float(1000 + 50 * i),
+            }
+        )
     return rows
 
 
@@ -87,6 +90,7 @@ def _config(**overrides):
 # select_candidates
 # ---------------------------------------------------------------------------
 
+
 def test_select_candidates_filter_sort_cap():
     preds = [
         {"ticker": "A", "cs_rank": 3, "expected_ret": 0.01},
@@ -119,10 +123,12 @@ def test_select_candidates_empty_in_empty_out():
 
 
 def test_select_candidates_accepts_dataframe():
-    df = pd.DataFrame([
-        {"ticker": "A", "cs_rank": 2, "expected_ret": 0.01},
-        {"ticker": "B", "cs_rank": 1, "expected_ret": 0.02},
-    ])
+    df = pd.DataFrame(
+        [
+            {"ticker": "A", "cs_rank": 2, "expected_ret": 0.01},
+            {"ticker": "B", "cs_rank": 1, "expected_ret": 0.02},
+        ]
+    )
     out = pf.select_candidates(df, top_n=5)
     assert [c["ticker"] for c in out] == ["B", "A"]
 
@@ -130,6 +136,7 @@ def test_select_candidates_accepts_dataframe():
 # ---------------------------------------------------------------------------
 # initial_inverse_vol_weights
 # ---------------------------------------------------------------------------
+
 
 def test_inverse_vol_weights_sum_and_monotonic():
     cands = [{"ticker": "A"}, {"ticker": "B"}, {"ticker": "C"}]
@@ -162,6 +169,7 @@ def test_inverse_vol_weights_uses_candidate_volatility_field():
 # apply_name_cap
 # ---------------------------------------------------------------------------
 
+
 def test_apply_name_cap_respects_cap_and_total():
     # cap 0.40 is feasible for 3 names summing to 1.0 (max headroom 1.20),
     # so the excess from A is fully reabsorbed and the total is preserved.
@@ -182,6 +190,7 @@ def test_apply_name_cap_noop_when_under():
 # ---------------------------------------------------------------------------
 # apply_sector_cap
 # ---------------------------------------------------------------------------
+
 
 def test_apply_sector_cap_respects_cap_and_total():
     w = {"A": 0.30, "B": 0.30, "C": 0.20, "D": 0.20}
@@ -210,6 +219,7 @@ def test_apply_sector_cap_none_sector_is_solo_bucket():
 # enforce_caps — the joint-constraint case
 # ---------------------------------------------------------------------------
 
+
 def test_enforce_caps_joint_satisfied_when_naive_would_reviolate():
     """
     Construct a FEASIBLE case where naive sequential capping re-violates the
@@ -224,16 +234,21 @@ def test_enforce_caps_joint_satisfied_when_naive_would_reviolate():
     (this input is jointly feasible at sum 1.0: X=0.50, Y=0.50, every name<=0.25).
     """
     weights = {
-        "X1": 0.25, "X2": 0.25, "X3": 0.20,   # sector X (sum 0.70 > sector cap)
-        "Y1": 0.22, "Y2": 0.05, "Y3": 0.03,   # sector Y, Y1 near the name cap
+        "X1": 0.25,
+        "X2": 0.25,
+        "X3": 0.20,  # sector X (sum 0.70 > sector cap)
+        "Y1": 0.22,
+        "Y2": 0.05,
+        "Y3": 0.03,  # sector Y, Y1 near the name cap
     }
     sectors = {"X1": "X", "X2": "X", "X3": "X", "Y1": "Y", "Y2": "Y", "Y3": "Y"}
 
     # Sanity: a single naive pass leaves the name cap re-violated (justifies the
     # iterative enforce_caps).
     naive = pf.apply_sector_cap(pf.apply_name_cap(weights, 0.25), sectors, 0.50)
-    assert any(v > 0.25 + _TOL for v in naive.values()), \
+    assert any(v > 0.25 + _TOL for v in naive.values()), (
         f"expected naive pass to re-violate the name cap, got {naive}"
+    )
 
     out = pf.enforce_caps(weights, sectors, max_name_weight=0.25, sector_cap=0.50)
 
@@ -255,8 +270,9 @@ def test_enforce_caps_infeasible_returns_best_effort():
     """
     weights = {"A": 0.5, "B": 0.5}
     sectors = {"A": "X", "B": "X"}
-    out = pf.enforce_caps(weights, sectors, max_name_weight=0.25, sector_cap=0.50,
-                          max_iter=10)
+    out = pf.enforce_caps(
+        weights, sectors, max_name_weight=0.25, sector_cap=0.50, max_iter=10
+    )
     # Sector cap is hard-clamped (down-scaling only) so it holds.
     totals = pf._sector_totals(out, sectors)
     assert all(t <= 0.50 + _TOL for t in totals.values()), totals
@@ -267,6 +283,7 @@ def test_enforce_caps_infeasible_returns_best_effort():
 # ---------------------------------------------------------------------------
 # scale_to_target_vol
 # ---------------------------------------------------------------------------
+
 
 def test_scale_to_target_vol_hits_target_below_max_gross():
     # Diagonal cov with per-name annual vol 0.30 -> portfolio vol depends on w.
@@ -324,6 +341,7 @@ def test_scale_to_target_vol_zero_pvol_uses_max_gross():
 # estimate_covariance
 # ---------------------------------------------------------------------------
 
+
 def test_estimate_covariance_sample_path():
     rng = np.random.default_rng(3)
     tickers = ["A", "B", "C"]
@@ -338,7 +356,9 @@ def test_estimate_covariance_sample_path():
         close = 1000.0 * np.exp(np.cumsum(rets))
         frames[tk] = pd.DataFrame({"date": dates, "close": close})
 
-    cov, vol, method = pf.estimate_covariance(frames, tickers, lookback_days=100, min_obs=20)
+    cov, vol, method = pf.estimate_covariance(
+        frames, tickers, lookback_days=100, min_obs=20
+    )
     assert method == "sample", method
     assert cov.shape == (3, 3)
     # Symmetric.
@@ -362,7 +382,9 @@ def test_estimate_covariance_diagonal_fallback_too_few_rows():
         close = 1000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, size=8)))
         frames[tk] = pd.DataFrame({"date": dates, "close": close})
     # min_obs=20 but only ~7 returns -> diagonal fallback.
-    cov, vol, method = pf.estimate_covariance(frames, tickers, lookback_days=60, min_obs=20)
+    cov, vol, method = pf.estimate_covariance(
+        frames, tickers, lookback_days=60, min_obs=20
+    )
     assert method == "diagonal", method
     # Off-diagonals are zero.
     for i in range(3):
@@ -379,11 +401,23 @@ def test_estimate_covariance_missing_ticker_gets_fallback_var():
     dates = pd.bdate_range("2025-01-01", periods=120)
     rng = np.random.default_rng(9)
     frames = {
-        "A": pd.DataFrame({"date": dates, "close": 1000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, 120)))}),
-        "B": pd.DataFrame({"date": dates, "close": 1000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, 120)))}),
+        "A": pd.DataFrame(
+            {
+                "date": dates,
+                "close": 1000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, 120))),
+            }
+        ),
+        "B": pd.DataFrame(
+            {
+                "date": dates,
+                "close": 1000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, 120))),
+            }
+        ),
         # C has no frame at all.
     }
-    cov, vol, method = pf.estimate_covariance(frames, tickers, lookback_days=100, min_obs=20)
+    cov, vol, method = pf.estimate_covariance(
+        frames, tickers, lookback_days=100, min_obs=20
+    )
     # C must still get a positive, finite variance (median fallback / epsilon).
     assert cov[2, 2] > 0 and math.isfinite(cov[2, 2]), cov
     assert vol["C"] > 0 and math.isfinite(vol["C"])
@@ -400,6 +434,7 @@ def test_estimate_covariance_empty_tickers():
 # apply_hysteresis
 # ---------------------------------------------------------------------------
 
+
 def test_apply_hysteresis_keeps_prev_within_band():
     new = {"A": 0.205, "B": 0.30}
     prev = {"A": 0.20, "B": 0.20}
@@ -411,7 +446,7 @@ def test_apply_hysteresis_keeps_prev_within_band():
 
 
 def test_apply_hysteresis_drops_below_min_weight():
-    new = {"A": 0.02, "B": 0.10}   # A below min_weight 0.03
+    new = {"A": 0.02, "B": 0.10}  # A below min_weight 0.03
     prev = {}
     out = pf.apply_hysteresis(new, prev, notrade_band=0.02, min_weight=0.03)
     assert "A" not in out, out
@@ -432,6 +467,7 @@ def test_apply_hysteresis_exit_when_new_zero_and_prev_small():
 # diff_positions
 # ---------------------------------------------------------------------------
 
+
 def test_diff_positions_classification():
     prev = {"keep": 0.10, "grow": 0.10, "shrink": 0.20, "gone": 0.10}
     curr = {"keep": 0.10, "grow": 0.20, "shrink": 0.10, "fresh": 0.15}
@@ -447,6 +483,7 @@ def test_diff_positions_classification():
 # build_portfolio_snapshot — end to end
 # ---------------------------------------------------------------------------
 
+
 def test_build_snapshot_end_to_end_all_constraints():
     preds = _make_predictions(n=12, n_sectors=3, seed=2)
     tickers = [p["ticker"] for p in preds]
@@ -454,9 +491,15 @@ def test_build_snapshot_end_to_end_all_constraints():
     cfg = _config()
 
     snap = pf.build_portfolio_snapshot(
-        preds, frames, prev_weights={}, config=cfg,
-        regime="neutral", run_date="2026-06-10", as_of_date="2026-06-09",
-        model_version="cs-v1-test", mode="shadow",
+        preds,
+        frames,
+        prev_weights={},
+        config=cfg,
+        regime="neutral",
+        run_date="2026-06-10",
+        as_of_date="2026-06-09",
+        model_version="cs-v1-test",
+        mode="shadow",
     )
 
     assert snap["status"] == "ok", snap.get("warnings")
@@ -478,20 +521,28 @@ def test_build_snapshot_end_to_end_all_constraints():
     # Re-run the deterministic prefix to verify the NORMALIZED caps directly.
     cands = pf.select_candidates(preds, top_n=cfg["top_n"], min_expected_ret=0.0)
     sector_lk = {c["ticker"]: c["sector"] for c in cands}
-    cov, vol, _ = pf.estimate_covariance(frames, [c["ticker"] for c in cands],
-                                         lookback_days=cfg["cov_lookback_days"])
+    cov, vol, _ = pf.estimate_covariance(
+        frames, [c["ticker"] for c in cands], lookback_days=cfg["cov_lookback_days"]
+    )
     init_w = pf.initial_inverse_vol_weights(cands, vol)
-    capped = pf.enforce_caps(init_w, sector_lk,
-                             max_name_weight=cfg["max_name_weight"],
-                             sector_cap=cfg["sector_cap"])
+    capped = pf.enforce_caps(
+        init_w,
+        sector_lk,
+        max_name_weight=cfg["max_name_weight"],
+        sector_cap=cfg["sector_cap"],
+    )
     # Normalized name cap.
     assert all(v <= cfg["max_name_weight"] + 1e-9 for v in capped.values()), capped
     # Normalized sector cap.
     sector_totals = pf._sector_totals(capped, sector_lk)
-    assert all(t <= cfg["sector_cap"] + 1e-9 for t in sector_totals.values()), sector_totals
+    assert all(t <= cfg["sector_cap"] + 1e-9 for t in sector_totals.values()), (
+        sector_totals
+    )
 
     # sector_exposure sums to gross.
-    assert abs(sum(snap["sector_exposure"].values()) - gross) < 1e-6, snap["sector_exposure"]
+    assert abs(sum(snap["sector_exposure"].values()) - gross) < 1e-6, snap[
+        "sector_exposure"
+    ]
 
     # diff_summary consistent with positions diff types + prev (empty -> all new).
     ds = snap["diff_summary"]
@@ -517,10 +568,22 @@ def test_build_snapshot_end_to_end_all_constraints():
 def test_build_snapshot_cash_when_no_eligible():
     # All expected_ret negative and min_expected_ret default 0 -> none eligible.
     preds = [
-        {"ticker": "A.JP", "cs_rank": 1, "expected_ret": -0.01, "prob_up": 0.4,
-         "sector": "X", "close": 1000},
-        {"ticker": "B.JP", "cs_rank": 2, "expected_ret": -0.02, "prob_up": 0.3,
-         "sector": "Y", "close": 2000},
+        {
+            "ticker": "A.JP",
+            "cs_rank": 1,
+            "expected_ret": -0.01,
+            "prob_up": 0.4,
+            "sector": "X",
+            "close": 1000,
+        },
+        {
+            "ticker": "B.JP",
+            "cs_rank": 2,
+            "expected_ret": -0.02,
+            "prob_up": 0.3,
+            "sector": "Y",
+            "close": 2000,
+        },
     ]
     snap = pf.build_portfolio_snapshot(preds, {}, prev_weights={}, config=_config())
     assert snap["status"] == "ok", snap
@@ -549,10 +612,15 @@ def test_build_snapshot_covariance_fallback_no_crash():
     # Too-short price frames -> diagonal covariance fallback, still builds.
     preds = _make_predictions(n=6, n_sectors=2, seed=8)
     tickers = [p["ticker"] for p in preds]
-    short_frames = {tk: pd.DataFrame({
-        "date": pd.bdate_range("2025-01-01", periods=6),
-        "close": np.linspace(1000, 1050, 6),
-    }) for tk in tickers}
+    short_frames = {
+        tk: pd.DataFrame(
+            {
+                "date": pd.bdate_range("2025-01-01", periods=6),
+                "close": np.linspace(1000, 1050, 6),
+            }
+        )
+        for tk in tickers
+    }
     snap = pf.build_portfolio_snapshot(preds, short_frames, {}, _config())
     assert snap["status"] == "ok", snap.get("warnings")
     assert snap["constraints"]["cov_method"] == "diagonal"
@@ -589,11 +657,17 @@ def test_build_snapshot_hysteresis_vs_prev():
 # merge_target_weights
 # ---------------------------------------------------------------------------
 
+
 def test_merge_target_weights_active_ok():
-    signals = [{"ticker": "7011.JP", "action": "BUY", "reason": "r1"},
-               {"ticker": "9999.JP", "action": "HOLD", "reason": "r2"}]
-    snapshot = {"status": "ok", "mode": "active",
-                "positions": [{"ticker": "7011.JP", "target_weight": 0.18, "cs_rank": 1}]}
+    signals = [
+        {"ticker": "7011.JP", "action": "BUY", "reason": "r1"},
+        {"ticker": "9999.JP", "action": "HOLD", "reason": "r2"},
+    ]
+    snapshot = {
+        "status": "ok",
+        "mode": "active",
+        "positions": [{"ticker": "7011.JP", "target_weight": 0.18, "cs_rank": 1}],
+    }
     out = pf.merge_target_weights(signals, snapshot, gate_passed=True)
     assert out[0]["target_weight"] == 0.18
     assert "建玉" in out[0]["reason"]
@@ -606,13 +680,25 @@ def test_merge_target_weights_active_ok():
 
 def test_merge_target_weights_noop_on_shadow_or_gate_fail():
     signals = [{"ticker": "7011.JP", "action": "BUY", "reason": "r"}]
-    shadow = {"status": "ok", "mode": "shadow",
-              "positions": [{"ticker": "7011.JP", "target_weight": 0.18}]}
-    assert "target_weight" not in pf.merge_target_weights(signals, shadow, gate_passed=True)[0]
+    shadow = {
+        "status": "ok",
+        "mode": "shadow",
+        "positions": [{"ticker": "7011.JP", "target_weight": 0.18}],
+    }
+    assert (
+        "target_weight"
+        not in pf.merge_target_weights(signals, shadow, gate_passed=True)[0]
+    )
     active = {**shadow, "mode": "active"}
-    assert "target_weight" not in pf.merge_target_weights(signals, active, gate_passed=False)[0]
+    assert (
+        "target_weight"
+        not in pf.merge_target_weights(signals, active, gate_passed=False)[0]
+    )
     # no snapshot -> unchanged
-    assert "target_weight" not in pf.merge_target_weights(signals, None, gate_passed=True)[0]
+    assert (
+        "target_weight"
+        not in pf.merge_target_weights(signals, None, gate_passed=True)[0]
+    )
 
 
 def test_read_portfolio_gate_various_cases():
@@ -644,22 +730,41 @@ def test_read_portfolio_gate_various_cases():
 # I8: sector None → "その他" in sector_exposure
 # ---------------------------------------------------------------------------
 
+
 def test_build_snapshot_none_sector_aggregates_under_その他():
     """I8: a position with no sector maps to "その他" in sector_exposure, not None/null."""
     # One ticker with sector=None, one with sector="X".
     preds = [
-        {"ticker": "NONE.JP", "name": "NoSector", "sector": None,
-         "cs_rank": 1, "expected_ret": 0.05, "prob_up": 0.7,
-         "volatility": 0.20, "close": 1000.0},
-        {"ticker": "X001.JP", "name": "WithSector", "sector": "X",
-         "cs_rank": 2, "expected_ret": 0.04, "prob_up": 0.65,
-         "volatility": 0.18, "close": 2000.0},
+        {
+            "ticker": "NONE.JP",
+            "name": "NoSector",
+            "sector": None,
+            "cs_rank": 1,
+            "expected_ret": 0.05,
+            "prob_up": 0.7,
+            "volatility": 0.20,
+            "close": 1000.0,
+        },
+        {
+            "ticker": "X001.JP",
+            "name": "WithSector",
+            "sector": "X",
+            "cs_rank": 2,
+            "expected_ret": 0.04,
+            "prob_up": 0.65,
+            "volatility": 0.18,
+            "close": 2000.0,
+        },
     ]
     tickers = [p["ticker"] for p in preds]
     frames = _make_price_frames(tickers, n_rows=120, seed=99)
     snap = pf.build_portfolio_snapshot(
-        preds, frames, prev_weights={}, config=_config(top_n=2),
-        run_date="2026-06-10", mode="shadow",
+        preds,
+        frames,
+        prev_weights={},
+        config=_config(top_n=2),
+        run_date="2026-06-10",
+        mode="shadow",
     )
     assert snap["status"] == "ok", snap
     se = snap["sector_exposure"]

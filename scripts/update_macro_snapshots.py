@@ -42,8 +42,9 @@ def _load_qualitative() -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Update macro snapshot parquet + DB")
-    parser.add_argument("--as-of", default=today_jst_iso(),
-                        help="JST date label (informational).")
+    parser.add_argument(
+        "--as-of", default=today_jst_iso(), help="JST date label (informational)."
+    )
     args = parser.parse_args()
 
     qualitative = _load_qualitative()
@@ -55,8 +56,10 @@ def main() -> int:
         return 0
 
     path = macro.save_macro_panel(panel)
-    print(f"macro: panel saved to {path} ({len(panel)} rows, "
-          f"series={sorted(series_data.keys())}).")
+    print(
+        f"macro: panel saved to {path} ({len(panel)} rows, "
+        f"series={sorted(series_data.keys())})."
+    )
 
     snapshot = macro.latest_snapshot_row(panel, qualitative=qualitative)
     if snapshot is None:
@@ -64,15 +67,19 @@ def main() -> int:
         return 0
 
     if not db.db_enabled():
-        print(f"macro: DB disabled; snapshot for {snapshot['date']} not persisted "
-              f"(parquet updated). as-of={args.as_of}")
+        print(
+            f"macro: DB disabled; snapshot for {snapshot['date']} not persisted "
+            f"(parquet updated). as-of={args.as_of}"
+        )
         return 0
 
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001
-        print(f"macro: DB unreachable, snapshot not persisted (ignored): "
-              f"{type(exc).__name__}: {exc}")
+        print(
+            f"macro: DB unreachable, snapshot not persisted (ignored): "
+            f"{type(exc).__name__}: {exc}"
+        )
         return 0
 
     try:

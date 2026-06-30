@@ -70,8 +70,13 @@ def _read_json(path: Path):
         return None
 
 
-def save_model_bundle(version: str, ticker: str, boosters: dict, metadata: dict,
-                      model_dir: str | None = None) -> str:
+def save_model_bundle(
+    version: str,
+    ticker: str,
+    boosters: dict,
+    metadata: dict,
+    model_dir: str | None = None,
+) -> str:
     """
     Persist one ticker's ensemble + metadata.
 
@@ -90,14 +95,19 @@ def save_model_bundle(version: str, ticker: str, boosters: dict, metadata: dict,
 
     _write_json(d / "calibration.json", metadata.get("calibration"))
     _write_json(d / "feature_reference.json", metadata.get("feature_reference") or {})
-    extra = {k: v for k, v in metadata.items()
-             if k not in ("calibration", "feature_reference")}
+    extra = {
+        k: v
+        for k, v in metadata.items()
+        if k not in ("calibration", "feature_reference")
+    }
     if extra:
         _write_json(d / "ticker_metadata.json", extra)
     return str(d)
 
 
-def load_model_bundle(version: str, ticker: str, model_dir: str | None = None) -> dict | None:
+def load_model_bundle(
+    version: str, ticker: str, model_dir: str | None = None
+) -> dict | None:
     """Load a ticker's ensemble + calibration + feature reference, or None."""
     import lightgbm as lgb
 
@@ -126,7 +136,9 @@ def load_model_bundle(version: str, ticker: str, model_dir: str | None = None) -
     }
 
 
-def save_version_metadata(version: str, metadata: dict, model_dir: str | None = None) -> str:
+def save_version_metadata(
+    version: str, metadata: dict, model_dir: str | None = None
+) -> str:
     """Write the version-level metadata.json (artifact_uri target)."""
     path = version_dir(version, model_dir) / "metadata.json"
     _write_json(path, metadata)
@@ -137,8 +149,12 @@ def read_version_metadata(version: str, model_dir: str | None = None) -> dict | 
     return _read_json(version_dir(version, model_dir) / "metadata.json")
 
 
-def write_active_model(version: str, metadata: dict | None = None,
-                       model_dir: str | None = None, active_file: str | None = None) -> str:
+def write_active_model(
+    version: str,
+    metadata: dict | None = None,
+    model_dir: str | None = None,
+    active_file: str | None = None,
+) -> str:
     """Point the active model at `version`. metadata is merged into the pointer."""
     payload = {"version": version}
     if metadata:
@@ -148,7 +164,9 @@ def write_active_model(version: str, metadata: dict | None = None,
     return str(path)
 
 
-def read_active_model(active_file: str | None = None, model_dir: str | None = None) -> dict | None:
+def read_active_model(
+    active_file: str | None = None, model_dir: str | None = None
+) -> dict | None:
     """Return the active-model pointer, or None when missing / corrupt / invalid."""
     path = _active_file(active_file, model_dir)
     if not path.exists():
@@ -159,7 +177,9 @@ def read_active_model(active_file: str | None = None, model_dir: str | None = No
     return data
 
 
-def clear_active_model(active_file: str | None = None, model_dir: str | None = None) -> None:
+def clear_active_model(
+    active_file: str | None = None, model_dir: str | None = None
+) -> None:
     """Remove the active pointer (used to force a legacy-training fallback)."""
     path = _active_file(active_file, model_dir)
     if path.exists():
@@ -170,7 +190,10 @@ def clear_active_model(active_file: str | None = None, model_dir: str | None = N
 # Phase 2 — cross-sectional (single-model) bundle
 # ---------------------------------------------------------------------------
 
-def _active_cs_file(active_file: str | None = None, model_dir: str | None = None) -> Path:
+
+def _active_cs_file(
+    active_file: str | None = None, model_dir: str | None = None
+) -> Path:
     raw = active_file or os.environ.get("TRADER_CS_MODEL_ACTIVE_FILE")
     if raw:
         return Path(raw)
@@ -210,11 +233,15 @@ def save_cs_bundle(
     _write_json(vdir / "feature_schema.json", feature_schema)
     _write_json(vdir / "calibration.json", calibration)
     _write_json(vdir / "feature_reference.json", feature_reference)
-    _write_json(vdir / "sector_encoder.json", sector_encoder if sector_encoder is not None else {})
+    _write_json(
+        vdir / "sector_encoder.json",
+        sector_encoder if sector_encoder is not None else {},
+    )
     _write_json(vdir / "universe.json", universe if universe is not None else [])
 
     if oos_predictions is not None:
         import pandas as pd  # noqa: PLC0415 — lazy import
+
         if isinstance(oos_predictions, pd.DataFrame) and not oos_predictions.empty:
             oos_predictions.to_parquet(str(vdir / "oos_predictions.parquet"))
 
@@ -259,6 +286,7 @@ def load_cs_bundle(version: str, model_dir: str | None = None) -> dict | None:
     if parquet_path.exists():
         try:
             import pandas as pd  # noqa: PLC0415 — lazy import
+
             oos_predictions = pd.read_parquet(str(parquet_path))
         except Exception:  # noqa: BLE001 — corrupt/missing -> None
             oos_predictions = None

@@ -2,10 +2,10 @@ import math
 
 
 DEFAULT_SIGNAL_THRESHOLDS = {
-    "buy": 0.80,            # ~P80  — top 20% conviction
-    "mild_buy": 0.65,       # ~P55  — moderate positive lean
-    "mild_sell": 0.25,      # ~P25  — moderate negative lean
-    "sell": 0.10,           # ~P10  — bottom 10% conviction
+    "buy": 0.80,  # ~P80  — top 20% conviction
+    "mild_buy": 0.65,  # ~P55  — moderate positive lean
+    "mild_sell": 0.25,  # ~P25  — moderate negative lean
+    "sell": 0.10,  # ~P10  — bottom 10% conviction
     "volatility_limit": 0.04,  # 4% daily vol — avoid strong BUY in wild markets
 }
 
@@ -35,7 +35,9 @@ def resolve_thresholds(thresholds=None):
     if not (0.0 <= buy <= 1.0):
         raise ValueError("thresholds.buy must be in [0, 1]")
     if not (sell < mild_sell < mild_buy < buy):
-        raise ValueError("threshold ordering must satisfy sell < mild_sell < mild_buy < buy")
+        raise ValueError(
+            "threshold ordering must satisfy sell < mild_sell < mild_buy < buy"
+        )
     if resolved["volatility_limit"] < 0.0:
         raise ValueError("thresholds.volatility_limit must be >= 0")
 
@@ -87,13 +89,13 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
     Additional rule: BUY is downgraded to MILD_BUY when volatility is high.
     """
     latest = df.iloc[-1]
-    close_price = latest['close']
-    volatility = latest['volatility']
+    close_price = latest["close"]
+    volatility = latest["volatility"]
 
     signal = {
-        "ticker": ticker_info['code'],
-        "name": ticker_info['name'],
-        "date": latest['date'].strftime('%Y-%m-%d'),
+        "ticker": ticker_info["code"],
+        "name": ticker_info["name"],
+        "date": latest["date"].strftime("%Y-%m-%d"),
         "close": close_price,
         "prob_up": prob_up,
         "action": "HOLD",
@@ -111,10 +113,14 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
     if action == "BUY":
         signal["limit_price"] = int(close_price * (1 - 0.005))
         signal["stop_loss"] = int(close_price * (1 - 0.02))
-        signal["reason"] = f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボラティリティ低 ({volatility:.1%})"
+        signal["reason"] = (
+            f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボラティリティ低 ({volatility:.1%})"
+        )
 
     elif action == "MILD_BUY" and prob_up >= t["buy"]:
-        signal["reason"] = f"上昇シグナルだがボラティリティ高 ({volatility:.1%})・様子見推奨 (上昇確率 {prob_up:.0%})"
+        signal["reason"] = (
+            f"上昇シグナルだがボラティリティ高 ({volatility:.1%})・様子見推奨 (上昇確率 {prob_up:.0%})"
+        )
 
     elif action == "MILD_BUY":
         signal["reason"] = f"やや上昇傾向 (上昇確率 {prob_up:.0%})"

@@ -38,11 +38,13 @@ def run_rotating_refresh(output_path: Path, buckets: int) -> int:
         name = item["name"]
         try:
             df = update_data(code)
-            refreshed.append({
-                "ticker": code,
-                "name": name,
-                "status": "ok" if df is not None else "no_data",
-            })
+            refreshed.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "ok" if df is not None else "no_data",
+                }
+            )
         except Exception as e:
             failed.append({"ticker": code, "name": name, "error": str(e)})
 
@@ -55,7 +57,9 @@ def run_rotating_refresh(output_path: Path, buckets: int) -> int:
         "failed": failed,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Rotating refresh report exported to {output_path}")
     return 0 if not failed else 1
 

@@ -29,6 +29,7 @@ _SEP = "──────────"
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _bias_label(market_bias: str | None) -> str:
     return {
         "risk_on": "リスクオン",
@@ -40,7 +41,9 @@ def _bias_label(market_bias: str | None) -> str:
 def _is_portfolio_available(portfolio_latest: dict | None) -> bool:
     if not portfolio_latest:
         return False
-    return bool(portfolio_latest.get("available") or portfolio_latest.get("status") == "ok")
+    return bool(
+        portfolio_latest.get("available") or portfolio_latest.get("status") == "ok"
+    )
 
 
 def _fmt_weight(w: Any) -> str:
@@ -64,11 +67,15 @@ def _group_line(label: str, positions: list[dict]) -> str:
     if not positions:
         return f"{label}: なし"
     # Sort by target_weight desc
-    sorted_pos = sorted(positions, key=lambda p: float(p.get("target_weight") or 0), reverse=True)
+    sorted_pos = sorted(
+        positions, key=lambda p: float(p.get("target_weight") or 0), reverse=True
+    )
     top2 = sorted_pos[:2]
     rest = sorted_pos[2:]
-    parts = [f"{p.get('name', p.get('ticker', '?'))} {_fmt_weight(p.get('target_weight'))}"
-             for p in top2]
+    parts = [
+        f"{p.get('name', p.get('ticker', '?'))} {_fmt_weight(p.get('target_weight'))}"
+        for p in top2
+    ]
     line = f"{label}: " + " / ".join(parts)
     if rest:
         line += f" ほか{len(rest)}"
@@ -115,8 +122,11 @@ def _portfolio_block(portfolio_latest: dict) -> str:
     else:
         # shadow mode: 新規 / 継続(hold+increase+decrease) / 手仕舞い
         grp_new = [p for p in positions if p.get("diff_type") == "new"]
-        grp_cont = [p for p in positions
-                    if p.get("diff_type") in ("hold", "increase", "decrease")]
+        grp_cont = [
+            p
+            for p in positions
+            if p.get("diff_type") in ("hold", "increase", "decrease")
+        ]
         grp_exit = [p for p in positions if p.get("diff_type") == "exit"]
 
         lines.append(_group_line("新規", grp_new))
@@ -152,7 +162,7 @@ def _performance_line(performance_summary: dict | None) -> str:
 
 def _signal_counts(signals: list[dict]) -> tuple[int, int, int]:
     b = mb = s = 0
-    for sig in (signals or []):
+    for sig in signals or []:
         if not sig.get("gate_passed"):
             continue
         action = sig.get("action", "")
@@ -198,6 +208,7 @@ def _signal_name_lines(signals: list[dict]) -> list[str]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def build_daily_digest(
     run_date: str,

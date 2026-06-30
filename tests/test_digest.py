@@ -21,8 +21,16 @@ from src import digest  # noqa: E402
 # Fixture helpers
 # ---------------------------------------------------------------------------
 
-def _portfolio(mode="shadow", model_version="cs-v1", gross=0.24, vol=0.091,
-               positions=None, available=True, reason=None):
+
+def _portfolio(
+    mode="shadow",
+    model_version="cs-v1",
+    gross=0.24,
+    vol=0.091,
+    positions=None,
+    available=True,
+    reason=None,
+):
     if not available:
         base = {"available": False}
         if reason:
@@ -39,7 +47,11 @@ def _portfolio(mode="shadow", model_version="cs-v1", gross=0.24, vol=0.091,
 
 
 def _perf(count=35, hit_rate=0.58, avg_return=0.006):
-    return {"horizons": {"5": {"count": count, "hit_rate": hit_rate, "avg_return": avg_return}}}
+    return {
+        "horizons": {
+            "5": {"count": count, "hit_rate": hit_rate, "avg_return": avg_return}
+        }
+    }
 
 
 def _signals(*actions_and_gated):
@@ -51,8 +63,16 @@ def _signals(*actions_and_gated):
 # (a) Portfolio available — contains building blocks
 # ---------------------------------------------------------------------------
 
+
 def test_portfolio_available_contains_header():
-    pos = [{"name": "ディスコ", "ticker": "6146.JP", "target_weight": 0.036, "diff_type": "new"}]
+    pos = [
+        {
+            "name": "ディスコ",
+            "ticker": "6146.JP",
+            "target_weight": 0.036,
+            "diff_type": "new",
+        }
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(positions=pos),
@@ -69,7 +89,14 @@ def test_portfolio_available_contains_header():
 
 
 def test_portfolio_available_gross_and_vol_formatted():
-    pos = [{"name": "テスト", "ticker": "1234.JP", "target_weight": 0.10, "diff_type": "hold"}]
+    pos = [
+        {
+            "name": "テスト",
+            "ticker": "1234.JP",
+            "target_weight": 0.10,
+            "diff_type": "hold",
+        }
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(gross=0.24, vol=0.091, positions=pos),
@@ -84,10 +111,23 @@ def test_portfolio_available_gross_and_vol_formatted():
 
 
 def test_portfolio_available_shadow_groups_new_and_exit_always_shown():
-    pos = [{"name": "A社", "ticker": "1001.JP", "target_weight": 0.10, "diff_type": "new"},
-           {"name": "B社", "ticker": "1002.JP", "target_weight": 0.08, "diff_type": "hold"}]
-    out = digest.build_daily_digest("2026-06-10", _portfolio(positions=pos, mode="shadow"),
-                                    None, None, [], "https://x/")
+    pos = [
+        {"name": "A社", "ticker": "1001.JP", "target_weight": 0.10, "diff_type": "new"},
+        {
+            "name": "B社",
+            "ticker": "1002.JP",
+            "target_weight": 0.08,
+            "diff_type": "hold",
+        },
+    ]
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        _portfolio(positions=pos, mode="shadow"),
+        None,
+        None,
+        [],
+        "https://x/",
+    )
     # shadow: 新規, 継続(hold/increase/decrease), 手仕舞い always shown
     assert "新規" in out, out
     assert "手仕舞い" in out, out
@@ -101,6 +141,7 @@ def test_portfolio_available_shadow_groups_new_and_exit_always_shown():
 # (b) Portfolio None / unavailable — "提案なし" + reason
 # ---------------------------------------------------------------------------
 
+
 def test_portfolio_none_shows_unavailable():
     out = digest.build_daily_digest("2026-06-10", None, None, None, [], "https://x/")
     assert "本日のポートフォリオ提案なし" in out, out
@@ -111,7 +152,10 @@ def test_portfolio_available_false_shows_reason():
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(available=False, reason="モデルなし"),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "本日のポートフォリオ提案なし" in out, out
     assert "モデルなし" in out, out
@@ -121,16 +165,27 @@ def test_portfolio_available_false_no_reason_falls_back():
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(available=False),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "本日のポートフォリオ提案なし" in out, out
     assert "データなし" in out, out
 
 
 def test_portfolio_status_ok_treated_as_available():
-    pos = [{"name": "C社", "ticker": "1003.JP", "target_weight": 0.10, "diff_type": "new"}]
-    snap = {"status": "ok", "mode": "shadow", "model_version": "v1",
-            "gross_exposure": 0.20, "expected_vol": 0.08, "positions": pos}
+    pos = [
+        {"name": "C社", "ticker": "1003.JP", "target_weight": 0.10, "diff_type": "new"}
+    ]
+    snap = {
+        "status": "ok",
+        "mode": "shadow",
+        "model_version": "v1",
+        "gross_exposure": 0.20,
+        "expected_vol": 0.08,
+        "positions": pos,
+    }
     out = digest.build_daily_digest("2026-06-10", snap, None, None, [], "https://x/")
     assert "今日の建玉" in out, out
 
@@ -139,29 +194,45 @@ def test_portfolio_status_ok_treated_as_available():
 # (c) Performance — "実績蓄積中" vs populated
 # ---------------------------------------------------------------------------
 
+
 def test_performance_none_shows_accumulating():
     out = digest.build_daily_digest("2026-06-10", None, None, None, [], "https://x/")
     assert "実績蓄積中" in out, out
 
 
 def test_performance_count_zero_shows_accumulating():
-    out = digest.build_daily_digest("2026-06-10", None,
-                                    {"horizons": {"5": {"count": 0, "hit_rate": None, "avg_return": None}}},
-                                    None, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        {"horizons": {"5": {"count": 0, "hit_rate": None, "avg_return": None}}},
+        None,
+        [],
+        "https://x/",
+    )
     assert "実績蓄積中" in out, out
 
 
 def test_performance_missing_horizon5_shows_accumulating():
-    out = digest.build_daily_digest("2026-06-10", None,
-                                    {"horizons": {"10": {"count": 20, "hit_rate": 0.6, "avg_return": 0.01}}},
-                                    None, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        {"horizons": {"10": {"count": 20, "hit_rate": 0.6, "avg_return": 0.01}}},
+        None,
+        [],
+        "https://x/",
+    )
     assert "実績蓄積中" in out, out
 
 
 def test_performance_populated_shows_hit_rate_and_n():
-    out = digest.build_daily_digest("2026-06-10", None,
-                                    _perf(count=35, hit_rate=0.58, avg_return=0.006),
-                                    None, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        _perf(count=35, hit_rate=0.58, avg_return=0.006),
+        None,
+        [],
+        "https://x/",
+    )
     assert "実績蓄積中" not in out, out
     assert "的中" in out, out
     assert "n=35" in out, out
@@ -170,9 +241,14 @@ def test_performance_populated_shows_hit_rate_and_n():
 
 
 def test_performance_hit_rate_none_shows_accumulating():
-    out = digest.build_daily_digest("2026-06-10", None,
-                                    {"horizons": {"5": {"count": 10, "hit_rate": None, "avg_return": 0.01}}},
-                                    None, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        {"horizons": {"5": {"count": 10, "hit_rate": None, "avg_return": 0.01}}},
+        None,
+        [],
+        "https://x/",
+    )
     assert "実績蓄積中" in out, out
 
 
@@ -180,15 +256,16 @@ def test_performance_hit_rate_none_shows_accumulating():
 # (d) Signal counts
 # ---------------------------------------------------------------------------
 
+
 def test_signal_counts_correct():
     sigs = _signals(
         ("BUY", True),
         ("MILD_BUY", True),
         ("MILD_BUY", True),
         ("SELL", True),
-        ("HOLD", True),           # HOLD not counted
-        ("BUY", False),           # not gate_passed -> not counted
-        ("MILD_SELL", True),      # MILD_SELL counts as sell
+        ("HOLD", True),  # HOLD not counted
+        ("BUY", False),  # not gate_passed -> not counted
+        ("MILD_SELL", True),  # MILD_SELL counts as sell
     )
     out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
     assert "買い1" in out, out
@@ -205,7 +282,7 @@ def test_signal_counts_exact_fixture():
         ("MILD_BUY", True),
         ("SELL", True),
         ("HOLD", True),
-        ("BUY", False),   # non-gated BUY should NOT be counted
+        ("BUY", False),  # non-gated BUY should NOT be counted
     )
     out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
     assert "買い1 / やや買い2 / 売り1" in out, out
@@ -222,14 +299,45 @@ def test_non_gate_passed_buy_not_counted():
 # (d2) Signal name lines — digest-only operation lists WHICH tickers to act on
 # ---------------------------------------------------------------------------
 
+
 def test_signal_names_listed_by_action():
     sigs = [
-        {"action": "BUY", "gate_passed": True, "name": "三菱重工業", "ticker": "7011.JP"},
-        {"action": "MILD_BUY", "gate_passed": True, "name": "トヨタ自動車", "ticker": "7203.JP"},
-        {"action": "MILD_BUY", "gate_passed": True, "name": "ホンダ", "ticker": "7267.JP"},
-        {"action": "SELL", "gate_passed": True, "name": "日産自動車", "ticker": "7201.JP"},
-        {"action": "BUY", "gate_passed": False, "name": "ゲート未達社", "ticker": "9998.JP"},
-        {"action": "HOLD", "gate_passed": True, "name": "ホールド社", "ticker": "9999.JP"},
+        {
+            "action": "BUY",
+            "gate_passed": True,
+            "name": "三菱重工業",
+            "ticker": "7011.JP",
+        },
+        {
+            "action": "MILD_BUY",
+            "gate_passed": True,
+            "name": "トヨタ自動車",
+            "ticker": "7203.JP",
+        },
+        {
+            "action": "MILD_BUY",
+            "gate_passed": True,
+            "name": "ホンダ",
+            "ticker": "7267.JP",
+        },
+        {
+            "action": "SELL",
+            "gate_passed": True,
+            "name": "日産自動車",
+            "ticker": "7201.JP",
+        },
+        {
+            "action": "BUY",
+            "gate_passed": False,
+            "name": "ゲート未達社",
+            "ticker": "9998.JP",
+        },
+        {
+            "action": "HOLD",
+            "gate_passed": True,
+            "name": "ホールド社",
+            "ticker": "9999.JP",
+        },
     ]
     out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
     assert "🔴 買い: 三菱重工業" in out, out
@@ -247,8 +355,15 @@ def test_signal_names_absent_when_no_actionable():
 
 
 def test_signal_names_truncated_after_four():
-    sigs = [{"action": "BUY", "gate_passed": True,
-             "name": f"銘柄{i}", "ticker": f"{1000 + i}.JP"} for i in range(6)]
+    sigs = [
+        {
+            "action": "BUY",
+            "gate_passed": True,
+            "name": f"銘柄{i}",
+            "ticker": f"{1000 + i}.JP",
+        }
+        for i in range(6)
+    ]
     out = digest.build_daily_digest("2026-06-10", None, None, None, sigs, "https://x/")
     assert "ほか2件" in out, out
     assert "銘柄0" in out and "銘柄3" in out, out
@@ -265,44 +380,80 @@ def test_signal_names_fallback_to_ticker():
 # (e) Active mode — "[active" header + diff-type groups
 # ---------------------------------------------------------------------------
 
+
 def test_active_mode_header_contains_active():
-    pos = [{"name": "D社", "ticker": "1004.JP", "target_weight": 0.12, "diff_type": "increase"}]
+    pos = [
+        {
+            "name": "D社",
+            "ticker": "1004.JP",
+            "target_weight": 0.12,
+            "diff_type": "increase",
+        }
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", model_version="cs-v2", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "[active" in out, out
 
 
 def test_active_mode_increase_appears_under_増():
-    pos = [{"name": "E社", "ticker": "1005.JP", "target_weight": 0.15, "diff_type": "increase"}]
+    pos = [
+        {
+            "name": "E社",
+            "ticker": "1005.JP",
+            "target_weight": 0.15,
+            "diff_type": "increase",
+        }
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "増" in out, out
     assert "E社" in out, out
 
 
 def test_active_mode_decrease_appears_under_減():
-    pos = [{"name": "F社", "ticker": "1006.JP", "target_weight": 0.07, "diff_type": "decrease"}]
+    pos = [
+        {
+            "name": "F社",
+            "ticker": "1006.JP",
+            "target_weight": 0.07,
+            "diff_type": "decrease",
+        }
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "減" in out, out
     assert "F社" in out, out
 
 
 def test_active_mode_hold_appears_under_継続():
-    pos = [{"name": "G社", "ticker": "1007.JP", "target_weight": 0.10, "diff_type": "hold"}]
+    pos = [
+        {"name": "G社", "ticker": "1007.JP", "target_weight": 0.10, "diff_type": "hold"}
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "継続" in out, out
     assert "G社" in out, out
@@ -311,14 +462,27 @@ def test_active_mode_hold_appears_under_継続():
 def test_active_mode_separate_groups_shown():
     pos = [
         {"name": "新", "ticker": "1010.JP", "target_weight": 0.15, "diff_type": "new"},
-        {"name": "増", "ticker": "1011.JP", "target_weight": 0.12, "diff_type": "increase"},
-        {"name": "減", "ticker": "1012.JP", "target_weight": 0.08, "diff_type": "decrease"},
+        {
+            "name": "増",
+            "ticker": "1011.JP",
+            "target_weight": 0.12,
+            "diff_type": "increase",
+        },
+        {
+            "name": "減",
+            "ticker": "1012.JP",
+            "target_weight": 0.08,
+            "diff_type": "decrease",
+        },
         {"name": "継", "ticker": "1013.JP", "target_weight": 0.10, "diff_type": "hold"},
     ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     # All 4 active-mode group labels present
     assert "新規" in out, out
@@ -328,11 +492,16 @@ def test_active_mode_separate_groups_shown():
 def test_active_mode_empty_middle_groups_absent():
     # Only a `new` position -> 増/減/継続 lines must NOT appear (middle groups
     # render only when non-empty); 新規 + 手仕舞い always show.
-    pos = [{"name": "新社", "ticker": "1020.JP", "target_weight": 0.15, "diff_type": "new"}]
+    pos = [
+        {"name": "新社", "ticker": "1020.JP", "target_weight": 0.15, "diff_type": "new"}
+    ]
     out = digest.build_daily_digest(
         "2026-06-10",
         _portfolio(mode="active", positions=pos),
-        None, None, [], "https://x/",
+        None,
+        None,
+        [],
+        "https://x/",
     )
     assert "新規:" in out and "手仕舞い:" in out, out
     assert "増:" not in out and "減:" not in out and "継続:" not in out, out
@@ -342,16 +511,29 @@ def test_active_mode_empty_middle_groups_absent():
 # Macro regime
 # ---------------------------------------------------------------------------
 
+
 def test_macro_regime_risk_on():
-    out = digest.build_daily_digest("2026-06-10", None, None,
-                                    {"market_bias": "risk_on", "usdjpy": 148.5}, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        None,
+        {"market_bias": "risk_on", "usdjpy": 148.5},
+        [],
+        "https://x/",
+    )
     assert "リスクオン" in out, out
     assert "148.5" in out, out
 
 
 def test_macro_regime_risk_off():
-    out = digest.build_daily_digest("2026-06-10", None, None,
-                                    {"market_bias": "risk_off", "usdjpy": None}, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        None,
+        {"market_bias": "risk_off", "usdjpy": None},
+        [],
+        "https://x/",
+    )
     assert "リスクオフ" in out, out
     # usdjpy None -> no ドル円 part
     assert "ドル円" not in out, out
@@ -363,8 +545,14 @@ def test_macro_regime_none_shows_unknown():
 
 
 def test_macro_regime_unknown_bias():
-    out = digest.build_daily_digest("2026-06-10", None, None,
-                                    {"market_bias": "something_else", "usdjpy": 155.0}, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10",
+        None,
+        None,
+        {"market_bias": "something_else", "usdjpy": 155.0},
+        [],
+        "https://x/",
+    )
     assert "不明" in out, out
 
 
@@ -372,13 +560,16 @@ def test_macro_regime_unknown_bias():
 # Structure / separators
 # ---------------------------------------------------------------------------
 
+
 def test_output_contains_separators():
     out = digest.build_daily_digest("2026-06-10", None, None, None, [], "https://x/")
     assert "──────────" in out, out
 
 
 def test_dashboard_url_appears():
-    out = digest.build_daily_digest("2026-06-10", None, None, None, [], "https://myboard.example.com/")
+    out = digest.build_daily_digest(
+        "2026-06-10", None, None, None, [], "https://myboard.example.com/"
+    )
     assert "https://myboard.example.com/" in out, out
 
 
@@ -391,6 +582,7 @@ def test_run_date_in_header():
 # Top-2 + remainder formatting
 # ---------------------------------------------------------------------------
 
+
 def test_top2_and_remainder_in_group():
     positions = [
         {"name": "大", "ticker": "2001.JP", "target_weight": 0.20, "diff_type": "new"},
@@ -398,8 +590,9 @@ def test_top2_and_remainder_in_group():
         {"name": "小1", "ticker": "2003.JP", "target_weight": 0.10, "diff_type": "new"},
         {"name": "小2", "ticker": "2004.JP", "target_weight": 0.08, "diff_type": "new"},
     ]
-    out = digest.build_daily_digest("2026-06-10", _portfolio(positions=positions),
-                                    None, None, [], "https://x/")
+    out = digest.build_daily_digest(
+        "2026-06-10", _portfolio(positions=positions), None, None, [], "https://x/"
+    )
     # top 2 names shown
     assert "大" in out, out
     assert "中" in out, out
@@ -415,39 +608,79 @@ def test_top2_and_remainder_in_group():
 
 _WEEKLY_ROWS = [
     {
-        "entry_date": "2026-06-16", "ticker": "6146.JP", "name": "ディスコ",
-        "action": "BUY", "conviction": 0.72, "horizon_days": 5,
-        "realized_ret": 0.042, "benchmark_ret": 0.008, "excess_ret": 0.034,
-        "hit": True, "mae": -0.005, "mfe": 0.048, "exit_reason": "time",
+        "entry_date": "2026-06-16",
+        "ticker": "6146.JP",
+        "name": "ディスコ",
+        "action": "BUY",
+        "conviction": 0.72,
+        "horizon_days": 5,
+        "realized_ret": 0.042,
+        "benchmark_ret": 0.008,
+        "excess_ret": 0.034,
+        "hit": True,
+        "mae": -0.005,
+        "mfe": 0.048,
+        "exit_reason": "time",
     },
     {
-        "entry_date": "2026-06-17", "ticker": "7201.JP", "name": "日産自",
-        "action": "MILD_BUY", "conviction": 0.55, "horizon_days": 5,
-        "realized_ret": -0.021, "benchmark_ret": 0.003, "excess_ret": -0.024,
-        "hit": False, "mae": -0.025, "mfe": 0.002, "exit_reason": "time",
+        "entry_date": "2026-06-17",
+        "ticker": "7201.JP",
+        "name": "日産自",
+        "action": "MILD_BUY",
+        "conviction": 0.55,
+        "horizon_days": 5,
+        "realized_ret": -0.021,
+        "benchmark_ret": 0.003,
+        "excess_ret": -0.024,
+        "hit": False,
+        "mae": -0.025,
+        "mfe": 0.002,
+        "exit_reason": "time",
     },
     {
-        "entry_date": "2026-06-17", "ticker": "9984.JP", "name": "ソフトバンク",
-        "action": "SELL", "conviction": 0.65, "horizon_days": 5,
-        "realized_ret": 0.015, "benchmark_ret": 0.006, "excess_ret": 0.009,
-        "hit": True, "mae": -0.010, "mfe": 0.018, "exit_reason": "time",
+        "entry_date": "2026-06-17",
+        "ticker": "9984.JP",
+        "name": "ソフトバンク",
+        "action": "SELL",
+        "conviction": 0.65,
+        "horizon_days": 5,
+        "realized_ret": 0.015,
+        "benchmark_ret": 0.006,
+        "excess_ret": 0.009,
+        "hit": True,
+        "mae": -0.010,
+        "mfe": 0.018,
+        "exit_reason": "time",
     },
     {
-        "entry_date": "2026-06-18", "ticker": "4063.JP", "name": "信越化",
-        "action": "MILD_BUY", "conviction": 0.58, "horizon_days": 5,
-        "realized_ret": -0.055, "benchmark_ret": 0.002, "excess_ret": -0.057,
-        "hit": False, "mae": -0.060, "mfe": 0.001, "exit_reason": "time",
+        "entry_date": "2026-06-18",
+        "ticker": "4063.JP",
+        "name": "信越化",
+        "action": "MILD_BUY",
+        "conviction": 0.58,
+        "horizon_days": 5,
+        "realized_ret": -0.055,
+        "benchmark_ret": 0.002,
+        "excess_ret": -0.057,
+        "hit": False,
+        "mae": -0.060,
+        "mfe": 0.001,
+        "exit_reason": "time",
     },
 ]
 
 
 def test_weekly_summary_empty_rows_returns_none():
-    result = digest.build_weekly_summary([], "2026-06-16", "2026-06-20", "https://x/r.md")
+    result = digest.build_weekly_summary(
+        [], "2026-06-16", "2026-06-20", "https://x/r.md"
+    )
     assert result is None, f"expected None, got {result!r}"
 
 
 def test_weekly_summary_full_fixture_contains_expected_parts():
-    out = digest.build_weekly_summary(_WEEKLY_ROWS, "2026-06-16", "2026-06-20", "https://x/r.md")
+    out = digest.build_weekly_summary(
+        _WEEKLY_ROWS, "2026-06-16", "2026-06-20", "https://x/r.md"
+    )
     assert out is not None, "expected a string, got None"
     # シグナル counts: total=4, buy=BUY(1)+MILD_BUY(2)=3, sell=SELL(1)
     assert "シグナル: 4件" in out, out
@@ -471,10 +704,19 @@ def test_weekly_summary_full_fixture_contains_expected_parts():
 def test_weekly_summary_no_excess_ret_omits_topix():
     rows = [
         {
-            "entry_date": "2026-06-16", "ticker": "6146.JP", "name": "ディスコ",
-            "action": "BUY", "conviction": 0.72, "horizon_days": 5,
-            "realized_ret": 0.042, "benchmark_ret": None, "excess_ret": None,
-            "hit": True, "mae": -0.005, "mfe": 0.048, "exit_reason": "time",
+            "entry_date": "2026-06-16",
+            "ticker": "6146.JP",
+            "name": "ディスコ",
+            "action": "BUY",
+            "conviction": 0.72,
+            "horizon_days": 5,
+            "realized_ret": 0.042,
+            "benchmark_ret": None,
+            "excess_ret": None,
+            "hit": True,
+            "mae": -0.005,
+            "mfe": 0.048,
+            "exit_reason": "time",
         },
     ]
     out = digest.build_weekly_summary(rows, "2026-06-16", "2026-06-20", "")
@@ -489,8 +731,16 @@ def test_weekly_summary_date_formatting():
 
 
 def test_weekly_summary_hit_all_none_shows_dash():
-    rows = [{"action": "BUY", "name": "X社", "ticker": "1.JP",
-             "realized_ret": 0.01, "excess_ret": None, "hit": None}]
+    rows = [
+        {
+            "action": "BUY",
+            "name": "X社",
+            "ticker": "1.JP",
+            "realized_ret": 0.01,
+            "excess_ret": None,
+            "hit": None,
+        }
+    ]
     out = digest.build_weekly_summary(rows, "2026-06-16", "2026-06-20", "")
     assert "的中率(5日): —" in out, out
 
@@ -554,7 +804,9 @@ def main() -> int:
         except Exception as exc:
             failures += 1
             print(f"ERROR {t.__name__}: {type(exc).__name__}: {exc}")
-    print(f"\n{'OK' if not failures else 'FAILED'} ({len(ALL_TESTS) - failures}/{len(ALL_TESTS)} passed)")
+    print(
+        f"\n{'OK' if not failures else 'FAILED'} ({len(ALL_TESTS) - failures}/{len(ALL_TESTS)} passed)"
+    )
     return failures
 
 

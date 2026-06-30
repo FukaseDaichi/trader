@@ -58,7 +58,9 @@ def run_daily_check(args: argparse.Namespace) -> int:
         failures.append(f"missing_or_invalid:{state_file}")
     else:
         history = state.get("history", [])
-        has_today = any(isinstance(item, dict) and item.get("date") == today for item in history)
+        has_today = any(
+            isinstance(item, dict) and item.get("date") == today for item in history
+        )
         if not has_today:
             failures.append("state_not_updated_today")
 
@@ -67,7 +69,9 @@ def run_daily_check(args: argparse.Namespace) -> int:
         failures.append(f"missing_or_invalid:{index_file}")
     else:
         if index_file.exists() and index_file.stat().st_size > max_index_bytes:
-            failures.append(f"dashboard_index_too_large:{index_file.stat().st_size}>{max_index_bytes}")
+            failures.append(
+                f"dashboard_index_too_large:{index_file.stat().st_size}>{max_index_bytes}"
+            )
 
         last_update = index_data.get("last_update")
         if not isinstance(last_update, str) or not last_update:
@@ -82,11 +86,15 @@ def run_daily_check(args: argparse.Namespace) -> int:
             enabled = _load_enabled_tickers(tickers_file)
             expected = len(enabled)
             if expected > 0 and len(index_tickers) < expected:
-                failures.append(f"dashboard_index_tickers_short:{len(index_tickers)}/{expected}")
+                failures.append(
+                    f"dashboard_index_tickers_short:{len(index_tickers)}/{expected}"
+                )
 
             missing_codes = [code for code in enabled if code not in index_tickers]
             if missing_codes:
-                failures.append(f"dashboard_index_missing_codes:{','.join(missing_codes)}")
+                failures.append(
+                    f"dashboard_index_missing_codes:{','.join(missing_codes)}"
+                )
 
             total_ticker_bytes = 0
             for code in enabled:
@@ -134,7 +142,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--index-file", default="docs/dashboard_index.json")
     parser.add_argument("--ticker-dir", default="docs/tickers")
     # Backward-compatible alias used by older calls.
-    parser.add_argument("--history-file", default="docs/dashboard_index.json", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--history-file", default="docs/dashboard_index.json", help=argparse.SUPPRESS
+    )
     parser.add_argument("--report-file", default="docs/backtest_report.json")
     parser.add_argument("--tickers-file", default="tickers.yml")
     parser.add_argument("--max-index-bytes", type=int, default=1_000_000)

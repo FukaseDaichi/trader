@@ -196,9 +196,13 @@ def build_labelled_frame(df: pd.DataFrame, config: dict | None = None) -> pd.Dat
             sl_atr=float(cfg.get("tb_sl_atr", 1.0)),
         )
     else:
-        raise ValueError(f"unknown label_mode: {mode!r} (expected one of {LABEL_MODES})")
+        raise ValueError(
+            f"unknown label_mode: {mode!r} (expected one of {LABEL_MODES})"
+        )
 
-    out = out.dropna(subset=["target", "target_class", "fwd_return"]).reset_index(drop=True)
+    out = out.dropna(subset=["target", "target_class", "fwd_return"]).reset_index(
+        drop=True
+    )
     if not out.empty:
         out["target_class"] = out["target_class"].astype(int)
     return out

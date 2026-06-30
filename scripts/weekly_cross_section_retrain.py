@@ -47,7 +47,10 @@ from src.cross_section import build_cs_panel  # noqa: E402
 from src.cs_model import train_cs_model  # noqa: E402
 from src.data_loader import load_data, update_data  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
-from src.portfolio_backtest import run_portfolio_backtest, write_portfolio_backtest_report  # noqa: E402
+from src.portfolio_backtest import (
+    run_portfolio_backtest,
+    write_portfolio_backtest_report,
+)  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
 
 
@@ -64,8 +67,10 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
     # --- Load macro panel (best-effort; None is tolerated by build_cs_panel) ---
     macro_panel = load_macro_panel()
     if macro_panel is None:
-        print("cs-retrain: no macro panel found; building panel on technical features only "
-              "(macro columns will be NaN).")
+        print(
+            "cs-retrain: no macro panel found; building panel on technical features only "
+            "(macro columns will be NaN)."
+        )
 
     # --- Build tickers_data: update + load each enabled ticker ---
     tickers_data = []
@@ -75,12 +80,16 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         try:
             update_data(code)
         except Exception as e:  # noqa: BLE001 — fetch failure must not abort
-            print(f"cs-retrain: update_data({code}) failed (ignored): {type(e).__name__}: {e}")
+            print(
+                f"cs-retrain: update_data({code}) failed (ignored): {type(e).__name__}: {e}"
+            )
 
         try:
             df = load_data(code)
         except Exception as e:  # noqa: BLE001
-            print(f"cs-retrain: load_data({code}) failed (ignored): {type(e).__name__}: {e}")
+            print(
+                f"cs-retrain: load_data({code}) failed (ignored): {type(e).__name__}: {e}"
+            )
             skipped += 1
             continue
 
@@ -90,8 +99,10 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
 
         tickers_data.append((ticker, df))
 
-    print(f"cs-retrain: {len(tickers_data)} tickers with usable data "
-          f"({skipped} skipped / insufficient).")
+    print(
+        f"cs-retrain: {len(tickers_data)} tickers with usable data "
+        f"({skipped} skipped / insufficient)."
+    )
 
     # --- Build labelled cross-sectional panel ---
     panel = build_cs_panel(
@@ -120,9 +131,11 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
     # --- Insufficient panel path: write available:false report, exit 0 ---
     if bundle is None:
         reason = info.get("reason", "training_failed")
-        print(f"cs-retrain: training returned no bundle — reason={reason} "
-              f"(rows={info.get('rows')}, dates={info.get('dates')}). "
-              f"Leaving existing artifacts untouched.")
+        print(
+            f"cs-retrain: training returned no bundle — reason={reason} "
+            f"(rows={info.get('rows')}, dates={info.get('dates')}). "
+            f"Leaving existing artifacts untouched."
+        )
         payload = {
             "available": False,
             "generated_at": now_jst_iso(),
@@ -229,7 +242,9 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                         make_active=True,
                     )
                     db_registered = True
-                    print(f"cs-retrain: registered {version} in model_registry (active).")
+                    print(
+                        f"cs-retrain: registered {version} in model_registry (active)."
+                    )
                 finally:
                     conn.close()
             except Exception as e:  # noqa: BLE001 — never abort on DB error
@@ -301,7 +316,9 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                 scope="portfolio",
             )
             if db_res.get("ok"):
-                print(f"cs-retrain: backtest_runs row inserted (id={db_res.get('run_id')}).")
+                print(
+                    f"cs-retrain: backtest_runs row inserted (id={db_res.get('run_id')})."
+                )
             else:
                 print(
                     f"cs-retrain: backtest DB persist skipped (ignored): "
@@ -324,8 +341,7 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
 
     except Exception as e:  # noqa: BLE001 — backtest failure must never abort retrain
         print(
-            f"cs-retrain: portfolio backtest failed (ignored): "
-            f"{type(e).__name__}: {e}"
+            f"cs-retrain: portfolio backtest failed (ignored): {type(e).__name__}: {e}"
         )
 
     # --- Write quality report ---

@@ -1,4 +1,5 @@
 """dashboard_index の前日比ヘルパー `_latest_change` の単体テスト。"""
+
 import sys
 from pathlib import Path
 

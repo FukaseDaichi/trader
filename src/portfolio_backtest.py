@@ -73,6 +73,7 @@ _CAP_EPS = 1e-6
 # Small numeric / NaN-safe helpers
 # ---------------------------------------------------------------------------
 
+
 def _finite(value) -> float | None:
     """Return ``float(value)`` when finite, else ``None``."""
     try:
@@ -102,6 +103,7 @@ def _std(arr, ddof: int = 0) -> float | None:
 # ---------------------------------------------------------------------------
 # Rebalance-date thinning (non-overlapping H-day windows)
 # ---------------------------------------------------------------------------
+
 
 def _thin_rebalance_dates(sorted_dates, rebalance_days: int):
     """Thin a sorted list of unique OOS dates to non-overlapping rebalances.
@@ -149,6 +151,7 @@ def _slice_price_frames_asof(price_frames, d) -> dict:
 # Benchmark (TOPIX) helpers
 # ---------------------------------------------------------------------------
 
+
 def _prepare_topix(macro_panel) -> pd.DataFrame | None:
     """Return a sorted, deduped ``date``/``topix`` frame, or None if absent."""
     if macro_panel is None or not isinstance(macro_panel, pd.DataFrame):
@@ -187,9 +190,20 @@ def _topix_after(topix, d):
 # Backtest core
 # ---------------------------------------------------------------------------
 
-def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *,
-                           sectors=None, rebalance_days=None, label_horizon_days=5,
-                           cost_bps=10.0, slippage_bps=5.0, trading_days=252) -> dict:
+
+def run_portfolio_backtest(
+    oos_predictions,
+    price_frames,
+    macro_panel,
+    config,
+    *,
+    sectors=None,
+    rebalance_days=None,
+    label_horizon_days=5,
+    cost_bps=10.0,
+    slippage_bps=5.0,
+    trading_days=252,
+) -> dict:
     """Walk-forward, period-rebalanced, long-only portfolio backtest.
 
     Parameters
@@ -229,6 +243,7 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
     if top_n is None:
         try:
             from src.config import get_cross_section_config
+
             top_n = get_cross_section_config().get("top_n", 8)
         except Exception:  # noqa: BLE001
             top_n = 8
@@ -271,8 +286,11 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
             "params": params,
         }
 
-    if oos_predictions is None or not isinstance(oos_predictions, pd.DataFrame) \
-            or oos_predictions.empty:
+    if (
+        oos_predictions is None
+        or not isinstance(oos_predictions, pd.DataFrame)
+        or oos_predictions.empty
+    ):
         return _insufficient()
 
     oos = oos_predictions.copy()
@@ -327,10 +345,15 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
             cost = turnover * cost_rate
             period_ret = -cost  # gross 0
             bench_ret = _benchmark_return(topix, d, rebalance_dates, k)
-            periods.append({
-                "date": d, "period_return": period_ret, "benchmark_return": bench_ret,
-                "gross_exposure": 0.0, "turnover": turnover,
-            })
+            periods.append(
+                {
+                    "date": d,
+                    "period_return": period_ret,
+                    "benchmark_return": bench_ret,
+                    "gross_exposure": 0.0,
+                    "turnover": turnover,
+                }
+            )
             prev_w = {}
             continue
 
@@ -345,15 +368,24 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
         # 3c. inv-vol -> caps -> vol target (regime 1.0) -> hysteresis.
         init_w = initial_inverse_vol_weights(selected, vol)
         capped = enforce_caps(
-            init_w, sectors,
-            max_name_weight=max_name_weight, sector_cap=sector_cap,
+            init_w,
+            sectors,
+            max_name_weight=max_name_weight,
+            sector_cap=sector_cap,
         )
         scaled, _evol, _gross = scale_to_target_vol(
-            capped, cov, tickers,
-            target_vol=target_vol, max_gross=max_gross, regime_multiplier=1.0,
+            capped,
+            cov,
+            tickers,
+            target_vol=target_vol,
+            max_gross=max_gross,
+            regime_multiplier=1.0,
         )
         w_d = apply_hysteresis(
-            scaled, prev_w, notrade_band=notrade_band, min_weight=min_weight,
+            scaled,
+            prev_w,
+            notrade_band=notrade_band,
+            min_weight=min_weight,
         )
 
         # 3d. Turnover + cost over the union of tickers.
@@ -379,13 +411,15 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
         bench_ret = _benchmark_return(topix, d, rebalance_dates, k)
 
         # 3g. Record + advance.
-        periods.append({
-            "date": d,
-            "period_return": period_ret,
-            "benchmark_return": bench_ret,
-            "gross_exposure": float(sum(w_d.values())),
-            "turnover": float(turnover),
-        })
+        periods.append(
+            {
+                "date": d,
+                "period_return": period_ret,
+                "benchmark_return": bench_ret,
+                "gross_exposure": float(sum(w_d.values())),
+                "turnover": float(turnover),
+            }
+        )
         prev_w = w_d
 
     if len(periods) < 2:
@@ -403,25 +437,33 @@ def run_portfolio_backtest(oos_predictions, price_frames, macro_panel, config, *
 
     equity_rows = []
     for i, p in enumerate(periods):
-        equity_rows.append({
-            "date": _date_str(p["date"]),
-            "equity": float(equity_vals[i]),
-            "benchmark_equity": float(bench_equity_vals[i]),
-            "period_return": float(net[i]),
-            "benchmark_return": float(bench[i]),
-            "drawdown": float(drawdown_vals[i]),
-            "gross_exposure": float(p["gross_exposure"]),
-            "turnover": float(p["turnover"]),
-        })
+        equity_rows.append(
+            {
+                "date": _date_str(p["date"]),
+                "equity": float(equity_vals[i]),
+                "benchmark_equity": float(bench_equity_vals[i]),
+                "period_return": float(net[i]),
+                "benchmark_return": float(bench[i]),
+                "drawdown": float(drawdown_vals[i]),
+                "gross_exposure": float(p["gross_exposure"]),
+                "turnover": float(p["turnover"]),
+            }
+        )
 
     # --- 6. Metrics (NaN-safe; un-computable -> None). ---
     periods_per_year = trading_days / rebalance_days
     sqrt_ppy = math.sqrt(periods_per_year)
 
     metrics = _compute_metrics(
-        net, bench, drawdown_vals, periods, topn_realized,
-        equity_final=float(equity_vals[-1]), n_periods=n_periods,
-        periods_per_year=periods_per_year, sqrt_ppy=sqrt_ppy,
+        net,
+        bench,
+        drawdown_vals,
+        periods,
+        topn_realized,
+        equity_final=float(equity_vals[-1]),
+        n_periods=n_periods,
+        periods_per_year=periods_per_year,
+        sqrt_ppy=sqrt_ppy,
         rebalance_days=rebalance_days,
     )
 
@@ -465,9 +507,19 @@ def _benchmark_return(topix, d, rebalance_dates, k) -> float:
     return level_next / level_d - 1.0
 
 
-def _compute_metrics(net, bench, drawdown_vals, periods, topn_realized, *,
-                     equity_final, n_periods, periods_per_year, sqrt_ppy,
-                     rebalance_days) -> dict:
+def _compute_metrics(
+    net,
+    bench,
+    drawdown_vals,
+    periods,
+    topn_realized,
+    *,
+    equity_final,
+    n_periods,
+    periods_per_year,
+    sqrt_ppy,
+    rebalance_days,
+) -> dict:
     """Compute the risk-adjusted metric block (all NaN-safe; None when undefined).
 
     Standard definitions, annualized with ``periods_per_year = trading_days /
@@ -564,9 +616,7 @@ def _compute_metrics(net, bench, drawdown_vals, periods, topn_realized, *,
         information_ratio = None
     else:
         information_ratio = float(sqrt_ppy * mean_active / std_active)
-    tracking_error = (
-        float(std_active * sqrt_ppy) if std_active is not None else None
-    )
+    tracking_error = float(std_active * sqrt_ppy) if std_active is not None else None
 
     # Hit rate.
     hit_rate = float(np.mean(net > 0.0)) if net.size else None
@@ -604,9 +654,16 @@ def _date_str(value) -> str:
 # JSON report writer (no DB)
 # ---------------------------------------------------------------------------
 
-def write_portfolio_backtest_report(result, output_path="docs/portfolio_backtest.json", *,
-                                    model_version=None, run_date=None,
-                                    generated_at=None, gate=None) -> str:
+
+def write_portfolio_backtest_report(
+    result,
+    output_path="docs/portfolio_backtest.json",
+    *,
+    model_version=None,
+    run_date=None,
+    generated_at=None,
+    gate=None,
+) -> str:
     """Write the portfolio backtest report JSON (no DB needed).
 
     Produces ``{available: result['status']=='ok', generated_at, run_date,

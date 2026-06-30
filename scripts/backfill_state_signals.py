@@ -50,7 +50,9 @@ def _history_days(state: dict) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Backfill signals/predictions from state.json")
+    parser = argparse.ArgumentParser(
+        description="Backfill signals/predictions from state.json"
+    )
     parser.add_argument("--state", default=str(STATE_FILE))
     args = parser.parse_args()
 
@@ -76,9 +78,11 @@ def main() -> int:
 
     try:
         result = db.apply_signal_history(conn, days)
-        print(f"Backfill from {args.state}: {len(days)} day(s), "
-              f"{result['events']} events, {result['applied']} upserts, "
-              f"{result['linked']} prediction links.")
+        print(
+            f"Backfill from {args.state}: {len(days)} day(s), "
+            f"{result['events']} events, {result['applied']} upserts, "
+            f"{result['linked']} prediction links."
+        )
         print("Run scripts/settle_outcomes.py next to fill realized outcomes.")
         return 0
     finally:

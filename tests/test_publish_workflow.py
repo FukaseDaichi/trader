@@ -6,10 +6,10 @@ publish workflow's `rsync --delete`, or it is wiped on the next publish
 
 Runnable: uv run python tests/test_publish_workflow.py
 """
+
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,14 +18,22 @@ WORKFLOW = ROOT / ".github" / "workflows" / "daily-publish-dashboard.yml"
 # Canonical list of docs/-root JSON files written by the pipeline.
 # When you add a new export, add it HERE and to the workflow excludes.
 EXPECTED_PRESERVED = {
-    "state.json", "backtest_report.json", "performance_summary.json",
-    "monthly_audit.json", "universe_refresh_report.json",
+    "state.json",
+    "backtest_report.json",
+    "performance_summary.json",
+    "monthly_audit.json",
+    "universe_refresh_report.json",
     "weekly_retrain_report.json",
-    "rotating_refresh_report.json", "stress_test_report.json",
-    "model_quality.json", "drift_report.json",
-    "portfolio_latest.json", "portfolio_backtest.json",
-    "cs_model_quality.json", "portfolio_shadow_report.json",
-    "performance_detail.json", "signal_outcomes_recent.json",
+    "rotating_refresh_report.json",
+    "stress_test_report.json",
+    "model_quality.json",
+    "drift_report.json",
+    "portfolio_latest.json",
+    "portfolio_backtest.json",
+    "cs_model_quality.json",
+    "portfolio_shadow_report.json",
+    "performance_detail.json",
+    "signal_outcomes_recent.json",
 }
 
 # Served from web/public via the build instead of the exclude list.
@@ -76,8 +84,11 @@ def test_code_outputs_covered():
     )
 
 
-ALL_TESTS = [test_expected_files_are_excluded, test_no_stale_excludes,
-             test_code_outputs_covered]
+ALL_TESTS = [
+    test_expected_files_are_excluded,
+    test_no_stale_excludes,
+    test_code_outputs_covered,
+]
 
 
 def main() -> int:

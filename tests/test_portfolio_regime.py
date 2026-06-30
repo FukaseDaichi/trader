@@ -48,13 +48,20 @@ def _phase2_stub(n=3, rows=80):
         df = pd.DataFrame({"date": dates, "close": close})
         info = {"code": code, "name": f"T{i}", "sector": f"SEC{i}"}
         tickers_data.append((info, df))
-        predictions.append({
-            "ticker": code, "cs_rank": i + 1,
-            "expected_ret": 0.02 - i * 0.001, "prob_up": 0.6,
-        })
+        predictions.append(
+            {
+                "ticker": code,
+                "cs_rank": i + 1,
+                "expected_ret": 0.02 - i * 0.001,
+                "prob_up": 0.6,
+            }
+        )
     return {
-        "status": "ok", "mode": "shadow", "model_version": "cs-test",
-        "as_of_date": "2026-06-11", "predictions": predictions,
+        "status": "ok",
+        "mode": "shadow",
+        "model_version": "cs-test",
+        "as_of_date": "2026-06-11",
+        "predictions": predictions,
         "tickers_data": tickers_data,
     }
 
@@ -92,7 +99,9 @@ def test_run_portfolio_snapshot_wires_regime_to_risk_brake():
     assert snap_off["constraints"]["regime"] == "risk_off"
     assert snap_off["constraints"]["regime_multiplier"] == mult
     # Same inputs, halved gross (hysteresis floor not binding at these weights).
-    assert abs(snap_off["gross_exposure"] - mult * snap_neutral["gross_exposure"]) < 1e-9
+    assert (
+        abs(snap_off["gross_exposure"] - mult * snap_neutral["gross_exposure"]) < 1e-9
+    )
 
 
 def test_run_portfolio_snapshot_missing_macro_latest_defaults_neutral():

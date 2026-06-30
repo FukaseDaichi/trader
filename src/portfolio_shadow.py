@@ -46,6 +46,7 @@ MIN_SHADOW_DATES = 5
 # NaN-safe correlation / aggregation helpers (mirror src.cs_model)
 # ---------------------------------------------------------------------------
 
+
 def _pearson(a: np.ndarray, b: np.ndarray):
     mask = np.isfinite(a) & np.isfinite(b)
     if mask.sum() < 2:
@@ -78,10 +79,16 @@ def _mean_or_none(values):
 def _records_to_frame(records) -> pd.DataFrame:
     """Normalize the list-of-dicts into a typed DataFrame (empty-safe)."""
     cols = [
-        "date", "ticker", "realized_ret",
-        "p1_prob_up", "p1_action",
-        "p2_cs_rank", "p2_expected_ret", "p2_prob_up",
-        "p2_weight", "p2_prev_weight",
+        "date",
+        "ticker",
+        "realized_ret",
+        "p1_prob_up",
+        "p1_action",
+        "p2_cs_rank",
+        "p2_expected_ret",
+        "p2_prob_up",
+        "p2_weight",
+        "p2_prev_weight",
     ]
     if not records:
         return pd.DataFrame(columns=cols)
@@ -90,8 +97,15 @@ def _records_to_frame(records) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = None
     # Numeric coercion (everything except date / ticker / p1_action).
-    for c in ["realized_ret", "p1_prob_up", "p2_cs_rank", "p2_expected_ret",
-              "p2_prob_up", "p2_weight", "p2_prev_weight"]:
+    for c in [
+        "realized_ret",
+        "p1_prob_up",
+        "p2_cs_rank",
+        "p2_expected_ret",
+        "p2_prob_up",
+        "p2_weight",
+        "p2_prev_weight",
+    ]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df["date"] = df["date"].astype(str)
     return df[cols]
@@ -100,6 +114,7 @@ def _records_to_frame(records) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Daily IC
 # ---------------------------------------------------------------------------
+
 
 def daily_ic(records, *, score_key, ret_key="realized_ret", method="spearman"):
     """Mean per-date rank/IC correlation between ``score_key`` and ``ret_key``.
@@ -125,8 +140,10 @@ def daily_ic(records, *, score_key, ret_key="realized_ret", method="spearman"):
 # Top-N selection helpers
 # ---------------------------------------------------------------------------
 
-def _select_topn_per_date(grp: pd.DataFrame, rank_key: str, top_n: int,
-                          ascending: bool) -> pd.DataFrame:
+
+def _select_topn_per_date(
+    grp: pd.DataFrame, rank_key: str, top_n: int, ascending: bool
+) -> pd.DataFrame:
     """Return the top-N rows of one date by ``rank_key`` (NaN ranks excluded).
 
     ``ascending=True`` -> smallest values win (e.g. cs_rank where 1 = best).
@@ -139,8 +156,9 @@ def _select_topn_per_date(grp: pd.DataFrame, rank_key: str, top_n: int,
     return sub.head(max(1, int(top_n)))
 
 
-def topn_realized_return(records, *, rank_key, ret_key="realized_ret",
-                         top_n=8, ascending):
+def topn_realized_return(
+    records, *, rank_key, ret_key="realized_ret", top_n=8, ascending
+):
     """Mean over dates of the equal-weight realized return of the top-N names.
 
     Phase 1: ``rank_key="p1_prob_up", ascending=False`` (highest prob first).
@@ -154,8 +172,9 @@ def topn_realized_return(records, *, rank_key, ret_key="realized_ret",
     return _mean_or_none(list(per_date.values()))
 
 
-def topn_per_date_returns(records, *, rank_key, ret_key="realized_ret",
-                          top_n=8, ascending) -> dict:
+def topn_per_date_returns(
+    records, *, rank_key, ret_key="realized_ret", top_n=8, ascending
+) -> dict:
     """Ordered {date -> equal-weight top-N realized return} (finite only).
 
     The per-date series that ``max_drawdown_from_period_returns`` consumes to
@@ -204,6 +223,7 @@ def hit_rate_topn(records, *, rank_key, ret_key="realized_ret", top_n=8, ascendi
 # Turnover (Phase 2 portfolio only)
 # ---------------------------------------------------------------------------
 
+
 def turnover(records):
     """Mean per-date ``0.5 * sum|p2_weight - p2_prev_weight|`` (Phase 2 weights).
 
@@ -216,8 +236,16 @@ def turnover(records):
         return None
     per_date: list[float] = []
     for _date, grp in df.groupby("date", sort=True):
-        w = pd.to_numeric(grp["p2_weight"], errors="coerce").fillna(0.0).to_numpy(dtype="float64")
-        pw = pd.to_numeric(grp["p2_prev_weight"], errors="coerce").fillna(0.0).to_numpy(dtype="float64")
+        w = (
+            pd.to_numeric(grp["p2_weight"], errors="coerce")
+            .fillna(0.0)
+            .to_numpy(dtype="float64")
+        )
+        pw = (
+            pd.to_numeric(grp["p2_prev_weight"], errors="coerce")
+            .fillna(0.0)
+            .to_numpy(dtype="float64")
+        )
         has_weight = (
             grp["p2_weight"].notna().any() or grp["p2_prev_weight"].notna().any()
         )
@@ -232,6 +260,7 @@ def turnover(records):
 # ---------------------------------------------------------------------------
 # Max drawdown from a period-return sequence
 # ---------------------------------------------------------------------------
+
 
 def max_drawdown_from_period_returns(per_date_returns):
     """Most-negative drawdown of the cumulative-product equity curve (<= 0).
@@ -255,6 +284,7 @@ def max_drawdown_from_period_returns(per_date_returns):
 # ---------------------------------------------------------------------------
 # Expected-return calibration (Phase 2)
 # ---------------------------------------------------------------------------
+
 
 def expected_ret_calibration(records, *, top_n=8):
     """Phase 2 top-N predicted vs realized return (pooled across dates).
@@ -287,7 +317,11 @@ def expected_ret_calibration(records, *, top_n=8):
         )
     mean_exp = float(np.mean(exp_vals)) if exp_vals else None
     mean_real = float(np.mean(real_vals)) if real_vals else None
-    bias = (mean_exp - mean_real) if (mean_exp is not None and mean_real is not None) else None
+    bias = (
+        (mean_exp - mean_real)
+        if (mean_exp is not None and mean_real is not None)
+        else None
+    )
     return {
         "mean_expected_ret": mean_exp,
         "mean_realized_ret": mean_real,
@@ -299,6 +333,7 @@ def expected_ret_calibration(records, *, top_n=8):
 # ---------------------------------------------------------------------------
 # Per-strategy metric bundles
 # ---------------------------------------------------------------------------
+
 
 def _phase1_metrics(records, *, top_n) -> dict:
     """Phase 1 per-ticker side: rank by prob_up (higher = better)."""
@@ -397,8 +432,10 @@ def compare_phase1_phase2(records, *, top_n=8) -> dict:
 # Top-level report payload
 # ---------------------------------------------------------------------------
 
-def build_shadow_report(records, *, top_n=8, window=None, generated_at=None,
-                        model_version=None) -> dict:
+
+def build_shadow_report(
+    records, *, top_n=8, window=None, generated_at=None, model_version=None
+) -> dict:
     """Assemble the shadow-validation report payload from normalized records.
 
     ``available=False`` with ``reason="insufficient_shadow_history"`` when there

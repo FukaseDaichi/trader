@@ -43,7 +43,13 @@ OK_SIGNAL = {
     "raw_action": "MILD_BUY",
     "gate_passed": True,
     "status": "ok",
-    "thresholds": {"buy": 0.8, "mild_buy": 0.65, "mild_sell": 0.25, "sell": 0.1, "volatility_limit": 0.04},
+    "thresholds": {
+        "buy": 0.8,
+        "mild_buy": 0.65,
+        "mild_sell": 0.25,
+        "sell": 0.1,
+        "volatility_limit": 0.04,
+    },
     "limit_price": None,
     "stop_loss": None,
     "reason": "やや上昇傾向 (上昇確率 72%)",
@@ -64,17 +70,19 @@ FAILED_SIGNAL = {
 
 def test_event_id_is_stable_and_namespaced():
     assert make_event_id("2026-06-08", "7011.JP", "sig") == "2026-06-08:7011.JP:sig"
-    assert make_event_id("2026-06-08", "7011.JP", "pred") != make_event_id("2026-06-08", "7011.JP", "sig")
+    assert make_event_id("2026-06-08", "7011.JP", "pred") != make_event_id(
+        "2026-06-08", "7011.JP", "sig"
+    )
 
 
 def test_prediction_row_for_ok_signal():
     row = signal_to_prediction_row(OK_SIGNAL, run_date="2026-06-08")
     assert row is not None
     assert row["run_date"] == "2026-06-08"
-    assert row["as_of_date"] == "2026-06-05"      # signal['date'] = latest price date
+    assert row["as_of_date"] == "2026-06-05"  # signal['date'] = latest price date
     assert row["ticker"] == "7011.JP"
     assert row["model_version"] == "legacy-daily-v0"
-    assert row["horizon_days"] == 1               # legacy model predicts next-day
+    assert row["horizon_days"] == 1  # legacy model predicts next-day
     assert abs(row["prob_up"] - 0.72) < 1e-9
     assert abs(row["raw_score"] - 0.72) < 1e-9
 
@@ -92,7 +100,7 @@ def test_signal_row_maps_core_fields():
     assert row["gate_passed"] is True
     assert row["status"] == "ok"
     assert abs(row["conviction"] - 0.72) < 1e-9
-    assert row["target_weight"] is None           # Phase 2
+    assert row["target_weight"] is None  # Phase 2
     assert row["thresholds"]["buy"] == 0.8
 
 
@@ -107,35 +115,56 @@ def test_signal_row_for_failed_signal():
 
 def test_outcome_long_profit():
     # entry 100, exit 110, path high 112 / low 99
-    o = compute_outcome("BUY", entry_close=100.0, exit_close=110.0,
-                        path_highs=[105.0, 112.0], path_lows=[99.0, 108.0])
+    o = compute_outcome(
+        "BUY",
+        entry_close=100.0,
+        exit_close=110.0,
+        path_highs=[105.0, 112.0],
+        path_lows=[99.0, 108.0],
+    )
     assert abs(o["realized_ret"] - 0.10) < 1e-9
     assert o["hit"] is True
-    assert abs(o["mfe"] - 0.12) < 1e-9     # 112/100 - 1
+    assert abs(o["mfe"] - 0.12) < 1e-9  # 112/100 - 1
     assert abs(o["mae"] - (-0.01)) < 1e-9  # 99/100 - 1
     assert o["exit_reason"] == "time"
 
 
 def test_outcome_long_loss_is_not_hit():
-    o = compute_outcome("MILD_BUY", entry_close=100.0, exit_close=95.0,
-                        path_highs=[101.0], path_lows=[94.0])
+    o = compute_outcome(
+        "MILD_BUY",
+        entry_close=100.0,
+        exit_close=95.0,
+        path_highs=[101.0],
+        path_lows=[94.0],
+    )
     assert abs(o["realized_ret"] - (-0.05)) < 1e-9
     assert o["hit"] is False
 
 
 def test_outcome_avoid_hit_when_price_falls():
     # SELL/avoid: "hit" means avoiding was correct, i.e. price fell.
-    o = compute_outcome("SELL", entry_close=100.0, exit_close=90.0,
-                        path_highs=[101.0], path_lows=[89.0])
+    o = compute_outcome(
+        "SELL", entry_close=100.0, exit_close=90.0, path_highs=[101.0], path_lows=[89.0]
+    )
     assert o["hit"] is True
-    o2 = compute_outcome("MILD_SELL", entry_close=100.0, exit_close=105.0,
-                         path_highs=[106.0], path_lows=[100.0])
+    o2 = compute_outcome(
+        "MILD_SELL",
+        entry_close=100.0,
+        exit_close=105.0,
+        path_highs=[106.0],
+        path_lows=[100.0],
+    )
     assert o2["hit"] is False
 
 
 def test_outcome_hold_has_no_hit():
-    o = compute_outcome("HOLD", entry_close=100.0, exit_close=101.0,
-                        path_highs=[102.0], path_lows=[100.0])
+    o = compute_outcome(
+        "HOLD",
+        entry_close=100.0,
+        exit_close=101.0,
+        path_highs=[102.0],
+        path_lows=[100.0],
+    )
     assert o["hit"] is None
     assert abs(o["realized_ret"] - 0.01) < 1e-9
 
@@ -143,21 +172,30 @@ def test_outcome_hold_has_no_hit():
 def test_outcome_rejects_bad_entry():
     raised = False
     try:
-        compute_outcome("BUY", entry_close=0.0, exit_close=100.0, path_highs=[], path_lows=[])
+        compute_outcome(
+            "BUY", entry_close=0.0, exit_close=100.0, path_highs=[], path_lows=[]
+        )
     except ValueError:
         raised = True
     assert raised is True
 
 
 def test_outcome_empty_path_uses_realized():
-    o = compute_outcome("BUY", entry_close=100.0, exit_close=103.0, path_highs=[], path_lows=[])
+    o = compute_outcome(
+        "BUY", entry_close=100.0, exit_close=103.0, path_highs=[], path_lows=[]
+    )
     assert abs(o["mfe"] - 0.03) < 1e-9
     assert abs(o["mae"] - 0.03) < 1e-9
 
 
 def _row(entry_date, action, horizon, ret, hit):
-    return {"entry_date": entry_date, "action": action,
-            "horizon_days": horizon, "realized_ret": ret, "hit": hit}
+    return {
+        "entry_date": entry_date,
+        "action": action,
+        "horizon_days": horizon,
+        "realized_ret": ret,
+        "hit": hit,
+    }
 
 
 def test_summary_hit_rate_and_curve():
@@ -166,7 +204,7 @@ def test_summary_hit_rate_and_curve():
         _row("2026-05-01", "MILD_BUY", 1, -0.01, False),  # same day -> averaged
         _row("2026-05-02", "BUY", 1, 0.03, True),
         _row("2026-05-01", "BUY", 5, 0.05, True),
-        _row("2026-05-01", "SELL", 1, -0.04, True),       # avoid hit, excluded from curve
+        _row("2026-05-01", "SELL", 1, -0.04, True),  # avoid hit, excluded from curve
     ]
     s = summarize_performance(rows, curve_horizon=1)
 
@@ -179,7 +217,7 @@ def test_summary_hit_rate_and_curve():
     assert [p["date"] for p in curve] == ["2026-05-01", "2026-05-02"]
     assert abs(curve[0]["equity"] - 1.005) < 1e-9
     assert abs(curve[1]["equity"] - 1.005 * 1.03) < 1e-9
-    assert s["n_long_signals"] == 4   # BUY/MILD_BUY rows across all horizons
+    assert s["n_long_signals"] == 4  # BUY/MILD_BUY rows across all horizons
 
 
 def test_summary_handles_empty():
@@ -293,7 +331,9 @@ def _bt_result_ok():
 
 def test_backtest_run_row_maps_core_fields():
     result = _bt_result_ok()
-    row = backtest_run_row(result, run_date="2026-06-10", model_version="cs-v1-20260610")
+    row = backtest_run_row(
+        result, run_date="2026-06-10", model_version="cs-v1-20260610"
+    )
     assert row is not None
     assert row["run_date"] == "2026-06-10"
     assert row["model_version"] == "cs-v1-20260610"
@@ -350,11 +390,19 @@ def test_backtest_equity_rows_all_keys_present():
     result = _bt_result_ok()
     rows = backtest_equity_rows(result)
     expected_keys = {
-        "date", "equity", "benchmark_equity", "daily_return",
-        "benchmark_return", "drawdown", "gross_exposure", "turnover",
+        "date",
+        "equity",
+        "benchmark_equity",
+        "daily_return",
+        "benchmark_return",
+        "drawdown",
+        "gross_exposure",
+        "turnover",
     }
     for row in rows:
-        assert expected_keys.issubset(set(row)), f"Missing keys: {expected_keys - set(row)}"
+        assert expected_keys.issubset(set(row)), (
+            f"Missing keys: {expected_keys - set(row)}"
+        )
 
 
 def test_backtest_equity_rows_insufficient_is_empty():
@@ -389,10 +437,20 @@ def _snapshot_ok(as_of_date="2026-06-06"):
         "sector_exposure": {"Industrials": 0.4, None: 0.45},
         "diff_summary": {"add": 2, "trim": 1, "exit": 0, "hold": 5},
         "positions": [
-            {"ticker": "7011.JP", "name": "三菱重工業", "sector": "Industrials",
-             "target_weight": 0.2, "prev_weight": 0.15, "diff_type": "increase",
-             "cs_rank": 1, "expected_ret": 0.02, "prob_up": 0.7,
-             "volatility": 0.25, "limit_price": None, "stop_loss": None},
+            {
+                "ticker": "7011.JP",
+                "name": "三菱重工業",
+                "sector": "Industrials",
+                "target_weight": 0.2,
+                "prev_weight": 0.15,
+                "diff_type": "increase",
+                "cs_rank": 1,
+                "expected_ret": 0.02,
+                "prob_up": 0.7,
+                "volatility": 0.25,
+                "limit_price": None,
+                "stop_loss": None,
+            },
         ],
         "constraints": {"target_vol": 0.12, "top_n": 8, "regime": "neutral"},
         "warnings": ["covariance_diagonal_fallback"],
@@ -473,7 +531,10 @@ def test_benchmark_ret_basic():
 
 
 def test_benchmark_ret_missing_date_is_none():
-    assert compute_benchmark_ret({"2026-06-09": 2900.0}, "2026-06-09", "2026-06-16") is None
+    assert (
+        compute_benchmark_ret({"2026-06-09": 2900.0}, "2026-06-09", "2026-06-16")
+        is None
+    )
     assert compute_benchmark_ret({}, "2026-06-09", "2026-06-16") is None
 
 
@@ -483,16 +544,29 @@ def test_benchmark_ret_zero_entry_is_none():
 
 def test_outbox_queue_and_dedup():
     import os
+
     with tempfile.TemporaryDirectory() as tmp:
         os.environ["TRADER_DB_FALLBACK_DIR"] = tmp
         os.environ["TRADER_DB_ENABLED"] = "false"  # force fallback path
         os.environ.pop("DATABASE_URL", None)
         try:
             signals = [
-                {"ticker": "7011.JP", "date": "2026-06-05", "prob_up": 0.7,
-                 "action": "MILD_BUY", "gate_passed": True, "status": "ok"},
-                {"ticker": "9999.JP", "date": "2026-06-08", "prob_up": None,
-                 "action": "HOLD", "gate_passed": False, "status": "failed"},
+                {
+                    "ticker": "7011.JP",
+                    "date": "2026-06-05",
+                    "prob_up": 0.7,
+                    "action": "MILD_BUY",
+                    "gate_passed": True,
+                    "status": "ok",
+                },
+                {
+                    "ticker": "9999.JP",
+                    "date": "2026-06-08",
+                    "prob_up": None,
+                    "action": "HOLD",
+                    "gate_passed": False,
+                    "status": "failed",
+                },
             ]
             res = dbmod.record_run(signals, run_date="2026-06-08")
             assert res["ok"] is False

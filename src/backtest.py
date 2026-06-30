@@ -80,8 +80,10 @@ def _collect_oos_predictions(labelled, config):
             continue
 
         model_fold = _train_single_fold(
-            train_fold[FEATURE_COLS], train_fold["target_class"],
-            val_fold[FEATURE_COLS], val_fold["target_class"],
+            train_fold[FEATURE_COLS],
+            train_fold["target_class"],
+            val_fold[FEATURE_COLS],
+            val_fold["target_class"],
             seed=42 + fold_idx,
         )
 
@@ -112,12 +114,16 @@ def _split_oos_for_thresholding(oos, config):
     Fallback to all-OOS mode if chronological split is not feasible.
     """
     if oos.empty:
-        return oos.copy(), oos.copy(), {
-            "data_split": "empty",
-            "tuning_rows": 0,
-            "holdout_rows": 0,
-            "holdout_used": False,
-        }
+        return (
+            oos.copy(),
+            oos.copy(),
+            {
+                "data_split": "empty",
+                "tuning_rows": 0,
+                "holdout_rows": 0,
+                "holdout_used": False,
+            },
+        )
 
     val_size = max(1, int(config.get("val_size", 60)))
     n_folds = max(1, int(config.get("n_folds", 3)))
@@ -125,51 +131,71 @@ def _split_oos_for_thresholding(oos, config):
 
     if holdout_folds == 0:
         rows = len(oos)
-        return oos.copy(), oos.copy(), {
-            "data_split": "all_oos",
-            "tuning_rows": rows,
-            "holdout_rows": rows,
-            "holdout_used": False,
-        }
+        return (
+            oos.copy(),
+            oos.copy(),
+            {
+                "data_split": "all_oos",
+                "tuning_rows": rows,
+                "holdout_rows": rows,
+                "holdout_used": False,
+            },
+        )
 
     min_rows_for_split = val_size * (holdout_folds + 1)
     if len(oos) < min_rows_for_split:
         rows = len(oos)
-        return oos.copy(), oos.copy(), {
-            "data_split": "all_oos",
-            "tuning_rows": rows,
-            "holdout_rows": rows,
-            "holdout_used": False,
-        }
+        return (
+            oos.copy(),
+            oos.copy(),
+            {
+                "data_split": "all_oos",
+                "tuning_rows": rows,
+                "holdout_rows": rows,
+                "holdout_used": False,
+            },
+        )
 
     holdout_rows = min(val_size * holdout_folds, max(len(oos) - 1, 0))
     split_index = len(oos) - holdout_rows
     if holdout_rows <= 0 or split_index <= 0:
         rows = len(oos)
-        return oos.copy(), oos.copy(), {
-            "data_split": "all_oos",
-            "tuning_rows": rows,
-            "holdout_rows": rows,
-            "holdout_used": False,
-        }
+        return (
+            oos.copy(),
+            oos.copy(),
+            {
+                "data_split": "all_oos",
+                "tuning_rows": rows,
+                "holdout_rows": rows,
+                "holdout_used": False,
+            },
+        )
 
     tuning_oos = oos.iloc[:split_index].reset_index(drop=True)
     holdout_oos = oos.iloc[split_index:].reset_index(drop=True)
     if tuning_oos.empty or holdout_oos.empty:
         rows = len(oos)
-        return oos.copy(), oos.copy(), {
-            "data_split": "all_oos",
-            "tuning_rows": rows,
-            "holdout_rows": rows,
-            "holdout_used": False,
-        }
+        return (
+            oos.copy(),
+            oos.copy(),
+            {
+                "data_split": "all_oos",
+                "tuning_rows": rows,
+                "holdout_rows": rows,
+                "holdout_used": False,
+            },
+        )
 
-    return tuning_oos, holdout_oos, {
-        "data_split": "chronological_holdout",
-        "tuning_rows": int(len(tuning_oos)),
-        "holdout_rows": int(len(holdout_oos)),
-        "holdout_used": True,
-    }
+    return (
+        tuning_oos,
+        holdout_oos,
+        {
+            "data_split": "chronological_holdout",
+            "tuning_rows": int(len(tuning_oos)),
+            "holdout_rows": int(len(holdout_oos)),
+            "holdout_used": True,
+        },
+    )
 
 
 def _to_position(action, allow_short):
@@ -202,7 +228,9 @@ def _build_threshold_candidates(config):
         for mild_buy in _AUTO_THRESHOLD_CANDIDATES["mild_buy"]:
             for mild_sell in _AUTO_THRESHOLD_CANDIDATES["mild_sell"]:
                 for sell in _AUTO_THRESHOLD_CANDIDATES["sell"]:
-                    for volatility_limit in _AUTO_THRESHOLD_CANDIDATES["volatility_limit"]:
+                    for volatility_limit in _AUTO_THRESHOLD_CANDIDATES[
+                        "volatility_limit"
+                    ]:
                         if buy - mild_buy < min_gap:
                             continue
                         if mild_buy - mild_sell < min_gap:
@@ -211,13 +239,15 @@ def _build_threshold_candidates(config):
                             continue
 
                         try:
-                            threshold = resolve_thresholds({
-                                "buy": buy,
-                                "mild_buy": mild_buy,
-                                "mild_sell": mild_sell,
-                                "sell": sell,
-                                "volatility_limit": volatility_limit,
-                            })
+                            threshold = resolve_thresholds(
+                                {
+                                    "buy": buy,
+                                    "mild_buy": mild_buy,
+                                    "mild_sell": mild_sell,
+                                    "sell": sell,
+                                    "volatility_limit": volatility_limit,
+                                }
+                            )
                         except ValueError:
                             continue
 
@@ -247,7 +277,9 @@ def _simulate_strategy(oos, config, thresholds=None, horizon=1):
     h = max(1, int(horizon))
     sim = oos.copy()
     sim["action"] = [
-        action_from_probability(prob_up=row.prob_up, volatility=row.volatility, thresholds=t)
+        action_from_probability(
+            prob_up=row.prob_up, volatility=row.volatility, thresholds=t
+        )
         for row in sim.itertuples(index=False)
     ]
     sim["position"] = [
@@ -347,7 +379,9 @@ def _score_for_objective(metrics, objective):
 def _optimize_thresholds(tuning_oos, config, horizon=1):
     default_thresholds = resolve_thresholds()
     enabled = bool(config.get("auto_threshold_enabled", True))
-    objective = str(config.get("auto_threshold_objective", "expectancy")).strip().lower()
+    objective = (
+        str(config.get("auto_threshold_objective", "expectancy")).strip().lower()
+    )
     min_trades = int(config.get("auto_threshold_min_trades", 8))
 
     if tuning_oos.empty or not enabled:
@@ -365,7 +399,9 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
     best_feasible = None
 
     for threshold in candidates:
-        sim = _simulate_strategy(tuning_oos, config, thresholds=threshold, horizon=horizon)
+        sim = _simulate_strategy(
+            tuning_oos, config, thresholds=threshold, horizon=horizon
+        )
         metrics = _compute_metrics(sim)
         score = _score_for_objective(metrics, objective)
         rank = (score, metrics["sharpe"], metrics["cagr"], metrics["net_return_total"])
@@ -396,7 +432,9 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
         }
 
     selected_thresholds = resolve_thresholds(selected["thresholds"])
-    optimized = _threshold_signature(selected_thresholds) != _threshold_signature(default_thresholds)
+    optimized = _threshold_signature(selected_thresholds) != _threshold_signature(
+        default_thresholds
+    )
     selection = "feasible_best" if best_feasible is not None else "fallback_best_any"
 
     return selected_thresholds, {
@@ -432,7 +470,9 @@ def evaluate_kpi_gate(df, config, label_config=None):
             "threshold_optimization": {
                 "enabled": bool(config.get("auto_threshold_enabled", True)),
                 "optimized": False,
-                "objective": str(config.get("auto_threshold_objective", "expectancy")).strip().lower(),
+                "objective": str(config.get("auto_threshold_objective", "expectancy"))
+                .strip()
+                .lower(),
                 "min_trades": int(config.get("auto_threshold_min_trades", 8)),
                 "candidate_count": 1,
                 "selection": "default",
@@ -444,7 +484,11 @@ def evaluate_kpi_gate(df, config, label_config=None):
         }
 
     labelled = _prepare_labelled_data(df, config, label_cfg)
-    min_required = int(config["train_min_rows"]) + int(config["val_size"]) + int(config["purge_gap"])
+    min_required = (
+        int(config["train_min_rows"])
+        + int(config["val_size"])
+        + int(config["purge_gap"])
+    )
     if len(labelled) < min_required:
         return {
             "passed": False,
@@ -460,7 +504,9 @@ def evaluate_kpi_gate(df, config, label_config=None):
             "threshold_optimization": {
                 "enabled": bool(config.get("auto_threshold_enabled", True)),
                 "optimized": False,
-                "objective": str(config.get("auto_threshold_objective", "expectancy")).strip().lower(),
+                "objective": str(config.get("auto_threshold_objective", "expectancy"))
+                .strip()
+                .lower(),
                 "min_trades": int(config.get("auto_threshold_min_trades", 8)),
                 "candidate_count": 1,
                 "selection": "default",
@@ -473,12 +519,18 @@ def evaluate_kpi_gate(df, config, label_config=None):
 
     oos = _collect_oos_predictions(labelled, config)
     tuning_oos, holdout_oos, split_info = _split_oos_for_thresholding(oos, config)
-    thresholds, threshold_optimization = _optimize_thresholds(tuning_oos, config, horizon=horizon)
+    thresholds, threshold_optimization = _optimize_thresholds(
+        tuning_oos, config, horizon=horizon
+    )
 
-    sim_tuning = _simulate_strategy(tuning_oos, config, thresholds=thresholds, horizon=horizon)
+    sim_tuning = _simulate_strategy(
+        tuning_oos, config, thresholds=thresholds, horizon=horizon
+    )
     metrics_tuning = _compute_metrics(sim_tuning)
 
-    sim_holdout = _simulate_strategy(holdout_oos, config, thresholds=thresholds, horizon=horizon)
+    sim_holdout = _simulate_strategy(
+        holdout_oos, config, thresholds=thresholds, horizon=horizon
+    )
     metrics_holdout = _compute_metrics(sim_holdout)
 
     metrics_for_gate = metrics_holdout
@@ -547,7 +599,9 @@ def _evaluate_portfolio_gate_rules(metrics: dict, config: dict) -> list[str]:
         failures.append(f"ir<{float(config['backtest_min_ir']):.2f}")
 
     turnover = metrics.get("turnover")
-    if turnover is not None and float(turnover) > float(config["backtest_max_turnover"]):
+    if turnover is not None and float(turnover) > float(
+        config["backtest_max_turnover"]
+    ):
         failures.append(f"turnover>{float(config['backtest_max_turnover']):.2f}")
 
     return failures

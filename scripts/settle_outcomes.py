@@ -49,15 +49,20 @@ def _load_topix_by_date() -> dict[str, float]:
         print("macro_panel.parquet has no topix column; benchmark stays NULL")
         return {}
     sub = df[["date", "topix"]].dropna(subset=["topix"])
-    result = {d[:10]: float(v) for d, v in
-              zip(pd.to_datetime(sub["date"]).dt.strftime("%Y-%m-%d"), sub["topix"])}
+    result = {
+        d[:10]: float(v)
+        for d, v in zip(
+            pd.to_datetime(sub["date"]).dt.strftime("%Y-%m-%d"), sub["topix"]
+        )
+    }
     if not result:
         print("macro_panel.parquet topix column is all-NaN; benchmark stays NULL")
     return result
 
 
-def _settle_for_ticker(conn, ticker: str, signals: list[dict],
-                       topix_by_date: dict) -> int:
+def _settle_for_ticker(
+    conn, ticker: str, signals: list[dict], topix_by_date: dict
+) -> int:
     df = load_data(ticker)
     if df is None or df.empty or "date" not in df.columns:
         return 0
@@ -78,38 +83,54 @@ def _settle_for_ticker(conn, ticker: str, signals: list[dict],
                 continue  # not enough forward data yet; settle on a later run
             exit_close = float(df["close"].iloc[exit_idx])
             eval_date = df["date"].iloc[exit_idx]
-            path = df.iloc[idx + 1: exit_idx + 1]
+            path = df.iloc[idx + 1 : exit_idx + 1]
             payload = compute_outcome(
-                action=sig["action"], entry_close=entry_close, exit_close=exit_close,
+                action=sig["action"],
+                entry_close=entry_close,
+                exit_close=exit_close,
                 path_highs=path["high"].astype(float).tolist(),
                 path_lows=path["low"].astype(float).tolist(),
             )
             benchmark_ret = compute_benchmark_ret(topix_by_date, as_of, eval_date)
-            excess_ret = (payload["realized_ret"] - benchmark_ret
-                          if benchmark_ret is not None else None)
-            db.upsert_outcome(conn, sig["signal_id"], h, {
-                "entry_date": as_of,
-                "eval_date": eval_date,
-                "entry_close": entry_close,
-                "exit_close": exit_close,
-                "realized_ret": payload["realized_ret"],
-                "benchmark_ret": benchmark_ret,
-                "excess_ret": excess_ret,
-                "hit": payload["hit"],
-                "mae": payload["mae"],
-                "mfe": payload["mfe"],
-                "exit_reason": payload["exit_reason"],
-            })
+            excess_ret = (
+                payload["realized_ret"] - benchmark_ret
+                if benchmark_ret is not None
+                else None
+            )
+            db.upsert_outcome(
+                conn,
+                sig["signal_id"],
+                h,
+                {
+                    "entry_date": as_of,
+                    "eval_date": eval_date,
+                    "entry_close": entry_close,
+                    "exit_close": exit_close,
+                    "realized_ret": payload["realized_ret"],
+                    "benchmark_ret": benchmark_ret,
+                    "excess_ret": excess_ret,
+                    "hit": payload["hit"],
+                    "mae": payload["mae"],
+                    "mfe": payload["mfe"],
+                    "exit_reason": payload["exit_reason"],
+                },
+            )
             settled += 1
     return settled
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--as-of", default=today_jst_iso(),
-                        help="JST date label (informational; settlement scans all unsettled).")
-    parser.add_argument("--refill-benchmark", action="store_true",
-                        help="Backfill benchmark_ret/excess_ret for already-settled rows.")
+    parser.add_argument(
+        "--as-of",
+        default=today_jst_iso(),
+        help="JST date label (informational; settlement scans all unsettled).",
+    )
+    parser.add_argument(
+        "--refill-benchmark",
+        action="store_true",
+        help="Backfill benchmark_ret/excess_ret for already-settled rows.",
+    )
     args = parser.parse_args()
 
     if not db.db_enabled():
@@ -121,7 +142,9 @@ def main() -> int:
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001
-        print(f"Could not connect for settlement (ignored): {type(exc).__name__}: {exc}")
+        print(
+            f"Could not connect for settlement (ignored): {type(exc).__name__}: {exc}"
+        )
         return 0
 
     try:
@@ -133,8 +156,10 @@ def main() -> int:
         total = 0
         for ticker, sigs in by_ticker.items():
             total += _settle_for_ticker(conn, ticker, sigs, topix_by_date)
-        print(f"Settlement as-of {args.as_of}: filled {total} outcome rows "
-              f"across {len(by_ticker)} tickers ({len(unsettled)} unsettled signals scanned).")
+        print(
+            f"Settlement as-of {args.as_of}: filled {total} outcome rows "
+            f"across {len(by_ticker)} tickers ({len(unsettled)} unsettled signals scanned)."
+        )
 
         if args.refill_benchmark and not topix_by_date:
             print("Refill benchmark: no TOPIX data available; skipping.")
@@ -149,14 +174,18 @@ def main() -> int:
                     continue
                 excess_ret = row["realized_ret"] - benchmark_ret
                 db.update_outcome_benchmark(
-                    conn, row["signal_id"], row["horizon_days"],
-                    benchmark_ret, excess_ret
+                    conn,
+                    row["signal_id"],
+                    row["horizon_days"],
+                    benchmark_ret,
+                    excess_ret,
                 )
                 refilled += 1
             print(f"Refill benchmark: updated {refilled}/{len(missing)} rows.")
 
         try:
             from src import dashboard
+
             dashboard.export_performance_summary()
             dashboard.export_performance_detail()
             dashboard.export_signal_outcomes_recent()

@@ -1,16 +1,22 @@
 import os
 import time
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, PushMessageRequest, TextMessage
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    PushMessageRequest,
+    TextMessage,
+)
 from urllib.parse import quote, urljoin
 from .config import LINE_CONFIG
 
 # 5-level action → Japanese label + emoji
 ACTION_LABELS = {
-    "BUY":       "🔴 買い",
-    "MILD_BUY":  "🟠 やや買い",
-    "HOLD":      "⚪ HOLD",
+    "BUY": "🔴 買い",
+    "MILD_BUY": "🟠 やや買い",
+    "HOLD": "⚪ HOLD",
     "MILD_SELL": "🔵 やや売り",
-    "SELL":      "🟢 売り",
+    "SELL": "🟢 売り",
 }
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -22,7 +28,7 @@ def _should_retry(status):
 
 
 def _backoff_seconds(attempt, base):
-    return base * (4 ** (attempt - 1))   # 1s, 4s, 16s, ...
+    return base * (4 ** (attempt - 1))  # 1s, 4s, 16s, ...
 
 
 def _push_once(token: str, user_id: str, text: str) -> None:
@@ -30,7 +36,8 @@ def _push_once(token: str, user_id: str, text: str) -> None:
     configuration = Configuration(access_token=token)
     with ApiClient(configuration) as api_client:
         MessagingApi(api_client).push_message(
-            PushMessageRequest(to=user_id, messages=[TextMessage(text=text)]))
+            PushMessageRequest(to=user_id, messages=[TextMessage(text=text)])
+        )
 
 
 def send_line_text(text: str, *, sleep_fn=time.sleep) -> bool:
@@ -53,8 +60,10 @@ def send_line_text(text: str, *, sleep_fn=time.sleep) -> bool:
         except Exception as exc:  # noqa: BLE001
             status = getattr(exc, "status", None)
             retry = _should_retry(status) and attempt < max_attempts
-            print(f"LINE push failed (attempt {attempt}/{max_attempts}, "
-                  f"status={status}): {exc}" + (" — retrying" if retry else ""))
+            print(
+                f"LINE push failed (attempt {attempt}/{max_attempts}, "
+                f"status={status}): {exc}" + (" — retrying" if retry else "")
+            )
             if not retry:
                 return False
             sleep_fn(_backoff_seconds(attempt, base))
@@ -66,12 +75,12 @@ def send_notification(signal):
     Send LINE notification for actionable signals.
     HOLD is skipped (no notification).
     """
-    action = signal['action']
+    action = signal["action"]
 
     if action == "HOLD":
         return
 
-    dashboard_url = LINE_CONFIG.get('dashboard_url')
+    dashboard_url = LINE_CONFIG.get("dashboard_url")
 
     label = ACTION_LABELS.get(action, action)
     close = signal.get("close")
@@ -80,7 +89,7 @@ def send_notification(signal):
     lines = [
         f"【{label}】{signal['name']}",
         f"({signal['ticker']})",
-        f"────────────",
+        "────────────",
     ]
 
     if close is not None:
@@ -93,10 +102,10 @@ def send_notification(signal):
     else:
         lines.append("上昇確率: 算出不可")
 
-    if signal.get('limit_price') is not None:
+    if signal.get("limit_price") is not None:
         lines.append(f"指値目安: {signal['limit_price']:,.0f}円")
 
-    if signal.get('stop_loss') is not None:
+    if signal.get("stop_loss") is not None:
         lines.append(f"損切目安: {signal['stop_loss']:,.0f}円")
 
     lines.append(f"理由: {signal['reason']}")

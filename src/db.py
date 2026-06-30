@@ -16,12 +16,13 @@ from pathlib import Path
 
 from .config import DATA_DIR
 from . import db_records
-from .db_records import LEGACY_MODEL_VERSION, OUTCOME_HORIZONS  # re-exported
+from .db_records import OUTCOME_HORIZONS  # re-exported
 
 DEFAULT_FALLBACK_DIR = DATA_DIR / "outbox"
 
 
 # --- env helpers (mirror src/data_loader.py style) -------------------------
+
 
 def _env_str(name: str, default: str = "") -> str:
     raw = os.environ.get(name)
@@ -61,11 +62,13 @@ def _fallback_dir() -> Path:
 def connect():
     """Open a psycopg connection. Raises on failure (callers handle it)."""
     import psycopg
+
     timeout = _env_int("TRADER_DB_WRITE_TIMEOUT_SEC", 15)
     return psycopg.connect(database_url(), connect_timeout=timeout)
 
 
 # --- outbox (filesystem only, no network) ----------------------------------
+
 
 def _queue_events(events: list[dict]) -> int:
     if not events:
@@ -114,19 +117,25 @@ def _build_events(signals: list[dict], run_date: str) -> list[dict]:
             continue
         pred = db_records.signal_to_prediction_row(s, run_date)
         if pred is not None:
-            events.append({
-                "event_id": db_records.make_event_id(run_date, ticker, "pred"),
-                "kind": "prediction", "row": pred,
-            })
-        events.append({
-            "event_id": db_records.make_event_id(run_date, ticker, "sig"),
-            "kind": "signal",
-            "row": db_records.signal_to_signal_row(s, run_date),
-        })
+            events.append(
+                {
+                    "event_id": db_records.make_event_id(run_date, ticker, "pred"),
+                    "kind": "prediction",
+                    "row": pred,
+                }
+            )
+        events.append(
+            {
+                "event_id": db_records.make_event_id(run_date, ticker, "sig"),
+                "kind": "signal",
+                "row": db_records.signal_to_signal_row(s, run_date),
+            }
+        )
     return events
 
 
 # --- upserts ---------------------------------------------------------------
+
 
 def _upsert_prediction(cur, row: dict) -> int | None:
     cur.execute(
@@ -149,9 +158,12 @@ def _upsert_prediction(cur, row: dict) -> int | None:
 
 def _upsert_signal(cur, row: dict, prediction_id: int | None = None) -> None:
     from psycopg.types.json import Jsonb
+
     params = dict(row)
     params["prediction_id"] = prediction_id
-    params["thresholds"] = Jsonb(row.get("thresholds")) if row.get("thresholds") is not None else None
+    params["thresholds"] = (
+        Jsonb(row.get("thresholds")) if row.get("thresholds") is not None else None
+    )
     cur.execute(
         "INSERT INTO signals"
         " (run_date, as_of_date, ticker, prediction_id, action, raw_action, conviction,"
@@ -257,13 +269,14 @@ def record_cs_predictions(cs_rows: list[dict], run_date: str) -> dict:
         ticker = row.get("ticker")
         if not ticker:
             continue
-        events.append({
-            "event_id": db_records.make_event_id(run_date, ticker, "cs_pred"),
-            "kind": "prediction",
-            "row": row,
-        })
+        events.append(
+            {
+                "event_id": db_records.make_event_id(run_date, ticker, "cs_pred"),
+                "kind": "prediction",
+                "row": row,
+            }
+        )
 
-    n = len(events)
     if not db_enabled():
         queued = _queue_events(events)
         return {"ok": False, "reason": "db_disabled", "queued": queued}
@@ -272,14 +285,22 @@ def record_cs_predictions(cs_rows: list[dict], run_date: str) -> dict:
         conn = connect()
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
-        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}", "queued": queued}
+        return {
+            "ok": False,
+            "reason": f"connect_failed: {type(exc).__name__}",
+            "queued": queued,
+        }
 
     try:
         applied = _apply_events(conn, events)
         return {"ok": True, "applied": applied}
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
-        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
+        return {
+            "ok": False,
+            "reason": f"write_failed: {type(exc).__name__}",
+            "queued": queued,
+        }
     finally:
         conn.close()
 
@@ -298,21 +319,35 @@ def record_run(signals: list[dict], run_date: str) -> dict:
         conn = connect()
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
-        return {"ok": False, "reason": f"connect_failed: {type(exc).__name__}", "queued": queued}
+        return {
+            "ok": False,
+            "reason": f"connect_failed: {type(exc).__name__}",
+            "queued": queued,
+        }
 
     try:
         flushed = flush_outbox(conn)
         applied = _apply_events(conn, events)
         linked = _link_prediction_ids(conn)
-        return {"ok": True, "applied": applied, "flushed_backlog": flushed, "linked": linked}
+        return {
+            "ok": True,
+            "applied": applied,
+            "flushed_backlog": flushed,
+            "linked": linked,
+        }
     except Exception as exc:  # noqa: BLE001
         queued = _queue_events(events)
-        return {"ok": False, "reason": f"write_failed: {type(exc).__name__}", "queued": queued}
+        return {
+            "ok": False,
+            "reason": f"write_failed: {type(exc).__name__}",
+            "queued": queued,
+        }
     finally:
         conn.close()
 
 
 # --- Phase 2: portfolio backtest write-through -----------------------------
+
 
 def insert_backtest_run(conn, row: dict, equity_rows: list[dict]) -> int:
     """
@@ -327,6 +362,7 @@ def insert_backtest_run(conn, row: dict, equity_rows: list[dict]) -> int:
     Returns the generated ``backtest_runs.id``.
     """
     from psycopg.types.json import Jsonb
+
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO backtest_runs"
@@ -357,9 +393,13 @@ def insert_backtest_run(conn, row: dict, equity_rows: list[dict]) -> int:
     return run_id
 
 
-def record_backtest_run(result: dict, run_date: str, *,
-                        model_version: str | None = None,
-                        scope: str = "portfolio") -> dict:
+def record_backtest_run(
+    result: dict,
+    run_date: str,
+    *,
+    model_version: str | None = None,
+    scope: str = "portfolio",
+) -> dict:
     """
     Write-through a ``run_portfolio_backtest`` result to the DB. Never raises.
 
@@ -370,8 +410,9 @@ def record_backtest_run(result: dict, run_date: str, *,
 
     Returns ``{"ok": True, "run_id": <int>}`` on success.
     """
-    run_row = db_records.backtest_run_row(result, run_date, model_version=model_version,
-                                         scope=scope)
+    run_row = db_records.backtest_run_row(
+        result, run_date, model_version=model_version, scope=scope
+    )
     if run_row is None:
         return {"ok": False, "reason": "insufficient_or_no_result"}
 
@@ -396,6 +437,7 @@ def record_backtest_run(result: dict, run_date: str, *,
 
 # --- Phase 2: daily portfolio snapshot write-through -----------------------
 
+
 def upsert_portfolio_snapshot(conn, row: dict) -> None:
     """
     Upsert one ``portfolio_snapshots`` row (keyed by ``run_date``).
@@ -406,6 +448,7 @@ def upsert_portfolio_snapshot(conn, row: dict) -> None:
     ``Jsonb`` here. ``constraints`` is a SQL reserved word -> quoted.
     """
     from psycopg.types.json import Jsonb
+
     params = dict(row)
     params["positions"] = Jsonb(row.get("positions") or [])
     for col in ("diff_from_prev", "sector_exposure", "constraints", "warnings"):
@@ -415,7 +458,7 @@ def upsert_portfolio_snapshot(conn, row: dict) -> None:
             "INSERT INTO portfolio_snapshots"
             " (run_date, as_of_date, model_version, mode, status, positions,"
             "  diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
-            "  expected_ret, expected_vol, \"constraints\", warnings)"
+            '  expected_ret, expected_vol, "constraints", warnings)'
             " VALUES (%(run_date)s, %(as_of_date)s, %(model_version)s, %(mode)s,"
             "  %(status)s, %(positions)s, %(diff_from_prev)s, %(gross_exposure)s,"
             "  %(net_exposure)s, %(sector_exposure)s, %(expected_ret)s,"
@@ -426,7 +469,7 @@ def upsert_portfolio_snapshot(conn, row: dict) -> None:
             "  diff_from_prev=EXCLUDED.diff_from_prev, gross_exposure=EXCLUDED.gross_exposure,"
             "  net_exposure=EXCLUDED.net_exposure, sector_exposure=EXCLUDED.sector_exposure,"
             "  expected_ret=EXCLUDED.expected_ret, expected_vol=EXCLUDED.expected_vol,"
-            "  \"constraints\"=EXCLUDED.\"constraints\", warnings=EXCLUDED.warnings",
+            '  "constraints"=EXCLUDED."constraints", warnings=EXCLUDED.warnings',
             params,
         )
     conn.commit()
@@ -439,11 +482,12 @@ def fetch_latest_portfolio_snapshot(conn) -> dict | None:
     Python (e.g. ``positions`` is a list of dicts).
     """
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT run_date, as_of_date, model_version, mode, status, positions,"
             " diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
-            " expected_ret, expected_vol, \"constraints\", warnings"
+            ' expected_ret, expected_vol, "constraints", warnings'
             " FROM portfolio_snapshots ORDER BY run_date DESC LIMIT 1"
         )
         return cur.fetchone()
@@ -483,9 +527,11 @@ def record_portfolio_snapshot(snapshot: dict, run_date: str) -> dict:
 
 # --- settlement support (read) ---------------------------------------------
 
+
 def fetch_unsettled(conn) -> list[dict]:
     """Actionable signals and which OUTCOME_HORIZONS are still missing."""
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT s.id AS signal_id, s.ticker, s.as_of_date, s.action,"
@@ -526,6 +572,7 @@ def upsert_outcome(conn, signal_id: int, horizon_days: int, payload: dict) -> No
 def fetch_outcome_rows(conn) -> list[dict]:
     """Joined rows for summarize_performance()."""
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT s.as_of_date AS entry_date, s.action, o.horizon_days,"
@@ -544,6 +591,7 @@ def fetch_outcome_rows(conn) -> list[dict]:
 def fetch_outcomes_missing_benchmark(conn) -> list[dict]:
     """Settled rows that still need a benchmark return."""
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret"
@@ -559,9 +607,13 @@ def fetch_outcomes_missing_benchmark(conn) -> list[dict]:
     return rows
 
 
-def update_outcome_benchmark(conn, signal_id: int, horizon_days: int,
-                             benchmark_ret: float | None,
-                             excess_ret: float | None) -> None:
+def update_outcome_benchmark(
+    conn,
+    signal_id: int,
+    horizon_days: int,
+    benchmark_ret: float | None,
+    excess_ret: float | None,
+) -> None:
     """Idempotently write benchmark_ret/excess_ret for one settled outcome row."""
     with conn.cursor() as cur:
         cur.execute(
@@ -581,9 +633,11 @@ def db_size_mb(conn) -> float:
 
 # --- Phase 1: macro snapshots ----------------------------------------------
 
+
 def upsert_macro_snapshot(conn, row: dict) -> None:
     """Upsert one macro_snapshots row (keyed by date)."""
     from psycopg.types.json import Jsonb
+
     params = dict(row)
     params["raw"] = Jsonb(row["raw"]) if row.get("raw") is not None else None
     params.setdefault("market_bias", None)
@@ -607,14 +661,26 @@ def upsert_macro_snapshot(conn, row: dict) -> None:
 
 # --- Phase 1: model registry + quality -------------------------------------
 
-def register_model_version(conn, version: str, *, kind: str, universe, feature_set,
-                           params, cv_metrics, calibration=None, artifact_uri=None,
-                           make_active: bool = True) -> None:
+
+def register_model_version(
+    conn,
+    version: str,
+    *,
+    kind: str,
+    universe,
+    feature_set,
+    params,
+    cv_metrics,
+    calibration=None,
+    artifact_uri=None,
+    make_active: bool = True,
+) -> None:
     """
     Upsert a model_registry row. When make_active, mark exactly this version
     active (all others become inactive) so there is a single active model.
     """
     from psycopg.types.json import Jsonb
+
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO model_registry"
@@ -626,9 +692,17 @@ def register_model_version(conn, version: str, *, kind: str, universe, feature_s
             "  feature_set=EXCLUDED.feature_set, params=EXCLUDED.params,"
             "  cv_metrics=EXCLUDED.cv_metrics, calibration=EXCLUDED.calibration,"
             "  artifact_uri=EXCLUDED.artifact_uri",
-            (version, kind, Jsonb(universe), Jsonb(feature_set), Jsonb(params),
-             Jsonb(cv_metrics), Jsonb(calibration) if calibration is not None else None,
-             artifact_uri, bool(make_active)),
+            (
+                version,
+                kind,
+                Jsonb(universe),
+                Jsonb(feature_set),
+                Jsonb(params),
+                Jsonb(cv_metrics),
+                Jsonb(calibration) if calibration is not None else None,
+                artifact_uri,
+                bool(make_active),
+            ),
         )
         if make_active:
             cur.execute(
@@ -666,8 +740,14 @@ def active_model_version_for_kind(conn, kind: str) -> str | None:
 
 
 _MODEL_QUALITY_DEFAULTS = {
-    "brier": None, "brier_raw": None, "ic": None, "auc": None, "hit_rate": None,
-    "calibration_rows": None, "psi_max": None, "warning": False,
+    "brier": None,
+    "brier_raw": None,
+    "ic": None,
+    "auc": None,
+    "hit_rate": None,
+    "calibration_rows": None,
+    "psi_max": None,
+    "warning": False,
 }
 
 
@@ -693,12 +773,16 @@ def upsert_model_quality(conn, row: dict) -> None:
 
 # --- Phase 1: drift -------------------------------------------------------
 
-def fetch_prediction_outcomes(conn, model_version: str, horizon_days: int) -> list[dict]:
+
+def fetch_prediction_outcomes(
+    conn, model_version: str, horizon_days: int
+) -> list[dict]:
     """
     Joined (predictions x signals x signal_outcomes) rows for one model version
     at one horizon: prob_up, raw_score, realized_ret, hit. Used by drift_check.
     """
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
@@ -711,7 +795,9 @@ def fetch_prediction_outcomes(conn, model_version: str, horizon_days: int) -> li
         return cur.fetchall()
 
 
-def fetch_outcome_detail_rows(conn, horizon_days: int = 5, history_days: int = 180) -> list[dict]:
+def fetch_outcome_detail_rows(
+    conn, horizon_days: int = 5, history_days: int = 180
+) -> list[dict]:
     """
     Joined rows for performance detail exports (Phase 3).
 
@@ -720,6 +806,7 @@ def fetch_outcome_detail_rows(conn, horizon_days: int = 5, history_days: int = 1
     entry_date is normalized to ISO string.
     """
     from psycopg.rows import dict_row
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT o.entry_date, s.ticker, t.name, s.action, s.conviction, o.horizon_days,"
@@ -738,9 +825,17 @@ def fetch_outcome_detail_rows(conn, horizon_days: int = 5, history_days: int = 1
     return rows
 
 
-def insert_drift_report(conn, run_date: str, model_version: str | None, scope: str,
-                        status: str, breached: bool, metrics: dict) -> None:
+def insert_drift_report(
+    conn,
+    run_date: str,
+    model_version: str | None,
+    scope: str,
+    status: str,
+    breached: bool,
+    metrics: dict,
+) -> None:
     from psycopg.types.json import Jsonb
+
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO drift_reports"

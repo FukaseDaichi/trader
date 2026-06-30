@@ -27,7 +27,12 @@ from .calibration import (
     reliability_bins,
 )
 from .labels import build_labelled_frame, effective_horizon
-from .model import PHASE1_FEATURE_COLS, phase1_feature_cols, predict_prob_with_bundle, train_horizon_models
+from .model import (
+    PHASE1_FEATURE_COLS,
+    phase1_feature_cols,
+    predict_prob_with_bundle,
+    train_horizon_models,
+)
 
 
 # --- PSI / feature reference ------------------------------------------------
@@ -37,14 +42,22 @@ from .model import PHASE1_FEATURE_COLS, phase1_feature_cols, predict_prob_with_b
 # which produces a huge but meaningless PSI. The model saw every season in
 # training, so these are not "drift". (Binary/constant features are also skipped
 # automatically by the <3-unique-values guard in _psi_reference_for.)
-PSI_EXCLUDE_FEATURES = frozenset({
-    # calendar / cyclical
-    "day_of_week", "month", "is_month_end", "is_month_start",
-    # absolute price-scale (in yen, grows with the price level -> non-stationary)
-    "macd", "macd_signal", "macd_hist", "macd_hist_change",
-    # qualitative constant
-    "macro_bias_score",
-})
+PSI_EXCLUDE_FEATURES = frozenset(
+    {
+        # calendar / cyclical
+        "day_of_week",
+        "month",
+        "is_month_end",
+        "is_month_start",
+        # absolute price-scale (in yen, grows with the price level -> non-stationary)
+        "macd",
+        "macd_signal",
+        "macd_hist",
+        "macd_hist_change",
+        # qualitative constant
+        "macro_bias_score",
+    }
+)
 
 
 def _psi_reference_for(values, n_bins: int = 10) -> dict:
@@ -86,8 +99,9 @@ def psi_for(reference: dict, current_values, eps: float = 1e-4):
     return float(np.sum((cur - ref) * np.log(cur / ref)))
 
 
-def build_feature_reference(labelled: pd.DataFrame, feature_cols, n_bins: int = 10,
-                            ref_rows: int = 250) -> dict:
+def build_feature_reference(
+    labelled: pd.DataFrame, feature_cols, n_bins: int = 10, ref_rows: int = 250
+) -> dict:
     """
     Reference distribution (for PSI) + expected-return stats from training data.
 
@@ -99,7 +113,9 @@ def build_feature_reference(labelled: pd.DataFrame, feature_cols, n_bins: int = 
     ~0 right after retraining and only grows as the trailing window truly drifts.
     Expected-return stats use the full labelled frame for stability.
     """
-    psi_frame = labelled.tail(ref_rows) if ref_rows and len(labelled) > ref_rows else labelled
+    psi_frame = (
+        labelled.tail(ref_rows) if ref_rows and len(labelled) > ref_rows else labelled
+    )
     psi_ref = {}
     for feat in feature_cols:
         if feat in PSI_EXCLUDE_FEATURES or feat not in psi_frame.columns:
@@ -114,7 +130,9 @@ def build_feature_reference(labelled: pd.DataFrame, feature_cols, n_bins: int = 
         "avg_up_ret": float(up.mean()) if len(up) else None,
         "avg_dn_ret": float(dn.mean()) if len(dn) else None,
         "n_bins": n_bins,
-        "psi_ref_rows": int(min(len(labelled), ref_rows)) if ref_rows else int(len(labelled)),
+        "psi_ref_rows": int(min(len(labelled), ref_rows))
+        if ref_rows
+        else int(len(labelled)),
         "psi": psi_ref,
     }
 
@@ -157,8 +175,10 @@ def features_hash(feature_row, feature_cols) -> str:
 
 # --- training ---------------------------------------------------------------
 
-def train_ticker_bundle(featured: pd.DataFrame, gate_config: dict,
-                        label_config: dict, model_cfg: dict):
+
+def train_ticker_bundle(
+    featured: pd.DataFrame, gate_config: dict, label_config: dict, model_cfg: dict
+):
     """
     Train one ticker's Phase 1 ensemble from a feature frame that already has
     technical + macro columns (model.build_feature_frame). Returns
@@ -170,12 +190,16 @@ def train_ticker_bundle(featured: pd.DataFrame, gate_config: dict,
         return None, {"reason": "no_labelled_rows"}
 
     max_date = labelled["date"].max()
-    start_date = max_date - timedelta(days=365 * int(gate_config.get("validation_years", 4)))
+    start_date = max_date - timedelta(
+        days=365 * int(gate_config.get("validation_years", 4))
+    )
     labelled = labelled[labelled["date"] >= start_date].reset_index(drop=True)
 
-    min_required = (int(gate_config.get("train_min_rows", 200))
-                    + int(gate_config.get("val_size", 60))
-                    + int(gate_config.get("purge_gap", 5)))
+    min_required = (
+        int(gate_config.get("train_min_rows", 200))
+        + int(gate_config.get("val_size", 60))
+        + int(gate_config.get("purge_gap", 5))
+    )
     if len(labelled) < min_required:
         return None, {"reason": "insufficient_rows", "rows": int(len(labelled))}
 
@@ -185,7 +209,8 @@ def train_ticker_bundle(featured: pd.DataFrame, gate_config: dict,
         return None, {"reason": "training_failed"}
 
     calibrator, cal_info = fit_calibrator(
-        oos.get("raw_score"), oos.get("target_class"),
+        oos.get("raw_score"),
+        oos.get("target_class"),
         mode=model_cfg.get("calibration_mode", "isotonic"),
         min_rows=int(model_cfg.get("min_calibration_rows", 60)),
     )
@@ -223,6 +248,7 @@ def train_ticker_bundle(featured: pd.DataFrame, gate_config: dict,
 
 
 # --- inference --------------------------------------------------------------
+
 
 def predict_ticker(featured: pd.DataFrame, bundle: dict, label_config: dict):
     """

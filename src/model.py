@@ -12,6 +12,7 @@ from .macro import MACRO_FEATURE_COLS, add_macro_features
 # Technical Indicators
 # ---------------------------------------------------------------------------
 
+
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -44,11 +45,9 @@ def calculate_bollinger_bands(series, period=20, num_std=2):
 def calculate_atr(high, low, close, period=14):
     """Average True Range — a volatility measure."""
     prev_close = close.shift(1)
-    tr = pd.concat([
-        high - low,
-        (high - prev_close).abs(),
-        (low - prev_close).abs()
-    ], axis=1).max(axis=1)
+    tr = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
     return tr.rolling(window=period).mean()
 
 
@@ -56,89 +55,96 @@ def calculate_atr(high, low, close, period=14):
 # Feature Engineering
 # ---------------------------------------------------------------------------
 
+
 def add_features(df, dropna=True):
     """
     Add a comprehensive set of technical indicators as features.
     """
     df = df.copy()
-    df = df.sort_values('date').reset_index(drop=True)
+    df = df.sort_values("date").reset_index(drop=True)
 
-    close = df['close']
-    high = df['high']
-    low = df['low']
-    volume = df['volume']
+    close = df["close"]
+    high = df["high"]
+    low = df["low"]
+    volume = df["volume"]
 
     # --- Price Returns (multi-horizon) ---
     for d in [1, 2, 3, 5, 10, 20]:
-        df[f'return_{d}d'] = close.pct_change(d)
+        df[f"return_{d}d"] = close.pct_change(d)
 
     # --- Moving Averages ---
     for w in [5, 10, 20, 60]:
-        col = f'ma_{w}'
+        col = f"ma_{w}"
         df[col] = close.rolling(window=w).mean()
-        df[f'div_{col}'] = (close - df[col]) / df[col]
+        df[f"div_{col}"] = (close - df[col]) / df[col]
 
     # --- MA cross signals ---
-    df['ma_5_20_cross'] = df['ma_5'] / df['ma_20'] - 1     # golden/dead cross proximity
-    df['ma_20_60_cross'] = df['ma_20'] / df['ma_60'] - 1
+    df["ma_5_20_cross"] = df["ma_5"] / df["ma_20"] - 1  # golden/dead cross proximity
+    df["ma_20_60_cross"] = df["ma_20"] / df["ma_60"] - 1
 
     # --- RSI ---
-    df['rsi'] = calculate_rsi(close, 14)
-    df['rsi_change'] = df['rsi'].diff()
+    df["rsi"] = calculate_rsi(close, 14)
+    df["rsi_change"] = df["rsi"].diff()
 
     # --- MACD ---
     macd_line, macd_signal, macd_hist = calculate_macd(close)
-    df['macd'] = macd_line
-    df['macd_signal'] = macd_signal
-    df['macd_hist'] = macd_hist
-    df['macd_hist_change'] = macd_hist.diff()  # momentum of momentum
+    df["macd"] = macd_line
+    df["macd_signal"] = macd_signal
+    df["macd_hist"] = macd_hist
+    df["macd_hist_change"] = macd_hist.diff()  # momentum of momentum
 
     # --- Bollinger Bands ---
-    df['bb_pct_b'], df['bb_bandwidth'] = calculate_bollinger_bands(close)
+    df["bb_pct_b"], df["bb_bandwidth"] = calculate_bollinger_bands(close)
 
     # --- ATR (volatility) ---
-    df['atr'] = calculate_atr(high, low, close, 14)
-    df['atr_pct'] = df['atr'] / close  # ATR as % of price
+    df["atr"] = calculate_atr(high, low, close, 14)
+    df["atr_pct"] = df["atr"] / close  # ATR as % of price
 
     # --- Volatility (rolling std of returns) ---
-    df['volatility'] = df['return_1d'].rolling(window=20).std()
+    df["volatility"] = df["return_1d"].rolling(window=20).std()
 
     # --- Volume features ---
-    df['vol_change'] = volume.pct_change()
-    df['vol_ma_5'] = volume.rolling(window=5).mean()
-    df['vol_ma_20'] = volume.rolling(window=20).mean()
-    df['vol_ratio'] = df['vol_ma_5'] / df['vol_ma_20']  # short-term volume surge
+    df["vol_change"] = volume.pct_change()
+    df["vol_ma_5"] = volume.rolling(window=5).mean()
+    df["vol_ma_20"] = volume.rolling(window=20).mean()
+    df["vol_ratio"] = df["vol_ma_5"] / df["vol_ma_20"]  # short-term volume surge
 
     # --- Candlestick features ---
-    body = close - df['open']
+    body = close - df["open"]
     candle_range = high - low
-    df['candle_body_pct'] = body / candle_range.replace(0, np.nan)  # body vs range
-    df['upper_shadow_pct'] = (high - pd.concat([close, df['open']], axis=1).max(axis=1)) / candle_range.replace(0, np.nan)
-    df['lower_shadow_pct'] = (pd.concat([close, df['open']], axis=1).min(axis=1) - low) / candle_range.replace(0, np.nan)
+    df["candle_body_pct"] = body / candle_range.replace(0, np.nan)  # body vs range
+    df["upper_shadow_pct"] = (
+        high - pd.concat([close, df["open"]], axis=1).max(axis=1)
+    ) / candle_range.replace(0, np.nan)
+    df["lower_shadow_pct"] = (
+        pd.concat([close, df["open"]], axis=1).min(axis=1) - low
+    ) / candle_range.replace(0, np.nan)
 
     # --- Calendar features ---
-    df['day_of_week'] = df['date'].dt.dayofweek          # Mon=0 ... Fri=4
-    df['month'] = df['date'].dt.month
-    df['is_month_end'] = df['date'].dt.is_month_end.astype(int)
-    df['is_month_start'] = (df['date'].dt.day <= 3).astype(int)
+    df["day_of_week"] = df["date"].dt.dayofweek  # Mon=0 ... Fri=4
+    df["month"] = df["date"].dt.month
+    df["is_month_end"] = df["date"].dt.is_month_end.astype(int)
+    df["is_month_start"] = (df["date"].dt.day <= 3).astype(int)
 
     # --- Streak: consecutive up/down days ---
-    up = (df['return_1d'] > 0).astype(int)
+    up = (df["return_1d"] > 0).astype(int)
     streak = up.copy()
     for i in range(1, len(streak)):
         if up.iloc[i] == up.iloc[i - 1]:
             streak.iloc[i] = streak.iloc[i - 1] + 1
         else:
             streak.iloc[i] = 1
-    df['streak'] = streak * up.replace(0, -1)  # positive = consecutive ups
+    df["streak"] = streak * up.replace(0, -1)  # positive = consecutive ups
 
     # --- Gap (overnight gap) ---
-    df['gap'] = df['open'] / close.shift(1) - 1
+    df["gap"] = df["open"] / close.shift(1) - 1
 
     # --- High / Low position ---
-    df['high_20d'] = high.rolling(window=20).max()
-    df['low_20d'] = low.rolling(window=20).min()
-    df['price_position_20d'] = (close - df['low_20d']) / (df['high_20d'] - df['low_20d']).replace(0, np.nan)
+    df["high_20d"] = high.rolling(window=20).max()
+    df["low_20d"] = low.rolling(window=20).min()
+    df["price_position_20d"] = (close - df["low_20d"]) / (
+        df["high_20d"] - df["low_20d"]
+    ).replace(0, np.nan)
 
     if dropna:
         df = df.dropna().reset_index(drop=True)
@@ -152,27 +158,50 @@ def add_features(df, dropna=True):
 
 FEATURE_COLS = [
     # Returns
-    'return_1d', 'return_2d', 'return_3d', 'return_5d', 'return_10d', 'return_20d',
+    "return_1d",
+    "return_2d",
+    "return_3d",
+    "return_5d",
+    "return_10d",
+    "return_20d",
     # MA divergence
-    'div_ma_5', 'div_ma_10', 'div_ma_20', 'div_ma_60',
+    "div_ma_5",
+    "div_ma_10",
+    "div_ma_20",
+    "div_ma_60",
     # MA cross
-    'ma_5_20_cross', 'ma_20_60_cross',
+    "ma_5_20_cross",
+    "ma_20_60_cross",
     # RSI
-    'rsi', 'rsi_change',
+    "rsi",
+    "rsi_change",
     # MACD
-    'macd', 'macd_signal', 'macd_hist', 'macd_hist_change',
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    "macd_hist_change",
     # Bollinger
-    'bb_pct_b', 'bb_bandwidth',
+    "bb_pct_b",
+    "bb_bandwidth",
     # Volatility
-    'atr_pct', 'volatility',
+    "atr_pct",
+    "volatility",
     # Volume
-    'vol_change', 'vol_ratio',
+    "vol_change",
+    "vol_ratio",
     # Candlestick
-    'candle_body_pct', 'upper_shadow_pct', 'lower_shadow_pct',
+    "candle_body_pct",
+    "upper_shadow_pct",
+    "lower_shadow_pct",
     # Calendar
-    'day_of_week', 'month', 'is_month_end', 'is_month_start',
+    "day_of_week",
+    "month",
+    "is_month_end",
+    "is_month_start",
     # Streak / Gap / Position
-    'streak', 'gap', 'price_position_20d',
+    "streak",
+    "gap",
+    "price_position_20d",
 ]
 
 
@@ -181,21 +210,21 @@ FEATURE_COLS = [
 # ---------------------------------------------------------------------------
 
 _LGB_PARAMS = {
-    'objective': 'binary',
-    'metric': 'binary_logloss',
-    'boosting_type': 'gbdt',
-    'learning_rate': 0.03,
-    'num_leaves': 15,
-    'max_depth': 4,
-    'min_child_samples': 30,
-    'feature_fraction': 0.6,
-    'bagging_fraction': 0.7,
-    'bagging_freq': 5,
-    'lambda_l1': 0.5,
-    'lambda_l2': 2.0,
-    'min_data_in_bin': 5,
-    'verbosity': -1,
-    'seed': 42,
+    "objective": "binary",
+    "metric": "binary_logloss",
+    "boosting_type": "gbdt",
+    "learning_rate": 0.03,
+    "num_leaves": 15,
+    "max_depth": 4,
+    "min_child_samples": 30,
+    "feature_fraction": 0.6,
+    "bagging_fraction": 0.7,
+    "bagging_freq": 5,
+    "lambda_l1": 0.5,
+    "lambda_l2": 2.0,
+    "min_data_in_bin": 5,
+    "verbosity": -1,
+    "seed": 42,
 }
 
 # Minimum boosting rounds before early stopping takes effect
@@ -212,7 +241,7 @@ def _config_int(config, key, default, minimum=0):
 
 def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     """Train a single LightGBM model with early stopping + minimum round guard."""
-    params = {**_LGB_PARAMS, 'seed': seed}
+    params = {**_LGB_PARAMS, "seed": seed}
     train_data = lgb.Dataset(X_train, label=y_train)
     val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
 
@@ -222,16 +251,22 @@ def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     ]
 
     model = lgb.train(
-        params, train_data, num_boost_round=500,
-        valid_sets=[val_data], valid_names=['val'],
+        params,
+        train_data,
+        num_boost_round=500,
+        valid_sets=[val_data],
+        valid_names=["val"],
         callbacks=callbacks,
     )
 
     # Guard: if early stopping fired before MIN rounds, retrain with fixed rounds
     if model.best_iteration < _MIN_BOOST_ROUND:
         model = lgb.train(
-            params, train_data, num_boost_round=_MIN_BOOST_ROUND,
-            valid_sets=[val_data], valid_names=['val'],
+            params,
+            train_data,
+            num_boost_round=_MIN_BOOST_ROUND,
+            valid_sets=[val_data],
+            valid_names=["val"],
             callbacks=[lgb.log_evaluation(period=0)],
         )
 
@@ -280,9 +315,9 @@ def train_and_predict(df, runtime_config=None, label_config=None):
         return None, 0.5
 
     # Use recent history window (default: last 4 years)
-    max_date = labelled['date'].max()
+    max_date = labelled["date"].max()
     start_date = max_date - timedelta(days=365 * validation_years)
-    labelled = labelled[labelled['date'] >= start_date].reset_index(drop=True)
+    labelled = labelled[labelled["date"] >= start_date].reset_index(drop=True)
 
     min_required = min_train_rows + val_size + purge_gap
     if len(labelled) < min_required:
@@ -313,8 +348,10 @@ def train_and_predict(df, runtime_config=None, label_config=None):
             continue
 
         model_fold = _train_single_fold(
-            train_fold[FEATURE_COLS], train_fold['target_class'],
-            val_fold[FEATURE_COLS], val_fold['target_class'],
+            train_fold[FEATURE_COLS],
+            train_fold["target_class"],
+            val_fold[FEATURE_COLS],
+            val_fold["target_class"],
             seed=42 + fold_idx,
         )
         fold_predictions.append(model_fold.predict(latest_row)[0])
@@ -331,8 +368,10 @@ def train_and_predict(df, runtime_config=None, label_config=None):
         return None, 0.5
 
     final_model = _train_single_fold(
-        train_all[FEATURE_COLS], train_all['target_class'],
-        val_all[FEATURE_COLS], val_all['target_class'],
+        train_all[FEATURE_COLS],
+        train_all["target_class"],
+        val_all[FEATURE_COLS],
+        val_all["target_class"],
         seed=42,
     )
     fold_predictions.append(final_model.predict(latest_row)[0])
@@ -346,6 +385,7 @@ def train_and_predict(df, runtime_config=None, label_config=None):
 # ---------------------------------------------------------------------------
 # Phase 1: persisted-model training & inference (W3)
 # ---------------------------------------------------------------------------
+
 
 def train_horizon_models(labelled, feature_cols, runtime_config=None):
     """
@@ -381,8 +421,10 @@ def train_horizon_models(labelled, feature_cols, runtime_config=None):
             continue
 
         booster = _train_single_fold(
-            train_fold[feature_cols], train_fold["target_class"],
-            val_fold[feature_cols], val_fold["target_class"],
+            train_fold[feature_cols],
+            train_fold["target_class"],
+            val_fold[feature_cols],
+            val_fold["target_class"],
             seed=42 + fold_idx,
         )
         folds.append(booster)
@@ -394,10 +436,16 @@ def train_horizon_models(labelled, feature_cols, runtime_config=None):
     if n > val_size:
         train_all = labelled.iloc[:-val_size]
         val_all = labelled.iloc[-val_size:]
-        if not train_all.empty and not val_all.empty and len(train_all) >= min_train_rows:
+        if (
+            not train_all.empty
+            and not val_all.empty
+            and len(train_all) >= min_train_rows
+        ):
             final_model = _train_single_fold(
-                train_all[feature_cols], train_all["target_class"],
-                val_all[feature_cols], val_all["target_class"],
+                train_all[feature_cols],
+                train_all["target_class"],
+                val_all[feature_cols],
+                val_all["target_class"],
                 seed=42,
             )
 
@@ -409,7 +457,9 @@ def train_horizon_models(labelled, feature_cols, runtime_config=None):
             .reset_index(drop=True)
         )
     else:
-        oos_df = pd.DataFrame(columns=["date", "fwd_return", "target_class", "raw_score"])
+        oos_df = pd.DataFrame(
+            columns=["date", "fwd_return", "target_class", "raw_score"]
+        )
 
     return folds, final_model, oos_df
 
@@ -442,8 +492,9 @@ def phase1_feature_cols(macro_enabled=True):
     return list(FEATURE_COLS)
 
 
-def build_feature_frame(df, macro_panel=None, ticker_info=None, dropna_features=True,
-                        macro_enabled=True):
+def build_feature_frame(
+    df, macro_panel=None, ticker_info=None, dropna_features=True, macro_enabled=True
+):
     """
     Technical (add_features) + macro (add_macro_features) feature frame.
 

@@ -33,7 +33,9 @@ from src.model import FEATURE_COLS, build_feature_frame, phase1_feature_cols  # 
 
 def _series(start, n, step, key):
     dates = pd.date_range(start, periods=n, freq="D")
-    return pd.DataFrame({"date": dates, "close": [100.0 + i * step for i in range(n)]}), key
+    return pd.DataFrame(
+        {"date": dates, "close": [100.0 + i * step for i in range(n)]}
+    ), key
 
 
 def test_encode_market_bias():
@@ -45,10 +47,12 @@ def test_encode_market_bias():
 
 
 def test_add_macro_features_none_panel_emits_nan_schema():
-    stock = pd.DataFrame({
-        "date": pd.date_range("2026-01-01", periods=3, freq="D"),
-        "close": [10.0, 11.0, 12.0],
-    })
+    stock = pd.DataFrame(
+        {
+            "date": pd.date_range("2026-01-01", periods=3, freq="D"),
+            "close": [10.0, 11.0, 12.0],
+        }
+    )
     out = add_macro_features(stock, None)
     assert len(out) == 3  # stock rows preserved
     for col in MACRO_FEATURE_COLS:
@@ -57,14 +61,20 @@ def test_add_macro_features_none_panel_emits_nan_schema():
 
 
 def test_add_macro_features_backward_join_no_future_leak():
-    macro_panel = pd.DataFrame({
-        "date": pd.to_datetime(["2026-01-05", "2026-01-10"]),
-        "macro_topix_ret_20": [0.1, 0.2],
-    })
-    stock = pd.DataFrame({
-        "date": pd.to_datetime(["2026-01-03", "2026-01-05", "2026-01-07", "2026-01-12"]),
-        "close": [1.0, 2.0, 3.0, 4.0],
-    })
+    macro_panel = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-10"]),
+            "macro_topix_ret_20": [0.1, 0.2],
+        }
+    )
+    stock = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2026-01-03", "2026-01-05", "2026-01-07", "2026-01-12"]
+            ),
+            "close": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
     out = add_macro_features(stock, macro_panel).set_index("date")
     # before first macro date -> NaN (no backfill from the future)
     assert np.isnan(out.loc["2026-01-03", "macro_topix_ret_20"])
@@ -119,7 +129,7 @@ def test_latest_snapshot_row():
 def test_phase1_feature_cols_respects_macro_flag():
     assert phase1_feature_cols(False) == FEATURE_COLS
     enabled = phase1_feature_cols(True)
-    assert enabled[:len(FEATURE_COLS)] == FEATURE_COLS
+    assert enabled[: len(FEATURE_COLS)] == FEATURE_COLS
     for col in MACRO_FEATURE_COLS:
         assert col in enabled
 
@@ -220,18 +230,22 @@ def test_fetch_market_series_retries_bounded_period_when_max_raises():
 def test_build_feature_frame_macro_disabled_omits_macro_columns():
     dates = pd.date_range("2026-01-01", periods=90, freq="D")
     close = pd.Series([100.0 + i * 0.5 for i in range(90)])
-    stock = pd.DataFrame({
-        "date": dates,
-        "open": close - 0.2,
-        "high": close + 1.0,
-        "low": close - 1.0,
-        "close": close,
-        "volume": [1_000_000 + i * 1000 for i in range(90)],
-    })
-    macro_panel = pd.DataFrame({
-        "date": dates,
-        "macro_topix_ret_20": [0.1] * 90,
-    })
+    stock = pd.DataFrame(
+        {
+            "date": dates,
+            "open": close - 0.2,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": [1_000_000 + i * 1000 for i in range(90)],
+        }
+    )
+    macro_panel = pd.DataFrame(
+        {
+            "date": dates,
+            "macro_topix_ret_20": [0.1] * 90,
+        }
+    )
 
     out = build_feature_frame(stock, macro_panel=macro_panel, macro_enabled=False)
     assert not out.empty

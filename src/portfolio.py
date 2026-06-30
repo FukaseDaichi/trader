@@ -62,6 +62,7 @@ __all__ = [
 # Small helpers
 # ---------------------------------------------------------------------------
 
+
 def _is_missing(value) -> bool:
     """True for None / NaN / non-numeric."""
     if value is None:
@@ -107,6 +108,7 @@ def _median_positive(values) -> float | None:
 # ---------------------------------------------------------------------------
 # Candidate selection
 # ---------------------------------------------------------------------------
+
 
 def select_candidates(predictions, *, top_n, min_expected_ret=0.0):
     """Filter, sort and truncate the cross-sectional predictions.
@@ -156,8 +158,10 @@ def select_candidates(predictions, *, top_n, min_expected_ret=0.0):
 # Covariance estimation
 # ---------------------------------------------------------------------------
 
-def estimate_covariance(price_frames, tickers, *, lookback_days=60, min_obs=20,
-                        trading_days=252):
+
+def estimate_covariance(
+    price_frames, tickers, *, lookback_days=60, min_obs=20, trading_days=252
+):
     """Estimate an annualized covariance matrix aligned to ``tickers``.
 
     Parameters
@@ -234,7 +238,11 @@ def estimate_covariance(price_frames, tickers, *, lookback_days=60, min_obs=20,
                             cov[i, j] = float(sample.loc[tk_i, tk_j])
                 # Diagonal repair for tickers not in the aligned panel.
                 for k, tk in enumerate(tickers):
-                    if tk not in sample.index or not math.isfinite(cov[k, k]) or cov[k, k] <= 0.0:
+                    if (
+                        tk not in sample.index
+                        or not math.isfinite(cov[k, k])
+                        or cov[k, k] <= 0.0
+                    ):
                         cov[k, k] = _fallback_var(tk)
                 method = "sample"
     except Exception:  # noqa: BLE001 — never raise; fall through to diagonal.
@@ -286,6 +294,7 @@ def _daily_returns(frame, lookback_days):
 # Initial weights
 # ---------------------------------------------------------------------------
 
+
 def initial_inverse_vol_weights(candidates, vol):
     """Inverse-volatility weights normalized to sum 1.0.
 
@@ -315,8 +324,10 @@ def initial_inverse_vol_weights(candidates, vol):
         w = 1.0 / len(tickers)
         return {tk: w for tk in tickers}
 
-    inv = {tk: 1.0 / (raw_vols[tk] if raw_vols[tk] is not None else median_vol)
-           for tk in tickers}
+    inv = {
+        tk: 1.0 / (raw_vols[tk] if raw_vols[tk] is not None else median_vol)
+        for tk in tickers
+    }
     total = sum(inv.values())
     if total <= 0.0:
         w = 1.0 / len(tickers)
@@ -327,6 +338,7 @@ def initial_inverse_vol_weights(candidates, vol):
 # ---------------------------------------------------------------------------
 # Cap projections
 # ---------------------------------------------------------------------------
+
 
 def apply_name_cap(weights, max_name_weight):
     """Cap each weight at ``max_name_weight``, redistributing the excess.
@@ -382,8 +394,11 @@ def apply_sector_cap(weights, sectors, sector_cap):
     def _bucket(tk):
         s = sectors.get(tk)
         # None / NaN -> unique singleton bucket so it is never capped jointly.
-        return s if (s is not None and not (isinstance(s, float) and math.isnan(s))) \
+        return (
+            s
+            if (s is not None and not (isinstance(s, float) and math.isnan(s)))
             else f"__solo__{tk}"
+        )
 
     members: dict[Any, list] = {}
     for tk in w:
@@ -410,7 +425,11 @@ def apply_sector_cap(weights, sectors, sector_cap):
             add = excess * (sec_total / pool)
             # Distribute the sector's share across its names proportionally.
             for tk in members[sec]:
-                share = (w[tk] / sec_total) if sec_total > 0.0 else (1.0 / len(members[sec]))
+                share = (
+                    (w[tk] / sec_total)
+                    if sec_total > 0.0
+                    else (1.0 / len(members[sec]))
+                )
                 w[tk] += add * share
     return w
 
@@ -465,8 +484,11 @@ def _sector_totals(weights, sectors) -> dict:
     totals: dict[Any, float] = {}
     for tk, v in weights.items():
         s = sectors.get(tk)
-        key = s if (s is not None and not (isinstance(s, float) and math.isnan(s))) \
+        key = (
+            s
+            if (s is not None and not (isinstance(s, float) and math.isnan(s)))
             else f"__solo__{tk}"
+        )
         totals[key] = totals.get(key, 0.0) + float(v)
     return totals
 
@@ -483,8 +505,11 @@ def _hard_clamp_sectors(weights, sectors, sector_cap):
     members: dict[Any, list] = {}
     for tk in w:
         s = sectors.get(tk)
-        key = s if (s is not None and not (isinstance(s, float) and math.isnan(s))) \
+        key = (
+            s
+            if (s is not None and not (isinstance(s, float) and math.isnan(s)))
             else f"__solo__{tk}"
+        )
         members.setdefault(key, []).append(tk)
     for sec, mem in members.items():
         tot = sum(w[tk] for tk in mem)
@@ -499,8 +524,10 @@ def _hard_clamp_sectors(weights, sectors, sector_cap):
 # Volatility targeting
 # ---------------------------------------------------------------------------
 
-def scale_to_target_vol(weights, cov, tickers, *, target_vol, max_gross,
-                        regime_multiplier=1.0):
+
+def scale_to_target_vol(
+    weights, cov, tickers, *, target_vol, max_gross, regime_multiplier=1.0
+):
     """Scale normalized weights to hit ``target_vol`` subject to ``max_gross``.
 
     Computes the portfolio annualized vol at gross=1: ``pvol = sqrt(wᵀ Σ w)``.
@@ -548,6 +575,7 @@ def scale_to_target_vol(weights, cov, tickers, *, target_vol, max_gross,
 # Hysteresis (no-trade band + min-weight floor)
 # ---------------------------------------------------------------------------
 
+
 def apply_hysteresis(new_weights, prev_weights, *, notrade_band, min_weight):
     """Apply the no-trade band then the minimum-weight floor.
 
@@ -589,6 +617,7 @@ def apply_hysteresis(new_weights, prev_weights, *, notrade_band, min_weight):
 # Position diff
 # ---------------------------------------------------------------------------
 
+
 def diff_positions(prev_weights, current_weights):
     """Classify the change for every ticker in either book.
 
@@ -619,18 +648,21 @@ def diff_positions(prev_weights, current_weights):
             diff_type = "decrease"
         else:
             diff_type = "hold"
-        out.append({
-            "ticker": tk,
-            "prev_weight": prev,
-            "target_weight": curr,
-            "diff_type": diff_type,
-        })
+        out.append(
+            {
+                "ticker": tk,
+                "prev_weight": prev,
+                "target_weight": curr,
+                "diff_type": diff_type,
+            }
+        )
     return out
 
 
 # ---------------------------------------------------------------------------
 # End-to-end snapshot
 # ---------------------------------------------------------------------------
+
 
 def _enrich_lookup(candidates, override, field):
     """Build a ``ticker -> field`` lookup, preferring ``override`` dict."""
@@ -656,10 +688,22 @@ def _limit_stop(close):
     return int(c * (1 - 0.005)), int(c * (1 - 0.02))
 
 
-def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
-                             sectors=None, names=None, volatilities=None, closes=None,
-                             regime="neutral", run_date=None, as_of_date=None,
-                             model_version=None, mode="shadow"):
+def build_portfolio_snapshot(
+    predictions,
+    price_frames,
+    prev_weights,
+    config,
+    *,
+    sectors=None,
+    names=None,
+    volatilities=None,
+    closes=None,
+    regime="neutral",
+    run_date=None,
+    as_of_date=None,
+    model_version=None,
+    mode="shadow",
+):
     """Orchestrate the full long-only portfolio build.
 
     Pipeline: ``select_candidates`` (top_n from cross-section config) ->
@@ -695,6 +739,7 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
     if top_n is None:
         try:
             from src.config import get_cross_section_config
+
             top_n = get_cross_section_config().get("top_n", 8)
         except Exception:  # noqa: BLE001
             top_n = 8
@@ -786,20 +831,27 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
     try:
         init_w = initial_inverse_vol_weights(candidates, vol_for_init)
         capped = enforce_caps(
-            init_w, sector_lk,
-            max_name_weight=max_name_weight, sector_cap=sector_cap,
+            init_w,
+            sector_lk,
+            max_name_weight=max_name_weight,
+            sector_cap=sector_cap,
         )
         if not _caps_satisfied(capped, sector_lk, max_name_weight, sector_cap):
             warnings.append("caps_infeasible_best_effort")
 
         scaled, expected_vol, gross = scale_to_target_vol(
-            capped, cov, tickers,
-            target_vol=target_vol, max_gross=max_gross,
+            capped,
+            cov,
+            tickers,
+            target_vol=target_vol,
+            max_gross=max_gross,
             regime_multiplier=regime_multiplier,
         )
         target_weights = apply_hysteresis(
-            scaled, prev_weights,
-            notrade_band=notrade_band, min_weight=min_weight,
+            scaled,
+            prev_weights,
+            notrade_band=notrade_band,
+            min_weight=min_weight,
         )
     except Exception as exc:  # noqa: BLE001
         warnings.append(f"construction_failed:{type(exc).__name__}")
@@ -808,7 +860,9 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
     # Recompute gross / expected_vol on the final (post-hysteresis) book so the
     # reported numbers match the actual target weights.
     gross_exposure = float(sum(target_weights.values()))
-    final_vec = np.array([target_weights.get(tk, 0.0) for tk in tickers], dtype="float64")
+    final_vec = np.array(
+        [target_weights.get(tk, 0.0) for tk in tickers], dtype="float64"
+    )
     final_var = 0.0
     if cov is not None and final_vec.size == np.asarray(cov).shape[0]:
         fv = float(final_vec @ np.asarray(cov, dtype="float64") @ final_vec)
@@ -841,20 +895,22 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
         close = close_lk.get(tk)
         limit_price, stop_loss = _limit_stop(close)
         d = diff_by_ticker.get(tk, {})
-        positions.append({
-            "ticker": tk,
-            "name": name_lk.get(tk),
-            "sector": sec,
-            "target_weight": w,
-            "prev_weight": float(prev_weights.get(tk, 0.0)),
-            "diff_type": d.get("diff_type", "hold"),
-            "cs_rank": c.get("cs_rank"),
-            "expected_ret": er,
-            "prob_up": _to_float(c.get("prob_up")),
-            "volatility": vol_for_init.get(tk),
-            "limit_price": limit_price,
-            "stop_loss": stop_loss,
-        })
+        positions.append(
+            {
+                "ticker": tk,
+                "name": name_lk.get(tk),
+                "sector": sec,
+                "target_weight": w,
+                "prev_weight": float(prev_weights.get(tk, 0.0)),
+                "diff_type": d.get("diff_type", "hold"),
+                "cs_rank": c.get("cs_rank"),
+                "expected_ret": er,
+                "prob_up": _to_float(c.get("prob_up")),
+                "volatility": vol_for_init.get(tk),
+                "limit_price": limit_price,
+                "stop_loss": stop_loss,
+            }
+        )
 
     positions.sort(key=lambda p: p["target_weight"], reverse=True)
 
@@ -880,6 +936,7 @@ def build_portfolio_snapshot(predictions, price_frames, prev_weights, config, *,
 # Active-mode signal wiring
 # ---------------------------------------------------------------------------
 
+
 def merge_target_weights(signals, snapshot, gate_passed):
     """Reflect active-mode portfolio target weights into Phase 1 signals.
 
@@ -888,8 +945,12 @@ def merge_target_weights(signals, snapshot, gate_passed):
     not a book position) and book members get a reason suffix. ACTION IS NEVER
     CHANGED. Otherwise (shadow / fallback / gate-fail / no snapshot) return the
     input list UNCHANGED (shadow byte-for-byte guarantee)."""
-    if not (snapshot and snapshot.get("status") == "ok"
-            and snapshot.get("mode") == "active" and gate_passed):
+    if not (
+        snapshot
+        and snapshot.get("status") == "ok"
+        and snapshot.get("mode") == "active"
+        and gate_passed
+    ):
         return signals
     pos_by_ticker = {p.get("ticker"): p for p in (snapshot.get("positions") or [])}
     out = []
@@ -924,6 +985,7 @@ def read_portfolio_gate(path=None) -> bool:
     from pathlib import Path
     import json
     from .config import DOCS_DIR
+
     p = Path(path) if path is not None else (DOCS_DIR / "portfolio_backtest.json")
     try:
         data = json.loads(p.read_text(encoding="utf-8"))

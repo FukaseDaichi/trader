@@ -71,7 +71,9 @@ def _active_readiness(report, *, gate_passed, min_shadow_days=10):
     }
 
 
-def _unavailable_report(reason: str, generated_at: str, *, window: dict | None = None) -> dict:
+def _unavailable_report(
+    reason: str, generated_at: str, *, window: dict | None = None
+) -> dict:
     """Uniform available=false payload; carries active_readiness like the full report."""
     payload = {"available": False, "reason": reason, "generated_at": generated_at}
     if window is not None:
@@ -85,13 +87,12 @@ def _unavailable_report(reason: str, generated_at: str, *, window: dict | None =
 def _atomic_write_json(path: Path, payload: dict) -> None:
     """Match the other scripts' write style (mkdir + indent=2 UTF-8)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _fetch_pred_outcome_rows(conn, start_date: str, end_date: str,
-                             horizon_days: int) -> list[dict]:
+def _fetch_pred_outcome_rows(
+    conn, start_date: str, end_date: str, horizon_days: int
+) -> list[dict]:
     """
     One row per (run_date, ticker) with BOTH models' predictions + the shared
     market realized return.
@@ -103,6 +104,7 @@ def _fetch_pred_outcome_rows(conn, start_date: str, end_date: str,
     or outcome is missing (-> NULL, surfaced as None).
     """
     from psycopg.rows import dict_row
+
     sql = (
         "WITH p1 AS ("
         "  SELECT run_date, ticker, prob_up AS p1_prob_up"
@@ -135,7 +137,9 @@ def _fetch_pred_outcome_rows(conn, start_date: str, end_date: str,
         "   ON o.signal_id = sig.id AND o.horizon_days = %(horizon)s"
     )
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(sql, {"horizon": horizon_days, "start": start_date, "end": end_date})
+        cur.execute(
+            sql, {"horizon": horizon_days, "start": start_date, "end": end_date}
+        )
         return cur.fetchall()
 
 
@@ -145,6 +149,7 @@ def _fetch_snapshot_weights(conn, start_date: str, end_date: str) -> dict:
     parsed from ``portfolio_snapshots.positions`` (JSONB) over the window.
     """
     from psycopg.rows import dict_row
+
     out: dict[str, dict] = {}
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
@@ -180,18 +185,20 @@ def _assemble_records(pred_rows: list[dict], weights_by_date: dict) -> list[dict
             continue
         wmap = weights_by_date.get(run_date, {})
         wt = wmap.get(ticker, {})
-        records.append({
-            "date": run_date,
-            "ticker": ticker,
-            "realized_ret": r.get("realized_ret"),
-            "p1_prob_up": r.get("p1_prob_up"),
-            "p1_action": r.get("p1_action"),
-            "p2_cs_rank": r.get("p2_cs_rank"),
-            "p2_expected_ret": r.get("p2_expected_ret"),
-            "p2_prob_up": r.get("p2_prob_up"),
-            "p2_weight": wt.get("weight"),
-            "p2_prev_weight": wt.get("prev_weight"),
-        })
+        records.append(
+            {
+                "date": run_date,
+                "ticker": ticker,
+                "realized_ret": r.get("realized_ret"),
+                "p1_prob_up": r.get("p1_prob_up"),
+                "p1_action": r.get("p1_action"),
+                "p2_cs_rank": r.get("p2_cs_rank"),
+                "p2_expected_ret": r.get("p2_expected_ret"),
+                "p2_prob_up": r.get("p2_prob_up"),
+                "p2_weight": wt.get("weight"),
+                "p2_prev_weight": wt.get("prev_weight"),
+            }
+        )
     return records
 
 
@@ -210,12 +217,20 @@ def _resolve_active_cs_version(conn) -> str | None:
         return None
 
 
-def run_report(output_path: Path, *, top_n: int, horizon_days: int,
-               lookback_days: int, as_of: str | None) -> int:
+def run_report(
+    output_path: Path,
+    *,
+    top_n: int,
+    horizon_days: int,
+    lookback_days: int,
+    as_of: str | None,
+) -> int:
     generated_at = now_jst_iso()
 
     if not db.db_enabled():
-        _atomic_write_json(output_path, _unavailable_report("db_disabled", generated_at))
+        _atomic_write_json(
+            output_path, _unavailable_report("db_disabled", generated_at)
+        )
         print(f"shadow-report: DB disabled; wrote available=false to {output_path}")
         return 0
 
@@ -226,15 +241,25 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
         end_date = date.fromisoformat(today_jst_iso())
         end_iso = end_date.isoformat()
     start_iso = (end_date - timedelta(days=max(1, int(lookback_days)))).isoformat()
-    window = {"start": start_iso, "end": end_iso, "lookback_days": int(lookback_days),
-              "horizon_days": int(horizon_days)}
+    window = {
+        "start": start_iso,
+        "end": end_iso,
+        "lookback_days": int(lookback_days),
+        "horizon_days": int(horizon_days),
+    }
 
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001 — never fail the weekly job
-        _atomic_write_json(output_path, _unavailable_report(
-            f"db_error: {type(exc).__name__}", generated_at, window=window))
-        print(f"shadow-report: connect failed ({type(exc).__name__}); wrote available=false")
+        _atomic_write_json(
+            output_path,
+            _unavailable_report(
+                f"db_error: {type(exc).__name__}", generated_at, window=window
+            ),
+        )
+        print(
+            f"shadow-report: connect failed ({type(exc).__name__}); wrote available=false"
+        )
         return 0
 
     try:
@@ -242,9 +267,15 @@ def run_report(output_path: Path, *, top_n: int, horizon_days: int,
         weights_by_date = _fetch_snapshot_weights(conn, start_iso, end_iso)
         model_version = _resolve_active_cs_version(conn)
     except Exception as exc:  # noqa: BLE001 — DB read failure must not abort
-        _atomic_write_json(output_path, _unavailable_report(
-            f"db_error: {type(exc).__name__}", generated_at, window=window))
-        print(f"shadow-report: DB read failed ({type(exc).__name__}); wrote available=false")
+        _atomic_write_json(
+            output_path,
+            _unavailable_report(
+                f"db_error: {type(exc).__name__}", generated_at, window=window
+            ),
+        )
+        print(
+            f"shadow-report: DB read failed ({type(exc).__name__}); wrote available=false"
+        )
         return 0
     finally:
         conn.close()
@@ -317,14 +348,19 @@ def main() -> int:
         )
     except Exception as exc:  # noqa: BLE001 — last-resort guard, never fail weekly job
         try:
-            _atomic_write_json(Path(args.output), {
-                "available": False,
-                "reason": f"unexpected_error: {type(exc).__name__}",
-                "generated_at": now_jst_iso(),
-            })
+            _atomic_write_json(
+                Path(args.output),
+                {
+                    "available": False,
+                    "reason": f"unexpected_error: {type(exc).__name__}",
+                    "generated_at": now_jst_iso(),
+                },
+            )
         except Exception:  # noqa: BLE001
             pass
-        print(f"shadow-report: unexpected error ({type(exc).__name__}); wrote available=false")
+        print(
+            f"shadow-report: unexpected error ({type(exc).__name__}); wrote available=false"
+        )
         return 0
 
 

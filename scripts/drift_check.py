@@ -64,7 +64,9 @@ def _env_int(name: str, default: int) -> int:
 
 def _write(payload: dict) -> None:
     DRIFT_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    DRIFT_REPORT_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    DRIFT_REPORT_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Drift report written to {DRIFT_REPORT_FILE}")
 
 
@@ -90,7 +92,9 @@ def _db_outcomes_by_ticker(model_version: str, horizon: int) -> dict[str, list[d
     return by_ticker
 
 
-def _drift_reasons(metric_status: str, ic, brier, psi_max, thresholds: dict) -> tuple[list[str], list[str]]:
+def _drift_reasons(
+    metric_status: str, ic, brier, psi_max, thresholds: dict
+) -> tuple[list[str], list[str]]:
     """
     Return (dashboard warning reasons, CI-breach reasons).
 
@@ -145,10 +149,12 @@ def main() -> int:
     version = active.get("version")
     label_cfg = get_label_config()
     model_cfg = get_model_runtime_config()
-    macro_enabled = bool(active.get(
-        "macro_features_enabled",
-        model_cfg.get("macro_features_enabled", True),
-    ))
+    macro_enabled = bool(
+        active.get(
+            "macro_features_enabled",
+            model_cfg.get("macro_features_enabled", True),
+        )
+    )
     horizon = active.get("horizon_days") or effective_horizon(label_cfg)
     outcomes_by_ticker = _db_outcomes_by_ticker(version, horizon)
     macro_panel = load_macro_panel()
@@ -198,7 +204,9 @@ def main() -> int:
         else:
             insufficient += 1
 
-        reasons, breach_reasons = _drift_reasons(metric_status, ic, brier, psi_max, thresholds)
+        reasons, breach_reasons = _drift_reasons(
+            metric_status, ic, brier, psi_max, thresholds
+        )
 
         warning = len(reasons) > 0
         breached_ticker = len(breach_reasons) > 0
@@ -221,7 +229,9 @@ def main() -> int:
 
     breached_tickers = [code for code, row in by_ticker.items() if row.get("breached")]
     breached = len(breached_tickers) > 0
-    status = "warning" if breached else ("insufficient_sample" if insufficient else "ok")
+    status = (
+        "warning" if breached else ("insufficient_sample" if insufficient else "ok")
+    )
     payload = {
         "available": True,
         "generated_at": now,
@@ -244,11 +254,15 @@ def main() -> int:
         try:
             conn = db.connect()
             try:
-                db.insert_drift_report(conn, now, version, "global", status, breached, payload["summary"])
+                db.insert_drift_report(
+                    conn, now, version, "global", status, breached, payload["summary"]
+                )
             finally:
                 conn.close()
         except Exception as exc:  # noqa: BLE001
-            print(f"drift: report persist skipped (ignored): {type(exc).__name__}: {exc}")
+            print(
+                f"drift: report persist skipped (ignored): {type(exc).__name__}: {exc}"
+            )
 
     if breached:
         print(f"DRIFT_BREACH: model {version} breached for {warned}")

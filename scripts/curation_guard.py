@@ -37,7 +37,9 @@ def cmd_needs_run(args: argparse.Namespace) -> int:
     done = _already_ran(today)
     needs_run = not done
     reason = "already_curated_today" if done else "not_curated_today"
-    print(f'{{"date": "{today}", "needs_run": {str(needs_run).lower()}, "reason": "{reason}"}}')
+    print(
+        f'{{"date": "{today}", "needs_run": {str(needs_run).lower()}, "reason": "{reason}"}}'
+    )
     if args.github_output:
         _write_output("needs_run", "true" if needs_run else "false")
         _write_output("guard_reason", reason)

@@ -36,7 +36,8 @@ def build_equity_curves(rows: list[dict], horizon: int = 1) -> list[dict]:
     Empty input -> [].
     """
     filtered = [
-        r for r in rows
+        r
+        for r in rows
         if r.get("action") in LONG_ACTIONS
         and int(r.get("horizon_days") or 0) == int(horizon)
         and r.get("realized_ret") is not None
@@ -58,20 +59,24 @@ def build_equity_curves(rows: list[dict], horizon: int = 1) -> list[dict]:
     for date in sorted(by_date.keys()):
         day_rows = by_date[date]
         strat_ret = float(np.mean([r["realized_ret"] for r in day_rows]))
-        bench_rets = [r["benchmark_ret"] for r in day_rows if r.get("benchmark_ret") is not None]
+        bench_rets = [
+            r["benchmark_ret"] for r in day_rows if r.get("benchmark_ret") is not None
+        ]
         bench_ret = float(np.mean(bench_rets)) if bench_rets else None
 
-        strategy *= (1.0 + strat_ret)
+        strategy *= 1.0 + strat_ret
         if bench_ret is not None:
-            benchmark *= (1.0 + bench_ret)
+            benchmark *= 1.0 + bench_ret
         # else: benchmark carries (unchanged)
 
-        result.append({
-            "date": date,
-            "strategy": strategy,
-            "benchmark": benchmark,
-            "n": len(day_rows),
-        })
+        result.append(
+            {
+                "date": date,
+                "strategy": strategy,
+                "benchmark": benchmark,
+                "n": len(day_rows),
+            }
+        )
 
     return result
 
@@ -115,8 +120,10 @@ def rolling_metrics(rows: list[dict], window: int = 20) -> dict:
     All keys always present; values may be None.
     """
     long_rows = [
-        r for r in rows
-        if r.get("action") in LONG_ACTIONS and r.get("realized_ret") is not None
+        r
+        for r in rows
+        if r.get("action") in LONG_ACTIONS
+        and r.get("realized_ret") is not None
         and r.get("entry_date")
     ]
     long_rows_sorted = sorted(long_rows, key=lambda r: r["entry_date"])
@@ -126,7 +133,9 @@ def rolling_metrics(rows: list[dict], window: int = 20) -> dict:
     recent_rows = [r for r in long_rows_sorted if r["entry_date"] in recent_dates]
 
     # hit_rate_20d
-    hit_vals = [1 if r.get("hit") else 0 for r in recent_rows if r.get("hit") is not None]
+    hit_vals = [
+        1 if r.get("hit") else 0 for r in recent_rows if r.get("hit") is not None
+    ]
     hit_rate_20d = float(np.mean(hit_vals)) if hit_vals else None
 
     # avg_return_20d
@@ -150,7 +159,7 @@ def rolling_metrics(rows: list[dict], window: int = 20) -> dict:
         if len(date_rets) >= 2:
             std = float(np.std(date_rets))
             if std != 0.0:
-                sharpe_60d = float(np.mean(date_rets)) / std * (252 ** 0.5)
+                sharpe_60d = float(np.mean(date_rets)) / std * (252**0.5)
 
     return {
         "hit_rate_20d": hit_rate_20d,
@@ -202,7 +211,9 @@ def build_recent_outcomes(rows: list[dict], limit: int = 200) -> list[dict]:
     # Stable two-key sort: ticker ASC, then entry_date DESC (Python sort is stable),
     # giving rows ordered newest-date-first with ascending ticker within a date.
     sorted_rows = sorted(rows, key=lambda r: str(r.get("ticker") or ""))
-    sorted_rows = sorted(sorted_rows, key=lambda r: str(r.get("entry_date") or ""), reverse=True)
+    sorted_rows = sorted(
+        sorted_rows, key=lambda r: str(r.get("entry_date") or ""), reverse=True
+    )
 
     taken = sorted_rows[:limit]
 
@@ -226,9 +237,13 @@ def build_recent_outcomes(rows: list[dict], limit: int = 200) -> list[dict]:
     ]
 
 
-def build_performance_detail(rows: list[dict], pred_rows: list[dict],
-                             horizon: int, history_days: int,
-                             n_bins: int) -> dict:
+def build_performance_detail(
+    rows: list[dict],
+    pred_rows: list[dict],
+    horizon: int,
+    history_days: int,
+    n_bins: int,
+) -> dict:
     """
     Assemble all performance detail components into one dict.
 

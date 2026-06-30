@@ -71,6 +71,7 @@ def _restore_env(saved):
 # Tests: get_cross_section_config defaults
 # ---------------------------------------------------------------------------
 
+
 def test_cs_config_defaults():
     saved = _clear_env(_CS_KEYS)
     try:
@@ -78,13 +79,22 @@ def test_cs_config_defaults():
         assert cfg["objective"] == "ranker", f"expected ranker, got {cfg['objective']}"
         assert cfg["min_universe"] == 30, f"expected 30, got {cfg['min_universe']}"
         assert cfg["top_n"] == 8, f"expected 8, got {cfg['top_n']}"
-        assert cfg["label_horizon_days"] == 5, f"expected 5, got {cfg['label_horizon_days']}"
-        assert cfg["min_daily_names"] == 20, f"expected 20, got {cfg['min_daily_names']}"
-        assert cfg["panel_lookback_years"] == 5, f"expected 5, got {cfg['panel_lookback_years']}"
-        assert cfg["universe_target_size"] == 40, f"expected 40, got {cfg['universe_target_size']}"
+        assert cfg["label_horizon_days"] == 5, (
+            f"expected 5, got {cfg['label_horizon_days']}"
+        )
+        assert cfg["min_daily_names"] == 20, (
+            f"expected 20, got {cfg['min_daily_names']}"
+        )
+        assert cfg["panel_lookback_years"] == 5, (
+            f"expected 5, got {cfg['panel_lookback_years']}"
+        )
+        assert cfg["universe_target_size"] == 40, (
+            f"expected 40, got {cfg['universe_target_size']}"
+        )
         # active_model_file ends with active_cs_model.json
-        assert cfg["active_model_file"].endswith("active_cs_model.json"), \
+        assert cfg["active_model_file"].endswith("active_cs_model.json"), (
             f"unexpected active_model_file: {cfg['active_model_file']}"
+        )
     finally:
         _restore_env(saved)
 
@@ -95,8 +105,9 @@ def test_cs_config_label_horizon_days_minimum_one():
     try:
         os.environ["TRADER_CS_LABEL_HORIZON_DAYS"] = "0"
         cfg = get_cross_section_config()
-        assert cfg["label_horizon_days"] >= 1, \
+        assert cfg["label_horizon_days"] >= 1, (
             f"label_horizon_days should be >= 1, got {cfg['label_horizon_days']}"
+        )
     finally:
         _restore_env(saved)
 
@@ -107,8 +118,9 @@ def test_cs_config_panel_lookback_years_minimum_one():
     try:
         os.environ["TRADER_CS_PANEL_LOOKBACK_YEARS"] = "0"
         cfg = get_cross_section_config()
-        assert cfg["panel_lookback_years"] >= 1, \
+        assert cfg["panel_lookback_years"] >= 1, (
             f"panel_lookback_years should be >= 1, got {cfg['panel_lookback_years']}"
+        )
     finally:
         _restore_env(saved)
 
@@ -118,7 +130,9 @@ def test_cs_config_env_override_objective_regression():
     try:
         os.environ["TRADER_CS_OBJECTIVE"] = "regression"
         cfg = get_cross_section_config()
-        assert cfg["objective"] == "regression", f"expected regression, got {cfg['objective']}"
+        assert cfg["objective"] == "regression", (
+            f"expected regression, got {cfg['objective']}"
+        )
     finally:
         _restore_env(saved)
 
@@ -141,13 +155,16 @@ def test_cs_config_invalid_objective_raises():
 # Tests: get_portfolio_config defaults
 # ---------------------------------------------------------------------------
 
+
 def test_portfolio_config_defaults():
     saved = _clear_env(_PORT_KEYS)
     try:
         cfg = get_portfolio_config()
         assert cfg["enabled"] is False, f"expected False, got {cfg['enabled']}"
         assert cfg["mode"] == "shadow", f"expected shadow, got {cfg['mode']}"
-        assert abs(cfg["target_vol"] - 0.12) < 1e-9, f"expected 0.12, got {cfg['target_vol']}"
+        assert abs(cfg["target_vol"] - 0.12) < 1e-9, (
+            f"expected 0.12, got {cfg['target_vol']}"
+        )
         assert abs(cfg["max_name_weight"] - 0.20) < 1e-9
         assert abs(cfg["sector_cap"] - 0.40) < 1e-9
         assert abs(cfg["max_gross"] - 1.00) < 1e-9
@@ -169,8 +186,9 @@ def test_portfolio_config_disabled_when_env_unset():
     saved = _clear_env(_PORT_KEYS)
     try:
         cfg = get_portfolio_config()
-        assert cfg["enabled"] is False, \
+        assert cfg["enabled"] is False, (
             "Portfolio must default to disabled when env var is unset"
+        )
     finally:
         _restore_env(saved)
 
@@ -225,6 +243,7 @@ def test_portfolio_config_float_overrides():
 # DB test: kind-scoped active (skipped when DB is not configured)
 # ---------------------------------------------------------------------------
 
+
 def test_kind_scoped_active_model_registry():
     """
     When DB is available: registers two model versions with different kinds,
@@ -239,6 +258,7 @@ def test_kind_scoped_active_model_registry():
 
     try:
         import src.db as dbmod
+
         conn = dbmod.connect()
     except Exception as exc:  # noqa: BLE001
         print(f"SKIP test_kind_scoped_active_model_registry (connect failed: {exc})")
@@ -250,7 +270,6 @@ def test_kind_scoped_active_model_registry():
         kind1 = "per_ticker_horizon_v1"
         kind2 = "cross_sectional_ranker_v1"
         try:
-            from psycopg.types.json import Jsonb
             with conn.cursor() as cur:
                 # Clean up from previous test runs
                 cur.execute(
@@ -260,12 +279,24 @@ def test_kind_scoped_active_model_registry():
             conn.commit()
 
             dbmod.register_model_version(
-                conn, v1, kind=kind1, universe=[], feature_set=[],
-                params={}, cv_metrics={}, make_active=True,
+                conn,
+                v1,
+                kind=kind1,
+                universe=[],
+                feature_set=[],
+                params={},
+                cv_metrics={},
+                make_active=True,
             )
             dbmod.register_model_version(
-                conn, v2, kind=kind2, universe=[], feature_set=[],
-                params={}, cv_metrics={}, make_active=True,
+                conn,
+                v2,
+                kind=kind2,
+                universe=[],
+                feature_set=[],
+                params={},
+                cv_metrics={},
+                make_active=True,
             )
 
             active1 = dbmod.active_model_version_for_kind(conn, kind1)
@@ -280,7 +311,7 @@ def test_kind_scoped_active_model_registry():
                     (v1, v2),
                 )
             conn.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         raise
     finally:
         conn.close()

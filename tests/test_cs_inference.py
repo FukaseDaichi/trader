@@ -47,6 +47,7 @@ from src.cross_section import cross_sectional_feature_cols  # noqa: E402
 # Synthetic data builders
 # ---------------------------------------------------------------------------
 
+
 def _make_ohlcv(n_rows: int = 250, seed: int = 0) -> pd.DataFrame:
     """
     Build a minimal OHLCV DataFrame that build_feature_frame accepts.
@@ -63,14 +64,16 @@ def _make_ohlcv(n_rows: int = 250, seed: int = 0) -> pd.DataFrame:
     low = close / noise
     open_ = close * rng.uniform(0.99, 1.01, size=n_rows)
     volume = rng.integers(100_000, 1_000_000, size=n_rows).astype(float)
-    return pd.DataFrame({
-        "date": dates,
-        "open": open_,
-        "high": high,
-        "low": low,
-        "close": close,
-        "volume": volume,
-    })
+    return pd.DataFrame(
+        {
+            "date": dates,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+    )
 
 
 def _make_ticker_info(code: str, sector: str = "SEC0") -> dict:
@@ -92,6 +95,7 @@ def _make_tickers_data(n_tickers: int = 35, n_rows: int = 250) -> list:
 # ---------------------------------------------------------------------------
 # Small planted panel for predict_cs_model smoke check
 # ---------------------------------------------------------------------------
+
 
 def _make_planted_panel(
     n_tickers: int = 30,
@@ -136,7 +140,7 @@ def _make_planted_panel(
 
 def _cfg(**overrides) -> dict:
     base = {
-        "objective": "regression",   # regression for stability in small tests
+        "objective": "regression",  # regression for stability in small tests
         "top_n": 5,
         "label_horizon_days": 5,
         "min_daily_names": 2,
@@ -155,6 +159,7 @@ def _cfg(**overrides) -> dict:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_infer_cs_predict_path():
     """
     Smoke-check the predict_cs_model return contract (shape / cs_rank permutation).
@@ -172,8 +177,17 @@ def test_infer_cs_predict_path():
 
     n = latest["ticker"].nunique()
     assert len(pred) == n, f"expected {n} rows, got {len(pred)}"
-    assert list(pred.columns) == ["ticker", "raw_score", "cs_rank", "score_pct", "prob_up", "expected_ret"]
-    assert sorted(pred["cs_rank"].tolist()) == list(range(1, n + 1)), "cs_rank must be a permutation of 1..N"
+    assert list(pred.columns) == [
+        "ticker",
+        "raw_score",
+        "cs_rank",
+        "score_pct",
+        "prob_up",
+        "expected_ret",
+    ]
+    assert sorted(pred["cs_rank"].tolist()) == list(range(1, n + 1)), (
+        "cs_rank must be a permutation of 1..N"
+    )
     assert pred["prob_up"].between(0.0, 1.0).all(), "prob_up must be in [0,1]"
     assert pred["cs_rank"].is_monotonic_increasing, "output should be sorted by cs_rank"
 
@@ -218,7 +232,9 @@ def test_infer_cs_end_to_end():
     )
     assert pred_df["prob_up"].between(0.0, 1.0).all(), "prob_up must be in [0,1]"
     assert as_of is not None, "as_of_date must not be None on success"
-    assert isinstance(as_of, pd.Timestamp), f"as_of must be pd.Timestamp, got {type(as_of)}"
+    assert isinstance(as_of, pd.Timestamp), (
+        f"as_of must be pd.Timestamp, got {type(as_of)}"
+    )
 
 
 def test_infer_cs_after_saved_bundle_reload():
@@ -298,7 +314,9 @@ def test_infer_cs_empty_tickers_data():
     bundle, info = cm.train_cs_model(panel, config=_cfg(), macro_enabled=False, seed=42)
     assert bundle is not None, info
 
-    pred_df, as_of = cm.infer_cross_section([], macro_panel=None, bundle=bundle, macro_enabled=False)
+    pred_df, as_of = cm.infer_cross_section(
+        [], macro_panel=None, bundle=bundle, macro_enabled=False
+    )
 
     assert pred_df is not None and pred_df.empty, "expected empty DataFrame"
     assert as_of is None, "expected as_of to be None"
@@ -307,9 +325,12 @@ def test_infer_cs_empty_tickers_data():
 def test_infer_cs_none_bundle():
     """None bundle returns (empty DataFrame, None) without raising."""
     tickers_data = _make_tickers_data(n_tickers=5, n_rows=120)
-    pred_df, as_of = cm.infer_cross_section(tickers_data, macro_panel=None, bundle=None,
-                                            macro_enabled=False)
-    assert pred_df is not None and pred_df.empty, "expected empty DataFrame for None bundle"
+    pred_df, as_of = cm.infer_cross_section(
+        tickers_data, macro_panel=None, bundle=None, macro_enabled=False
+    )
+    assert pred_df is not None and pred_df.empty, (
+        "expected empty DataFrame for None bundle"
+    )
     assert as_of is None
 
 

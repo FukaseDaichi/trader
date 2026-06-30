@@ -42,10 +42,14 @@ def test_save_load_roundtrip_same_prediction():
         calibration = {"method": "isotonic", "x": [0.1, 0.9], "y": [0.2, 0.8]}
 
         ms.save_model_bundle(
-            version, ticker,
+            version,
+            ticker,
             {"folds": [fold], "final": final},
-            {"calibration": calibration, "feature_reference": feature_reference,
-             "cv_metrics": {"ic": 0.05}},
+            {
+                "calibration": calibration,
+                "feature_reference": feature_reference,
+                "cv_metrics": {"ic": 0.05},
+            },
             model_dir=tmp,
         )
 
@@ -98,7 +102,11 @@ def test_read_active_model_corrupt_is_none():
 def test_version_metadata_roundtrip_and_artifact_uri():
     with tempfile.TemporaryDirectory() as tmp:
         version = "per-ticker-v1-20260613"
-        meta = {"kind": "per_ticker_horizon_v1", "horizon_days": 5, "universe": ["7011.JP"]}
+        meta = {
+            "kind": "per_ticker_horizon_v1",
+            "horizon_days": 5,
+            "universe": ["7011.JP"],
+        }
         path = ms.save_version_metadata(version, meta, model_dir=tmp)
         assert path == ms.artifact_uri(version, model_dir=tmp)
         assert ms.read_version_metadata(version, model_dir=tmp)["horizon_days"] == 5
@@ -124,19 +132,23 @@ def test_cs_bundle_save_load_roundtrip():
             "objective": "ranker",
             "macro_enabled": False,
         }
-        calibration = {"bucket_0": {"up_prob": 0.2, "expected_ret": -0.01},
-                       "bucket_1": {"up_prob": 0.8, "expected_ret": 0.03}}
+        calibration = {
+            "bucket_0": {"up_prob": 0.2, "expected_ret": -0.01},
+            "bucket_1": {"up_prob": 0.8, "expected_ret": 0.03},
+        }
         sector_encoder = {"Technology": 0, "Finance": 1}
         universe = ["7011.JP", "9984.JP", "6758.JP"]
-        oos_df = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-05", "2026-01-06"]),
-            "ticker": ["7011.JP", "9984.JP"],
-            "raw_score": [0.6, 0.4],
-            "fwd_return": [0.02, -0.01],
-            "target_up": [1, 0],
-            "target_vol_norm": [1.1, 0.9],
-            "target_rank_bucket": [2, 1],
-        })
+        oos_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-05", "2026-01-06"]),
+                "ticker": ["7011.JP", "9984.JP"],
+                "raw_score": [0.6, 0.4],
+                "fwd_return": [0.02, -0.01],
+                "target_up": [1, 0],
+                "target_vol_norm": [1.1, 0.9],
+                "target_rank_bucket": [2, 1],
+            }
+        )
 
         ms.save_cs_bundle(
             version,
@@ -179,7 +191,10 @@ def test_cs_bundle_oos_optional():
     with tempfile.TemporaryDirectory() as tmp:
         version = "cs-v1-20260614"
         booster = _toy_booster(seed=5)
-        feature_schema = {"feature_cols": ["f0", "f1", "f2", "f3"], "objective": "ranker"}
+        feature_schema = {
+            "feature_cols": ["f0", "f1", "f2", "f3"],
+            "objective": "ranker",
+        }
 
         ms.save_cs_bundle(
             version,

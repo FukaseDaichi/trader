@@ -32,9 +32,12 @@ def _as_float(value):
         return None
 
 
-def signal_to_prediction_row(signal: dict, run_date: str,
-                             model_version: str | None = None,
-                             horizon_days: int | None = None) -> dict | None:
+def signal_to_prediction_row(
+    signal: dict,
+    run_date: str,
+    model_version: str | None = None,
+    horizon_days: int | None = None,
+) -> dict | None:
     """
     Map a daily signal to a `predictions` row. Returns None when there is no
     probability to record (e.g. failed tickers), so we don't store empty rows.
@@ -47,7 +50,9 @@ def signal_to_prediction_row(signal: dict, run_date: str,
     if prob_up is None:
         return None
 
-    resolved_version = model_version or signal.get("model_version") or LEGACY_MODEL_VERSION
+    resolved_version = (
+        model_version or signal.get("model_version") or LEGACY_MODEL_VERSION
+    )
     if horizon_days is not None:
         resolved_horizon = int(horizon_days)
     elif signal.get("horizon_days") is not None:
@@ -68,15 +73,14 @@ def signal_to_prediction_row(signal: dict, run_date: str,
         "raw_score": raw_score,
         "prob_up": prob_up,
         "expected_ret": _as_float(signal.get("expected_ret")),
-        "cs_rank": None,        # Phase 2 (cross-sectional)
+        "cs_rank": None,  # Phase 2 (cross-sectional)
         "features_hash": signal.get("features_hash"),
     }
 
 
-def cs_prediction_row(pred: dict, run_date: str, *,
-                      model_version: str,
-                      horizon_days: int,
-                      as_of_date=None) -> dict | None:
+def cs_prediction_row(
+    pred: dict, run_date: str, *, model_version: str, horizon_days: int, as_of_date=None
+) -> dict | None:
     """
     Map one cross-sectional prediction (ticker, raw_score, cs_rank, prob_up,
     expected_ret, features_hash) to a `predictions` table row.
@@ -118,7 +122,7 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
         "ticker": signal.get("ticker"),
         "action": signal.get("action", "HOLD"),
         "raw_action": signal.get("raw_action"),
-        "conviction": prob_up,            # calibrated in Phase 1
+        "conviction": prob_up,  # calibrated in Phase 1
         "target_weight": _as_float(signal.get("target_weight")),  # Phase 2 (portfolio)
         "thresholds": signal.get("thresholds"),
         "gate_passed": bool(signal.get("gate_passed", False)),
@@ -129,9 +133,13 @@ def signal_to_signal_row(signal: dict, run_date: str) -> dict:
     }
 
 
-def backtest_run_row(result: dict, run_date: str, *,
-                     model_version: str | None = None,
-                     scope: str = "portfolio") -> dict | None:
+def backtest_run_row(
+    result: dict,
+    run_date: str,
+    *,
+    model_version: str | None = None,
+    scope: str = "portfolio",
+) -> dict | None:
     """
     Map a ``run_portfolio_backtest`` result dict to a ``backtest_runs`` INSERT row.
 
@@ -177,16 +185,20 @@ def backtest_equity_rows(result: dict) -> list[dict]:
 
     rows = []
     for eq in result.get("equity") or []:
-        rows.append({
-            "date": eq["date"],
-            "equity": eq["equity"],
-            "benchmark_equity": eq.get("benchmark_equity"),
-            "daily_return": eq.get("period_return"),   # rename: period_return -> daily_return
-            "benchmark_return": eq.get("benchmark_return"),
-            "drawdown": eq.get("drawdown"),
-            "gross_exposure": eq.get("gross_exposure"),
-            "turnover": eq.get("turnover"),
-        })
+        rows.append(
+            {
+                "date": eq["date"],
+                "equity": eq["equity"],
+                "benchmark_equity": eq.get("benchmark_equity"),
+                "daily_return": eq.get(
+                    "period_return"
+                ),  # rename: period_return -> daily_return
+                "benchmark_return": eq.get("benchmark_return"),
+                "drawdown": eq.get("drawdown"),
+                "gross_exposure": eq.get("gross_exposure"),
+                "turnover": eq.get("turnover"),
+            }
+        )
     return rows
 
 
@@ -248,8 +260,9 @@ def portfolio_snapshot_row(snapshot: dict, *, run_date=None) -> dict | None:
     }
 
 
-def compute_benchmark_ret(benchmark_by_date: dict, entry_date: str,
-                          eval_date: str) -> float | None:
+def compute_benchmark_ret(
+    benchmark_by_date: dict, entry_date: str, eval_date: str
+) -> float | None:
     """TOPIX close-to-close return over the holding window; None when either
     date is missing from the series (settlement keeps going with NULL)."""
     entry = benchmark_by_date.get(str(entry_date))
@@ -259,8 +272,9 @@ def compute_benchmark_ret(benchmark_by_date: dict, entry_date: str,
     return float(exit_) / float(entry) - 1.0
 
 
-def compute_outcome(action: str, entry_close: float, exit_close: float,
-                    path_highs, path_lows) -> dict:
+def compute_outcome(
+    action: str, entry_close: float, exit_close: float, path_highs, path_lows
+) -> dict:
     """
     Compute the realized outcome of a single signal at one horizon.
 
@@ -320,7 +334,9 @@ def summarize_performance(rows, curve_horizon: int = 1) -> dict:
     horizons = {}
     for h in OUTCOME_HORIZONS:
         h_rows = [r for r in long_rows if int(r.get("horizon_days", 0)) == h]
-        rets = [r.get("realized_ret") for r in h_rows if r.get("realized_ret") is not None]
+        rets = [
+            r.get("realized_ret") for r in h_rows if r.get("realized_ret") is not None
+        ]
         hits = [r.get("hit") for r in h_rows if r.get("hit") is not None]
         horizons[str(h)] = {
             "count": len(rets),
@@ -342,13 +358,15 @@ def summarize_performance(rows, curve_horizon: int = 1) -> dict:
     equity = 1.0
     for d in sorted(by_date):
         daily_return = _mean(by_date[d]) or 0.0
-        equity *= (1.0 + daily_return)
-        equity_curve.append({
-            "date": d,
-            "equity": equity,
-            "daily_return": daily_return,
-            "n": len(by_date[d]),
-        })
+        equity *= 1.0 + daily_return
+        equity_curve.append(
+            {
+                "date": d,
+                "equity": equity,
+                "daily_return": daily_return,
+                "n": len(by_date[d]),
+            }
+        )
 
     return {
         "n_long_signals": len(long_rows),

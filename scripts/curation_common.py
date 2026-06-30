@@ -55,6 +55,7 @@ DEFAULT_CURATION_SETTINGS = {
 # Time helpers (JST)
 # ---------------------------------------------------------------------------
 
+
 def today_jst() -> date:
     return (datetime.now(UTC) + timedelta(hours=9)).date()
 
@@ -80,6 +81,7 @@ def parse_iso_date(value) -> date | None:
 # JSON helpers
 # ---------------------------------------------------------------------------
 
+
 def read_json(path: Path) -> dict | None:
     path = Path(path)
     if not path.exists():
@@ -102,6 +104,7 @@ def write_json(path: Path, payload) -> None:
 # ---------------------------------------------------------------------------
 # tickers.yml I/O
 # ---------------------------------------------------------------------------
+
 
 def load_tickers_config(path: Path | None = None) -> dict:
     path = Path(path or TICKERS_FILE)
@@ -162,6 +165,7 @@ def enabled_codes(cfg: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 # Candidate pool
 # ---------------------------------------------------------------------------
+
 
 def load_pool(path: Path | None = None) -> list[dict]:
     path = Path(path or POOL_FILE)

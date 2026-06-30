@@ -166,7 +166,11 @@ def _latest_change(records: list[dict[str, Any]]) -> tuple[float | None, float |
     prev = records[-2].get("close")
     last = records[-1].get("close")
     for value in (prev, last):
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
             return None, None
     prev_f = float(prev)
     last_f = float(last)
@@ -238,7 +242,9 @@ def update_state(signals):
     else:
         state = {"history": [], "last_update": ""}
 
-    history = _normalize_history(state.get("history", []), allowed_tickers=allowed_tickers)
+    history = _normalize_history(
+        state.get("history", []), allowed_tickers=allowed_tickers
+    )
 
     # Use JST so retry guard (which also uses JST) can detect same-day updates correctly.
     now_jst = datetime.now(JST)
@@ -272,7 +278,9 @@ def export_dashboard_data():
         if isinstance(loaded, dict):
             state = loaded
 
-    normalized_history = _normalize_history(state.get("history", []), allowed_tickers=allowed_tickers)
+    normalized_history = _normalize_history(
+        state.get("history", []), allowed_tickers=allowed_tickers
+    )
     if state.get("history") != normalized_history:
         state["history"] = normalized_history
         _atomic_write_json(STATE_FILE, state, indent=2)
@@ -353,19 +361,33 @@ def export_performance_summary():
 
     if not db.db_enabled():
         if not PERFORMANCE_FILE.exists():
-            _atomic_write_json(PERFORMANCE_FILE, {
-                "available": False, "reason": "db_disabled", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                PERFORMANCE_FILE,
+                {
+                    "available": False,
+                    "reason": "db_disabled",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001
-        print(f"performance_summary: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        print(
+            f"performance_summary: DB unreachable ({type(exc).__name__}); leaving file as-is."
+        )
         if not PERFORMANCE_FILE.exists():
-            _atomic_write_json(PERFORMANCE_FILE, {
-                "available": False, "reason": "db_unreachable", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                PERFORMANCE_FILE,
+                {
+                    "available": False,
+                    "reason": "db_unreachable",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
@@ -388,7 +410,9 @@ def export_performance_summary():
         _atomic_write_json(PERFORMANCE_FILE, payload, indent=2)
         print(f"Performance summary exported to {PERFORMANCE_FILE}")
     except Exception as exc:  # noqa: BLE001
-        print(f"performance_summary: export failed (ignored): {type(exc).__name__}: {exc}")
+        print(
+            f"performance_summary: export failed (ignored): {type(exc).__name__}: {exc}"
+        )
     finally:
         conn.close()
 
@@ -403,19 +427,33 @@ def export_performance_detail():
 
     if not db.db_enabled():
         if not PERFORMANCE_DETAIL_FILE.exists():
-            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
-                "available": False, "reason": "db_disabled", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                PERFORMANCE_DETAIL_FILE,
+                {
+                    "available": False,
+                    "reason": "db_disabled",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001
-        print(f"performance_detail: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        print(
+            f"performance_detail: DB unreachable ({type(exc).__name__}); leaving file as-is."
+        )
         if not PERFORMANCE_DETAIL_FILE.exists():
-            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
-                "available": False, "reason": "db_unreachable", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                PERFORMANCE_DETAIL_FILE,
+                {
+                    "available": False,
+                    "reason": "db_unreachable",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
@@ -423,17 +461,26 @@ def export_performance_detail():
         history_days = int(os.getenv("TRADER_PERF_HISTORY_DAYS", "180") or 180)
         n_bins = int(os.getenv("TRADER_PERF_RELIABILITY_BINS", "10") or 10)
 
-        rows = db.fetch_outcome_detail_rows(conn, horizon_days=horizon, history_days=history_days)
+        rows = db.fetch_outcome_detail_rows(
+            conn, horizon_days=horizon, history_days=history_days
+        )
         mv = db.active_model_version(conn)
         pred_rows = db.fetch_prediction_outcomes(conn, mv, horizon) if mv else []
 
         if not rows:
-            _atomic_write_json(PERFORMANCE_DETAIL_FILE, {
-                "available": False, "reason": "insufficient_data", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                PERFORMANCE_DETAIL_FILE,
+                {
+                    "available": False,
+                    "reason": "insufficient_data",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         else:
-            detail = performance.build_performance_detail(rows, pred_rows, horizon,
-                                                          history_days, n_bins)
+            detail = performance.build_performance_detail(
+                rows, pred_rows, horizon, history_days, n_bins
+            )
             payload = {
                 "available": True,
                 "generated_at": now_str,
@@ -443,7 +490,9 @@ def export_performance_detail():
             _atomic_write_json(PERFORMANCE_DETAIL_FILE, payload, indent=2)
             print(f"Performance detail exported to {PERFORMANCE_DETAIL_FILE}")
     except Exception as exc:  # noqa: BLE001
-        print(f"performance_detail: export failed (ignored): {type(exc).__name__}: {exc}")
+        print(
+            f"performance_detail: export failed (ignored): {type(exc).__name__}: {exc}"
+        )
     finally:
         conn.close()
 
@@ -458,30 +507,52 @@ def export_signal_outcomes_recent():
 
     if not db.db_enabled():
         if not SIGNAL_OUTCOMES_RECENT_FILE.exists():
-            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
-                "available": False, "reason": "db_disabled", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                SIGNAL_OUTCOMES_RECENT_FILE,
+                {
+                    "available": False,
+                    "reason": "db_disabled",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
         conn = db.connect()
     except Exception as exc:  # noqa: BLE001
-        print(f"signal_outcomes_recent: DB unreachable ({type(exc).__name__}); leaving file as-is.")
+        print(
+            f"signal_outcomes_recent: DB unreachable ({type(exc).__name__}); leaving file as-is."
+        )
         if not SIGNAL_OUTCOMES_RECENT_FILE.exists():
-            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
-                "available": False, "reason": "db_unreachable", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                SIGNAL_OUTCOMES_RECENT_FILE,
+                {
+                    "available": False,
+                    "reason": "db_unreachable",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         return
 
     try:
         history_days = int(os.getenv("TRADER_PERF_HISTORY_DAYS", "180") or 180)
-        rows = db.fetch_outcome_detail_rows(conn, horizon_days=5, history_days=history_days)
+        rows = db.fetch_outcome_detail_rows(
+            conn, horizon_days=5, history_days=history_days
+        )
         recent = performance.build_recent_outcomes(rows, limit=200)
 
         if not recent:
-            _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, {
-                "available": False, "reason": "insufficient_data", "generated_at": now_str,
-            }, indent=2)
+            _atomic_write_json(
+                SIGNAL_OUTCOMES_RECENT_FILE,
+                {
+                    "available": False,
+                    "reason": "insufficient_data",
+                    "generated_at": now_str,
+                },
+                indent=2,
+            )
         else:
             payload = {
                 "available": True,
@@ -491,13 +562,17 @@ def export_signal_outcomes_recent():
             _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, payload, indent=2)
             print(f"Signal outcomes recent exported to {SIGNAL_OUTCOMES_RECENT_FILE}")
     except Exception as exc:  # noqa: BLE001
-        print(f"signal_outcomes_recent: export failed (ignored): {type(exc).__name__}: {exc}")
+        print(
+            f"signal_outcomes_recent: export failed (ignored): {type(exc).__name__}: {exc}"
+        )
     finally:
         conn.close()
 
 
 def _median(values):
-    nums = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    nums = [
+        v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)
+    ]
     if not nums:
         return None
     nums = sorted(nums)
@@ -528,17 +603,25 @@ def export_model_quality():
 
     active = model_store.read_active_model()
     if not active:
-        _atomic_write_json(MODEL_QUALITY_FILE, {
-            "available": False, "reason": "no_active_model", "generated_at": now_str,
-        }, indent=2)
+        _atomic_write_json(
+            MODEL_QUALITY_FILE,
+            {
+                "available": False,
+                "reason": "no_active_model",
+                "generated_at": now_str,
+            },
+            indent=2,
+        )
         return
 
     version = active.get("version")
     meta = model_store.read_version_metadata(version) or {}
-    cv_by_ticker = ((meta.get("cv_metrics") or {}).get("by_ticker") or {})
+    cv_by_ticker = (meta.get("cv_metrics") or {}).get("by_ticker") or {}
 
     drift = _load_drift_overlay()
-    drift_by = drift.get("by_ticker", {}) if isinstance(drift.get("by_ticker"), dict) else {}
+    drift_by = (
+        drift.get("by_ticker", {}) if isinstance(drift.get("by_ticker"), dict) else {}
+    )
 
     allowed = {t["code"] for t in TICKERS}
     by_ticker: dict[str, Any] = {}
@@ -550,7 +633,9 @@ def export_model_quality():
         if code not in allowed or not isinstance(metrics, dict):
             continue
         cal = metrics.get("calibration") or {}
-        drift_row = drift_by.get(code, {}) if isinstance(drift_by.get(code), dict) else {}
+        drift_row = (
+            drift_by.get(code, {}) if isinstance(drift_by.get(code), dict) else {}
+        )
         warning = bool(drift_row.get("warning", False))
         any_warning = any_warning or warning
 
@@ -591,8 +676,10 @@ def export_model_quality():
 
 # --- Phase 2: portfolio dashboard exports ----------------------------------
 
-def export_portfolio_latest(snapshot, *, run_date=None, reason=None,
-                            generated_at=None, output_path=None):
+
+def export_portfolio_latest(
+    snapshot, *, run_date=None, reason=None, generated_at=None, output_path=None
+):
     """
     Write docs/portfolio_latest.json from a ``build_portfolio_snapshot`` result.
 
@@ -631,8 +718,9 @@ def export_portfolio_latest(snapshot, *, run_date=None, reason=None,
     return str(path)
 
 
-def export_portfolio_backtest(result, *, model_version=None, run_date=None,
-                              generated_at=None, output_path=None):
+def export_portfolio_backtest(
+    result, *, model_version=None, run_date=None, generated_at=None, output_path=None
+):
     """
     Write docs/portfolio_backtest.json from a ``run_portfolio_backtest`` result.
 
@@ -641,8 +729,12 @@ def export_portfolio_backtest(result, *, model_version=None, run_date=None,
     logic (available true/false, atomic write) is owned there. Returns the path.
     """
     from .portfolio_backtest import write_portfolio_backtest_report
+
     out = str(output_path) if output_path is not None else str(PORTFOLIO_BACKTEST_FILE)
     return write_portfolio_backtest_report(
-        result, output_path=out, model_version=model_version,
-        run_date=run_date, generated_at=generated_at,
+        result,
+        output_path=out,
+        model_version=model_version,
+        run_date=run_date,
+        generated_at=generated_at,
     )

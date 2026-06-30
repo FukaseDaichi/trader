@@ -30,6 +30,7 @@ def _approx(a, b, tol=1e-9):
 # Synthetic record builders
 # ---------------------------------------------------------------------------
 
+
 def _planted_records(n_dates=12, n_tickers=10, seed=7):
     """Phase 2 cs_rank strongly aligned with realized_ret; Phase 1 prob_up noise.
 
@@ -54,24 +55,27 @@ def _planted_records(n_dates=12, n_tickers=10, seed=7):
         p1_prob = rng.uniform(0.3, 0.7, size=n_tickers)  # pure noise vs realized
         for i, tk in enumerate(tickers):
             in_top = cs_rank[i] <= top_n
-            records.append({
-                "date": date_str,
-                "ticker": tk,
-                "realized_ret": float(realized[i]),
-                "p1_prob_up": float(p1_prob[i]),
-                "p1_action": "HOLD",
-                "p2_cs_rank": int(cs_rank[i]),
-                "p2_expected_ret": float(0.02 * alpha[i]),
-                "p2_prob_up": float(0.5 + 0.1 * alpha[i]),
-                "p2_weight": 0.25 if in_top else 0.0,
-                "p2_prev_weight": 0.25 if in_top else 0.0,
-            })
+            records.append(
+                {
+                    "date": date_str,
+                    "ticker": tk,
+                    "realized_ret": float(realized[i]),
+                    "p1_prob_up": float(p1_prob[i]),
+                    "p1_action": "HOLD",
+                    "p2_cs_rank": int(cs_rank[i]),
+                    "p2_expected_ret": float(0.02 * alpha[i]),
+                    "p2_prob_up": float(0.5 + 0.1 * alpha[i]),
+                    "p2_weight": 0.25 if in_top else 0.0,
+                    "p2_prev_weight": 0.25 if in_top else 0.0,
+                }
+            )
     return records, top_n
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_planted_signal_phase2_beats_phase1():
     records, top_n = _planted_records()
@@ -109,7 +113,9 @@ def test_topn_realized_return_handcomputed():
     # Phase 1 by prob_up desc: give B the highest prob -> top-1 = B = 0.02
     for rec, p in zip(records, [0.4, 0.9, 0.5, 0.1]):
         rec["p1_prob_up"] = p
-    r1 = ps.topn_realized_return(records, rank_key="p1_prob_up", top_n=1, ascending=False)
+    r1 = ps.topn_realized_return(
+        records, rank_key="p1_prob_up", top_n=1, ascending=False
+    )
     assert _approx(r1, 0.02), r1
 
 
@@ -164,12 +170,27 @@ def test_max_drawdown_known_sequence():
 def test_expected_ret_calibration_bias_sign():
     # Phase 2 top-2 over-predicts: expected >> realized -> positive bias.
     records = [
-        {"date": "2026-04-01", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": 0.05, "realized_ret": 0.01},
-        {"date": "2026-04-01", "ticker": "B", "p2_cs_rank": 2,
-         "p2_expected_ret": 0.04, "realized_ret": 0.00},
-        {"date": "2026-04-01", "ticker": "C", "p2_cs_rank": 3,
-         "p2_expected_ret": -0.01, "realized_ret": -0.02},
+        {
+            "date": "2026-04-01",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": 0.05,
+            "realized_ret": 0.01,
+        },
+        {
+            "date": "2026-04-01",
+            "ticker": "B",
+            "p2_cs_rank": 2,
+            "p2_expected_ret": 0.04,
+            "realized_ret": 0.00,
+        },
+        {
+            "date": "2026-04-01",
+            "ticker": "C",
+            "p2_cs_rank": 3,
+            "p2_expected_ret": -0.01,
+            "realized_ret": -0.02,
+        },
     ]
     cal = ps.expected_ret_calibration(records, top_n=2)
     # top-2 expected mean = 0.045, realized mean = 0.005, bias = +0.04
@@ -181,8 +202,14 @@ def test_expected_ret_calibration_bias_sign():
 def test_build_report_insufficient_history():
     # 3 distinct dates < MIN_SHADOW_DATES (5) -> available false.
     records = [
-        {"date": f"2026-05-0{d}", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": 0.01, "realized_ret": 0.01, "p1_prob_up": 0.6}
+        {
+            "date": f"2026-05-0{d}",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": 0.01,
+            "realized_ret": 0.01,
+            "p1_prob_up": 0.6,
+        }
         for d in range(1, 4)
     ]
     rep = ps.build_shadow_report(records, top_n=4)
@@ -196,7 +223,9 @@ def test_build_report_insufficient_history():
 def test_build_report_available_with_comparison():
     records, top_n = _planted_records(n_dates=8)
     rep = ps.build_shadow_report(
-        records, top_n=top_n, generated_at="2026-06-10T06:00:00+09:00",
+        records,
+        top_n=top_n,
+        generated_at="2026-06-10T06:00:00+09:00",
         model_version="cs-v1-20260606",
         window={"start": "2026-01-01", "end": "2026-01-08", "lookback_days": 8},
     )
@@ -220,17 +249,25 @@ def test_none_safety_missing_keys_and_none_returns():
     records = [
         {"date": "2026-07-01", "ticker": "A", "p2_cs_rank": 1, "realized_ret": None},
         {"date": "2026-07-01", "ticker": "B"},  # missing nearly everything
-        {"date": "2026-07-02", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": None, "realized_ret": None, "p1_prob_up": None},
+        {
+            "date": "2026-07-02",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": None,
+            "realized_ret": None,
+            "p1_prob_up": None,
+        },
     ]
     # None of these should throw; metrics should be None (nothing finite).
     assert ps.daily_ic(records, score_key="p2_expected_ret") is None
-    assert ps.topn_realized_return(
-        records, rank_key="p2_cs_rank", top_n=2, ascending=True
-    ) is None
-    assert ps.hit_rate_topn(
-        records, rank_key="p2_cs_rank", top_n=2, ascending=True
-    ) is None
+    assert (
+        ps.topn_realized_return(records, rank_key="p2_cs_rank", top_n=2, ascending=True)
+        is None
+    )
+    assert (
+        ps.hit_rate_topn(records, rank_key="p2_cs_rank", top_n=2, ascending=True)
+        is None
+    )
     cmp = ps.compare_phase1_phase2(records, top_n=2)
     # Deltas/verdicts must be None (never spurious True) when sides undefined.
     assert cmp["delta"]["topn_realized_return"] is None
@@ -253,9 +290,11 @@ def test_empty_records():
 
 import importlib  # noqa: E402
 
+
 def _load_psr():
     """Import scripts/portfolio_shadow_report as a module."""
     import sys
+
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     return importlib.import_module("scripts.portfolio_shadow_report")

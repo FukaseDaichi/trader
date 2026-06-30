@@ -14,7 +14,6 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -32,17 +31,22 @@ from src.universe import (  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_df(n_rows: int = 30, close: float = 1000.0, volume: float = 1_000_000.0) -> pd.DataFrame:
+
+def _make_df(
+    n_rows: int = 30, close: float = 1000.0, volume: float = 1_000_000.0
+) -> pd.DataFrame:
     """Tiny synthetic OHLCV DataFrame for testing compute_liquidity."""
     dates = pd.date_range("2025-01-01", periods=n_rows, freq="B")
-    return pd.DataFrame({
-        "date": dates,
-        "open": close,
-        "high": close * 1.01,
-        "low": close * 0.99,
-        "close": close,
-        "volume": volume,
-    })
+    return pd.DataFrame(
+        {
+            "date": dates,
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": volume,
+        }
+    )
 
 
 def _make_candidates(
@@ -55,21 +59,24 @@ def _make_candidates(
     """Build synthetic candidate dicts."""
     out = []
     for s in specs:
-        out.append({
-            "code": s["code"],
-            "name": s.get("name", s["code"]),
-            "sector": s.get("sector"),
-            "combined": s.get("combined", default_combined),
-            "rows": s.get("rows", default_rows),
-            "liquidity": s.get("liquidity", default_liq),
-            "source": s.get("source", "pool"),
-        })
+        out.append(
+            {
+                "code": s["code"],
+                "name": s.get("name", s["code"]),
+                "sector": s.get("sector"),
+                "combined": s.get("combined", default_combined),
+                "rows": s.get("rows", default_rows),
+                "liquidity": s.get("liquidity", default_liq),
+                "source": s.get("source", "pool"),
+            }
+        )
     return out
 
 
 # ---------------------------------------------------------------------------
 # compute_liquidity
 # ---------------------------------------------------------------------------
+
 
 def test_compute_liquidity_basic():
     df = _make_df(n_rows=30, close=2000.0, volume=500_000.0)
@@ -97,7 +104,9 @@ def test_compute_liquidity_none_on_empty_df():
 
 
 def test_compute_liquidity_none_on_missing_columns():
-    df = pd.DataFrame({"date": pd.date_range("2025-01-01", periods=5, freq="B"), "open": 100.0})
+    df = pd.DataFrame(
+        {"date": pd.date_range("2025-01-01", periods=5, freq="B"), "open": 100.0}
+    )
     assert compute_liquidity(df) is None
 
 
@@ -112,23 +121,28 @@ def test_compute_liquidity_single_row():
 # rank_candidates
 # ---------------------------------------------------------------------------
 
+
 def test_rank_candidates_warmup_filter():
-    cands = _make_candidates([
-        {"code": "A.JP", "combined": 80.0, "rows": 100},  # fails warmup (< 200)
-        {"code": "B.JP", "combined": 70.0, "rows": 200},  # passes
-        {"code": "C.JP", "combined": 60.0, "rows": 300},  # passes
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "A.JP", "combined": 80.0, "rows": 100},  # fails warmup (< 200)
+            {"code": "B.JP", "combined": 70.0, "rows": 200},  # passes
+            {"code": "C.JP", "combined": 60.0, "rows": 300},  # passes
+        ]
+    )
     passing, low = rank_candidates(cands, min_warmup_rows=200)
     assert {c["code"] for c in passing} == {"B.JP", "C.JP"}
     assert {c["code"] for c in low} == {"A.JP"}
 
 
 def test_rank_candidates_combined_desc():
-    cands = _make_candidates([
-        {"code": "B.JP", "combined": 70.0},
-        {"code": "A.JP", "combined": 80.0},
-        {"code": "C.JP", "combined": 60.0},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "B.JP", "combined": 70.0},
+            {"code": "A.JP", "combined": 80.0},
+            {"code": "C.JP", "combined": 60.0},
+        ]
+    )
     passing, _ = rank_candidates(cands, min_warmup_rows=0)
     codes = [c["code"] for c in passing]
     assert codes == ["A.JP", "B.JP", "C.JP"]
@@ -136,10 +150,12 @@ def test_rank_candidates_combined_desc():
 
 def test_rank_candidates_none_combined_last():
     """Scored candidates rank above unscored (None treated as -inf)."""
-    cands = _make_candidates([
-        {"code": "Z.JP", "combined": None},
-        {"code": "A.JP", "combined": 50.0},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "Z.JP", "combined": None},
+            {"code": "A.JP", "combined": 50.0},
+        ]
+    )
     passing, _ = rank_candidates(cands, min_warmup_rows=0)
     assert passing[0]["code"] == "A.JP"
     assert passing[1]["code"] == "Z.JP"
@@ -147,10 +163,12 @@ def test_rank_candidates_none_combined_last():
 
 def test_rank_candidates_liquidity_tiebreak():
     """When combined scores tie, higher liquidity ranks first."""
-    cands = _make_candidates([
-        {"code": "B.JP", "combined": 70.0, "liquidity": 1e9},
-        {"code": "A.JP", "combined": 70.0, "liquidity": 2e9},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "B.JP", "combined": 70.0, "liquidity": 1e9},
+            {"code": "A.JP", "combined": 70.0, "liquidity": 2e9},
+        ]
+    )
     passing, _ = rank_candidates(cands, min_warmup_rows=0)
     assert passing[0]["code"] == "A.JP"
     assert passing[1]["code"] == "B.JP"
@@ -158,11 +176,13 @@ def test_rank_candidates_liquidity_tiebreak():
 
 def test_rank_candidates_code_tiebreak():
     """When combined and liquidity both tie, alphabetical code order is stable."""
-    cands = _make_candidates([
-        {"code": "Z.JP", "combined": 70.0, "liquidity": 1e9},
-        {"code": "A.JP", "combined": 70.0, "liquidity": 1e9},
-        {"code": "M.JP", "combined": 70.0, "liquidity": 1e9},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "Z.JP", "combined": 70.0, "liquidity": 1e9},
+            {"code": "A.JP", "combined": 70.0, "liquidity": 1e9},
+            {"code": "M.JP", "combined": 70.0, "liquidity": 1e9},
+        ]
+    )
     passing, _ = rank_candidates(cands, min_warmup_rows=0)
     assert [c["code"] for c in passing] == ["A.JP", "M.JP", "Z.JP"]
 
@@ -171,16 +191,22 @@ def test_rank_candidates_code_tiebreak():
 # apply_sector_cap
 # ---------------------------------------------------------------------------
 
+
 def test_apply_sector_cap_basic():
     """With target_size=4 and sector_cap_pct=50 the cap per sector is max(1, floor(2))=2."""
-    cands = _make_candidates([
-        {"code": "A.JP", "sector": "銀行"},
-        {"code": "B.JP", "sector": "銀行"},
-        {"code": "C.JP", "sector": "銀行"},   # 3rd 銀行 → dropped
-        {"code": "D.JP", "sector": "電機"},
-        {"code": "E.JP", "sector": "電機"},
-        {"code": "F.JP", "sector": "電機"},   # 3rd 電機 → dropped but target already full
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "A.JP", "sector": "銀行"},
+            {"code": "B.JP", "sector": "銀行"},
+            {"code": "C.JP", "sector": "銀行"},  # 3rd 銀行 → dropped
+            {"code": "D.JP", "sector": "電機"},
+            {"code": "E.JP", "sector": "電機"},
+            {
+                "code": "F.JP",
+                "sector": "電機",
+            },  # 3rd 電機 → dropped but target already full
+        ]
+    )
     selected, dropped = apply_sector_cap(cands, target_size=4, sector_cap_pct=50)
     assert len(selected) == 4
     sector_counts: dict[str, int] = {}
@@ -192,13 +218,15 @@ def test_apply_sector_cap_basic():
 
 def test_apply_sector_cap_none_sector_not_capped_together():
     """Candidates with sector=None each get their own unique bucket — they are never capped against each other."""
-    cands = _make_candidates([
-        {"code": "A.JP", "sector": None},
-        {"code": "B.JP", "sector": None},
-        {"code": "C.JP", "sector": None},
-        {"code": "D.JP", "sector": None},
-        {"code": "E.JP", "sector": None},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "A.JP", "sector": None},
+            {"code": "B.JP", "sector": None},
+            {"code": "C.JP", "sector": None},
+            {"code": "D.JP", "sector": None},
+            {"code": "E.JP", "sector": None},
+        ]
+    )
     # target_size=5, sector_cap_pct=20 → cap=max(1,floor(1))=1 per bucket
     # But each None gets its own bucket, so all 5 pass
     selected, dropped = apply_sector_cap(cands, target_size=5, sector_cap_pct=20)
@@ -207,7 +235,9 @@ def test_apply_sector_cap_none_sector_not_capped_together():
 
 
 def test_apply_sector_cap_respects_target_size():
-    cands = _make_candidates([{"code": f"X{i}.JP", "sector": "機械"} for i in range(20)])
+    cands = _make_candidates(
+        [{"code": f"X{i}.JP", "sector": "機械"} for i in range(20)]
+    )
     selected, dropped = apply_sector_cap(cands, target_size=5, sector_cap_pct=100)
     assert len(selected) == 5
 
@@ -227,10 +257,12 @@ def test_apply_sector_cap_zero_target():
 
 def test_apply_sector_cap_cap_always_at_least_one():
     """Even with a tiny sector_cap_pct each sector gets at least 1 slot."""
-    cands = _make_candidates([
-        {"code": "A.JP", "sector": "銀行"},
-        {"code": "B.JP", "sector": "電機"},
-    ])
+    cands = _make_candidates(
+        [
+            {"code": "A.JP", "sector": "銀行"},
+            {"code": "B.JP", "sector": "電機"},
+        ]
+    )
     selected, dropped = apply_sector_cap(cands, target_size=10, sector_cap_pct=1)
     # cap = max(1, floor(0.1)) = max(1,0) = 1; both should be selected
     assert {c["code"] for c in selected} == {"A.JP", "B.JP"}
@@ -240,20 +272,25 @@ def test_apply_sector_cap_cap_always_at_least_one():
 # select_target_universe
 # ---------------------------------------------------------------------------
 
+
 def _plenty_of_candidates(n: int = 40, sector_variety: int = 8) -> list[dict]:
     """Build enough synthetic candidates to satisfy a target_size=30, min_universe=30 call."""
     sectors = [f"sector_{i}" for i in range(sector_variety)]
     out = []
     for i in range(n):
-        out.append({
-            "code": f"{i:04d}.JP",
-            "name": f"Company {i}",
-            "sector": sectors[i % sector_variety],
-            "combined": float(90 - i),   # strictly decreasing so order is deterministic
-            "rows": 300,
-            "liquidity": float(1e10 - i * 1e6),
-            "source": "pool",
-        })
+        out.append(
+            {
+                "code": f"{i:04d}.JP",
+                "name": f"Company {i}",
+                "sector": sectors[i % sector_variety],
+                "combined": float(
+                    90 - i
+                ),  # strictly decreasing so order is deterministic
+                "rows": 300,
+                "liquidity": float(1e10 - i * 1e6),
+                "source": "pool",
+            }
+        )
     return out
 
 
@@ -290,10 +327,16 @@ def test_select_ok_selected_non_empty():
 def test_select_insufficient_when_too_few_pass_warmup():
     """Only 5 candidates pass warmup; target_size=30, min_universe=30 → insufficient."""
     cands = _make_candidates(
-        [{"code": f"{i}.JP", "sector": "銀行", "combined": float(50 + i)} for i in range(5)],
+        [
+            {"code": f"{i}.JP", "sector": "銀行", "combined": float(50 + i)}
+            for i in range(5)
+        ],
         default_rows=300,
     ) + _make_candidates(
-        [{"code": f"low_{i}.JP", "sector": "電機", "combined": float(40 + i)} for i in range(20)],
+        [
+            {"code": f"low_{i}.JP", "sector": "電機", "combined": float(40 + i)}
+            for i in range(20)
+        ],
         default_rows=50,  # below min_warmup_rows=200
     )
     result = select_target_universe(
@@ -344,7 +387,10 @@ def test_select_ok_threshold_uses_min_of_target_and_min_universe():
     Test: 15 passing candidates, target_size=30, min_universe=10 → ok.
     """
     cands = _make_candidates(
-        [{"code": f"X{i}.JP", "sector": f"sec{i}", "combined": float(70 - i)} for i in range(15)],
+        [
+            {"code": f"X{i}.JP", "sector": f"sec{i}", "combined": float(70 - i)}
+            for i in range(15)
+        ],
         default_rows=300,
     )
     result = select_target_universe(
@@ -385,10 +431,13 @@ def test_select_is_pure_does_not_write_files():
 # load_universe_candidates
 # ---------------------------------------------------------------------------
 
+
 def test_load_universe_candidates_dedup_priority():
     """enabled > watchlist > pool for the same code."""
     cfg = {
-        "tickers": [{"code": "A.JP", "name": "Enabled A", "enabled": True, "sector": None}],
+        "tickers": [
+            {"code": "A.JP", "name": "Enabled A", "enabled": True, "sector": None}
+        ],
         "watchlist": [{"code": "A.JP", "name": "Watchlist A", "sector": "電機"}],
         "settings": {},
     }

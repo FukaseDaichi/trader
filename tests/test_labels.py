@@ -32,14 +32,16 @@ def _frame(closes, highs=None, lows=None, atr=None, volatility=None):
     dates = pd.date_range("2026-01-01", periods=n, freq="D")
     highs = highs if highs is not None else [c * 1.01 for c in closes]
     lows = lows if lows is not None else [c * 0.99 for c in closes]
-    df = pd.DataFrame({
-        "date": dates,
-        "open": closes,
-        "high": highs,
-        "low": lows,
-        "close": closes,
-        "volume": [1000] * n,
-    })
+    df = pd.DataFrame(
+        {
+            "date": dates,
+            "open": closes,
+            "high": highs,
+            "low": lows,
+            "close": closes,
+            "volume": [1000] * n,
+        }
+    )
     if atr is not None:
         df["atr"] = atr
     if volatility is not None:
@@ -83,8 +85,13 @@ def test_build_horizon_5_drops_last_5():
     closes = list(range(100, 120))  # 20 strictly increasing rows
     out = build_labelled_frame(
         _frame(closes, atr=[1.0] * 20),
-        {"label_mode": "triple_barrier", "horizon_days": 5, "tb_max_days": 5,
-         "tb_tp_atr": 1.5, "tb_sl_atr": 1.0},
+        {
+            "label_mode": "triple_barrier",
+            "horizon_days": 5,
+            "tb_max_days": 5,
+            "tb_tp_atr": 1.5,
+            "tb_sl_atr": 1.0,
+        },
     )
     # 20 rows, horizon 5 -> at most 15 labelled rows
     assert len(out) == 15

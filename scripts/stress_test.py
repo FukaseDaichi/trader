@@ -36,27 +36,43 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
         df = load_data(code)
         warnings = df.attrs.get("validation_warnings", []) if df is not None else []
         if df is None or df.empty:
-            entries.append({"ticker": code, "name": name, "status": "missing_data", "data_validation_warnings": warnings})
+            entries.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "missing_data",
+                    "data_validation_warnings": warnings,
+                }
+            )
             continue
 
         featured = add_features(df)
         if featured.empty:
-            entries.append({"ticker": code, "name": name, "status": "empty_features", "data_validation_warnings": warnings})
+            entries.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "empty_features",
+                    "data_validation_warnings": warnings,
+                }
+            )
             continue
 
         gate = evaluate_kpi_gate(featured, stressed_config)
-        entries.append({
-            "ticker": code,
-            "name": name,
-            "status": "ok",
-            "passed": gate["passed"],
-            "reason": gate["reason"],
-            "failures": gate["failures"],
-            "metrics": gate["metrics"],
-            "metrics_tuning": gate.get("metrics_tuning", {}),
-            "metrics_holdout": gate.get("metrics_holdout", {}),
-            "data_validation_warnings": warnings,
-        })
+        entries.append(
+            {
+                "ticker": code,
+                "name": name,
+                "status": "ok",
+                "passed": gate["passed"],
+                "reason": gate["reason"],
+                "failures": gate["failures"],
+                "metrics": gate["metrics"],
+                "metrics_tuning": gate.get("metrics_tuning", {}),
+                "metrics_holdout": gate.get("metrics_holdout", {}),
+                "data_validation_warnings": warnings,
+            }
+        )
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]
     payload = {
@@ -72,7 +88,9 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Stress test report exported to {output_path}")
     return 0
 
@@ -87,7 +105,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    return run_stress_test(Path(args.output), cost_bps=args.cost_bps, slippage_bps=args.slippage_bps)
+    return run_stress_test(
+        Path(args.output), cost_bps=args.cost_bps, slippage_bps=args.slippage_bps
+    )
 
 
 if __name__ == "__main__":

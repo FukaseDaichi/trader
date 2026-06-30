@@ -37,39 +37,45 @@ def run_audit(output_path: Path) -> int:
         df = load_data(code)
         warnings = df.attrs.get("validation_warnings", []) if df is not None else []
         if df is None or df.empty:
-            entries.append({
-                "ticker": code,
-                "name": name,
-                "status": "missing_data",
-                "data_validation_warnings": warnings,
-            })
+            entries.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "missing_data",
+                    "data_validation_warnings": warnings,
+                }
+            )
             continue
 
         featured = add_features(df)
         if featured.empty:
-            entries.append({
-                "ticker": code,
-                "name": name,
-                "status": "empty_features",
-                "data_validation_warnings": warnings,
-            })
+            entries.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "empty_features",
+                    "data_validation_warnings": warnings,
+                }
+            )
             continue
 
         gate = evaluate_kpi_gate(featured, BACKTEST_GATE_CONFIG)
-        entries.append({
-            "ticker": code,
-            "name": name,
-            "status": "ok",
-            "passed": gate.get("passed", False),
-            "reason": gate.get("reason"),
-            "failures": gate.get("failures", []),
-            "metrics": gate.get("metrics", {}),
-            "metrics_tuning": gate.get("metrics_tuning", {}),
-            "metrics_holdout": gate.get("metrics_holdout", {}),
-            "thresholds": gate.get("thresholds", {}),
-            "threshold_optimization": gate.get("threshold_optimization", {}),
-            "data_validation_warnings": warnings,
-        })
+        entries.append(
+            {
+                "ticker": code,
+                "name": name,
+                "status": "ok",
+                "passed": gate.get("passed", False),
+                "reason": gate.get("reason"),
+                "failures": gate.get("failures", []),
+                "metrics": gate.get("metrics", {}),
+                "metrics_tuning": gate.get("metrics_tuning", {}),
+                "metrics_holdout": gate.get("metrics_holdout", {}),
+                "thresholds": gate.get("thresholds", {}),
+                "threshold_optimization": gate.get("threshold_optimization", {}),
+                "data_validation_warnings": warnings,
+            }
+        )
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]
     metric_rows = [e.get("metrics", {}) for e in ok_entries]
@@ -80,10 +86,16 @@ def run_audit(output_path: Path) -> int:
         "passed_tickers": sum(1 for e in ok_entries if e.get("passed")),
         "failed_tickers": sum(1 for e in ok_entries if not e.get("passed")),
         "avg_cagr": _safe_mean([float(m.get("cagr", 0.0)) for m in metric_rows]),
-        "avg_max_drawdown": _safe_mean([float(m.get("max_drawdown", 0.0)) for m in metric_rows]),
+        "avg_max_drawdown": _safe_mean(
+            [float(m.get("max_drawdown", 0.0)) for m in metric_rows]
+        ),
         "avg_sharpe": _safe_mean([float(m.get("sharpe", 0.0)) for m in metric_rows]),
-        "avg_expectancy": _safe_mean([float(m.get("expectancy", 0.0)) for m in metric_rows]),
-        "avg_turnover": _safe_mean([float(m.get("turnover", 0.0)) for m in metric_rows]),
+        "avg_expectancy": _safe_mean(
+            [float(m.get("expectancy", 0.0)) for m in metric_rows]
+        ),
+        "avg_turnover": _safe_mean(
+            [float(m.get("turnover", 0.0)) for m in metric_rows]
+        ),
     }
 
     payload = {
@@ -93,7 +105,9 @@ def run_audit(output_path: Path) -> int:
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Monthly audit exported to {output_path}")
     return 0
 

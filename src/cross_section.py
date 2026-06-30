@@ -53,6 +53,7 @@ SECTOR_REL_FEATURES = ["return_20d", "return_5d"]
 # 1. build_ticker_feature_frame
 # ---------------------------------------------------------------------------
 
+
 def build_ticker_feature_frame(
     df: pd.DataFrame,
     ticker_info: dict,
@@ -102,6 +103,7 @@ def build_ticker_feature_frame(
 # 2. build_panel
 # ---------------------------------------------------------------------------
 
+
 def build_panel(
     tickers_data: list[tuple[dict, pd.DataFrame]],
     macro_panel: pd.DataFrame | None = None,
@@ -141,6 +143,7 @@ def build_panel(
 # 3. add_cross_sectional_features
 # ---------------------------------------------------------------------------
 
+
 def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
     Add within-date z-score and percentile-rank columns for CS_BASE_FEATURES.
@@ -167,7 +170,7 @@ def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
 
         col_z = f"cs_z_{f}"
         raw = panel[f]
-        denom = std_pop.where(std_pop > 0)          # NaN when std==0 or NaN
+        denom = std_pop.where(std_pop > 0)  # NaN when std==0 or NaN
         z = (raw - mean) / denom
         # Where x is finite but denom is NaN -> z becomes NaN; replace with 0.0
         finite_x = raw.notna() & np.isfinite(raw.values.astype(float))
@@ -185,6 +188,7 @@ def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # 4. add_sector_features
 # ---------------------------------------------------------------------------
+
 
 def add_sector_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
@@ -216,6 +220,7 @@ def add_sector_features(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # 5. add_liquidity_features
 # ---------------------------------------------------------------------------
+
 
 def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
@@ -253,9 +258,8 @@ def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
     # Within-date percentile rank of raw turnover.
     if "cs_rank_turnover" not in panel.columns:
         if "turnover" in panel.columns:
-            panel["cs_rank_turnover"] = (
-                panel.groupby("date")["turnover"]
-                .rank(pct=True, method="average")
+            panel["cs_rank_turnover"] = panel.groupby("date")["turnover"].rank(
+                pct=True, method="average"
             )
         else:
             panel["cs_rank_turnover"] = np.nan
@@ -266,6 +270,7 @@ def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # 6. build_cs_labels
 # ---------------------------------------------------------------------------
+
 
 def build_cs_labels(
     panel: pd.DataFrame,
@@ -310,9 +315,8 @@ def build_cs_labels(
         close = grp["close"]
         return close.shift(-h) / close - 1.0
 
-    panel["fwd_return"] = (
-        panel.groupby("ticker", group_keys=False)
-        .apply(_fwd, include_groups=False)
+    panel["fwd_return"] = panel.groupby("ticker", group_keys=False).apply(
+        _fwd, include_groups=False
     )
 
     # target_vol_norm
@@ -358,6 +362,7 @@ def build_cs_labels(
 # 7. cross_sectional_feature_cols
 # ---------------------------------------------------------------------------
 
+
 def cross_sectional_feature_cols(macro_enabled: bool = True) -> list[str]:
     """
     Stable ordered list of cross-sectional model feature columns.
@@ -384,6 +389,7 @@ def cross_sectional_feature_cols(macro_enabled: bool = True) -> list[str]:
 # 8. drop_small_date_groups
 # ---------------------------------------------------------------------------
 
+
 def drop_small_date_groups(
     panel: pd.DataFrame,
     min_names: int | None = None,
@@ -405,6 +411,7 @@ def drop_small_date_groups(
 # ---------------------------------------------------------------------------
 # 9. build_cs_panel  (convenience pipeline)
 # ---------------------------------------------------------------------------
+
 
 def build_cs_panel(
     tickers_data: list[tuple[dict, pd.DataFrame]],
@@ -428,7 +435,9 @@ def build_cs_panel(
     Suitable for both training (with_labels=True) and daily inference
     (with_labels=False, then take the latest date).
     """
-    panel = build_panel(tickers_data, macro_panel=macro_panel, macro_enabled=macro_enabled)
+    panel = build_panel(
+        tickers_data, macro_panel=macro_panel, macro_enabled=macro_enabled
+    )
     if panel.empty:
         return panel
 

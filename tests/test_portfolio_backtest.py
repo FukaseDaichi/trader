@@ -35,6 +35,7 @@ H = 5  # label horizon / rebalance spacing
 # Synthetic data builders
 # ---------------------------------------------------------------------------
 
+
 def _tickers(n=N_TICKERS):
     return [f"{1000 + i}.JP" for i in range(n)]
 
@@ -75,15 +76,17 @@ def _oos_predictions(tickers, n_rows=N_DATES, seed=1, signal=0.04):
         noise = rng.normal(0.0, 0.01, size=n)
         fwd = signal * z + noise  # fwd_return tracks the score + noise
         for i, tk in enumerate(tickers):
-            rows.append({
-                "date": d,
-                "ticker": tk,
-                "raw_score": float(raw[i]),
-                "fwd_return": float(fwd[i]),
-                "target_up": int(fwd[i] > 0),
-                "target_vol_norm": 1.0,
-                "target_rank_bucket": int(min(4, max(0, (z[i] + 2) // 1))),
-            })
+            rows.append(
+                {
+                    "date": d,
+                    "ticker": tk,
+                    "raw_score": float(raw[i]),
+                    "fwd_return": float(fwd[i]),
+                    "target_up": int(fwd[i] > 0),
+                    "target_vol_norm": 1.0,
+                    "target_rank_bucket": int(min(4, max(0, (z[i] + 2) // 1))),
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -112,9 +115,21 @@ def _config(**overrides):
 
 
 _METRIC_KEYS = {
-    "cagr", "sharpe", "sortino", "max_drawdown", "calmar", "turnover",
-    "turnover_annualized", "avg_gross", "capacity_proxy", "alpha", "beta",
-    "information_ratio", "tracking_error", "hit_rate", "topn_realized_return",
+    "cagr",
+    "sharpe",
+    "sortino",
+    "max_drawdown",
+    "calmar",
+    "turnover",
+    "turnover_annualized",
+    "avg_gross",
+    "capacity_proxy",
+    "alpha",
+    "beta",
+    "information_ratio",
+    "tracking_error",
+    "hit_rate",
+    "topn_realized_return",
     "n_periods",
 }
 
@@ -127,13 +142,18 @@ def _finite_or_none(v) -> bool:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_backtest_runs_end_to_end():
     tickers = _tickers()
     frames = _price_frames(tickers, seed=4)
     oos = _oos_predictions(tickers, seed=5)
     macro = _macro_panel()
     res = pbt.run_portfolio_backtest(
-        oos, frames, macro, _config(), sectors=_sectors(tickers),
+        oos,
+        frames,
+        macro,
+        _config(),
+        sectors=_sectors(tickers),
         label_horizon_days=H,
     )
     assert res["status"] == "ok", res
@@ -147,8 +167,14 @@ def test_backtest_runs_end_to_end():
     # Equity rows well-formed.
     for row in res["equity"]:
         assert set(row) >= {
-            "date", "equity", "benchmark_equity", "period_return",
-            "benchmark_return", "drawdown", "gross_exposure", "turnover",
+            "date",
+            "equity",
+            "benchmark_equity",
+            "period_return",
+            "benchmark_return",
+            "drawdown",
+            "gross_exposure",
+            "turnover",
         }
         # Date is YYYY-MM-DD.
         assert len(row["date"]) == 10 and row["date"][4] == "-"
@@ -163,13 +189,21 @@ def test_backtest_positive_signal_beats_cash():
     oos = _oos_predictions(tickers, seed=7, signal=0.06)
     macro = _macro_panel()
     res = pbt.run_portfolio_backtest(
-        oos, frames, macro, _config(), sectors=_sectors(tickers),
-        label_horizon_days=H, cost_bps=5.0, slippage_bps=2.0,
+        oos,
+        frames,
+        macro,
+        _config(),
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
+        cost_bps=5.0,
+        slippage_bps=2.0,
     )
     assert res["status"] == "ok", res
     final_equity = res["equity"][-1]["equity"]
     assert final_equity > 1.0, final_equity
-    assert res["metrics"]["topn_realized_return"] > 0, res["metrics"]["topn_realized_return"]
+    assert res["metrics"]["topn_realized_return"] > 0, res["metrics"][
+        "topn_realized_return"
+    ]
     assert res["metrics"]["hit_rate"] > 0.5, res["metrics"]["hit_rate"]
 
 
@@ -181,12 +215,24 @@ def test_backtest_turnover_and_costs():
     cfg = _config()
 
     zero_cost = pbt.run_portfolio_backtest(
-        oos, frames, macro, cfg, sectors=_sectors(tickers),
-        label_horizon_days=H, cost_bps=0.0, slippage_bps=0.0,
+        oos,
+        frames,
+        macro,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
+        cost_bps=0.0,
+        slippage_bps=0.0,
     )
     high_cost = pbt.run_portfolio_backtest(
-        oos, frames, macro, cfg, sectors=_sectors(tickers),
-        label_horizon_days=H, cost_bps=50.0, slippage_bps=25.0,
+        oos,
+        frames,
+        macro,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
+        cost_bps=50.0,
+        slippage_bps=25.0,
     )
     assert zero_cost["status"] == "ok" and high_cost["status"] == "ok"
     eq_zero = zero_cost["equity"][-1]["equity"]
@@ -215,7 +261,12 @@ def test_backtest_no_lookahead_cov():
     cfg = _config()
 
     full = pbt.run_portfolio_backtest(
-        oos, frames, macro, cfg, sectors=_sectors(tickers), label_horizon_days=H,
+        oos,
+        frames,
+        macro,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
     )
     assert full["status"] == "ok"
     first_date = pd.Timestamp(full["equity"][0]["date"])
@@ -226,7 +277,12 @@ def test_backtest_no_lookahead_cov():
         for tk, f in frames.items()
     }
     trunc = pbt.run_portfolio_backtest(
-        oos, truncated, macro, cfg, sectors=_sectors(tickers), label_horizon_days=H,
+        oos,
+        truncated,
+        macro,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
     )
     assert trunc["status"] == "ok"
 
@@ -246,18 +302,28 @@ def test_backtest_benchmark_alpha_beta():
 
     # With benchmark: beta + IR are finite floats.
     with_bench = pbt.run_portfolio_backtest(
-        oos, frames, _macro_panel(), cfg, sectors=_sectors(tickers),
+        oos,
+        frames,
+        _macro_panel(),
+        cfg,
+        sectors=_sectors(tickers),
         label_horizon_days=H,
     )
     assert with_bench["status"] == "ok"
     m = with_bench["metrics"]
     assert isinstance(m["beta"], float) and math.isfinite(m["beta"]), m["beta"]
-    assert isinstance(m["information_ratio"], float) and math.isfinite(m["information_ratio"]), \
+    assert isinstance(m["information_ratio"], float) and math.isfinite(
         m["information_ratio"]
+    ), m["information_ratio"]
 
     # macro_panel=None: benchmark returns are 0, run still completes.
     no_bench = pbt.run_portfolio_backtest(
-        oos, frames, None, cfg, sectors=_sectors(tickers), label_horizon_days=H,
+        oos,
+        frames,
+        None,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
     )
     assert no_bench["status"] == "ok"
     for row in no_bench["equity"]:
@@ -278,7 +344,11 @@ def test_backtest_insufficient_periods():
     ]
     oos = pd.DataFrame(rows)
     res = pbt.run_portfolio_backtest(
-        oos, frames, _macro_panel(), _config(), sectors=_sectors(tickers),
+        oos,
+        frames,
+        _macro_panel(),
+        _config(),
+        sectors=_sectors(tickers),
         label_horizon_days=H,
     )
     assert res["status"] == "insufficient", res
@@ -291,7 +361,11 @@ def test_write_report_roundtrip():
     frames = _price_frames(tickers, seed=15)
     oos = _oos_predictions(tickers, seed=16, signal=0.05)
     res = pbt.run_portfolio_backtest(
-        oos, frames, _macro_panel(), _config(), sectors=_sectors(tickers),
+        oos,
+        frames,
+        _macro_panel(),
+        _config(),
+        sectors=_sectors(tickers),
         label_horizon_days=H,
     )
     assert res["status"] == "ok"
@@ -299,8 +373,11 @@ def test_write_report_roundtrip():
     with tempfile.TemporaryDirectory() as tmp:
         out = str(Path(tmp) / "portfolio_backtest.json")
         path = pbt.write_portfolio_backtest_report(
-            res, output_path=out, model_version="cs-v1-test",
-            run_date="2026-06-10", generated_at="2026-06-10T06:00:00Z",
+            res,
+            output_path=out,
+            model_version="cs-v1-test",
+            run_date="2026-06-10",
+            generated_at="2026-06-10T06:00:00Z",
         )
         assert path == out
         data = json.loads(Path(out).read_text(encoding="utf-8"))
@@ -332,29 +409,44 @@ def test_write_report_embeds_gate_and_reader_honors_it():
     actual pass/fail instead of mere report existence."""
     from src.portfolio import read_portfolio_gate
 
-    ok_result = {"status": "ok", "n_periods": 10, "metrics": {"sharpe": 0.1},
-                 "equity": [], "params": {}}
+    ok_result = {
+        "status": "ok",
+        "n_periods": 10,
+        "metrics": {"sharpe": 0.1},
+        "equity": [],
+        "params": {},
+    }
 
     with tempfile.TemporaryDirectory() as tmp:
         # Failing gate on an available backtest -> gate key present, reader False.
         out = str(Path(tmp) / "portfolio_backtest.json")
-        failing_gate = {"passed": False, "skipped": False, "reason": "kpi_failed",
-                        "metrics": {"sharpe": 0.1},
-                        "failures": ["sharpe 0.10 < min 0.30"]}
-        pbt.write_portfolio_backtest_report(ok_result, output_path=out,
-                                            gate=failing_gate)
+        failing_gate = {
+            "passed": False,
+            "skipped": False,
+            "reason": "kpi_failed",
+            "metrics": {"sharpe": 0.1},
+            "failures": ["sharpe 0.10 < min 0.30"],
+        }
+        pbt.write_portfolio_backtest_report(
+            ok_result, output_path=out, gate=failing_gate
+        )
         data = json.loads(Path(out).read_text(encoding="utf-8"))
         assert data["available"] is True
-        assert data["gate"] == {"passed": False,
-                                "failures": ["sharpe 0.10 < min 0.30"]}
+        assert data["gate"] == {"passed": False, "failures": ["sharpe 0.10 < min 0.30"]}
         assert read_portfolio_gate(out) is False
 
         # Passing gate -> reader True.
         out2 = str(Path(tmp) / "passing.json")
-        passing_gate = {"passed": True, "skipped": False, "reason": "ok",
-                        "metrics": {"sharpe": 0.9}, "failures": []}
-        pbt.write_portfolio_backtest_report(ok_result, output_path=out2,
-                                            gate=passing_gate)
+        passing_gate = {
+            "passed": True,
+            "skipped": False,
+            "reason": "ok",
+            "metrics": {"sharpe": 0.9},
+            "failures": [],
+        }
+        pbt.write_portfolio_backtest_report(
+            ok_result, output_path=out2, gate=passing_gate
+        )
         data2 = json.loads(Path(out2).read_text(encoding="utf-8"))
         assert data2["gate"] == {"passed": True, "failures": []}
         assert read_portfolio_gate(out2) is True
@@ -371,6 +463,7 @@ def test_write_report_embeds_gate_and_reader_honors_it():
 # Portfolio KPI gate tests
 # ---------------------------------------------------------------------------
 
+
 def _gate_config(**overrides):
     """Threshold config matching get_portfolio_config() defaults."""
     base = {
@@ -383,8 +476,9 @@ def _gate_config(**overrides):
     return base
 
 
-def _ok_result(sharpe=0.80, max_drawdown=-0.10, information_ratio=0.50,
-               turnover=0.20, cagr=0.12):
+def _ok_result(
+    sharpe=0.80, max_drawdown=-0.10, information_ratio=0.50, turnover=0.20, cagr=0.12
+):
     """Passing-metrics result stub."""
     return {
         "status": "ok",
@@ -482,7 +576,11 @@ def test_gate_with_real_backtest_result():
     oos = _oos_predictions(tickers, seed=21, signal=0.05)
     macro = _macro_panel()
     res = pbt.run_portfolio_backtest(
-        oos, frames, macro, _config(), sectors=_sectors(tickers),
+        oos,
+        frames,
+        macro,
+        _config(),
+        sectors=_sectors(tickers),
         label_horizon_days=H,
     )
     assert res["status"] == "ok"

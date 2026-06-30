@@ -18,7 +18,17 @@ from src.predictor import generate_signal
 from src.notifier import send_notification, send_line_text
 from src.dashboard import update_dashboard
 from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
-from src import db, macro, model_store, phase1, cs_model, db_records, portfolio, dashboard, digest
+from src import (
+    db,
+    macro,
+    model_store,
+    phase1,
+    cs_model,
+    db_records,
+    portfolio,
+    dashboard,
+    digest,
+)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -116,6 +126,7 @@ def _read_json_file(path):
     """Read and parse a JSON file. Returns parsed dict or None (never raises)."""
     try:
         import json
+
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception:  # noqa: BLE001
@@ -170,7 +181,10 @@ def _load_portfolio_regime(macro_regime=None):
 def _label_config_for_mode(model_cfg):
     """`legacy` is the operational rollback path: old next-day binary labels."""
     label_cfg = get_label_config()
-    if model_cfg["model_mode"] == "legacy" and label_cfg.get("label_mode") != "binary_1d":
+    if (
+        model_cfg["model_mode"] == "legacy"
+        and label_cfg.get("label_mode") != "binary_1d"
+    ):
         print("Model mode legacy: forcing label_mode=binary_1d for rollback.")
         label_cfg = {
             **label_cfg,
@@ -196,7 +210,9 @@ def _active_model_compatible(active, model_cfg):
 def _attach_confidence_fields(signal, gate_result, model_ready):
     gate_passed = bool(gate_result.get("passed", False))
     failures = gate_result.get("failures") or []
-    fail_summary = ", ".join(failures) if failures else str(gate_result.get("reason", "unknown"))
+    fail_summary = (
+        ", ".join(failures) if failures else str(gate_result.get("reason", "unknown"))
+    )
 
     signal["raw_action"] = signal.get("action", "HOLD")
     signal["gate_passed"] = gate_passed
@@ -253,15 +269,21 @@ def _predict_for_ticker(featured, ticker_info, ctx):
         if bundle is not None:
             pred = phase1.predict_ticker(featured, bundle, label_cfg)
             if pred is not None:
-                print(f"Inference for {code}: saved model {version} "
-                      f"(prob_up={pred['prob_up']:.2%}, exp_ret={pred['expected_ret']})")
-                return pred["prob_up"], True, {
-                    "model_version": version,
-                    "horizon_days": pred["horizon_days"],
-                    "raw_score": pred["raw_score"],
-                    "expected_ret": pred["expected_ret"],
-                    "features_hash": pred["features_hash"],
-                }
+                print(
+                    f"Inference for {code}: saved model {version} "
+                    f"(prob_up={pred['prob_up']:.2%}, exp_ret={pred['expected_ret']})"
+                )
+                return (
+                    pred["prob_up"],
+                    True,
+                    {
+                        "model_version": version,
+                        "horizon_days": pred["horizon_days"],
+                        "raw_score": pred["raw_score"],
+                        "expected_ret": pred["expected_ret"],
+                        "features_hash": pred["features_hash"],
+                    },
+                )
         if mode == "phase1":
             print(f"Active model has no bundle for {code}; phase1 mode -> failed HOLD.")
             return 0.5, False, {"model_version": version, "horizon_days": horizon}
@@ -269,24 +291,36 @@ def _predict_for_ticker(featured, ticker_info, ctx):
 
     if mode == "phase1":
         print(f"No active model for {code}; phase1 mode -> failed HOLD.")
-        return 0.5, False, {
-            "model_version": active.get("version") if active else None,
-            "horizon_days": horizon,
-        }
+        return (
+            0.5,
+            False,
+            {
+                "model_version": active.get("version") if active else None,
+                "horizon_days": horizon,
+            },
+        )
 
     # legacy / auto-fallback: train from scratch with the configured label.
     model, prob_up = train_and_predict(
         featured, runtime_config=BACKTEST_GATE_CONFIG, label_config=label_cfg
     )
     if model is None:
-        return 0.5, False, {"model_version": db.LEGACY_MODEL_VERSION, "horizon_days": horizon}
-    return prob_up, True, {
-        "model_version": db.LEGACY_MODEL_VERSION,
-        "horizon_days": horizon,
-        "raw_score": prob_up,
-        "expected_ret": None,
-        "features_hash": None,
-    }
+        return (
+            0.5,
+            False,
+            {"model_version": db.LEGACY_MODEL_VERSION, "horizon_days": horizon},
+        )
+    return (
+        prob_up,
+        True,
+        {
+            "model_version": db.LEGACY_MODEL_VERSION,
+            "horizon_days": horizon,
+            "raw_score": prob_up,
+            "expected_ret": None,
+            "features_hash": None,
+        },
+    )
 
 
 def _process_ticker(ticker_info, ctx):
@@ -307,9 +341,11 @@ def _process_ticker(ticker_info, ctx):
     # 2. Load Data
     df = load_data(code)
     if df is not None:
-        validation_warnings = list(dict.fromkeys(
-            validation_warnings + (df.attrs.get("validation_warnings", []) or [])
-        ))
+        validation_warnings = list(
+            dict.fromkeys(
+                validation_warnings + (df.attrs.get("validation_warnings", []) or [])
+            )
+        )
     if df is None or len(df) < 60:  # Need 60 for MA60
         print(f"Insufficient data for {code}. Recording failed HOLD state.")
         close = _latest_close_or_none(code)
@@ -330,7 +366,9 @@ def _process_ticker(ticker_info, ctx):
         macro_enabled=ctx["model_cfg"].get("macro_features_enabled", True),
     )
     if featured.empty:
-        print(f"Data empty after feature engineering for {code}. Recording failed HOLD state.")
+        print(
+            f"Data empty after feature engineering for {code}. Recording failed HOLD state."
+        )
         close = _latest_close_or_none(code)
         return (
             _failure_signal(ticker_info, "empty_features", close=close),
@@ -342,7 +380,9 @@ def _process_ticker(ticker_info, ctx):
         )
 
     # 4. KPI Gate (cost/slippage-inclusive horizon-aware OOS backtest)
-    gate_result = evaluate_kpi_gate(featured, BACKTEST_GATE_CONFIG, label_config=ctx["label_cfg"])
+    gate_result = evaluate_kpi_gate(
+        featured, BACKTEST_GATE_CONFIG, label_config=ctx["label_cfg"]
+    )
     gate_summary = format_gate_summary(gate_result)
     gate_status = "PASS" if gate_result["passed"] else "FAIL"
     print(f"KPI gate {gate_status} for {code}: {gate_summary}")
@@ -365,9 +405,13 @@ def _process_ticker(ticker_info, ctx):
     }
 
     # 5. Predict (saved Phase 1 model or legacy fallback per TRADER_MODEL_MODE)
-    prob_up, model_ready, phase1_fields = _predict_for_ticker(featured, ticker_info, ctx)
+    prob_up, model_ready, phase1_fields = _predict_for_ticker(
+        featured, ticker_info, ctx
+    )
     if not model_ready:
-        print(f"Model inference unavailable for {code}. Falling back to neutral probability.")
+        print(
+            f"Model inference unavailable for {code}. Falling back to neutral probability."
+        )
         prob_up = 0.5
 
     print(f"Prediction for {code}: Up Probability = {prob_up:.2%}")
@@ -387,7 +431,9 @@ def _process_ticker(ticker_info, ctx):
     signal = _attach_confidence_fields(signal, gate_result, model_ready=model_ready)
 
     if not signal["gate_passed"]:
-        print(f"Actionable signal blocked for {code}: {signal.get('confidence_reason', 'gate failed')}")
+        print(
+            f"Actionable signal blocked for {code}: {signal.get('confidence_reason', 'gate failed')}"
+        )
 
     return signal, backtest_entry
 
@@ -426,23 +472,39 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
     # --- Active CS model check ---
     active_cs = model_store.read_active_cs_model()
     if active_cs is None:
-        print("Phase 2: no active CS model pointer found; falling back to Phase 1 only.")
-        return {"status": "fallback", "reason": "no_active_cs_model", "mode": portfolio_mode}
+        print(
+            "Phase 2: no active CS model pointer found; falling back to Phase 1 only."
+        )
+        return {
+            "status": "fallback",
+            "reason": "no_active_cs_model",
+            "mode": portfolio_mode,
+        }
 
     version = active_cs.get("version", "")
     bundle = model_store.load_cs_bundle(version)
     if bundle is None:
         print(f"Phase 2: CS bundle load failed for version={version!r}; falling back.")
-        return {"status": "fallback", "reason": "bundle_load_failed", "mode": portfolio_mode,
-                "model_version": version}
+        return {
+            "status": "fallback",
+            "reason": "bundle_load_failed",
+            "mode": portfolio_mode,
+            "model_version": version,
+        }
 
     # --- Universe size check ---
     universe = TICKERS
     min_universe = int(cs_cfg.get("min_universe", 30))
     if len(universe) < min_universe:
-        print(f"Phase 2: universe size {len(universe)} < min_universe {min_universe}; falling back.")
-        return {"status": "fallback", "reason": "insufficient_universe", "mode": portfolio_mode,
-                "model_version": version}
+        print(
+            f"Phase 2: universe size {len(universe)} < min_universe {min_universe}; falling back."
+        )
+        return {
+            "status": "fallback",
+            "reason": "insufficient_universe",
+            "mode": portfolio_mode,
+            "model_version": version,
+        }
 
     # --- Load OHLCV data for all enabled tickers (best-effort) ---
     tickers_data = []
@@ -450,16 +512,24 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
         try:
             df = load_data(ticker_info["code"])
         except Exception as e:  # noqa: BLE001
-            print(f"Phase 2: load_data failed for {ticker_info['code']}: {type(e).__name__}: {e}")
+            print(
+                f"Phase 2: load_data failed for {ticker_info['code']}: {type(e).__name__}: {e}"
+            )
             df = None
         if df is not None and not df.empty:
             tickers_data.append((ticker_info, df))
 
     if len(tickers_data) < min_universe:
-        print(f"Phase 2: only {len(tickers_data)} tickers with usable data "
-              f"(need {min_universe}); falling back.")
-        return {"status": "fallback", "reason": "insufficient_usable_data", "mode": portfolio_mode,
-                "model_version": version}
+        print(
+            f"Phase 2: only {len(tickers_data)} tickers with usable data "
+            f"(need {min_universe}); falling back."
+        )
+        return {
+            "status": "fallback",
+            "reason": "insufficient_usable_data",
+            "mode": portfolio_mode,
+            "model_version": version,
+        }
 
     # --- Macro features flag (honour bundle's training setting) ---
     macro_enabled = bool(
@@ -470,7 +540,9 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
     )
 
     # --- Inference ---
-    horizon_days = int(active_cs.get("horizon_days", cs_cfg.get("label_horizon_days", 5)))
+    horizon_days = int(
+        active_cs.get("horizon_days", cs_cfg.get("label_horizon_days", 5))
+    )
     pred_df, as_of = cs_model.infer_cross_section(
         tickers_data,
         macro_panel,
@@ -481,8 +553,12 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
 
     if pred_df is None or pred_df.empty:
         print("Phase 2: infer_cross_section returned empty predictions; falling back.")
-        return {"status": "fallback", "reason": "empty_predictions", "mode": portfolio_mode,
-                "model_version": version}
+        return {
+            "status": "fallback",
+            "reason": "empty_predictions",
+            "mode": portfolio_mode,
+            "model_version": version,
+        }
 
     # --- Build DB rows ---
     as_of_str = as_of.strftime("%Y-%m-%d") if as_of is not None else None
@@ -539,24 +615,36 @@ def _prev_target_weights() -> dict:
             if snap and snap.get("positions"):
                 return {
                     p["ticker"]: float(p.get("target_weight") or 0.0)
-                    for p in snap["positions"] if p.get("ticker")
+                    for p in snap["positions"]
+                    if p.get("ticker")
                 }
         except Exception as e:  # noqa: BLE001
-            print(f"Phase 2: prev-weights DB read failed (ignored): {type(e).__name__}: {e}")
+            print(
+                f"Phase 2: prev-weights DB read failed (ignored): {type(e).__name__}: {e}"
+            )
 
     # JSON fallback (docs/portfolio_latest.json).
     try:
         from src.dashboard import PORTFOLIO_LATEST_FILE
+
         if PORTFOLIO_LATEST_FILE.exists():
             import json
+
             data = json.loads(PORTFOLIO_LATEST_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and data.get("available") and data.get("positions"):
+            if (
+                isinstance(data, dict)
+                and data.get("available")
+                and data.get("positions")
+            ):
                 return {
                     p["ticker"]: float(p.get("target_weight") or 0.0)
-                    for p in data["positions"] if p.get("ticker")
+                    for p in data["positions"]
+                    if p.get("ticker")
                 }
     except Exception as e:  # noqa: BLE001
-        print(f"Phase 2: prev-weights JSON read failed (ignored): {type(e).__name__}: {e}")
+        print(
+            f"Phase 2: prev-weights JSON read failed (ignored): {type(e).__name__}: {e}"
+        )
 
     return {}
 
@@ -598,22 +686,34 @@ def _run_portfolio_snapshot(phase2, run_date):
     cfg["top_n"] = get_cross_section_config().get("top_n", 8)
 
     snapshot = portfolio.build_portfolio_snapshot(
-        phase2["predictions"], price_frames, prev_weights, cfg,
-        sectors=sectors, names=names, closes=closes, regime=regime,
-        run_date=run_date, as_of_date=phase2.get("as_of_date"),
-        model_version=phase2.get("model_version"), mode=phase2.get("mode", "shadow"),
+        phase2["predictions"],
+        price_frames,
+        prev_weights,
+        cfg,
+        sectors=sectors,
+        names=names,
+        closes=closes,
+        regime=regime,
+        run_date=run_date,
+        as_of_date=phase2.get("as_of_date"),
+        model_version=phase2.get("model_version"),
+        mode=phase2.get("mode", "shadow"),
     )
 
     dashboard.export_portfolio_latest(
-        snapshot, run_date=run_date, generated_at=_now_jst_str(),
+        snapshot,
+        run_date=run_date,
+        generated_at=_now_jst_str(),
     )
     db_result = db.record_portfolio_snapshot(snapshot, run_date)
     print(f"Phase 2 portfolio DB write: {db_result}")
 
     diff = snapshot.get("diff_summary")
-    print(f"Phase 2 portfolio snapshot: mode={snapshot.get('mode')} "
-          f"status={snapshot.get('status')} gross={snapshot.get('gross_exposure')} "
-          f"positions={len(snapshot.get('positions') or [])} diff={diff}")
+    print(
+        f"Phase 2 portfolio snapshot: mode={snapshot.get('mode')} "
+        f"status={snapshot.get('status')} gross={snapshot.get('gross_exposure')} "
+        f"positions={len(snapshot.get('positions') or [])} diff={diff}"
+    )
     return snapshot
 
 
@@ -621,7 +721,9 @@ def main():
     print("Starting daily stock prediction job...")
 
     active_codes = [ticker_info["code"] for ticker_info in TICKERS]
-    print(f"Configured tickers: {', '.join(active_codes) if active_codes else '(none)'}")
+    print(
+        f"Configured tickers: {', '.join(active_codes) if active_codes else '(none)'}"
+    )
 
     # Keep data directory aligned with active tickers in tickers.yml.
     # Inactive parquet files are archived, not deleted; failure here should not
@@ -629,7 +731,9 @@ def main():
     try:
         sync_data_files(active_codes)
     except Exception as e:
-        print(f"Failed to archive inactive data files. Continuing daily run: {type(e).__name__}: {e}")
+        print(
+            f"Failed to archive inactive data files. Continuing daily run: {type(e).__name__}: {e}"
+        )
 
     # Phase 1 inference context: model mode, label config, macro panel, and the
     # active saved model (read once for the whole run).
@@ -648,8 +752,10 @@ def main():
             active = None
     mode = model_cfg["model_mode"]
     active_label = active.get("version") if active else "none"
-    print(f"Model mode: {mode}; active model: {active_label}; "
-          f"macro panel: {'loaded' if macro_panel is not None else 'absent'}")
+    print(
+        f"Model mode: {mode}; active model: {active_label}; "
+        f"macro panel: {'loaded' if macro_panel is not None else 'absent'}"
+    )
     ctx = {
         "model_cfg": model_cfg,
         "label_cfg": label_cfg,
@@ -691,14 +797,18 @@ def main():
         if phase2 is None:
             pass  # Phase 2 disabled -> leave docs/portfolio_latest.json untouched.
         else:
-            print(f"Phase 2 inference: {phase2.get('status')} "
-                  f"(mode={phase2.get('mode')}, model={phase2.get('model_version')})")
+            print(
+                f"Phase 2 inference: {phase2.get('status')} "
+                f"(mode={phase2.get('mode')}, model={phase2.get('model_version')})"
+            )
             if phase2.get("status") == "ok":
                 snapshot = _run_portfolio_snapshot(phase2, run_date)
             elif phase2.get("status") == "fallback":
                 dashboard.export_portfolio_latest(
-                    None, reason=phase2.get("reason", "fallback"),
-                    run_date=run_date, generated_at=_now_jst_str(),
+                    None,
+                    reason=phase2.get("reason", "fallback"),
+                    run_date=run_date,
+                    generated_at=_now_jst_str(),
                 )
     except Exception as e:  # noqa: BLE001
         print(f"Phase 2 inference skipped (ignored): {type(e).__name__}: {e}")
@@ -723,18 +833,28 @@ def main():
                 try:
                     send_notification(signal)
                 except Exception as e:  # noqa: BLE001
-                    print(f"Notification failed for {signal.get('ticker')} "
-                          f"(ignored): {type(e).__name__}: {e}")
+                    print(
+                        f"Notification failed for {signal.get('ticker')} "
+                        f"(ignored): {type(e).__name__}: {e}"
+                    )
     # Task 5: daily morning digest (best-effort, never breaks the run).
     if _env_bool("TRADER_NOTIFY_DIGEST_ENABLED", True):
         try:
             from src.dashboard import PORTFOLIO_LATEST_FILE, PERFORMANCE_FILE
-            portfolio_payload = snapshot if snapshot else _read_json_file(PORTFOLIO_LATEST_FILE)
+
+            portfolio_payload = (
+                snapshot if snapshot else _read_json_file(PORTFOLIO_LATEST_FILE)
+            )
             performance_payload = _read_json_file(PERFORMANCE_FILE)
             macro_regime = _build_macro_regime(macro_panel)
             text = digest.build_daily_digest(
-                run_date, portfolio_payload, performance_payload,
-                macro_regime, signals, LINE_CONFIG.get("dashboard_url", ""))
+                run_date,
+                portfolio_payload,
+                performance_payload,
+                macro_regime,
+                signals,
+                LINE_CONFIG.get("dashboard_url", ""),
+            )
             send_line_text(text)
         except Exception as e:  # noqa: BLE001
             print(f"Digest notification failed (ignored): {type(e).__name__}: {e}")

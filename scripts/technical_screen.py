@@ -28,7 +28,6 @@ from curation_common import (
     CURATION_DIR,
     DATA_DIR,
     WATCHLIST_DIR,
-    enabled_codes,
     get_curation_settings,
     load_pool,
     load_tickers_config,
@@ -168,7 +167,7 @@ def score_entry(e: dict) -> tuple[float, dict]:
     if rsi is None:
         rsi_pts = 6.0
     elif rsi >= 80:
-        rsi_pts = 4.0           # overbought
+        rsi_pts = 4.0  # overbought
     elif rsi >= 70:
         rsi_pts = 10.0
     elif rsi >= 55:
@@ -202,7 +201,9 @@ def score_entry(e: dict) -> tuple[float, dict]:
     # 7. Breakout / position (10): near 20d high
     pos = e.get("price_position_20d")
     high20 = e.get("high_20d")
-    breakout = bool(close is not None and high20 is not None and close >= high20 * 0.995)
+    breakout = bool(
+        close is not None and high20 is not None and close >= high20 * 0.995
+    )
     pos_pts = 10.0 * _scale(pos, 0.4, 1.0) if pos is not None else 4.0
     if breakout:
         pos_pts = max(pos_pts, 9.0)
@@ -211,7 +212,9 @@ def score_entry(e: dict) -> tuple[float, dict]:
     score = round(_clamp(score, 0.0, 100.0), 1)
 
     signals = {
-        "trend": "up" if ma_stack.startswith("MA5>MA20>MA60") else ("down" if ma_stack == "downtrend" else "mixed"),
+        "trend": "up"
+        if ma_stack.startswith("MA5>MA20>MA60")
+        else ("down" if ma_stack == "downtrend" else "mixed"),
         "ma_stack": ma_stack,
         "rsi14": e.get("rsi14"),
         "macd": macd_state,
@@ -228,7 +231,11 @@ def _rationale(score: float, signals: dict) -> str:
     if signals.get("trend") == "n/a":
         return "データ不足のため評価不可"
     bits = []
-    bits.append({"up": "上昇トレンド", "down": "下降トレンド", "mixed": "もみ合い"}.get(signals.get("trend"), ""))
+    bits.append(
+        {"up": "上昇トレンド", "down": "下降トレンド", "mixed": "もみ合い"}.get(
+            signals.get("trend"), ""
+        )
+    )
     if signals.get("macd") == "bull":
         bits.append("MACD強気")
     if signals.get("breakout_20d"):
@@ -243,15 +250,22 @@ def build_codes(cfg: dict, pool: list[dict]) -> dict[str, dict]:
     """Union of pool + enabled + watchlist, keyed by code (pool/yaml metadata)."""
     catalog: dict[str, dict] = {}
     for p in pool:
-        catalog[p["code"]] = {"name": p.get("name", p["code"]), "sector": p.get("sector")}
+        catalog[p["code"]] = {
+            "name": p.get("name", p["code"]),
+            "sector": p.get("sector"),
+        }
     for t in cfg.get("tickers", []):
         if isinstance(t, dict) and t.get("code"):
-            catalog.setdefault(t["code"], {"name": t.get("name", t["code"]), "sector": t.get("sector")})
+            catalog.setdefault(
+                t["code"], {"name": t.get("name", t["code"]), "sector": t.get("sector")}
+            )
             if t["code"] in catalog and not catalog[t["code"]].get("name"):
                 catalog[t["code"]]["name"] = t.get("name", t["code"])
     for w in cfg.get("watchlist", []) or []:
         if isinstance(w, dict) and w.get("code"):
-            catalog.setdefault(w["code"], {"name": w.get("name", w["code"]), "sector": w.get("sector")})
+            catalog.setdefault(
+                w["code"], {"name": w.get("name", w["code"]), "sector": w.get("sector")}
+            )
     return catalog
 
 
@@ -322,7 +336,9 @@ def run(pool_path: Path, features_out: Path, latest_out: Path, date_str: str) ->
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Technical screening for AI ticker curation")
+    p = argparse.ArgumentParser(
+        description="Technical screening for AI ticker curation"
+    )
     p.add_argument("--pool", default=None, help="path to curation_pool.yml")
     p.add_argument("--out", default=None, help="path to technical_features.json")
     p.add_argument("--latest-out", default=None, help="path to technical_latest.json")
@@ -333,8 +349,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     pool_path = Path(args.pool) if args.pool else None
-    features_out = Path(args.out) if args.out else (CURATION_DIR / "technical_features.json")
-    latest_out = Path(args.latest_out) if args.latest_out else (CURATION_DIR / "technical_latest.json")
+    features_out = (
+        Path(args.out) if args.out else (CURATION_DIR / "technical_features.json")
+    )
+    latest_out = (
+        Path(args.latest_out)
+        if args.latest_out
+        else (CURATION_DIR / "technical_latest.json")
+    )
     date_str = args.date or today_jst_iso()
     return run(pool_path, features_out, latest_out, date_str)
 
