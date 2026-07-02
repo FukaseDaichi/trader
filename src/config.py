@@ -3,6 +3,8 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 
+from .env import get_env_bool, get_env_float, get_env_int
+
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -104,35 +106,15 @@ def get_line_config():
 
 
 def _get_env_float(name, default):
-    raw = os.environ.get(name)
-    if raw is None or raw == "":
-        return float(default)
-    try:
-        return float(raw)
-    except ValueError as e:
-        raise ValueError(f"{name} must be a float value") from e
+    return get_env_float(name, default, invalid="raise")
 
 
 def _get_env_int(name, default):
-    raw = os.environ.get(name)
-    if raw is None or raw == "":
-        return int(default)
-    try:
-        return int(raw)
-    except ValueError as e:
-        raise ValueError(f"{name} must be an integer value") from e
+    return get_env_int(name, default, invalid="raise")
 
 
 def _get_env_bool(name, default):
-    raw = os.environ.get(name)
-    if raw is None or raw == "":
-        return bool(default)
-    normalized = raw.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"{name} must be a boolean value (true/false)")
+    return get_env_bool(name, default, invalid="raise")
 
 
 def _get_env_choice(name, default, choices):

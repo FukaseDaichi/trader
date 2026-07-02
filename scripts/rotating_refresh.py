@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -17,11 +17,12 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.config import TICKERS
 from src.data_loader import update_data
+from src.timeutil import today_jst
 
 
 def _today_jst_weekday() -> int:
     # Monday=0 .. Sunday=6
-    return (datetime.now(UTC) + timedelta(hours=9)).weekday()
+    return today_jst().weekday()
 
 
 def run_rotating_refresh(output_path: Path, buckets: int) -> int:

@@ -41,9 +41,35 @@ def _load_enabled_tickers(path: Path) -> list[str]:
     return result
 
 
+def _holdout_warnings(report) -> list[str]:
+    """Warn (non-failing) when gate-passed tickers had no holdout split.
+
+    Those passes were tuned and evaluated on the same OOS rows, so they are
+    optimistic; keep them visible without opening an issue for each run.
+    """
+    if not isinstance(report, dict):
+        return []
+    entries = report.get("entries")
+    if not isinstance(entries, list):
+        return []
+    codes = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("passed"):
+            continue
+        if entry.get("skipped"):
+            continue
+        optimization = entry.get("threshold_optimization") or {}
+        if not optimization.get("holdout_used"):
+            codes.append(str(entry.get("ticker")))
+    if not codes:
+        return []
+    return [f"gate_passed_without_holdout:{','.join(codes)}"]
+
+
 def run_daily_check(args: argparse.Namespace) -> int:
     today = args.today or _today_jst_iso()
     failures: list[str] = []
+    warnings: list[str] = []
 
     state_file = Path(args.state_file)
     index_file = Path(args.index_file if args.index_file else args.history_file)
@@ -124,11 +150,13 @@ def run_daily_check(args: argparse.Namespace) -> int:
             expected = len(enabled)
             if expected > 0 and len(entries) < expected:
                 failures.append(f"backtest_entries_short:{len(entries)}/{expected}")
+        warnings.extend(_holdout_warnings(report))
 
     payload = {
         "date": today,
         "ok": len(failures) == 0,
         "failures": failures,
+        "warnings": warnings,
     }
     print(json.dumps(payload, ensure_ascii=False))
 

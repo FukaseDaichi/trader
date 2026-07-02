@@ -1,6 +1,5 @@
 import io
 import json
-import os
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -9,6 +8,8 @@ import requests
 import yfinance as yf
 
 from .config import DATA_DIR
+from .env import get_env_bool, get_env_float, get_env_int
+from .timeutil import today_jst
 
 REQUIRED_COLS = ["date", "open", "high", "low", "close", "volume"]
 DEFAULT_HTTP_TIMEOUT_SEC = 20
@@ -18,43 +19,13 @@ DEFAULT_MAX_DAILY_MOVE = 0.50
 JPX_HOLIDAY_CACHE = DATA_DIR / "jpx_holidays.json"
 
 
-def _get_env_int(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return int(default)
-    try:
-        return int(raw)
-    except ValueError:
-        print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-        return int(default)
-
-
-def _get_env_bool(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return bool(default)
-    value = raw.strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-    return bool(default)
-
-
-def _get_env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return float(default)
-    try:
-        return float(raw)
-    except ValueError:
-        print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-        return float(default)
+_get_env_int = get_env_int
+_get_env_bool = get_env_bool
+_get_env_float = get_env_float
 
 
 def _today_jst() -> date:
-    return (datetime.now(UTC) + timedelta(hours=9)).date()
+    return today_jst()
 
 
 def _load_jpx_holiday_set(cache_path=JPX_HOLIDAY_CACHE) -> set[date]:

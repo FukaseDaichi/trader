@@ -1,6 +1,9 @@
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 
+from src.env import get_env_bool
+from src.timeutil import now_jst
+from src.utils import log_exc
 from src.config import (
     TICKERS,
     BACKTEST_GATE_CONFIG,
@@ -32,10 +35,7 @@ from src import (
 
 
 def _env_bool(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
-    if raw is None or raw == "":
-        return bool(default)
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return get_env_bool(name, default, invalid="false")
 
 
 def _run_date_jst() -> str:
@@ -46,12 +46,12 @@ def _run_date_jst() -> str:
             return override
         except ValueError:
             print(f"Invalid RUN_DATE_JST={override!r}; using current JST date.")
-    return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d")
+    return now_jst().strftime("%Y-%m-%d")
 
 
 def _now_jst_str() -> str:
     """JST wall-clock timestamp string for dashboard ``generated_at`` stamps."""
-    return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
+    return now_jst().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _empty_metrics():
@@ -731,9 +731,7 @@ def main():
     try:
         sync_data_files(active_codes)
     except Exception as e:
-        print(
-            f"Failed to archive inactive data files. Continuing daily run: {type(e).__name__}: {e}"
-        )
+        log_exc("Failed to archive inactive data files. Continuing daily run", e)
 
     # Phase 1 inference context: model mode, label config, macro panel, and the
     # active saved model (read once for the whole run).
@@ -772,7 +770,7 @@ def main():
         except Exception as e:
             code = ticker_info["code"]
             error = f"{type(e).__name__}: {e}"
-            print(f"Failed to process {code}. Recording failed HOLD state. {error}")
+            log_exc(f"Failed to process {code}. Recording failed HOLD state", e)
             signal = _failure_signal(
                 ticker_info,
                 "ticker_processing_failed",
@@ -811,7 +809,7 @@ def main():
                     generated_at=_now_jst_str(),
                 )
     except Exception as e:  # noqa: BLE001
-        print(f"Phase 2 inference skipped (ignored): {type(e).__name__}: {e}")
+        log_exc("Phase 2 inference skipped (ignored)", e)
 
     # Phase 3: reflect active-mode target weights into signals. No-op in shadow /
     # gate-fail / no-snapshot, so shadow behavior is byte-for-byte unchanged.
@@ -820,7 +818,7 @@ def main():
             signals, snapshot, gate_passed=portfolio.read_portfolio_gate()
         )
     except Exception as e:  # noqa: BLE001
-        print(f"merge_target_weights skipped (ignored): {type(e).__name__}: {e}")
+        log_exc("merge_target_weights skipped (ignored)", e)
 
     # Notification (post-loop): the daily digest is the primary channel (it lists
     # actionable ticker names per action). Per-ticker pushes default OFF to stay
@@ -865,7 +863,7 @@ def main():
         db_result = db.record_run(signals, run_date)
         print(f"DB record_run: {db_result}")
     except Exception as e:  # defensive: record_run itself should not raise
-        print(f"DB record_run unexpected error (ignored): {type(e).__name__}: {e}")
+        log_exc("DB record_run unexpected error (ignored)", e)
 
     report_path = write_backtest_report(backtest_entries)
     print(f"Backtest KPI report exported to {report_path}")

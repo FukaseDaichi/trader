@@ -676,12 +676,41 @@ def format_portfolio_gate_summary(result: dict) -> str:
     )
 
 
+def summarize_holdout(entries):
+    """Aggregate holdout usage across gate-passed entries.
+
+    A gate-passed ticker with ``holdout_used=False`` had its thresholds tuned
+    and evaluated on the same OOS rows (see _split_oos_for_thresholding), so
+    its pass is optimistic. Surfaced in the report so the watchdog and the
+    active-mode decision can see it.
+    """
+    gate_passed = 0
+    without_holdout = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("passed"):
+            continue
+        if entry.get("skipped"):
+            # gate_disabled passes are not "tuned on the same rows" — they
+            # never went through threshold optimization at all.
+            continue
+        gate_passed += 1
+        optimization = entry.get("threshold_optimization") or {}
+        if not optimization.get("holdout_used"):
+            without_holdout.append(entry.get("ticker"))
+    return {
+        "gate_passed": gate_passed,
+        "passed_without_holdout": len(without_holdout),
+        "tickers_without_holdout": without_holdout,
+    }
+
+
 def write_backtest_report(entries):
     label_cfg = get_label_config()
     payload = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "label_mode": label_cfg.get("label_mode"),
         "horizon_days": effective_horizon(label_cfg),
+        "holdout_summary": summarize_holdout(entries),
         "entries": entries,
     }
     output_path = DOCS_DIR / "backtest_report.json"

@@ -1,0 +1,92 @@
+name: CI Tests
+
+# Runs the full tests/ suite (plain-script tests, see AGENTS.md) plus the
+# frontend lint/build on every code change. Data-only bot commits (docs/,
+# data/, reports/) are excluded via the paths filters so the daily pipeline
+# does not trigger redundant runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "main.py"
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "web/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/**"
+      - ".github/scripts/**"
+  pull_request:
+    paths:
+      - "main.py"
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "web/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/**"
+      - ".github/scripts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run test suite
+        run: |
+          failed=0
+          for f in tests/test_*.py; do
+            echo "::group::${f}"
+            if ! uv run python "$f"; then
+              echo "::error file=${f}::${f} failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $failed
+
+  web-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix web
+
+      - name: Lint
+        run: npm run lint --prefix web
+
+      - name: Build static export (production base path)
+        run: npm run build:prod --prefix web

@@ -10,40 +10,31 @@ record_run() itself never raises.
 from __future__ import annotations
 
 import json
-import os
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .config import DATA_DIR
 from . import db_records
 from .db_records import OUTCOME_HORIZONS  # re-exported
+from .env import get_env_bool, get_env_int, get_env_str
+from .timeutil import now_jst
+from .utils import log_exc
 
 DEFAULT_FALLBACK_DIR = DATA_DIR / "outbox"
 
 
-# --- env helpers (mirror src/data_loader.py style) -------------------------
+# --- env helpers (canonical implementations live in src/env.py) ------------
 
 
 def _env_str(name: str, default: str = "") -> str:
-    raw = os.environ.get(name)
-    return raw if raw not in (None, "") else default
+    return get_env_str(name, default)
 
 
 def _env_bool(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return bool(default)
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return get_env_bool(name, default, invalid="false")
 
 
 def _env_int(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return int(default)
-    try:
-        return int(raw)
-    except ValueError:
-        return int(default)
+    return get_env_int(name, default)
 
 
 def database_url() -> str | None:
@@ -75,7 +66,7 @@ def _queue_events(events: list[dict]) -> int:
         return 0
     out_dir = _fallback_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y%m%d%H%M%S")
+    stamp = now_jst().strftime("%Y%m%d%H%M%S")
     path = out_dir / f"{stamp}.jsonl"
     with path.open("a", encoding="utf-8") as f:
         for ev in events:
@@ -295,6 +286,7 @@ def record_cs_predictions(cs_rows: list[dict], run_date: str) -> dict:
         applied = _apply_events(conn, events)
         return {"ok": True, "applied": applied}
     except Exception as exc:  # noqa: BLE001
+        log_exc("DB write failed; events queued to outbox", exc)
         queued = _queue_events(events)
         return {
             "ok": False,
@@ -336,6 +328,7 @@ def record_run(signals: list[dict], run_date: str) -> dict:
             "linked": linked,
         }
     except Exception as exc:  # noqa: BLE001
+        log_exc("DB record_run write failed; events queued to outbox", exc)
         queued = _queue_events(events)
         return {
             "ok": False,

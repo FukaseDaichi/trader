@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DashboardIndexData } from "../types";
+import { fetchJson, isDashboardIndex } from "../lib/fetchJson";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
 import TodayHero from "../components/TodayHero";
@@ -16,19 +17,13 @@ export default function Home() {
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    fetch(`${basePath}/dashboard_index.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json: DashboardIndexData) => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load dashboard index", err);
-        setLoading(false);
-      });
+    fetchJson<DashboardIndexData>(
+      `${basePath}/dashboard_index.json`,
+      isDashboardIndex,
+    ).then((json) => {
+      setData(json);
+      setLoading(false);
+    });
   }, []);
 
   if (loading) {

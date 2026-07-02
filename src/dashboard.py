@@ -5,7 +5,6 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -15,10 +14,10 @@ from .data_loader import load_data
 from .model import add_features
 from . import db, model_store, performance
 from .db_records import summarize_performance
+from .timeutil import JST
 
 MAX_HISTORY_DAYS = 30
 MAX_DASHBOARD_ROWS = 500
-JST = ZoneInfo("Asia/Tokyo")
 RUN_DATE_ENV = "RUN_DATE_JST"
 
 DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"

@@ -24,7 +24,11 @@ import {
   formatProbability,
   gateLabel,
 } from "../../../lib/signal";
-import { fetchJson, isAvailablePayload } from "../../../lib/fetchJson";
+import {
+  fetchJson,
+  isAvailablePayload,
+  isTickerDetail,
+} from "../../../lib/fetchJson";
 
 interface Props {
   ticker: string;
@@ -44,19 +48,13 @@ export default function StockDetailContent({ ticker }: Props) {
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-    fetch(`${basePath}/tickers/${encodeURIComponent(tickerCode)}.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json: TickerDetailData) => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load ticker detail", err);
-        setLoading(false);
-      });
+    fetchJson<TickerDetailData>(
+      `${basePath}/tickers/${encodeURIComponent(tickerCode)}.json`,
+      isTickerDetail,
+    ).then((json) => {
+      setData(json);
+      setLoading(false);
+    });
     fetchJson<SignalOutcomesRecent>(
       `${basePath}/signal_outcomes_recent.json`,
       (v): v is SignalOutcomesRecent => isAvailablePayload(v),
