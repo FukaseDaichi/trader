@@ -174,35 +174,133 @@ def _upsert_signal(cur, row: dict, prediction_id: int | None = None) -> None:
     )
 
 
+def _ensure_fk_parents(cur, events: list[dict]) -> None:
+    """
+    Stub-insert missing FK parent rows referenced by the events, so that a
+    ticker added by curation (DB seeding is manual) or an unregistered
+    model_version can never fail the predictions/signals upserts. Stubs are
+    ON CONFLICT DO NOTHING; db_migrate re-seeding enriches them later.
+    """
+    from psycopg.types.json import Jsonb
+
+    tickers: set[str] = set()
+    versions: set[str] = set()
+    for ev in events:
+        row = ev.get("row") or {}
+        if row.get("ticker"):
+            tickers.add(row["ticker"])
+        if ev.get("kind") == "prediction" and row.get("model_version"):
+            versions.add(row["model_version"])
+    if tickers:
+        cur.executemany(
+            "INSERT INTO tickers (code, name, enabled)"
+            " VALUES (%s, %s, TRUE)"
+            " ON CONFLICT (code) DO NOTHING",
+            [(code, code) for code in sorted(tickers)],
+        )
+    if versions:
+        cur.executemany(
+            "INSERT INTO model_registry"
+            " (version, trained_at, kind, universe, feature_set, params,"
+            "  cv_metrics, active)"
+            " VALUES (%s, now(), 'auto_stub', %s, %s, %s, %s, FALSE)"
+            " ON CONFLICT (version) DO NOTHING",
+            [(v, Jsonb([]), Jsonb([]), Jsonb({}), Jsonb({})) for v in sorted(versions)],
+        )
+
+
+def _apply_one(cur, ev: dict, prediction_ids: dict) -> None:
+    if ev.get("kind") == "prediction":
+        pred_id = _upsert_prediction(cur, ev["row"])
+        row = ev["row"]
+        prediction_ids[(row.get("run_date"), row.get("ticker"))] = pred_id
+    elif ev.get("kind") == "signal":
+        row = ev["row"]
+        pred_id = prediction_ids.get((row.get("run_date"), row.get("ticker")))
+        _upsert_signal(cur, row, prediction_id=pred_id)
+
+
 def _apply_events(conn, events: list[dict]) -> int:
     """Idempotently upsert a list of outbox events. Dedup by event_id."""
     seen = set()
     applied = 0
     prediction_ids: dict[tuple, int | None] = {}
     with conn.cursor() as cur:
+        _ensure_fk_parents(cur, events)
         for ev in events:
             eid = ev.get("event_id")
             if eid in seen:
                 continue
             seen.add(eid)
-            if ev.get("kind") == "prediction":
-                pred_id = _upsert_prediction(cur, ev["row"])
-                row = ev["row"]
-                prediction_ids[(row.get("run_date"), row.get("ticker"))] = pred_id
-            elif ev.get("kind") == "signal":
-                row = ev["row"]
-                pred_id = prediction_ids.get((row.get("run_date"), row.get("ticker")))
-                _upsert_signal(cur, row, prediction_id=pred_id)
+            _apply_one(cur, ev, prediction_ids)
             applied += 1
     conn.commit()
     return applied
 
 
+def _apply_events_tolerant(conn, events: list[dict]) -> tuple[int, list[dict]]:
+    """
+    Apply events one-by-one inside savepoints. A failing event is rolled back
+    and returned as a dead letter instead of aborting the whole batch.
+    """
+    seen = set()
+    applied = 0
+    dead: list[dict] = []
+    prediction_ids: dict[tuple, int | None] = {}
+    with conn.cursor() as cur:
+        # A parent-stub failure must not revert the flush to all-or-nothing:
+        # events whose parents are truly missing fail individually below.
+        cur.execute("SAVEPOINT outbox_parents")
+        try:
+            _ensure_fk_parents(cur, events)
+            cur.execute("RELEASE SAVEPOINT outbox_parents")
+        except Exception as exc:  # noqa: BLE001
+            cur.execute("ROLLBACK TO SAVEPOINT outbox_parents")
+            log_exc("outbox replay: FK parent stub insert failed", exc)
+        for ev in events:
+            eid = ev.get("event_id")
+            if eid in seen:
+                continue
+            seen.add(eid)
+            cur.execute("SAVEPOINT outbox_event")
+            try:
+                _apply_one(cur, ev, prediction_ids)
+                cur.execute("RELEASE SAVEPOINT outbox_event")
+                applied += 1
+            except Exception as exc:  # noqa: BLE001
+                cur.execute("ROLLBACK TO SAVEPOINT outbox_event")
+                dead.append({**ev, "dead_reason": f"{type(exc).__name__}: {exc}"[:500]})
+    conn.commit()
+    return applied, dead
+
+
+def _quarantine_events(events: list[dict]) -> int:
+    if not events:
+        return 0
+    dead_dir = _fallback_dir() / "dead"
+    dead_dir.mkdir(parents=True, exist_ok=True)
+    stamp = now_jst().strftime("%Y%m%d%H%M%S")
+    path = dead_dir / f"{stamp}.jsonl"
+    with path.open("a", encoding="utf-8") as f:
+        for ev in events:
+            f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+    return len(events)
+
+
 def flush_outbox(conn) -> int:
+    """
+    Replay queued outbox events. Poison events (e.g. FK violations) are
+    quarantined to <outbox>/dead/ instead of aborting the whole replay —
+    an all-or-nothing replay let one bad event stall write-through for
+    weeks in 2026-07 while the backlog grew daily.
+    """
     events = _read_outbox_events()
     if not events:
         return 0
-    applied = _apply_events(conn, events)
+    applied, dead = _apply_events_tolerant(conn, events)
+    if dead:
+        n = _quarantine_events(dead)
+        print(f"outbox replay: quarantined {n} poison event(s) to dead/")
     _clear_outbox()
     return applied
 
