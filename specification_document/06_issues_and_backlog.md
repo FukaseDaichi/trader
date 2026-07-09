@@ -1,12 +1,30 @@
 # 既知の課題・運用チェックリスト・バックログ
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-09 JST
 
 この文書は「現時点で直っていないこと」と「対応方針」を扱います。各項目は**かみくだき説明**を先頭に置きます。解決済みの修正履歴は git log を参照してください。
 
 ## 要対応
 
-現在、要対応（🔴）の課題はありません。
+### 🔴 DB 書き込み停止インシデント（2026-06-10〜、修正デプロイ済み・復旧確認待ち）
+
+**かみくだき**: 6/10 のユニバース拡大以降、成績記録（DB）への書き込みが毎日失敗して
+`data/outbox/` に溜まり続けていた（約1ヶ月・34ファイル）。原因は2段構え:
+(a) キュレーションが銘柄を増やしても DB の銘柄マスタは手動シードのみで追随せず
+外部キー違反、(b) outbox 再送が「全件一括・1件失敗で全部やり直し」だったため、
+不良イベント1件が再送全体を永遠にブロック。watchdog は docs の鮮度しか見ておらず
+3週間以上グリーンのままだった。
+
+対応済み（2026-07-09）:
+
+- `src/db.py`: 書き込み前に FK 親（tickers / model_registry スタブ行）を自動確保、
+  outbox 再送を SAVEPOINT による1件ずつ適用+失敗イベントの `data/outbox/dead/` 隔離に変更
+- `scripts/workflow_watchdog.py`: outbox 滞留（5日超のファイル / 10ファイル超）と
+  dead letter を failure として検知（Issue 起票）
+- `scripts/db_migrate.py`: `LEGACY_MODEL_VERSION` の AttributeError 修正
+- 銘柄マスタは manual-db-migrate 再実行でシード済み
+
+**残タスク（要人間確認）**: 下の運用チェックリスト参照。復旧確認が済んだらこの項目を落とす。
 
 ## 対応しない（方針）
 
@@ -25,7 +43,16 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
 
 ## 運用チェックリスト（時限・要人間判断）
 
-- [ ] **2026-06-24 目安**（shadow 開始 2026-06-10 から 10 営業日）: `docs/portfolio_shadow_report.json` の `active_readiness` を見て active 化を判断。切替は `daily-preopen-core.yml` の `TRADER_PORTFOLIO_MODE` を `"active"` にする 1 行、戻すのも同じ 1 行
+- [ ] **DB 復旧確認（次の営業日朝）**: preopen core 実行後に `data/outbox/*.jsonl` が消えて
+  いること（= backlog 全量再送成功）、`docs/signal_outcomes_recent.json` に 6/16 以降の
+  エントリーが決済され始めること、`data/outbox/dead/` が空か極少であることを確認。
+  dead letter があれば中身を見て、修正後に outbox 直下へ戻して再送するか削除する
+- [ ] **shadow 評価の仕切り直し**: DB 停止期間（6/16〜7/9）は Phase 1 vs Phase 2 比較の
+  計測データが欠けている。復旧後に shadow 日数を実質リセットして `active_readiness` を
+  再評価（現状は portfolio gate 不合格 + CS IC が Phase 1 比 -0.25 で明確に NO-GO）
+- [x] ~~**2026-06-24 目安**（shadow 開始 2026-06-10 から 10 営業日）: `active_readiness` を見て
+  active 化を判断~~ → 2026-07-09 判断: **見送り**（gate 不合格・IC 大差負け・計測欠損）。
+  切替手順自体は変わらず `daily-preopen-core.yml` の `TRADER_PORTFOLIO_MODE` 1 行
 - [ ] active 化後 1 週間: ダイジェストの建玉と DB `signals.target_weight` の一致を毎朝確認
 
 ## Phase 4+ バックログ（未着手の将来案）

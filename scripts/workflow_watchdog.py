@@ -66,6 +66,50 @@ def _holdout_warnings(report) -> list[str]:
     return [f"gate_passed_without_holdout:{','.join(codes)}"]
 
 
+def _outbox_problems(
+    outbox_dir: Path,
+    today: str,
+    max_age_days: int = 5,
+    max_files: int = 10,
+) -> tuple[list[str], list[str]]:
+    """
+    Detect a stuck DB write-through backlog from the committed outbox.
+
+    Ages come from the filename stamp (YYYYMMDDHHMMSS.jsonl), not mtime — CI
+    checkouts reset mtimes. Failures open a GitHub Issue via the watchdog
+    workflow; the 2026-07 incident went unnoticed for 3+ weeks because only
+    docs/ freshness was checked.
+    """
+    failures: list[str] = []
+    warnings: list[str] = []
+    if not outbox_dir.exists():
+        return failures, warnings
+
+    today_date = datetime.strptime(today, "%Y-%m-%d").date()
+    stale: list[str] = []
+    files = sorted(outbox_dir.glob("*.jsonl"))
+    for path in files:
+        stamp = path.stem[:8]
+        try:
+            file_date = datetime.strptime(stamp, "%Y%m%d").date()
+        except ValueError:
+            warnings.append(f"outbox_unparsable:{path.name}")
+            continue
+        if (today_date - file_date).days > max_age_days:
+            stale.append(stamp)
+    if stale:
+        failures.append(f"outbox_stale_files:{len(stale)}:oldest={min(stale)}")
+    if len(files) > max_files:
+        failures.append(f"outbox_backlog:{len(files)}")
+
+    # Quarantined events are lost measurement rows until a human moves them
+    # back into the outbox (or deletes them) — always open an issue.
+    dead = list((outbox_dir / "dead").glob("*.jsonl"))
+    if dead:
+        failures.append(f"outbox_dead_letters:{len(dead)}")
+    return failures, warnings
+
+
 def run_daily_check(args: argparse.Namespace) -> int:
     today = args.today or _today_jst_iso()
     failures: list[str] = []
@@ -152,6 +196,15 @@ def run_daily_check(args: argparse.Namespace) -> int:
                 failures.append(f"backtest_entries_short:{len(entries)}/{expected}")
         warnings.extend(_holdout_warnings(report))
 
+    outbox_failures, outbox_warnings = _outbox_problems(
+        Path(args.outbox_dir),
+        today,
+        max_age_days=int(args.max_outbox_age_days),
+        max_files=int(args.max_outbox_files),
+    )
+    failures.extend(outbox_failures)
+    warnings.extend(outbox_warnings)
+
     payload = {
         "date": today,
         "ok": len(failures) == 0,
@@ -175,6 +228,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--report-file", default="docs/backtest_report.json")
     parser.add_argument("--tickers-file", default="tickers.yml")
+    parser.add_argument("--outbox-dir", default="data/outbox")
+    parser.add_argument("--max-outbox-age-days", type=int, default=5)
+    parser.add_argument("--max-outbox-files", type=int, default=10)
     parser.add_argument("--max-index-bytes", type=int, default=1_000_000)
     parser.add_argument("--max-ticker-total-bytes", type=int, default=10_000_000)
     return parser
