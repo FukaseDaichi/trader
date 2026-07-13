@@ -235,18 +235,36 @@ def _attach_confidence_fields(signal, gate_result, model_ready):
         signal["confidence_reason"] = "当日の予測計算に失敗"
         signal["action"] = "HOLD"
         signal["reason"] = "自信なしのため見送り（当日の予測計算に失敗）"
-        signal["limit_price"] = None
-        signal["stop_loss"] = None
+        _clear_entry_exit_fields(signal)
         return signal
 
     # Even when probability is available, block actionable output on gate failure.
     if not gate_passed:
         signal["action"] = "HOLD"
         signal["reason"] = "自信なしのため見送り（過去検証で基準未達）"
-        signal["limit_price"] = None
-        signal["stop_loss"] = None
+        _clear_entry_exit_fields(signal)
 
     return signal
+
+
+def _clear_entry_exit_fields(signal):
+    """Strip entry/exit price guidance from a non-actionable (HOLD-forced) signal.
+
+    Keeps exported JSON consistent: a gate-failed or model-failed signal must not
+    carry limit / take-profit / stop-loss levels that downstream consumers could
+    mistake for an actionable plan.
+    """
+    for key in (
+        "limit_price",
+        "stop_loss",
+        "take_profit_price",
+        "stop_price",
+        "take_profit_pct",
+        "stop_pct",
+        "time_exit_days",
+        "exit_plan",
+    ):
+        signal[key] = None
 
 
 def _predict_for_ticker(featured, ticker_info, ctx):
@@ -418,7 +436,13 @@ def _process_ticker(ticker_info, ctx):
     thresholds = gate_result.get("thresholds")
 
     # 6. Generate Signal
-    signal = generate_signal(featured, prob_up, ticker_info, thresholds=thresholds)
+    signal = generate_signal(
+        featured,
+        prob_up,
+        ticker_info,
+        thresholds=thresholds,
+        label_config=ctx["label_cfg"],
+    )
     signal["thresholds"] = thresholds
     signal["threshold_optimization"] = gate_result.get("threshold_optimization")
     signal["status"] = "ok"
