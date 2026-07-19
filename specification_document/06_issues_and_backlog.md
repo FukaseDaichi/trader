@@ -1,12 +1,16 @@
 # 既知の課題・運用チェックリスト・バックログ
 
-更新日: 2026-07-09 JST
+更新日: 2026-07-13 JST
 
 この文書は「現時点で直っていないこと」と「対応方針」を扱います。各項目は**かみくだき説明**を先頭に置きます。解決済みの修正履歴は git log を参照してください。
 
 ## 要対応
 
-### 🔴 DB 書き込み停止インシデント（2026-06-10〜、修正デプロイ済み・復旧確認待ち）
+（現在、要対応の項目はありません）
+
+## 解決済み（直近）
+
+### ✅ DB 書き込み停止インシデント（2026-06-10〜、2026-07-13 復旧確認・解決）
 
 **かみくだき**: 6/10 のユニバース拡大以降、成績記録（DB）への書き込みが毎日失敗して
 `data/outbox/` に溜まり続けていた（約1ヶ月・34ファイル）。原因は2段構え:
@@ -24,7 +28,12 @@
 - `scripts/db_migrate.py`: `LEGACY_MODEL_VERSION` の AttributeError 修正
 - 銘柄マスタは manual-db-migrate 再実行でシード済み
 
-**残タスク（要人間確認）**: 下の運用チェックリスト参照。復旧確認が済んだらこの項目を落とす。
+**復旧確認（2026-07-13）**: PR #3 マージ（2026-07-09）後、2026-07-10 の preopen core 実行で
+34ファイルの outbox backlog が全量再送・削除され（commit `4b549035`）、`data/outbox/dead/` は
+一度も生成されず（= 全件正常再送）、`docs/signal_outcomes_recent.json`（2026-07-13 生成）に
+停止期間だった 6/16〜7/2 エントリーの 5日決済が 27件、`realized_ret`/`benchmark_ret`/
+`excess_ret` 欠損なしで復帰した。performance_detail の equity curve も更新済み。
+**残る follow-up は shadow 評価の仕切り直し（下記チェックリスト）のみ**。
 
 ## 対応しない（方針）
 
@@ -43,10 +52,12 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
 
 ## 運用チェックリスト（時限・要人間判断）
 
-- [ ] **DB 復旧確認（次の営業日朝）**: preopen core 実行後に `data/outbox/*.jsonl` が消えて
+- [x] ~~**DB 復旧確認（次の営業日朝）**: preopen core 実行後に `data/outbox/*.jsonl` が消えて
   いること（= backlog 全量再送成功）、`docs/signal_outcomes_recent.json` に 6/16 以降の
   エントリーが決済され始めること、`data/outbox/dead/` が空か極少であることを確認。
-  dead letter があれば中身を見て、修正後に outbox 直下へ戻して再送するか削除する
+  dead letter があれば中身を見て、修正後に outbox 直下へ戻して再送するか削除する~~
+  → **2026-07-13 確認済み**: outbox は 2026-07-10 実行（commit `4b549035`）で 34ファイル全量再送・
+  削除、dead letter は生成なし、6/16〜7/2 エントリーの決済が復帰（27件・欠損なし）
 - [ ] **shadow 評価の仕切り直し**: DB 停止期間（6/16〜7/9）は Phase 1 vs Phase 2 比較の
   計測データが欠けている。復旧後に shadow 日数を実質リセットして `active_readiness` を
   再評価（現状は portfolio gate 不合格 + CS IC が Phase 1 比 -0.25 で明確に NO-GO）
