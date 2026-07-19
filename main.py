@@ -326,13 +326,16 @@ def _predict_for_ticker(featured, ticker_info, ctx):
         return (
             0.5,
             False,
-            {"model_version": db.LEGACY_MODEL_VERSION, "horizon_days": horizon},
+            {
+                "model_version": db_records.LEGACY_MODEL_VERSION,
+                "horizon_days": horizon,
+            },
         )
     return (
         prob_up,
         True,
         {
-            "model_version": db.LEGACY_MODEL_VERSION,
+            "model_version": db_records.LEGACY_MODEL_VERSION,
             "horizon_days": horizon,
             "raw_score": prob_up,
             "expected_ret": None,

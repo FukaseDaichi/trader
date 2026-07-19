@@ -1,6 +1,6 @@
 # 既知の課題・運用チェックリスト・バックログ
 
-更新日: 2026-07-13 JST
+更新日: 2026-07-19 JST
 
 この文書は「現時点で直っていないこと」と「対応方針」を扱います。各項目は**かみくだき説明**を先頭に置きます。解決済みの修正履歴は git log を参照してください。
 
@@ -24,8 +24,9 @@
 - `src/db.py`: 書き込み前に FK 親（tickers / model_registry スタブ行）を自動確保、
   outbox 再送を SAVEPOINT による1件ずつ適用+失敗イベントの `data/outbox/dead/` 隔離に変更
 - `scripts/workflow_watchdog.py`: outbox 滞留（5日超のファイル / 10ファイル超）と
-  dead letter を failure として検知（Issue 起票）
-- `scripts/db_migrate.py`: `LEGACY_MODEL_VERSION` の AttributeError 修正
+  dead letter、および日次ループ内で HOLD に縮退した銘柄処理失敗を failure として検知（Issue 起票）
+- `scripts/db_migrate.py` / `main.py`: `LEGACY_MODEL_VERSION` の参照先を
+  `src.db_records` に統一して AttributeError を修正
 - 銘柄マスタは manual-db-migrate 再実行でシード済み
 
 **復旧確認（2026-07-13）**: PR #3 マージ（2026-07-09）後、2026-07-10 の preopen core 実行で
@@ -47,6 +48,7 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | リトライ実行日の計測欠け    | 06:20/06:40 の retry workflow は env が最小構成（DB・ポートフォリオ・マクロ更新・決済なし）。core が失敗し retry で救済された日は、シグナルは出るが DB 台帳・建玉 snapshot が欠ける。頻発するようなら core と同じ env/後続ステップを足す |
 | CS 較正の粗さ               | shadow の建玉で複数銘柄の `expected_ret`/`prob_up` が同値（score-bucket 較正の粒度）。gross も低め（0.24 前後）。バグではなく shadow 期間の観察対象。改善候補: isotonic 連続化                                                           |
+| `8766.JP` の旧履歴異常      | Yahoo の調整済み系列にも 2005 年の株式分割級の不連続（最大 17295.3%）が残る。現行検証は警告して処理継続するため日次停止にはならないが、次回は学習用履歴の開始日カットまたは corporate action 補正を検討する             |
 | `generated_at` の TZ 不統一 | 監査系 7 スクリプトが timezone naive（キュレーション系は `+09:00` 付き）。実害は小さい                                                                                                                                                   |
 | `usdjpy` の行数が少ない     | 系列の歴史差によるもので異常ではない（参考情報）                                                                                                                                                                                         |
 
@@ -58,9 +60,11 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
   dead letter があれば中身を見て、修正後に outbox 直下へ戻して再送するか削除する~~
   → **2026-07-13 確認済み**: outbox は 2026-07-10 実行（commit `4b549035`）で 34ファイル全量再送・
   削除、dead letter は生成なし、6/16〜7/2 エントリーの決済が復帰（27件・欠損なし）
-- [ ] **shadow 評価の仕切り直し**: DB 停止期間（6/16〜7/9）は Phase 1 vs Phase 2 比較の
-  計測データが欠けている。復旧後に shadow 日数を実質リセットして `active_readiness` を
-  再評価（現状は portfolio gate 不合格 + CS IC が Phase 1 比 -0.25 で明確に NO-GO）
+- [x] **shadow 評価の仕切り直し**: DB 停止期間（6/16〜7/9）は Phase 1 vs Phase 2 比較の
+  計測データが欠けている。`portfolio_shadow_report.py` は欠損期間を除いた paired 日だけを
+  `active_readiness.shadow_days` に数え、両 Phase の指標も同じ日・銘柄母集団で比較するよう
+  修正済み。2026-07-19 再集計では paired 12日 / 33銘柄、CS IC 差 +0.0329 だが、portfolio
+  gate は IR -2.17・turnover 0.43 で不合格。active 化は引き続き見送り、shadow を継続する
 - [x] ~~**2026-06-24 目安**（shadow 開始 2026-06-10 から 10 営業日）: `active_readiness` を見て
   active 化を判断~~ → 2026-07-09 判断: **見送り**（gate 不合格・IC 大差負け・計測欠損）。
   切替手順自体は変わらず `daily-preopen-core.yml` の `TRADER_PORTFOLIO_MODE` 1 行

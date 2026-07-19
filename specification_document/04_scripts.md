@@ -1,6 +1,6 @@
 # 補助スクリプト仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-19 JST
 
 ## ガード・カレンダー
 
@@ -58,7 +58,7 @@ active モデルの rolling IC / Brier / hit-rate（DB の predictions × signal
 
 ### `scripts/portfolio_shadow_report.py`
 
-shadow 期間の Phase 1 vs Phase 2 比較（daily IC、的中率等）を `src/portfolio_shadow.py` の純粋ロジックで集計し、`docs/portfolio_shadow_report.json` を出力。active 化判断のための `active_readiness`（`shadow_days >= 10` かつポートフォリオゲート通過かつ CS daily IC ≥ Phase 1 比 −0.005）を含む。**active への切替自体は人間が env を変更する**。
+shadow 期間の Phase 1 vs Phase 2 比較（daily IC、的中率等）を `src/portfolio_shadow.py` の純粋ロジックで集計し、`docs/portfolio_shadow_report.json` を出力。比較は、同じ `(date, ticker)` に決済済みリターン・Phase 1 予測・Phase 2 順位/期待収益があり、その日に Phase 2 のポートフォリオ weight が保存された paired 日・銘柄だけで行う。生の観測日数 `n_dates` に加え、`n_paired_dates` / `n_paired_records` / `date_coverage` で有効サンプルと除外理由を監査できる。active 化判断のための `active_readiness`（paired な `shadow_days >= 10` かつポートフォリオゲート通過かつ CS daily IC ≥ Phase 1 比 −0.005）を含む。**active への切替自体は人間が env を変更する**。
 
 ## 通知
 

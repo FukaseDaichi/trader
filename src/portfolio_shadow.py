@@ -26,6 +26,12 @@ The market ``realized_ret`` is a property of (date, ticker, horizon) — it
 applies to ANY model's prediction of that ticker on that date — so it is shared
 by the Phase 1 and Phase 2 evaluations of the same name.
 
+Comparisons use only *paired* dates and names: the same (date, ticker) must have
+a settled return, a Phase 1 score, and the Phase 2 rank / expected return, and
+the date must have a persisted Phase 2 portfolio weight.  This prevents (for
+example) comparing 20 settled Phase 1 dates with only four settled Phase 2
+dates after an operational data gap.
+
 IC / top-N / hit-rate conventions deliberately MIRROR ``src.cs_model.cs_metrics``
 (``_spearman`` = Pearson-of-ranks, NaN-safe ``None`` returns, per-date mean over
 dates) so the two modules report comparable numbers. ``cs_rank`` is ASCENDING
@@ -109,6 +115,71 @@ def _records_to_frame(records) -> pd.DataFrame:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df["date"] = df["date"].astype(str)
     return df[cols]
+
+
+def _paired_records_and_coverage(records) -> tuple[list[dict], dict]:
+    """Return fair-comparison records plus auditable date coverage.
+
+    A valid comparison date requires all of the following:
+
+    - at least two names with a finite settled return and both models' scores;
+    - a finite Phase 2 rank / expected return for those paired names; and
+    - at least one persisted Phase 2 target weight on the date (evidence that
+      the daily portfolio snapshot was actually produced).
+
+    The returned records contain only the fully paired names on valid dates, so
+    both sides use the same dates *and* ticker population.  Two names are the
+    minimum because daily IC is undefined for a single pair.
+    """
+    df = _records_to_frame(records)
+    coverage = {
+        "observed_dates": [],
+        "paired_dates": [],
+        "excluded_dates": {},
+    }
+    if df.empty:
+        return [], coverage
+
+    paired_parts: list[pd.DataFrame] = []
+    for date, grp in df.groupby("date", sort=True):
+        date_str = str(date)
+        coverage["observed_dates"].append(date_str)
+
+        realized = pd.to_numeric(grp["realized_ret"], errors="coerce")
+        p1_score = pd.to_numeric(grp["p1_prob_up"], errors="coerce")
+        p2_rank = pd.to_numeric(grp["p2_cs_rank"], errors="coerce")
+        p2_expected = pd.to_numeric(grp["p2_expected_ret"], errors="coerce")
+        p2_weight = pd.to_numeric(grp["p2_weight"], errors="coerce")
+
+        p1_settled = np.isfinite(realized) & np.isfinite(p1_score)
+        p2_settled = (
+            np.isfinite(realized) & np.isfinite(p2_rank) & np.isfinite(p2_expected)
+        )
+        paired_mask = p1_settled & p2_settled
+
+        reasons: list[str] = []
+        if not bool(p1_settled.any()):
+            reasons.append("missing_phase1_settled_outcome")
+        if not bool(p2_settled.any()):
+            reasons.append("missing_phase2_settled_outcome")
+        if not bool(np.isfinite(p2_rank).any()):
+            reasons.append("missing_phase2_rank")
+        if not bool(np.isfinite(p2_weight).any()):
+            reasons.append("missing_phase2_weight")
+        if int(paired_mask.sum()) < 2:
+            reasons.append("fewer_than_two_paired_names")
+
+        if reasons:
+            coverage["excluded_dates"][date_str] = reasons
+            continue
+
+        coverage["paired_dates"].append(date_str)
+        paired_parts.append(grp.loc[paired_mask].copy())
+
+    if not paired_parts:
+        return [], coverage
+    paired = pd.concat(paired_parts, ignore_index=True)
+    return paired.to_dict(orient="records"), coverage
 
 
 # ---------------------------------------------------------------------------
@@ -401,8 +472,15 @@ def compare_phase1_phase2(records, *, top_n=8) -> dict:
     Returns ``{"phase1": {...}, "phase2": {...}, "delta": {...},
     "verdict": {...}}``. All deltas/verdicts are NaN/None-safe: a ``None`` metric
     on either side yields ``None`` for the corresponding delta/verdict (never a
-    spurious ``True``).
+    spurious ``True``). Metrics are calculated on paired dates and names only;
+    see :func:`_paired_records_and_coverage`.
     """
+    paired_records, _coverage = _paired_records_and_coverage(records)
+    return _compare_paired_records(paired_records, top_n=top_n)
+
+
+def _compare_paired_records(records, *, top_n=8) -> dict:
+    """Compare records already restricted to valid paired dates and names."""
     p1 = _phase1_metrics(records, top_n=top_n)
     p2 = _phase2_metrics(records, top_n=top_n)
 
@@ -439,8 +517,11 @@ def build_shadow_report(
     """Assemble the shadow-validation report payload from normalized records.
 
     ``available=False`` with ``reason="insufficient_shadow_history"`` when there
-    are fewer than ``MIN_SHADOW_DATES`` distinct dates (or zero records).
-    Otherwise ``available=True`` with a full ``comparison`` block.
+    are fewer than ``MIN_SHADOW_DATES`` paired dates (or zero paired records).
+    Otherwise ``available=True`` with a full ``comparison`` block. ``n_dates``
+    remains the total observed date count for backwards compatibility;
+    ``n_paired_dates`` / ``n_paired_records`` and ``date_coverage`` expose the
+    valid comparison sample explicitly.
 
     ``generated_at`` is only stamped into the payload when supplied (so tests can
     assert a deterministic dict). ``window`` (e.g. ``{"start": ..., "end": ...,
@@ -449,11 +530,17 @@ def build_shadow_report(
     df = _records_to_frame(records)
     n_records = int(len(df))
     n_dates = int(df["date"].nunique()) if not df.empty else 0
+    paired_records, coverage = _paired_records_and_coverage(records)
+    n_paired_records = len(paired_records)
+    n_paired_dates = len(coverage["paired_dates"])
 
     payload: dict = {
         "available": False,
         "n_dates": n_dates,
         "n_records": n_records,
+        "n_paired_dates": n_paired_dates,
+        "n_paired_records": n_paired_records,
+        "date_coverage": coverage,
         "top_n": int(top_n),
     }
     if generated_at is not None:
@@ -463,11 +550,11 @@ def build_shadow_report(
     if model_version is not None:
         payload["model_version"] = model_version
 
-    if n_records == 0 or n_dates < MIN_SHADOW_DATES:
+    if n_paired_records == 0 or n_paired_dates < MIN_SHADOW_DATES:
         payload["reason"] = "insufficient_shadow_history"
         payload["min_dates_required"] = MIN_SHADOW_DATES
         return payload
 
     payload["available"] = True
-    payload["comparison"] = compare_phase1_phase2(records, top_n=top_n)
+    payload["comparison"] = _compare_paired_records(paired_records, top_n=top_n)
     return payload

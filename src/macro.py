@@ -29,21 +29,21 @@ MACRO_PANEL_FILE = MACRO_DIR / "macro_panel.parquet"
 # Series we try to fetch. Symbols are configurable so they are not hard-coded
 # into the fetch logic (Stooq and yfinance disagree on index/FX tickers).
 #
-# Source reality as of 2026-06-11 (issue #1): Stooq's CSV endpoint returns 404
+# Source reality as of 2026-07-19 (issue #1): Stooq's CSV endpoint returns 404
 # for EVERY symbol (also from GitHub Actions), so each series lives or dies by
 # its yfinance fallback. The Stooq symbols are kept as a dormant primary in
 # case the endpoint revives.
 #   - topix: the index itself has no daily history on Yahoo (^TPX is an empty
-#     stub), so the largest TOPIX ETF (1306) serves as the benchmark proxy —
-#     its daily returns track the index within bps, which is all that
-#     benchmark_ret / the shape-based macro features consume.
+#     stub), so TOPIX ETF 1305 serves as the benchmark proxy. 1306 was retired
+#     here because Yahoo retains unadjusted 10:1 discontinuities even with
+#     auto_adjust=True. Only returns/shape-based features consume this proxy.
 #   - nikkei_vi / jgb10y: disabled — no Yahoo listing exists and the Stooq
 #     symbols are unverifiable while the endpoint is down (JGB 10y candidate:
 #     `10jpy.b`). Their levels/features stay NaN per the robustness rule;
 #     re-enable only with a source verified end-to-end.
 DEFAULT_MARKET_SERIES = {
     "usdjpy": {"stooq": "usdjpy", "yfinance": "JPY=X"},
-    "topix": {"stooq": "1306.jp", "yfinance": "1306.T"},
+    "topix": {"stooq": "1305.jp", "yfinance": "1305.T"},
     "nikkei": {"stooq": "^nkx", "yfinance": "^N225"},
     "nikkei_vi": {"stooq": None, "yfinance": None},
     "jgb10y": {"stooq": None, "yfinance": None},
@@ -75,6 +75,12 @@ _BIAS_SCORE = {
     "bearish": -1.0,
 }
 
+# Macro inputs are broad-market indices/proxies and FX, not individual stocks.
+# A one-session move above 50% is therefore a data/corporate-action discontinuity
+# for the configured series. Reject the whole provider result instead of letting
+# one bad level poison rolling returns, portfolio benchmarks, and retraining.
+_MAX_MARKET_DAILY_MOVE = 0.50
+
 
 def encode_market_bias(value) -> float:
     """Map a qualitative macro bias label to a numeric auxiliary feature."""
@@ -84,6 +90,42 @@ def encode_market_bias(value) -> float:
 
 
 # --- network fetch (best-effort) -------------------------------------------
+
+
+def _validated_market_close(
+    df: pd.DataFrame | None, *, source: str, symbol: str
+) -> pd.DataFrame | None:
+    """Normalize and reject split-scale discontinuities in a market series."""
+    if df is None or df.empty or not {"date", "close"}.issubset(df.columns):
+        return None
+
+    out = df[["date", "close"]].copy()
+    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.tz_localize(None)
+    out["close"] = pd.to_numeric(out["close"], errors="coerce")
+    out = (
+        out.dropna(subset=["date", "close"])
+        .sort_values("date")
+        .drop_duplicates("date", keep="last")
+        .reset_index(drop=True)
+    )
+    if out.empty or not np.isfinite(out["close"]).all() or (out["close"] <= 0).any():
+        print(f"macro: rejected invalid {source} levels for {symbol}")
+        return None
+
+    daily_returns = out["close"].pct_change(fill_method=None)
+    extreme = daily_returns.abs() > _MAX_MARKET_DAILY_MOVE
+    if extreme.any():
+        bad_idx = int(np.flatnonzero(extreme.to_numpy())[0])
+        bad_date = out["date"].iloc[bad_idx].strftime("%Y-%m-%d")
+        bad_return = float(daily_returns.iloc[bad_idx])
+        print(
+            f"macro: rejected {source} series for {symbol}: "
+            f"daily move {bad_return:.1%} on {bad_date} exceeds "
+            f"{_MAX_MARKET_DAILY_MOVE:.0%}"
+        )
+        return None
+
+    return out
 
 
 def fetch_market_series(spec: dict) -> pd.DataFrame | None:
@@ -97,12 +139,14 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
     if stooq_symbol:
         df = download_stooq_data(stooq_symbol)
         if df is not None and not df.empty and "close" in df.columns:
-            return df[["date", "close"]].copy()
+            out = _validated_market_close(df, source="Stooq", symbol=str(stooq_symbol))
+            if out is not None:
+                return out
 
     yf_symbol = spec.get("yfinance")
     if yf_symbol:
-        # period="max" breaks yfinance's range resolution for some symbols
-        # (e.g. 1306.T comes back empty / TypeError), so retry once with a
+        # period="max" breaks yfinance's range resolution for some symbols,
+        # so retry once with a
         # bounded period — 10y of daily closes covers every macro feature.
         for period in ("max", "10y"):
             try:
@@ -112,7 +156,9 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
                     yf_symbol,
                     period=period,
                     interval="1d",
-                    auto_adjust=False,
+                    # Macro levels/returns must be continuous across ETF splits.
+                    # With current yfinance this makes Close the adjusted close.
+                    auto_adjust=True,
                     progress=False,
                     threads=False,
                 )
@@ -124,13 +170,20 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
                     ]
                 raw = raw.reset_index()
                 raw.columns = [str(c).lower() for c in raw.columns]
-                close_col = "close" if "close" in raw.columns else "adj close"
+                # Some older yfinance versions and test doubles still return an
+                # explicit Adj Close even with auto_adjust=True. Prefer it when
+                # present so compatibility never regresses to a raw close.
+                close_col = "adj close" if "adj close" in raw.columns else "close"
                 if close_col in raw.columns and "date" in raw.columns:
                     out = raw[["date", close_col]].rename(columns={close_col: "close"})
-                    out["date"] = pd.to_datetime(out["date"]).dt.tz_localize(None)
-                    out = out.dropna()
-                    if not out.empty:
+                    out = _validated_market_close(
+                        out, source="yfinance", symbol=str(yf_symbol)
+                    )
+                    if out is not None:
                         return out
+                    # An extreme/invalid frame is a provider-integrity failure,
+                    # not the empty-response range bug handled by the 10y retry.
+                    return None
             except Exception as exc:  # noqa: BLE001
                 print(
                     f"macro: yfinance fetch failed for {yf_symbol} "

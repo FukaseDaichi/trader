@@ -66,6 +66,37 @@ def _holdout_warnings(report) -> list[str]:
     return [f"gate_passed_without_holdout:{','.join(codes)}"]
 
 
+def _ticker_processing_failures(report) -> list[str]:
+    """List per-ticker failures recorded by the non-fatal daily loop.
+
+    ``main.py`` intentionally converts a ticker exception (and other unusable
+    ticker states) into a failed HOLD entry so one bad ticker never stops the
+    daily run.  That graceful degradation must still make the watchdog fail,
+    otherwise a complete-looking report can hide broken ticker-days.
+    """
+    if not isinstance(report, dict):
+        return []
+    entries = report.get("entries")
+    if not isinstance(entries, list):
+        return []
+
+    failed: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        reason = str(entry.get("reason") or "status_failed")
+        if entry.get("status") != "failed" and reason != "ticker_processing_failed":
+            continue
+        ticker = str(entry.get("ticker") or "unknown")
+        item = f"{ticker}({reason})"
+        if item not in failed:
+            failed.append(item)
+
+    if not failed:
+        return []
+    return [f"backtest_ticker_failures:{','.join(failed)}"]
+
+
 def _outbox_problems(
     outbox_dir: Path,
     today: str,
@@ -194,6 +225,7 @@ def run_daily_check(args: argparse.Namespace) -> int:
             expected = len(enabled)
             if expected > 0 and len(entries) < expected:
                 failures.append(f"backtest_entries_short:{len(entries)}/{expected}")
+            failures.extend(_ticker_processing_failures(report))
         warnings.extend(_holdout_warnings(report))
 
     outbox_failures, outbox_warnings = _outbox_problems(

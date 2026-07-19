@@ -49,10 +49,15 @@ from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
 
 
 def _active_readiness(report, *, gate_passed, min_shadow_days=10):
-    shadow_days = int(report.get("n_dates", 0))
+    # n_dates is the raw observed window and can include dates where one model,
+    # its settled outcome, or the Phase 2 portfolio snapshot is missing.  Only
+    # paired dates are evidence for an active-mode decision.
+    shadow_days = int(report.get("n_paired_dates", 0))
     delta = (report.get("comparison") or {}).get("delta") or {}
     cs_ic_vs_phase1 = delta.get("daily_ic")
     reasons = []
+    if not bool(report.get("available", False)):
+        reasons.append("shadow_report unavailable")
     if shadow_days < min_shadow_days:
         reasons.append(f"shadow_days {shadow_days} < {min_shadow_days}")
     if not gate_passed:
@@ -295,6 +300,7 @@ def run_report(
     print(
         f"shadow-report: available={report['available']} "
         f"reason={report.get('reason')} n_dates={report.get('n_dates')} "
+        f"n_paired_dates={report.get('n_paired_dates')} "
         f"n_records={report.get('n_records')} -> {output_path}"
     )
     return 0

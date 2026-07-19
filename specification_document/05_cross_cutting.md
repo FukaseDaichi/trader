@@ -1,6 +1,6 @@
 # データ契約・横断仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-19 JST
 
 ## 設定ファイル
 
@@ -42,7 +42,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | `data/{code}.parquet` | 有効銘柄の日足 OHLCV。`date` は tz なし datetime、価格正値・OHLC 関係・異常終値変化を検証済み（警告は attrs → レポート） |
 | `data/archive/` | 無効化銘柄の parquet 退避先（削除しない） |
 | `data/watchlist/{code}.parquet` | キュレーション候補の warmup データ。gitignore 対象、昇格時に `data/` へ移動 |
-| `data/macro/macro_panel.parquet` | マクロ系列パネル（usdjpy/topix/nikkei/nikkei_vi/jgb10y + 派生特徴量）。`update_macro_snapshots.py` が更新。`topix` は TOPIX 連動 ETF（1306）のプロキシ値、`nikkei_vi`/`jgb10y` は取得元がなく無効化（全行 NaN） |
+| `data/macro/macro_panel.parquet` | マクロ系列パネル（usdjpy/topix/nikkei/nikkei_vi/jgb10y + 派生特徴量）。`update_macro_snapshots.py` が更新。`topix` は TOPIX 連動 ETF（1305）のプロキシ値（1306 は調整後系列にも分割級の不連続が残るため不採用）、`nikkei_vi`/`jgb10y` は取得元がなく無効化（全行 NaN） |
 | `data/models/<version>/` | Phase 1 銘柄別モデルバンドル（booster + 較正器 + メタ） |
 | `data/models/active_model.json` | Phase 1 active ポインタ（version, macro_features_enabled 等） |
 | `data/models/cs-v1-*/` + `data/models/active_cs_model.json` | Phase 2 CS モデルバンドルと active ポインタ |

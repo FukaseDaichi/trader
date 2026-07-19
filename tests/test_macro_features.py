@@ -146,10 +146,11 @@ def test_default_series_symbols_are_fetchable_or_disabled():
                 f"{key}: enabled series needs a yfinance fallback "
                 "(Stooq alone is dead as of 2026-06-11)"
             )
-    # TOPIX itself is unavailable (Yahoo ^TPX is an empty stub); the largest
-    # TOPIX ETF (1306) is the documented benchmark proxy on both sources.
-    assert DEFAULT_MARKET_SERIES["topix"]["yfinance"] == "1306.T"
-    assert DEFAULT_MARKET_SERIES["topix"]["stooq"] == "1306.jp"
+    # TOPIX itself is unavailable (Yahoo ^TPX is an empty stub). TOPIX ETF
+    # 1305 is the proxy because Yahoo's 1306 history retains split-scale
+    # discontinuities even when adjusted prices are requested.
+    assert DEFAULT_MARKET_SERIES["topix"]["yfinance"] == "1305.T"
+    assert DEFAULT_MARKET_SERIES["topix"]["stooq"] == "1305.jp"
     # No working source exists for these (Yahoo: not listed; Stooq: endpoint
     # dead, symbols unverifiable) -> disabled, levels/features stay NaN.
     for key in ("nikkei_vi", "jgb10y"):
@@ -163,9 +164,11 @@ class _FakeYFinance:
     def __init__(self, by_period):
         self.by_period = by_period
         self.calls = []
+        self.call_kwargs = []
 
     def download(self, symbol, period=None, **kwargs):
         self.calls.append(period)
+        self.call_kwargs.append(kwargs)
         out = self.by_period.get(period)
         if isinstance(out, Exception):
             raise out
@@ -195,6 +198,26 @@ def _with_fake_yf(by_period, spec):
             sys.modules.pop("yfinance", None)
 
 
+def _with_fake_sources(stooq_result, by_period, spec):
+    """Run fetch_market_series with deterministic Stooq and yfinance data."""
+    import src.data_loader as dl
+
+    fake = _FakeYFinance(by_period)
+    orig_yf = sys.modules.get("yfinance")
+    orig_stooq = dl.download_stooq_data
+
+    sys.modules["yfinance"] = fake
+    dl.download_stooq_data = lambda _symbol: stooq_result.copy()
+    try:
+        return fetch_market_series(spec), fake
+    finally:
+        dl.download_stooq_data = orig_stooq
+        if orig_yf is not None:
+            sys.modules["yfinance"] = orig_yf
+        else:
+            sys.modules.pop("yfinance", None)
+
+
 def test_fetch_market_series_disabled_spec_touches_no_source():
     result, fake = _with_fake_yf({}, {"stooq": None, "yfinance": None})
     assert result is None
@@ -202,29 +225,73 @@ def test_fetch_market_series_disabled_spec_touches_no_source():
 
 
 def test_fetch_market_series_retries_bounded_period_when_max_empty():
-    """yfinance period='max' breaks for some symbols (e.g. 1306.T returns
-    empty / TypeError); the fetch must retry with a bounded period."""
+    """yfinance period='max' can fail range resolution for some symbols;
+    the fetch must retry with a bounded period."""
     idx = pd.date_range("2026-01-01", periods=5, freq="D", name="Date")
-    ok = pd.DataFrame({"Close": [1.0, 2.0, 3.0, 4.0, 5.0]}, index=idx)
+    ok = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 105.0]}, index=idx)
     result, fake = _with_fake_yf(
         {"max": pd.DataFrame(), "10y": ok},
-        {"stooq": None, "yfinance": "1306.T"},
+        {"stooq": None, "yfinance": "1305.T"},
     )
     assert fake.calls == ["max", "10y"]
     assert result is not None and len(result) == 5
     assert list(result.columns) == ["date", "close"]
-    assert float(result["close"].iloc[-1]) == 5.0
+    assert float(result["close"].iloc[-1]) == 105.0
+    assert all(call["auto_adjust"] is True for call in fake.call_kwargs)
 
 
 def test_fetch_market_series_retries_bounded_period_when_max_raises():
     idx = pd.date_range("2026-01-01", periods=3, freq="D", name="Date")
-    ok = pd.DataFrame({"Close": [1.0, 2.0, 3.0]}, index=idx)
+    ok = pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=idx)
     result, fake = _with_fake_yf(
         {"max": TypeError("'NoneType' object is not subscriptable"), "10y": ok},
-        {"stooq": None, "yfinance": "1306.T"},
+        {"stooq": None, "yfinance": "1305.T"},
     )
     assert fake.calls == ["max", "10y"]
     assert result is not None and len(result) == 3
+
+
+def test_fetch_market_series_prefers_adjusted_close_fixture():
+    """A raw ETF split must not win over an available adjusted close."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Close": [400.0, 40.0, 41.0, 42.0],
+            "Adj Close": [40.0, 40.5, 41.0, 42.0],
+        },
+        index=idx,
+    )
+    result, fake = _with_fake_yf({"max": raw}, {"stooq": None, "yfinance": "1305.T"})
+    assert result is not None
+    assert result["close"].tolist() == [40.0, 40.5, 41.0, 42.0]
+    assert fake.call_kwargs[0]["auto_adjust"] is True
+
+
+def test_fetch_market_series_extreme_stooq_move_falls_back_to_yfinance():
+    dates = pd.date_range("2026-03-27", periods=4, freq="D")
+    stooq = pd.DataFrame({"date": dates, "close": [400.0, 40.0, 41.0, 42.0]})
+    yf_ok = pd.DataFrame(
+        {"Close": [40.0, 40.5, 41.0, 42.0]},
+        index=dates.rename("Date"),
+    )
+    result, fake = _with_fake_sources(
+        stooq,
+        {"max": yf_ok},
+        {"stooq": "1305.jp", "yfinance": "1305.T"},
+    )
+    assert result is not None
+    assert result["close"].tolist() == [40.0, 40.5, 41.0, 42.0]
+    assert fake.calls == ["max"]
+
+
+def test_fetch_market_series_extreme_yfinance_move_is_unavailable():
+    dates = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    yf_bad = pd.DataFrame({"Close": [400.0, 40.0, 41.0, 420.0]}, index=dates)
+    result, fake = _with_fake_yf({"max": yf_bad}, {"stooq": None, "yfinance": "1305.T"})
+    assert result is None
+    # Invalid data is not the empty/exception range-resolution bug; do not
+    # silently hide the discontinuity by slicing it away with the 10y retry.
+    assert fake.calls == ["max"]
 
 
 def test_build_feature_frame_macro_disabled_omits_macro_columns():
@@ -267,6 +334,9 @@ ALL_TESTS = [
     test_fetch_market_series_disabled_spec_touches_no_source,
     test_fetch_market_series_retries_bounded_period_when_max_empty,
     test_fetch_market_series_retries_bounded_period_when_max_raises,
+    test_fetch_market_series_prefers_adjusted_close_fixture,
+    test_fetch_market_series_extreme_stooq_move_falls_back_to_yfinance,
+    test_fetch_market_series_extreme_yfinance_move_is_unavailable,
     test_build_feature_frame_macro_disabled_omits_macro_columns,
 ]
 

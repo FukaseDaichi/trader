@@ -2,61 +2,175 @@
   "available": true,
   "n_dates": 28,
   "n_records": 1400,
+  "n_paired_dates": 12,
+  "n_paired_records": 33,
+  "date_coverage": {
+    "observed_dates": [
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24",
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-03",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08",
+      "2026-07-09",
+      "2026-07-10",
+      "2026-07-13",
+      "2026-07-14",
+      "2026-07-15",
+      "2026-07-16",
+      "2026-07-17"
+    ],
+    "paired_dates": [
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-22",
+      "2026-06-25",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-03",
+      "2026-07-07"
+    ],
+    "excluded_dates": {
+      "2026-06-10": [
+        "missing_phase2_weight"
+      ],
+      "2026-06-11": [
+        "missing_phase2_weight"
+      ],
+      "2026-06-12": [
+        "missing_phase2_weight"
+      ],
+      "2026-06-17": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-06-23": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-06-24": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-06-26": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-06": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-08": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-09": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-10": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-13": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-14": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-15": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-16": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-07-17": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ]
+    }
+  },
   "top_n": 8,
-  "generated_at": "2026-07-18T09:00:38+09:00",
+  "generated_at": "2026-07-19T23:38:31+09:00",
   "window": {
-    "start": "2026-05-19",
-    "end": "2026-07-18",
+    "start": "2026-05-20",
+    "end": "2026-07-19",
     "lookback_days": 60,
     "horizon_days": 5
   },
   "model_version": "cs-v1-20260718",
   "comparison": {
     "phase1": {
-      "daily_ic": -0.07838365719419918,
-      "rank_ic": -0.08000000000000002,
-      "topn_realized_return": 0.009272384093959102,
-      "hit_rate": 0.46153846153846156,
-      "max_drawdown": -0.21451808272338613,
+      "daily_ic": -0.2456425792756541,
+      "rank_ic": -0.24166666666666667,
+      "topn_realized_return": 0.0037327798106734935,
+      "hit_rate": 0.5151515151515151,
+      "max_drawdown": -0.10482586826990647,
       "turnover": null,
-      "n_dates_with_topn": 20
+      "n_dates_with_topn": 12
     },
     "phase2": {
-      "daily_ic": -0.043866259925225276,
-      "rank_ic": -0.0446457668379151,
-      "topn_realized_return": -0.0317061968032398,
-      "hit_rate": 0.0,
-      "max_drawdown": -0.0868254847115899,
-      "turnover": 0.0442757738215465,
+      "daily_ic": -0.2127105092579488,
+      "rank_ic": -0.19550860393226888,
+      "topn_realized_return": 0.0037327798106734935,
+      "hit_rate": 0.5151515151515151,
+      "max_drawdown": -0.10482586826990647,
+      "turnover": 0.0,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.015203165701704833,
-        "mean_realized_ret": -0.0317061968032398,
-        "bias": 0.04690936250494463,
-        "n": 224
+        "mean_expected_ret": 0.008617340463131526,
+        "mean_realized_ret": 0.004766203897610695,
+        "bias": 0.0038511365655208305,
+        "n": 33
       },
-      "n_dates_with_topn": 4
+      "n_dates_with_topn": 12
     },
     "delta": {
-      "daily_ic": 0.034517397268973904,
-      "rank_ic": 0.035354233162084914,
-      "topn_realized_return": -0.0409785808971989,
-      "hit_rate": -0.46153846153846156,
-      "max_drawdown": 0.12769259801179622
+      "daily_ic": 0.03293207001770532,
+      "rank_ic": 0.04615806273439779,
+      "topn_realized_return": 0.0,
+      "hit_rate": 0.0,
+      "max_drawdown": 0.0
     },
     "verdict": {
       "phase2_ic_ge_phase1": true,
       "phase2_rank_ic_ge_phase1": true,
-      "phase2_topn_ge_phase1": false,
-      "phase2_hit_rate_ge_phase1": false,
+      "phase2_topn_ge_phase1": true,
+      "phase2_hit_rate_ge_phase1": true,
       "phase2_drawdown_no_worse": true
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 28,
+    "shadow_days": 12,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": 0.034517397268973904,
+    "cs_ic_vs_phase1": 0.03293207001770532,
     "reasons": [
       "portfolio_gate not passed"
     ]

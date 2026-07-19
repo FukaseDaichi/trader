@@ -216,6 +216,11 @@ def test_build_report_insufficient_history():
     assert rep["available"] is False
     assert rep["reason"] == "insufficient_shadow_history"
     assert rep["n_dates"] == 3
+    # A Phase 2 rank without a persisted portfolio weight is not an auditable
+    # shadow comparison date.
+    assert rep["n_paired_dates"] == 0
+    for reasons in rep["date_coverage"]["excluded_dates"].values():
+        assert "missing_phase2_weight" in reasons
     # No generated_at unless supplied (deterministic).
     assert "generated_at" not in rep
 
@@ -232,6 +237,13 @@ def test_build_report_available_with_comparison():
     assert rep["available"] is True
     assert rep["generated_at"] == "2026-06-10T06:00:00+09:00"
     assert rep["model_version"] == "cs-v1-20260606"
+    assert rep["n_dates"] == 8
+    assert rep["n_paired_dates"] == 8
+    assert rep["n_paired_records"] == len(records)
+    assert rep["date_coverage"]["paired_dates"] == [
+        f"2026-01-{d:02d}" for d in range(1, 9)
+    ]
+    assert rep["date_coverage"]["excluded_dates"] == {}
     assert "comparison" in rep
     cmp = rep["comparison"]
     for side in ("phase1", "phase2"):
@@ -242,6 +254,62 @@ def test_build_report_available_with_comparison():
     assert cmp["phase2"]["turnover"] is not None
     assert "expected_ret_calibration" in cmp["phase2"]
     assert cmp["phase1"]["turnover"] is None
+
+
+def test_report_excludes_one_sided_and_unweighted_dates():
+    records, top_n = _planted_records(n_dates=6, n_tickers=4)
+
+    # Raw Phase 1-only date: settled returns exist but Phase 2 does not.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-01",
+                "ticker": f"P1-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p1_prob_up": 0.51 + i * 0.01,
+                "p2_weight": 0.25 if i == 0 else None,
+            }
+        )
+
+    # Raw Phase 2-only date: settled returns/ranks/weights exist but Phase 1
+    # predictions do not.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-02",
+                "ticker": f"P2-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p2_cs_rank": i + 1,
+                "p2_expected_ret": 0.02 - i * 0.001,
+                "p2_weight": 0.25 if i == 0 else None,
+            }
+        )
+
+    # Both predictions/outcomes exist, but the portfolio snapshot carries no
+    # position weight, so the daily Phase 2 portfolio run is not evidenced.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-03",
+                "ticker": f"NW-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p1_prob_up": 0.51 + i * 0.01,
+                "p2_cs_rank": i + 1,
+                "p2_expected_ret": 0.02 - i * 0.001,
+            }
+        )
+
+    rep = ps.build_shadow_report(records, top_n=top_n)
+    assert rep["available"] is True
+    assert rep["n_dates"] == 9
+    assert rep["n_paired_dates"] == 6
+    assert rep["comparison"]["phase1"]["n_dates_with_topn"] == 6
+    assert rep["comparison"]["phase2"]["n_dates_with_topn"] == 6
+
+    excluded = rep["date_coverage"]["excluded_dates"]
+    assert "missing_phase2_settled_outcome" in excluded["2026-02-01"]
+    assert "missing_phase1_settled_outcome" in excluded["2026-02-02"]
+    assert "missing_phase2_weight" in excluded["2026-02-03"]
 
 
 def test_none_safety_missing_keys_and_none_returns():
@@ -282,6 +350,7 @@ def test_empty_records():
     assert rep["available"] is False
     assert rep["reason"] == "insufficient_shadow_history"
     assert rep["n_records"] == 0
+    assert rep["n_paired_dates"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -302,16 +371,24 @@ def _load_psr():
 
 def test_active_readiness_short_window():
     psr = _load_psr()
-    report = {"n_dates": 4}
+    report = {
+        "available": True,
+        "n_dates": 20,
+        "n_paired_dates": 9,
+        "comparison": {"delta": {"daily_ic": 0.012}},
+    }
     result = psr._active_readiness(report, gate_passed=True)
     assert result["active_ready"] is False
+    assert result["shadow_days"] == 9
     assert any("shadow_days" in r for r in result["reasons"])
 
 
 def test_active_readiness_ready_case():
     psr = _load_psr()
     report = {
-        "n_dates": 12,
+        "available": True,
+        "n_dates": 20,
+        "n_paired_dates": 10,
         "comparison": {"delta": {"daily_ic": 0.012}},
     }
     result = psr._active_readiness(report, gate_passed=True)
@@ -322,12 +399,44 @@ def test_active_readiness_ready_case():
 def test_active_readiness_gate_false():
     psr = _load_psr()
     report = {
+        "available": True,
         "n_dates": 12,
+        "n_paired_dates": 12,
         "comparison": {"delta": {"daily_ic": 0.012}},
     }
     result = psr._active_readiness(report, gate_passed=False)
     assert result["active_ready"] is False
     assert any("portfolio_gate" in r for r in result["reasons"])
+
+
+def test_active_readiness_unavailable_report():
+    psr = _load_psr()
+    report = {"available": False, "n_dates": 28, "n_paired_dates": 0}
+    result = psr._active_readiness(report, gate_passed=True)
+    assert result["active_ready"] is False
+    assert result["shadow_days"] == 0
+    assert "shadow_report unavailable" in result["reasons"]
+
+
+def test_active_readiness_ic_unavailable_or_below_floor():
+    psr = _load_psr()
+    base = {"available": True, "n_dates": 12, "n_paired_dates": 12}
+
+    unavailable = psr._active_readiness(base, gate_passed=True)
+    assert unavailable["active_ready"] is False
+    assert "cs_ic_vs_phase1 unavailable" in unavailable["reasons"]
+
+    below = dict(base)
+    below["comparison"] = {"delta": {"daily_ic": -0.0051}}
+    below_result = psr._active_readiness(below, gate_passed=True)
+    assert below_result["active_ready"] is False
+    assert any("cs_ic_vs_phase1" in r for r in below_result["reasons"])
+
+    # The documented -0.005 floor is inclusive.
+    boundary = dict(base)
+    boundary["comparison"] = {"delta": {"daily_ic": -0.005}}
+    boundary_result = psr._active_readiness(boundary, gate_passed=True)
+    assert boundary_result["active_ready"] is True
 
 
 ALL_TESTS = [
@@ -340,11 +449,14 @@ ALL_TESTS = [
     test_expected_ret_calibration_bias_sign,
     test_build_report_insufficient_history,
     test_build_report_available_with_comparison,
+    test_report_excludes_one_sided_and_unweighted_dates,
     test_none_safety_missing_keys_and_none_returns,
     test_empty_records,
     test_active_readiness_short_window,
     test_active_readiness_ready_case,
     test_active_readiness_gate_false,
+    test_active_readiness_unavailable_report,
+    test_active_readiness_ic_unavailable_or_below_floor,
 ]
 
 
