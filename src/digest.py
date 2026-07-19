@@ -205,6 +205,65 @@ def _signal_name_lines(signals: list[dict]) -> list[str]:
     return lines
 
 
+# Take-profit / stop-loss lines for gate-passed long entries. The exit plan
+# uses the model's own triple-barrier widths (see predictor.build_long_exit_plan),
+# so these are the OCO order levels that match how prob_up was trained. Capped to
+# keep one LINE message under the API text limit.
+_MAX_EXIT_PLAN_LINES = 5
+_EXIT_PLAN_ORDER = {"BUY": 0, "MILD_BUY": 1}
+
+
+def _exit_plan_lines(signals: list[dict]) -> list[str]:
+    """Compact '現値→利確/損切' lines for gate-passed BUY / MILD_BUY entries."""
+    longs = [
+        sig
+        for sig in (signals or [])
+        if sig.get("gate_passed")
+        and sig.get("action") in _EXIT_PLAN_ORDER
+        and isinstance(sig.get("exit_plan"), dict)
+    ]
+    if not longs:
+        return []
+
+    longs.sort(
+        key=lambda s: (
+            _EXIT_PLAN_ORDER.get(s.get("action"), 9),
+            -float(s.get("prob_up") or 0),
+        )
+    )
+
+    days = longs[0]["exit_plan"].get("time_exit_days")
+    header = "🎯 利確/損切り目安 (現値→利確/損切"
+    header += f" ・期限{days}日)" if days else ")"
+    lines = [header]
+
+    for sig in longs[:_MAX_EXIT_PLAN_LINES]:
+        plan = sig["exit_plan"]
+        name = sig.get("name") or sig.get("ticker", "?")
+        tp = plan.get("take_profit_price")
+        sl = plan.get("stop_price")
+        tp_pct = plan.get("take_profit_pct")
+        sl_pct = plan.get("stop_pct")
+
+        def _price_str(v: Any) -> str:
+            try:
+                return f"{int(float(v)):,}"
+            except (TypeError, ValueError):
+                return "—"
+
+        close_str = _price_str(sig.get("close"))
+        tp_str = _price_str(tp)
+        sl_str = _price_str(sl)
+        pct_str = ""
+        if tp_pct is not None and sl_pct is not None:
+            pct_str = f" ({float(tp_pct):+.0%}/{float(sl_pct):+.0%})"
+        lines.append(f"・{name} {close_str}→利確{tp_str}/損切{sl_str}{pct_str}")
+
+    if len(longs) > _MAX_EXIT_PLAN_LINES:
+        lines.append(f"・ほか{len(longs) - _MAX_EXIT_PLAN_LINES}件")
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -247,6 +306,7 @@ def build_daily_digest(
     b, mb, s = _signal_counts(signals)
     signal_line = f"📨 個別シグナル: 買い{b} / やや買い{mb} / 売り{s}"
     name_lines = _signal_name_lines(signals)
+    exit_plan_lines = _exit_plan_lines(signals)
 
     # --- Performance line ---
     perf_line = _performance_line(performance_summary)
@@ -260,6 +320,7 @@ def build_daily_digest(
         _SEP,
         signal_line,
         *name_lines,
+        *([_SEP, *exit_plan_lines] if exit_plan_lines else []),
         perf_line,
         f"詳細: {dashboard_url}",
     ]

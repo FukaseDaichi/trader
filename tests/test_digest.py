@@ -561,6 +561,84 @@ def test_macro_regime_unknown_bias():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# (f) Exit plan (take-profit / stop-loss) lines
+# ---------------------------------------------------------------------------
+
+
+def _sig_with_plan(
+    action="BUY",
+    gated=True,
+    name="トヨタ",
+    ticker="7203.JP",
+    close=3225.0,
+    tp=3370,
+    sl=3128,
+    days=5,
+    prob=0.88,
+):
+    return {
+        "action": action,
+        "gate_passed": gated,
+        "name": name,
+        "ticker": ticker,
+        "close": close,
+        "prob_up": prob,
+        "exit_plan": {
+            "take_profit_price": tp,
+            "stop_price": sl,
+            "take_profit_pct": 0.045,
+            "stop_pct": -0.030,
+            "time_exit_days": days,
+        },
+    }
+
+
+def test_exit_plan_block_shown_for_buy():
+    out = digest.build_daily_digest(
+        "2026-07-13", None, None, None, [_sig_with_plan()], "https://x/"
+    )
+    assert "利確/損切り目安" in out, out
+    assert "利確3,370" in out and "損切3,128" in out, out
+    assert "期限5日" in out, out
+
+
+def test_exit_plan_block_absent_when_no_long_plan():
+    # SELL / HOLD carry no exit_plan -> no exit block.
+    sigs = [
+        {"action": "SELL", "gate_passed": True, "exit_plan": None},
+        {"action": "HOLD", "gate_passed": True, "exit_plan": None},
+    ]
+    out = digest.build_daily_digest("2026-07-13", None, None, None, sigs, "https://x/")
+    assert "利確/損切り目安" not in out, out
+
+
+def test_exit_plan_block_absent_when_gate_failed():
+    sig = _sig_with_plan(gated=False)
+    out = digest.build_daily_digest("2026-07-13", None, None, None, [sig], "https://x/")
+    assert "利確/損切り目安" not in out, out
+
+
+def test_exit_plan_caps_and_counts_remainder():
+    sigs = [
+        _sig_with_plan(name=f"銘柄{i}", ticker=f"{1000 + i}.JP", prob=0.9 - i * 0.01)
+        for i in range(7)
+    ]
+    out = digest.build_daily_digest("2026-07-13", None, None, None, sigs, "https://x/")
+    # 5 lines shown + remainder note for the other 2.
+    assert "ほか2件" in out, out
+
+
+def test_exit_plan_buy_before_mild_buy():
+    sigs = [
+        _sig_with_plan(action="MILD_BUY", name="やや買い銘柄", prob=0.70),
+        _sig_with_plan(action="BUY", name="本命買い銘柄", prob=0.88),
+    ]
+    out = digest.build_daily_digest("2026-07-13", None, None, None, sigs, "https://x/")
+    body = out[out.index("利確/損切り目安") :]
+    assert body.index("本命買い銘柄") < body.index("やや買い銘柄"), out
+
+
 def test_output_contains_separators():
     out = digest.build_daily_digest("2026-06-10", None, None, None, [], "https://x/")
     assert "──────────" in out, out
@@ -779,6 +857,11 @@ ALL_TESTS = [
     test_macro_regime_risk_off,
     test_macro_regime_none_shows_unknown,
     test_macro_regime_unknown_bias,
+    test_exit_plan_block_shown_for_buy,
+    test_exit_plan_block_absent_when_no_long_plan,
+    test_exit_plan_block_absent_when_gate_failed,
+    test_exit_plan_caps_and_counts_remainder,
+    test_exit_plan_buy_before_mild_buy,
     test_output_contains_separators,
     test_dashboard_url_appears,
     test_run_date_in_header,

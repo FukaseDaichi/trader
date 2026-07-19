@@ -1,6 +1,16 @@
 import math
 
 
+# Default triple-barrier widths — kept in sync with src.config.get_label_config
+# (TRADER_TB_TP_ATR / TRADER_TB_SL_ATR / TRADER_TB_MAX_DAYS). The displayed
+# take-profit / stop-loss lines use the SAME widths the Phase 1 model is trained
+# on, so `prob_up` stays interpretable as "P(take-profit hit before stop-loss
+# within the time barrier)".
+DEFAULT_TB_TP_ATR = 1.5
+DEFAULT_TB_SL_ATR = 1.0
+DEFAULT_TB_MAX_DAYS = 5
+
+
 DEFAULT_SIGNAL_THRESHOLDS = {
     "buy": 0.80,  # ~P80  — top 20% conviction
     "mild_buy": 0.65,  # ~P55  — moderate positive lean
@@ -53,6 +63,61 @@ def _is_missing_or_nan(value):
         return True
 
 
+def _barrier_widths(label_config=None):
+    """Take-profit / stop-loss ATR multiples + time barrier from the label config.
+
+    Falls back to the module defaults so predictor.py stays free of config /
+    network imports and unit-testable in isolation.
+    """
+    cfg = label_config if isinstance(label_config, dict) else {}
+    tp_atr = cfg.get("tb_tp_atr", DEFAULT_TB_TP_ATR)
+    sl_atr = cfg.get("tb_sl_atr", DEFAULT_TB_SL_ATR)
+    max_days = cfg.get("tb_max_days", DEFAULT_TB_MAX_DAYS)
+    try:
+        tp_atr = max(0.0, float(tp_atr))
+        sl_atr = max(0.0, float(sl_atr))
+        max_days = max(1, int(max_days))
+    except (TypeError, ValueError):
+        tp_atr, sl_atr, max_days = (
+            DEFAULT_TB_TP_ATR,
+            DEFAULT_TB_SL_ATR,
+            DEFAULT_TB_MAX_DAYS,
+        )
+    return tp_atr, sl_atr, max_days
+
+
+def build_long_exit_plan(close_price, atr, label_config=None):
+    """
+    ATR-based take-profit / stop-loss / time-exit plan for a LONG entry, using
+    the same triple-barrier widths the model is trained on (López de Prado
+    label = which barrier is touched first). Returns ``None`` when close/ATR is
+    missing or non-positive, so callers degrade to "no plan" rather than break.
+
+    Prices are rounded to whole yen (JP equities trade in integer prices);
+    percentages are signed relative moves from the entry close.
+    """
+    if _is_missing_or_nan(close_price) or _is_missing_or_nan(atr):
+        return None
+    close_price = float(close_price)
+    atr = float(atr)
+    if close_price <= 0 or atr <= 0:
+        return None
+
+    tp_atr, sl_atr, max_days = _barrier_widths(label_config)
+    take_profit_price = round(close_price + tp_atr * atr)
+    stop_price = round(close_price - sl_atr * atr)
+    return {
+        "take_profit_price": take_profit_price,
+        "stop_price": stop_price,
+        "take_profit_pct": (take_profit_price - close_price) / close_price,
+        "stop_pct": (stop_price - close_price) / close_price,
+        "time_exit_days": max_days,
+        "atr": round(atr, 2),
+        "tp_atr_mult": tp_atr,
+        "sl_atr_mult": sl_atr,
+    }
+
+
 def action_from_probability(prob_up, volatility=None, thresholds=None):
     """
     Map model probability (+ optional volatility) to a discrete action.
@@ -75,7 +140,7 @@ def action_from_probability(prob_up, volatility=None, thresholds=None):
     return "HOLD"
 
 
-def generate_signal(df, prob_up, ticker_info, thresholds=None):
+def generate_signal(df, prob_up, ticker_info, thresholds=None, label_config=None):
     """
     Generate a 5-level signal based on the predicted probability of price increase.
 
@@ -87,10 +152,18 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
         SELL     - Very strong downside conviction   (prob_up < 10%)
 
     Additional rule: BUY is downgraded to MILD_BUY when volatility is high.
+
+    For long entries (BUY / MILD_BUY) an ATR-based exit plan is attached
+    (``exit_plan`` + flattened ``take_profit_price`` / ``stop_price`` /
+    ``time_exit_days``), using the same triple-barrier widths (``label_config``)
+    the model is trained on. ``stop_loss`` now carries the ATR stop price
+    (previously a fixed 2%). The plan is None when ATR is unavailable, so the
+    daily run never breaks on a missing feature.
     """
     latest = df.iloc[-1]
     close_price = latest["close"]
     volatility = latest["volatility"]
+    atr = latest["atr"] if "atr" in df.columns else None
 
     signal = {
         "ticker": ticker_info["code"],
@@ -102,6 +175,12 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
         "reason": "",
         "limit_price": None,
         "stop_loss": None,
+        "take_profit_price": None,
+        "stop_price": None,
+        "take_profit_pct": None,
+        "stop_pct": None,
+        "time_exit_days": None,
+        "exit_plan": None,
     }
 
     # --- Decision logic ---
@@ -112,17 +191,19 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
 
     if action == "BUY":
         signal["limit_price"] = int(close_price * (1 - 0.005))
-        signal["stop_loss"] = int(close_price * (1 - 0.02))
+        _attach_exit_plan(signal, close_price, atr, label_config)
         signal["reason"] = (
             f"強い上昇シグナル (上昇確率 {prob_up:.0%})・ボラティリティ低 ({volatility:.1%})"
         )
 
     elif action == "MILD_BUY" and prob_up >= t["buy"]:
+        _attach_exit_plan(signal, close_price, atr, label_config)
         signal["reason"] = (
             f"上昇シグナルだがボラティリティ高 ({volatility:.1%})・様子見推奨 (上昇確率 {prob_up:.0%})"
         )
 
     elif action == "MILD_BUY":
+        _attach_exit_plan(signal, close_price, atr, label_config)
         signal["reason"] = f"やや上昇傾向 (上昇確率 {prob_up:.0%})"
 
     elif action == "SELL":
@@ -136,3 +217,17 @@ def generate_signal(df, prob_up, ticker_info, thresholds=None):
         signal["reason"] = f"判断材料不足 (上昇確率 {prob_up:.0%})"
 
     return signal
+
+
+def _attach_exit_plan(signal, close_price, atr, label_config):
+    """Populate the ATR take-profit / stop-loss / time-exit fields on a long signal."""
+    plan = build_long_exit_plan(close_price, atr, label_config)
+    if plan is None:
+        return
+    signal["exit_plan"] = plan
+    signal["take_profit_price"] = plan["take_profit_price"]
+    signal["stop_price"] = plan["stop_price"]
+    signal["stop_loss"] = plan["stop_price"]  # DB `stop_loss` column, now ATR-based
+    signal["take_profit_pct"] = plan["take_profit_pct"]
+    signal["stop_pct"] = plan["stop_pct"]
+    signal["time_exit_days"] = plan["time_exit_days"]

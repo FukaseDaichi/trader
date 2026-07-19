@@ -21,6 +21,17 @@ export interface SignalThresholds {
   volatility_limit: number;
 }
 
+export interface ExitPlan {
+  take_profit_price: number;
+  stop_price: number;
+  take_profit_pct: number;
+  stop_pct: number;
+  time_exit_days: number;
+  atr: number;
+  tp_atr_mult: number;
+  sl_atr_mult: number;
+}
+
 export interface Signal {
   ticker: string;
   name: string;
@@ -31,6 +42,12 @@ export interface Signal {
   reason: string;
   limit_price?: number | null;
   stop_loss?: number | null;
+  take_profit_price?: number | null;
+  stop_price?: number | null;
+  take_profit_pct?: number | null;
+  stop_pct?: number | null;
+  time_exit_days?: number | null;
+  exit_plan?: ExitPlan | null;
   raw_action?: SignalAction;
   gate_passed?: boolean;
   confidence_label?: string;
