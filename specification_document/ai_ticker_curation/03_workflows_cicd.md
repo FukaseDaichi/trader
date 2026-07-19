@@ -1,6 +1,6 @@
 # GitHub Actions / CI仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-19 JST
 
 AI 銘柄キュレーション用 workflow は 2 本です。日次はテクニカル駆動の銘柄入替、週次はファンダ更新・レポート生成・LINE 通知を担います。
 
@@ -24,7 +24,7 @@ AI 銘柄キュレーション用 workflow は 2 本です。日次はテクニ�
 現行ステップ:
 
 1. checkout
-2. `astral-sh/setup-uv@v5`
+2. `astral-sh/setup-uv@v8.3.2`（Action実行ランタイムはNode 24）
 3. `uv python install`
 4. `uv sync`
 5. `jpx_calendar.py is-open`
@@ -43,7 +43,7 @@ AI 銘柄キュレーション用 workflow は 2 本です。日次はテクニ�
 現行ステップ:
 
 1. checkout
-2. `astral-sh/setup-uv@v5`
+2. `astral-sh/setup-uv@v8.3.2`（Action実行ランタイムはNode 24）
 3. `uv python install`
 4. `uv sync`
 5. `today_jst` を解決

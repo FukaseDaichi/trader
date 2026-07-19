@@ -1,6 +1,6 @@
 # GitHub Actions仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-19 JST
 
 ## ワークフロー一覧
 
@@ -8,7 +8,7 @@
 |---|---|---:|---|---|
 | Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 04:30 | 候補warmup → テクニカルscreen → Claude技術分析 → 決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
 | Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | マクロ更新 → `main.py` → 実現結果決済 → ドリフトチェック | `data/`, `docs/` |
-| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら core と同処理 | `data/`, `docs/` |
+| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら最小envで `main.py` を再実行（マクロ更新・DB・決済なし） | `data/`, `docs/` |
 | Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js 静的ビルドを `docs/` へ同期 | `docs/` |
 | Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 成果物の鮮度・完全性 + ドリフト検証。失敗/ドリフト時に GitHub Issue 起票 | なし |
 | Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → **[隔週]プールagent＋決定論merge** → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/`, `curation_pool.yml` |
@@ -32,9 +32,9 @@
 4. `scripts/drift_check.py --as-of <today> || true`: `docs/drift_report.json` 出力
 5. `.github/scripts/commit-and-push.sh` で commit/push
 
-`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
+`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。retryはシグナル公開の救済に絞った最小構成で、DB台帳・Phase 2 snapshot・マクロ更新・決済は行いません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
 
-`daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加えてドリフトチェックを実行し、それぞれ失敗時に GitHub Issue を起票します。
+`daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加え、日次ループ内でHOLDへ縮退した銘柄処理失敗・outbox滞留/dead letter・ドリフトを検知し、失敗時に GitHub Issue を起票します。
 
 ## 週次処理
 
@@ -50,6 +50,16 @@ rsync の `--exclude` リストには、パイプラインが `docs/` 直下に�
 **重要**: `docs/` 直下に新しいデータファイルを追加する場合は、必ずこの exclude リストにも追加すること。漏れると次回 publish で削除されます。`tests/test_publish_workflow.py` がコード側の出力と exclude リストの整合を再発防止ガードとして検査します。
 
 ## 権限と排他
+
+workflowが直接使うJavaScript ActionはNode 24対応版に統一しています。
+
+| Action | 使用版 | Action実行ランタイム |
+|---|---|---|
+| `actions/checkout` | `v6` | Node 24 |
+| `actions/setup-node` | `v6` | Node 24（`node-version: "22"`はフロントエンド実行環境の指定で別物） |
+| `astral-sh/setup-uv` | `v8.3.2` | Node 24 |
+
+GitHub-hosted `ubuntu-latest` を前提とします。self-hosted runnerへ移す場合は、Node 24 Actionに必要なActions Runner `v2.327.1` 以上を使います。
 
 書き込み系 workflow は `contents: write`、watchdog は `contents: read` + `issues: write`、`manual-db-migrate` は `contents: read` のみ（本番 DB へ適用するだけで commit/push しない）。日次 core/retry は concurrency group `daily-core-main` で直列化、publish は `daily-publish-main`、キュレーション系は `daily-curation-main` / `weekly-fundamental-main`。
 

@@ -7,9 +7,9 @@
 - **Phase 0（計測基盤）**: 予測・シグナル・実現リターン（1/5/10営業日）をNeon Postgresへ記録し、実績を`docs/performance_summary.json`として公開
 - **Phase 1（シグナル品質）**: 5営業日ホライズンのトリプルバリアラベル、isotonic較正、マクロ/レジーム特徴量、週次学習の保存済みモデル、ドリフト監視
 - **Phase 2（ポートフォリオ・シャドー運用中）**: ユニバース全体を1つのクロスセクショナルモデルで予測し、リスク制約付きロングオンリーの目標ポートフォリオを毎日提案（シャドー中はPhase 1のシグナル・通知に影響しない）
-- **Phase 3（手動トレードUX・運用堅牢化）**: TOPIX超過リターンの決済、実績ページ（資産曲線 vs TOPIX・ドローダウン・較正・個別結果履歴／`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、active mode配線（`TRADER_PORTFOLIO_MODE=active`で`target_weight`をシグナルへ反映。切替はシャドー実績確認後の手動env変更）
+- **Phase 3（手動トレードUX・運用堅牢化）**: トリプルバリアと同じ幅を使うATR出口プラン、TOPIX超過リターンの決済、実績ページ（資産曲線 vs TOPIX・ドローダウン・較正・個別結果履歴／`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、active mode配線（`TRADER_PORTFOLIO_MODE=active`で`target_weight`をシグナルへ反映。切替はシャドー実績確認後の手動env変更）
 
-このREADMEは2026-06-16時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様・既知課題・バックログは`specification_document/`（`README.md`が索引）を参照してください。
+このREADMEは2026-07-19時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様・既知課題・バックログは`specification_document/`（`README.md`が索引）を参照してください。
 
 ## 公開ダッシュボード
 
@@ -27,11 +27,12 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 - テクニカル34個＋マクロ/レジーム11個の特徴量を生成する（USD/JPY、TOPIX、日経平均、日経VI、JGB10年）
 - ホライズン対応のwalk-forward OOSバックテストでCAGR、最大ドローダウン、Sharpe、期待値、取引回数を評価し、KPIゲート未達銘柄を`HOLD`へ強制する
 - 銘柄ごとのBUY/MILD_BUY/MILD_SELL/SELL閾値を自動最適化する
+- ゲートを通過した`BUY`/`MILD_BUY`に、学習ラベルと同じトリプルバリア幅を使った利確・損切り・時間出口（既定: `+1.5 ATR` / `-1.0 ATR` / 5営業日）を付ける。ATR欠損時は出口プランだけを省略して日次処理を継続する
 - 週次学習で保存したモデル（isotonic較正付き）で日次推論し、保存モデルが無い銘柄はその場学習にフォールバックする（`TRADER_MODEL_MODE=auto`）
 - 予測・シグナル・実現リターンをNeon Postgresへ書き込み、DB不通時は`data/outbox/`のJSONLキューへ退避して次回再送する
 - IC/Brier/PSIによるモデルドリフト監視を行い、しきい値超過でGitHub Issueを自動起票する
 - クロスセクショナルモデル（LightGBM ranker）でユニバース全体を順位付けし、逆ボラ重み＋銘柄/セクター/グロス上限のロングオンリー目標ポートフォリオを`docs/portfolio_latest.json`へ出力する（シャドー運用）
-- KPIゲートを通過した非`HOLD`シグナルのみLINE Messaging APIで通知する
+- LINEは朝のダイジェスト1通を主チャネルとし、ゲート通過シグナルの銘柄名とロングのATR出口プランを集約する。銘柄別通知は既定無効で、必要な場合だけ有効化できる
 - Next.js静的エクスポートを`docs/`に配置し、GitHub Pagesで表示する（実績・モデル品質・ポートフォリオの各カードはデータがある場合のみ表示）
 - AI銘柄キュレーション（自動）で、テクニカル（日次）とファンダメンタル（週次）の分析からガード通過時のみ`tickers.yml`の有効ユニバースを少数入替する
 - 隔週（14日）でAIが候補母集団`curation_pool.yml`をファンダ＋流動性で見直し、決定論マージで安全に更新する（add-onlyで段階導入）
@@ -47,10 +48,10 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 | 特徴量・モデル | `src/model.py`, `src/macro.py`, `src/labels.py` | テクニカル/マクロ特徴量、ラベル生成、LightGBM学習・推論 |
 | モデル運用 | `src/model_store.py`, `src/phase1.py`, `src/calibration.py` | モデルartifact保存/読込、activeポインタ、保存モデル推論、isotonic較正 |
 | KPIゲート | `src/backtest.py` | OOS予測、売買シミュレーション、閾値最適化、レポート |
-| シグナル | `src/predictor.py` | 上昇確率から5段階アクションへ変換（ボラティリティガード付き） |
+| シグナル | `src/predictor.py` | 上昇確率から5段階アクションへ変換し、ロングへATR利確・損切り・時間出口を付与（ボラティリティガード付き） |
 | 計測DB | `src/db.py`, `src/db_records.py`, `migrations/` | Neon Postgres書き込み、outboxフォールバック、スキーマ |
 | ポートフォリオ | `src/universe.py`, `src/cross_section.py`, `src/cs_model.py`, `src/portfolio.py`, `src/portfolio_backtest.py`, `src/portfolio_shadow.py` | ユニバース選定、CSパネル/モデル、目標ウェイト構築、ウォークフォワード検証、シャドー比較 |
-| 通知 | `src/notifier.py` | LINE Push API通知 |
+| 通知 | `src/notifier.py`, `src/digest.py` | LINE Push API共通送信、朝のダイジェスト・ATR出口目安・週次サマリ |
 | ダッシュボード出力 | `src/dashboard.py` | state/index/ticker/performance/model_quality/portfolio JSON生成、`web/public`同期 |
 | 補助スクリプト | `scripts/*.py` | 営業日判定、監視、監査、再学習、決済、ドリフト、ローテ更新、ストレステスト |
 | フロントエンド | `web/` | Next.js 16 + React 19 + Recharts 3の静的ダッシュボード |
@@ -99,10 +100,12 @@ uv run python main.py
 1. `tickers.yml`の有効銘柄を読み込む
 2. 無効銘柄のparquetを`data/archive/`へ退避する（削除はしない）
 3. マクロパネルとactiveモデルポインタを読み込む
-4. 銘柄ごとに: データ更新 → 特徴量生成（テクニカル＋マクロ）→ KPIゲート → 上昇確率推定（保存モデル推論、無ければその場学習）→ シグナル生成（ゲート未達は`HOLD`強制）→ ゲート通過かつ非`HOLD`のみLINE通知
-5. Phase 0: 予測・シグナルを計測DBへ書き込む（失敗してもジョブは止まらない）
-6. Phase 2: クロスセクション推論 → 目標ポートフォリオ構築 → `docs/portfolio_latest.json`とDBスナップショット更新（`TRADER_PORTFOLIO_ENABLED=true`時のみ）
-7. `docs/backtest_report.json`とダッシュボードJSON（state/index/tickers/performance_summary/model_quality）を更新する
+4. 銘柄ごとに: データ更新 → 特徴量生成（テクニカル＋マクロ）→ KPIゲート → 上昇確率推定（保存モデル推論、無ければその場学習）→ 5段階シグナル生成。`BUY`/`MILD_BUY`にはATR出口プランを付け、ゲート未達・モデル失敗時は価格目安を消して`HOLD`へ強制する
+5. Phase 2: クロスセクション推論 → 目標ポートフォリオ構築 → `docs/portfolio_latest.json`とDBスナップショット更新（`TRADER_PORTFOLIO_ENABLED=true`時のみ）
+6. activeモードかつポートフォリオKPIゲート通過時だけ`target_weight`をシグナルへマージする（shadowでは無変更）
+7. ループ後にLINE通知を1回実行する。朝のダイジェストが主チャネルで、ゲート通過ロングの利確・損切り・期限も最大5銘柄まで掲載する。銘柄別通知は既定無効
+8. Phase 0: マージ後の予測・シグナルを計測DBへ書き込む（失敗してもジョブは止まらない）
+9. `docs/backtest_report.json`とダッシュボードJSON（state/index/tickers/performance/model_quality/portfolio）を更新する
 
 ## 環境変数
 
@@ -244,6 +247,7 @@ Neon Postgresに以下を記録します。スキーマは`migrations/*.sql`、�
 - 週次（土曜）に`scripts/weekly_model_retrain.py`が銘柄別モデルを学習し、artifactを`data/models/`へ保存、`active_model.json`ポインタと`model_registry`を更新します。
 - 日次の`main.py`は`TRADER_MODEL_MODE=auto`で動作し、activeモデルがあれば推論のみ、無い銘柄は従来どおりその場学習にフォールバックします。`legacy`に切り替えると旧来の「毎日学習＋翌日二値ラベル」へ即時rollbackできます。
 - ラベルは既定でトリプルバリア（利確1.5ATR/損切1.0ATR/5営業日）、確率はisotonic較正されます。
+- `BUY`/`MILD_BUY`の出口プランは同じ設定値から算出します。利確=`現在値 + TP_ATR×ATR`、損切り=`現在値 - SL_ATR×ATR`（1円単位へ丸め）、期限=`TB_MAX_DAYS`です。これは手動注文の目安であり、自動発注は行いません。
 - `scripts/drift_check.py`がIC/Brier/PSIを監視し、`docs/drift_report.json`へ出力します。しきい値超過時はDaily WatchdogがGitHub Issueを起票します。
 
 ## ポートフォリオ提案（Phase 2・シャドー運用中）
@@ -253,7 +257,7 @@ Neon Postgresに以下を記録します。スキーマは`migrations/*.sql`、�
 - 日次の`main.py`がCS推論を行い、逆ボラ重み・銘柄20%/セクター40%/グロス100%上限・最小3%・2%ノートレードバンド・リスクオフ時グロス半減の制約で目標ウェイトを構築し、`docs/portfolio_latest.json`とDBへ書き込みます。
 - ウォークフォワード検証（対TOPIX）にはKPIゲート（Sharpe≥0.30、MaxDD≤25%、IR≥0、回転率≤40%）があり、結果は`docs/portfolio_backtest.json`に出力されます。
 - 現在は**shadowモード**です。shadow中はPhase 1のシグナル・LINE通知に一切影響しません。Phase 3でactive配線（`portfolio.merge_target_weights`）が完了しており、`TRADER_PORTFOLIO_MODE=active`かつポートフォリオKPIゲート通過時のみ`target_weight`をシグナルへ反映します。`active`への切替自体はシャドー実績（`docs/portfolio_shadow_report.json`の`active_readiness`）確認後の手動env変更です。
-- `scripts/portfolio_shadow_report.py`（週次）がPhase 1単体運用とPhase 2ポートフォリオを比較し、`active_readiness`（shadow日数・ゲート・CS IC差）を出力します。
+- `scripts/portfolio_shadow_report.py`（週次）が、決済済みリターン・両Phaseの予測・Phase 2建玉が同じ日/銘柄で揃うpairedデータだけを比較し、`active_readiness`（paired日数・ゲート・CS IC差）を出力します。
 
 ## フロントエンド
 
@@ -313,6 +317,8 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 | `Manual DB Migrate` | 手動 | `migrations/*.sql`を冪等適用（DB初期化/更新。`dry_run`でプレビュー） |
 
 すべての書き込み系workflowは、commit/pushを共通ヘルパ`.github/scripts/commit-and-push.sh`（`git pull --rebase --autostash`＋最大3回リトライ）に集約しています。
+
+workflowが直接使うJavaScript ActionはNode 24対応版（`actions/checkout@v6`、`actions/setup-node@v6`、`astral-sh/setup-uv@v8.3.2`）です。フロントエンドのビルド対象は引き続きNode 22で、Action自身の実行ランタイムとは独立しています。
 
 ## AI銘柄キュレーション（自動）
 

@@ -1,6 +1,6 @@
 # Pythonバックエンド仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-19 JST
 
 ## モジュールマップ
 
@@ -16,7 +16,7 @@
 | `src/backtest.py` | 銘柄別 KPI ゲート（walk-forward OOS + コスト/スリッページ + 閾値自動最適化）と `evaluate_portfolio_kpi_gate()` |
 | `src/model_store.py` | 週次学習モデルの保存/読込（`data/models/` + active ポインタ） |
 | `src/phase1.py` | 保存済みバンドルでの日次推論 `predict_ticker()` |
-| `src/predictor.py` | `prob_up` → 5 段階アクション + ボラティリティガード |
+| `src/predictor.py` | `prob_up` → 5 段階アクション + ボラティリティガード + ロングのATR出口プラン |
 | `src/universe.py` | Phase 2 ユニバース選定ロジック（流動性・セクター上限・決定論） |
 | `src/cross_section.py` | クロスセクション・パネル構築（日付内 z-score/ランク正規化） |
 | `src/cs_model.py` | クロスセクション LightGBM ランカの学習・推論・較正 |
@@ -26,7 +26,7 @@
 | `src/db.py` | Neon Postgres アクセス層。write-through、outbox リプレイ、各種 fetch/upsert |
 | `src/db_records.py` | signal/prediction/outcome の行マッピング（純粋関数、`compute_benchmark_ret()` 含む） |
 | `src/notifier.py` | LINE 通知。`send_line_text()`（リトライ付き共通送信）と個別シグナル通知 |
-| `src/digest.py` | 日次ダイジェスト・週次サマリの文面組み立て（純粋ロジック） |
+| `src/digest.py` | 日次ダイジェスト（ATR利確/損切/期限を含む）・週次サマリの文面組み立て（純粋ロジック） |
 | `src/performance.py` | 実績集計（資産曲線・ドローダウン・rolling 指標・reliability・直近結果） |
 | `src/dashboard.py` | `docs/` への JSON エクスポート一式 |
 
@@ -45,13 +45,13 @@
 4. `build_feature_frame()`: 34 テクニカル + 11 マクロ特徴量（マクロはパネル欠損時に自動で省略）
 5. `evaluate_kpi_gate()`: ラベル設定と整合する horizon-aware walk-forward OOS バックテスト。ゲート結果・最適化閾値を backtest entry に記録
 6. `_predict_for_ticker()`: モード別推論（下記「モデル運用」）
-7. `generate_signal()` + `_attach_confidence_fields()`: ゲート未達またはモデル失敗時は表示用 `action` を `HOLD` へ強制（`raw_action` は保持）
+7. `generate_signal()` + `_attach_confidence_fields()`: `BUY` / `MILD_BUY`にはラベル設定と同じATR幅の出口プランを付与。ゲート未達またはモデル失敗時は表示用 `action` を `HOLD` へ強制し、注文と誤認されないよう入口/出口価格フィールドをすべて消す（`raw_action` は保持）
 
 **ループ後:**
 
 8. Phase 2 推論 + ポートフォリオ snapshot（`run_phase2_inference` → `_run_portfolio_snapshot`）: `TRADER_PORTFOLIO_ENABLED` のときのみ。`docs/portfolio_latest.json` 出力と `portfolio_snapshots` upsert。失敗・条件未達は `fallback` として理由付き JSON を出し Phase 1 へ影響しない
 9. `portfolio.merge_target_weights(signals, snapshot, gate_passed=read_portfolio_gate())`: **active モードかつ snapshot ok かつゲート通過のときだけ** 各シグナルへ `target_weight`（建玉外は 0.0）と理由追記を付与した新リストを返す。shadow / fallback / ゲート未達 / snapshot 無しでは入力をそのまま返す（shadow 完全無変更の保証）。`action` は変更しない
-10. 通知ブロック: 個別シグナル通知は**既定で無効**（`TRADER_NOTIFY_PER_TICKER_ENABLED=false`、ダイジェストのみ運用。true にするとゲート通過かつ非 HOLD を 1 件ずつ `send_notification()`、個別失敗は隔離）。続いて `TRADER_NOTIFY_DIGEST_ENABLED`（既定 true）のとき `digest.build_daily_digest()` を `send_line_text()` で送信
+10. 通知ブロック: 個別シグナル通知は**既定で無効**（`TRADER_NOTIFY_PER_TICKER_ENABLED=false`、ダイジェストのみ運用。true にするとゲート通過かつ非 HOLD を 1 件ずつ `send_notification()`、個別失敗は隔離）。続いて `TRADER_NOTIFY_DIGEST_ENABLED`（既定 true）のとき、買い/売り銘柄名とゲート通過ロング最大5銘柄のATR利確/損切/期限を含む `digest.build_daily_digest()` を `send_line_text()` で送信
 11. `db.record_run(signals, run_date)`: Phase 0 write-through（merge 後に実行するため `signals.target_weight` が DB に乗る）
 12. `write_backtest_report()` → `update_dashboard()`
 
@@ -119,6 +119,13 @@ legacy 学習（`train_and_predict`）: LightGBM 二値分類、直近 4 年、w
 
 ポートフォリオ単位のゲート `evaluate_portfolio_kpi_gate()`（Sharpe / MaxDD / 情報比 / 回転率、`TRADER_PORTFOLIO_BACKTEST_*`）は週次のクロスセクション再学習時に評価され、結果は `docs/cs_model_quality.json` に加えて `docs/portfolio_backtest.json` の `gate: {passed, failures}` にも書き出されます。`portfolio.read_portfolio_gate()` はこの `gate.passed` を優先して参照します（gate キーが無い旧レポートのみ availability にフォールバック）。
 
+## シグナルとATR出口プラン（src/predictor.py）
+
+- `generate_signal()` は生のアクションが `BUY` / `MILD_BUY` のときだけ `build_long_exit_plan()` を呼びます。`SELL` / `MILD_SELL` / `HOLD` にロング出口は付きません。
+- 利確価格は `round(close + tb_tp_atr × ATR)`、損切価格は `round(close - tb_sl_atr × ATR)`、時間出口は `tb_max_days` 営業日です。既定値は `+1.5 ATR` / `-1.0 ATR` / 5営業日で、トリプルバリア学習ラベルと同じ `get_label_config()` を使います。
+- `exit_plan` は `take_profit_price` / `stop_price` / 両者の現在値比 / `time_exit_days` / ATR / ATR倍率を持ち、主要値はシグナル直下にも平坦化されます。既存DB列との互換のため `stop_loss` は `stop_price` と同じ値です。`limit_price` は強い `BUY` / `SELL` の入口指値目安（現在値から0.5%）で、出口価格とは別です。
+- ATRが欠損・NaN・0以下なら `exit_plan: null` に縮退します。ゲート未達またはモデル失敗でHOLDへ強制するときは `_clear_entry_exit_fields()` が `limit_price`、利確、損切、期限をすべて `null` にします。出口プランは手動注文の目安で、自動発注は行いません。
+
 ## Phase 2 クロスセクション + ポートフォリオ
 
 - `cross_section.py`: 全銘柄×全日付のパネルを構築し、各特徴量を**日付内で** z-score/ランク正規化（`groupby("date").transform` のみ、リークなし）
@@ -130,8 +137,8 @@ legacy 学習（`train_and_predict`）: LightGBM 二値分類、直近 4 年、w
 ## 通知（src/notifier.py, src/digest.py）
 
 - `send_line_text(text)`: LINE Messaging API v3 の共通送信。**リトライ付き**（429/5xx/接続エラーのみ対象、4xx は即時失敗。`TRADER_NOTIFY_RETRY_MAX=3`、backoff は `base × 4^(attempt-1)`）。例外を外へ出さない
-- 日次ダイジェスト `digest.build_daily_digest()`（**通知の主チャネル**）: 建玉（モード・グロス・想定ボラ・new/継続/手仕舞い）+ 個別シグナル件数 + **アクション別の買い/売り銘柄名リスト**（ゲート通過のみ、各アクション最大4銘柄 + ほかN件）+ 直近実績 + レジーム（`docs/curation/macro_latest.json` の `market_bias` と USD/JPY）を 1 通に集約。portfolio 不在時は縮退文言
-- 個別シグナル通知 `send_notification()`: **既定無効**（LINE 無料枠対策でダイジェストのみ運用）。有効時は HOLD スキップで現在値・上昇確率・指値/損切り目安・理由・銘柄ページ URL を 1 銘柄 1 通
+- 日次ダイジェスト `digest.build_daily_digest()`（**通知の主チャネル**）: 建玉（モード・グロス・想定ボラ・new/継続/手仕舞い）+ 個別シグナル件数 + **アクション別の買い/売り銘柄名リスト**（ゲート通過のみ、各アクション最大4銘柄 + ほかN件）+ **ロングの現値→利確/損切・期限**（BUY優先、最大5銘柄）+ 直近実績 + レジーム（`docs/curation/macro_latest.json` の `market_bias` と USD/JPY）を 1 通に集約。portfolio 不在時は縮退文言
+- 個別シグナル通知 `send_notification()`: **既定無効**（LINE 無料枠対策でダイジェストのみ運用）。有効時は HOLD スキップで現在値・上昇確率・入口指値/ATR損切り目安・理由・銘柄ページ URL を 1 銘柄 1 通
 - 週次サマリ `digest.build_weekly_summary()`: `scripts/weekly_performance_notify.py` から送信（実績 0 件なら送らない）
 - LINE 未設定（token/user_id 空）なら送信スキップ。通知失敗は daily を止めない
 

@@ -101,22 +101,33 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 
 ```json
 {
-  "ticker": "7011.JP", "name": "三菱重工業", "date": "2026-06-10",
+  "ticker": "7011.JP", "name": "三菱重工業", "date": "2026-07-17",
   "close": 4586.0, "prob_up": 0.72,
-  "action": "HOLD", "raw_action": "MILD_BUY",
-  "gate_passed": false, "status": "ok",
-  "confidence_label": "自信なし", "confidence_reason": "過去検証で基準未達 (...)",
-  "reason": "自信なしのため見送り（過去検証で基準未達）",
+  "action": "MILD_BUY", "raw_action": "MILD_BUY",
+  "gate_passed": true, "status": "ok",
+  "confidence_label": "自信あり", "confidence_reason": "過去検証で基準通過",
+  "reason": "やや上昇傾向 (上昇確率 72%)",
   "thresholds": {"buy": 0.8, "mild_buy": 0.65, "mild_sell": 0.25, "sell": 0.1, "volatility_limit": 0.04},
   "threshold_optimization": {},
-  "model_version": "per-ticker-v1-20260613", "horizon_days": 5,
+  "model_version": "per-ticker-v1-20260718", "horizon_days": 5,
   "raw_score": 0.61, "expected_ret": 0.012, "features_hash": "…",
-  "limit_price": null, "stop_loss": null
+  "limit_price": null, "stop_loss": 4486,
+  "take_profit_price": 4736, "stop_price": 4486,
+  "take_profit_pct": 0.0327, "stop_pct": -0.0218,
+  "time_exit_days": 5,
+  "exit_plan": {
+    "take_profit_price": 4736, "stop_price": 4486,
+    "take_profit_pct": 0.0327, "stop_pct": -0.0218,
+    "time_exit_days": 5, "atr": 100.0,
+    "tp_atr_mult": 1.5, "sl_atr_mult": 1.0
+  }
 }
 ```
 
 - `action` は `BUY` / `MILD_BUY` / `HOLD` / `MILD_SELL` / `SELL`。KPI ゲート未達時は `raw_action` に元判断を残し `action: "HOLD"`
 - Phase 1 provenance（`model_version` / `horizon_days` / `raw_score` / `expected_ret` / `features_hash`）は推論経路により null になり得る
+- ゲート通過した `BUY` / `MILD_BUY` は、学習ラベルと同じATR倍率から `exit_plan`（利確・損切・現在値比・時間出口・ATR）を持つ。主要値は直下にも平坦化し、DB互換の `stop_loss` は `stop_price` と同値。ATR欠損時はすべて null
+- ゲート未達・モデル失敗でHOLDへ強制した場合、`limit_price` / `stop_loss` / `exit_plan` と全平坦化出口フィールドは誤発注防止のため null に消去される
 - **active モード時のみ** `target_weight`（建玉外 0.0）が付き、`reason` 末尾に `／建玉 18% (rank 1)` 形式が追記される。shadow では一切付かない
 - 処理失敗時は `status: "failed"`、`prob_up`/`close` 等が null になり得る
 
