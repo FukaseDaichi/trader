@@ -8,7 +8,7 @@
 |---|---|---:|---|---|
 | Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 04:30 | 候補warmup → テクニカルscreen → Claude技術分析 → 決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
 | Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | マクロ更新 → `main.py` → 実現結果決済 → ドリフトチェック | `data/`, `docs/` |
-| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新なら最小envで `main.py` を再実行（マクロ更新・DB・決済なし） | `data/`, `docs/` |
+| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新ならマクロ更新 → core同等envで `main.py` → 実現結果決済 | `data/`, `docs/` |
 | Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js 静的ビルドを `docs/` へ同期 | `docs/` |
 | Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 成果物の鮮度・完全性 + ドリフト検証。失敗/ドリフト時に GitHub Issue 起票 | なし |
 | Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → **[隔週]プールagent＋決定論merge** → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/`, `curation_pool.yml` |
@@ -32,7 +32,7 @@
 4. `scripts/drift_check.py --as-of <today> || true`: `docs/drift_report.json` 出力
 5. `.github/scripts/commit-and-push.sh` で commit/push
 
-`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。retryはシグナル公開の救済に絞った最小構成で、DB台帳・Phase 2 snapshot・マクロ更新・決済は行いません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
+`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。当日分がなければ、マクロ更新 → core と同じ Phase 0/1/2/3 env で `main.py` → `settle_outcomes.py --refill-benchmark` を実行し、DB台帳・Phase 2 snapshot・実現結果まで同日中に回復させます。マクロ更新と決済は core と同様に best-effort で、失敗しても日次シグナル公開を止めません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
 
 `daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加え、日次ループ内でHOLDへ縮退した銘柄処理失敗・outbox滞留/dead letter・ドリフトを検知し、失敗時に GitHub Issue を起票します。
 

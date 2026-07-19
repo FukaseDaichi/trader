@@ -59,13 +59,47 @@ jobs:
         if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run != 'true' }}
         run: echo "Today's update already exists. Retry skipped."
 
+      - name: Update macro snapshots
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        run: uv run python scripts/update_macro_snapshots.py --as-of "${{ steps.market.outputs.today_jst }}"
+
       - name: Run retry prediction script
         if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          # Keep retry inference identical to core. Saved-model failures still
+          # degrade to the legacy daily model inside main.py.
+          TRADER_MODEL_MODE: "auto"
+          TRADER_TARGET_HORIZON_DAYS: "5"
+          TRADER_LABEL_MODE: "triple_barrier"
+          TRADER_CALIBRATION_MODE: "isotonic"
+          TRADER_MACRO_FEATURES_ENABLED: "true"
+          # Phase 2 remains shadow-only, but retry must publish today's snapshot
+          # and measurement rows just like core.
+          TRADER_PORTFOLIO_ENABLED: "true"
+          TRADER_PORTFOLIO_MODE: "shadow"
+          TRADER_NOTIFY_DIGEST_ENABLED: "true"
+          TRADER_NOTIFY_PER_TICKER_ENABLED: "false"
+          TRADER_NOTIFY_RETRY_MAX: "3"
         run: uv run python main.py
+
+      - name: Settle realized outcomes
+        if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+          RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Commit and push retry updates
         if: ${{ steps.market.outputs.is_open == 'true' && steps.guard.outputs.needs_run == 'true' }}
