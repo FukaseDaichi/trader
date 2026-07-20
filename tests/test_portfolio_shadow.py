@@ -439,6 +439,118 @@ def test_active_readiness_ic_unavailable_or_below_floor():
     assert boundary_result["active_ready"] is True
 
 
+class _SqlCursor:
+    def __init__(self, rows=None):
+        self.rows = rows or []
+        self.executed = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def execute(self, sql, params=None):
+        self.executed.append((sql, params))
+
+    def fetchall(self):
+        return self.rows
+
+
+class _SqlConn:
+    def __init__(self, cursor):
+        self.fake_cursor = cursor
+
+    def cursor(self, **_kwargs):
+        return self.fake_cursor
+
+
+def test_shadow_sql_uses_linked_phase1_current_outcome_and_snapshot_cs_version():
+    psr = _load_psr()
+    cursor = _SqlCursor([])
+    rows = psr._fetch_pred_outcome_rows(_SqlConn(cursor), "2026-06-01", "2026-06-30", 5)
+
+    assert rows == []
+    sql, params = cursor.executed[0]
+    normalized = " ".join(sql.split()).lower()
+    assert "join predictions p on p.id = s.prediction_id" in normalized
+    assert "join model_registry mr on mr.version = p.model_version" in normalized
+    assert "o.contract_version = %(contract)s" in normalized
+    assert "model_version not like" not in normalized
+    assert "model_version like 'cs-" not in normalized
+    assert "from portfolio_snapshots ps join predictions p" in normalized
+    assert "p.model_version = ps.model_version" in normalized
+    assert "row_number() over" in normalized
+    assert "partition by p.run_date, p.ticker order by p.id desc" in normalized
+    assert params["contract"] == psr.EXECUTION_CONTRACT_VERSION
+    assert params["phase1_kind"] == psr.db.PHASE1_MODEL_KIND
+    assert params["ephemeral_phase1_prefix"] == (
+        f"{psr.db.EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX}%"
+    )
+    assert params["horizon"] == 5
+
+
+def test_snapshot_weights_and_records_retain_model_provenance():
+    psr = _load_psr()
+    cursor = _SqlCursor(
+        [
+            {
+                "run_date": "2026-06-10",
+                "model_version": "cs-v1-snapshot",
+                "positions": [
+                    {
+                        "ticker": "7011.JP",
+                        "target_weight": 0.2,
+                        "prev_weight": 0.1,
+                    }
+                ],
+            }
+        ]
+    )
+    weights = psr._fetch_snapshot_weights(_SqlConn(cursor), "2026-06-01", "2026-06-30")
+    sql, _ = cursor.executed[0]
+    assert "model_version" in sql
+    assert weights["2026-06-10"]["model_version"] == "cs-v1-snapshot"
+
+    records = psr._assemble_records(
+        [
+            {
+                "run_date": "2026-06-10",
+                "ticker": "7011.JP",
+                "p1_model_version": "per-ticker-v1-linked",
+                "p2_model_version": "cs-v1-snapshot",
+            }
+        ],
+        weights,
+    )
+    assert records == [
+        {
+            "date": "2026-06-10",
+            "ticker": "7011.JP",
+            "realized_ret": None,
+            "p1_model_version": "per-ticker-v1-linked",
+            "p1_prob_up": None,
+            "p1_action": None,
+            "p2_model_version": "cs-v1-snapshot",
+            "p2_snapshot_model_version": "cs-v1-snapshot",
+            "p2_provenance_matches_snapshot": True,
+            "p2_cs_rank": None,
+            "p2_expected_ret": None,
+            "p2_prob_up": None,
+            "p2_weight": 0.2,
+            "p2_prev_weight": 0.1,
+        }
+    ]
+
+    mismatched = psr._assemble_records(
+        [{**records[0], "run_date": "2026-06-10", "p2_model_version": "cs-v1-other"}],
+        weights,
+    )[0]
+    assert mismatched["p2_provenance_matches_snapshot"] is False
+    assert mismatched["p2_weight"] is None
+    assert mismatched["p2_prev_weight"] is None
+
+
 ALL_TESTS = [
     test_planted_signal_phase2_beats_phase1,
     test_topn_realized_return_handcomputed,
@@ -457,6 +569,8 @@ ALL_TESTS = [
     test_active_readiness_gate_false,
     test_active_readiness_unavailable_report,
     test_active_readiness_ic_unavailable_or_below_floor,
+    test_shadow_sql_uses_linked_phase1_current_outcome_and_snapshot_cs_version,
+    test_snapshot_weights_and_records_retain_model_provenance,
 ]
 
 

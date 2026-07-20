@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import portfolio as pf  # noqa: E402
+from src.execution import EXECUTION_CONTRACT_VERSION  # noqa: E402
 
 _TOL = 1e-9
 
@@ -680,15 +681,16 @@ def test_merge_target_weights_active_ok():
 
 def test_merge_target_weights_noop_on_shadow_or_gate_fail():
     signals = [{"ticker": "7011.JP", "action": "BUY", "reason": "r"}]
+    original = [dict(signal) for signal in signals]
     shadow = {
         "status": "ok",
         "mode": "shadow",
         "positions": [{"ticker": "7011.JP", "target_weight": 0.18}],
     }
-    assert (
-        "target_weight"
-        not in pf.merge_target_weights(signals, shadow, gate_passed=True)[0]
-    )
+    shadow_result = pf.merge_target_weights(signals, shadow, gate_passed=True)
+    assert shadow_result is signals
+    assert shadow_result == original
+    assert "target_weight" not in shadow_result[0]
     active = {**shadow, "mode": "active"}
     assert (
         "target_weight"
@@ -706,24 +708,127 @@ def test_read_portfolio_gate_various_cases():
     import tempfile
     import os
 
+    expected_model_version = "cs-v1-current"
+
+    def current_report(**overrides):
+        report = {
+            "available": True,
+            "status": "ok",
+            "n_periods": 12,
+            "model_version": expected_model_version,
+            "gate": {"passed": True, "failures": []},
+            "execution_contract": {
+                "contract_version": EXECUTION_CONTRACT_VERSION,
+                "return_basis": "net_after_entry_exit_costs",
+                "benchmark_return_basis": "net_after_same_entry_exit_costs",
+                "round_trip_cost_rate": 0.003,
+            },
+            "benchmark_coverage": {
+                "available": True,
+                "return_basis": "net_after_same_entry_exit_costs",
+                "total_periods": 12,
+                "available_periods": 12,
+                "coverage_ratio": 1.0,
+                "reason": None,
+            },
+        }
+        report.update(overrides)
+        return report
+
+    def read_gate(path, expected=expected_model_version):
+        return pf.read_portfolio_gate(path, expected_model_version=expected)
+
     with tempfile.TemporaryDirectory() as tmp:
         path_avail = os.path.join(tmp, "avail.json")
-        # available=true, no gate key -> True
+        # Legacy availability-only evidence must fail closed.
         Path(path_avail).write_text(json.dumps({"available": True}), encoding="utf-8")
-        assert pf.read_portfolio_gate(path_avail) is True
+        assert read_gate(path_avail) is False
+
+        # Missing gate failures or non-finite coverage cannot be treated as
+        # internally consistent evidence.
+        Path(path_avail).write_text(
+            json.dumps(current_report(gate={"passed": True})), encoding="utf-8"
+        )
+        assert read_gate(path_avail) is False
+
+        nonfinite_coverage = current_report()["benchmark_coverage"] | {
+            "coverage_ratio": float("nan")
+        }
+        Path(path_avail).write_text(
+            json.dumps(current_report(benchmark_coverage=nonfinite_coverage)),
+            encoding="utf-8",
+        )
+        assert read_gate(path_avail) is False
+
+        # Explicit current-contract evidence with complete benchmark passes.
+        Path(path_avail).write_text(json.dumps(current_report()), encoding="utf-8")
+        assert read_gate(path_avail) is True
+
+        # Omitting the expected version preserves fail-closed behavior for old
+        # callers; missing or stale report versions cannot activate a new model.
+        assert pf.read_portfolio_gate(path_avail) is False
+        no_version = current_report()
+        no_version.pop("model_version")
+        Path(path_avail).write_text(json.dumps(no_version), encoding="utf-8")
+        assert read_gate(path_avail) is False
+        Path(path_avail).write_text(json.dumps(current_report()), encoding="utf-8")
+        assert read_gate(path_avail, expected="cs-v1-new") is False
 
         # available=false -> False
-        Path(path_avail).write_text(json.dumps({"available": False}), encoding="utf-8")
-        assert pf.read_portfolio_gate(path_avail) is False
+        Path(path_avail).write_text(
+            json.dumps(current_report(available=False)), encoding="utf-8"
+        )
+        assert read_gate(path_avail) is False
 
         # nonexistent path -> False
-        assert pf.read_portfolio_gate(os.path.join(tmp, "nonexistent.json")) is False
+        assert read_gate(os.path.join(tmp, "nonexistent.json")) is False
 
-        # available=true, gate.passed=false -> False
+        # available=true, gate.passed=false -> False.
         Path(path_avail).write_text(
-            json.dumps({"available": True, "gate": {"passed": False}}), encoding="utf-8"
+            json.dumps(current_report(gate={"passed": False, "failures": []})),
+            encoding="utf-8",
         )
-        assert pf.read_portfolio_gate(path_avail) is False
+        assert read_gate(path_avail) is False
+
+        # A claimed pass with failures is contradictory.
+        Path(path_avail).write_text(
+            json.dumps(current_report(gate={"passed": True, "failures": ["low_ir"]})),
+            encoding="utf-8",
+        )
+        assert read_gate(path_avail) is False
+
+        # Explicit close-to-close reports are legacy and cannot activate.
+        Path(path_avail).write_text(
+            json.dumps(
+                current_report(
+                    execution_contract={"contract_version": "close_to_close_v1"}
+                )
+            ),
+            encoding="utf-8",
+        )
+        assert read_gate(path_avail) is False
+
+        # Missing or internally inconsistent same-basis coverage fails closed.
+        no_coverage = current_report()
+        no_coverage.pop("benchmark_coverage")
+        Path(path_avail).write_text(json.dumps(no_coverage), encoding="utf-8")
+        assert read_gate(path_avail) is False
+
+        Path(path_avail).write_text(
+            json.dumps(
+                current_report(
+                    benchmark_coverage={
+                        "available": True,
+                        "total_periods": 12,
+                        "available_periods": 11,
+                        "coverage_ratio": 1.0,
+                        "reason": None,
+                    }
+                )
+            ),
+            encoding="utf-8",
+        )
+        assert read_gate(path_avail) is False
 
 
 # ---------------------------------------------------------------------------

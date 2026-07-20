@@ -1,6 +1,6 @@
 # GitHub Actions仕様
 
-更新日: 2026-07-19 JST
+更新日: 2026-07-20 JST
 
 ## ワークフロー一覧
 
@@ -28,8 +28,8 @@
 
 1. `scripts/update_macro_snapshots.py --as-of <today>`: マクロ系列取得 → `data/macro/macro_panel.parquet` 更新 + `macro_snapshots` upsert（失敗しても続行）
 2. `main.py`: 日次シグナル + Phase 2 snapshot + 通知 + DB write-through + ダッシュボード出力。`DATABASE_URL` / LINE secrets / `TRADER_PORTFOLIO_*` などの env はこのステップに集約
-3. `scripts/settle_outcomes.py --as-of <today> --refill-benchmark`: 1/5/10日実現結果 + TOPIX ベンチマーク決済 + settle 当日分の実績 JSON 再エクスポート（失敗は warning で続行）。`--refill-benchmark` は冪等で、`benchmark_ret` が NULL の既決済行を TOPIX プロキシデータがある限り自動補填する
-4. `scripts/drift_check.py --as-of <today> || true`: `docs/drift_report.json` 出力
+3. `scripts/settle_outcomes.py --as-of <today> --refill-benchmark`: 翌営業日寄付き→1/5/10営業日目終値の実現結果 + settle当日分の実績JSON再エクスポート（失敗はwarningで続行）。v2は同基準TOPIX寄付きが無いため比較不能を明示し、`--refill-benchmark` は旧 `close_to_close_v1` 行だけを冪等補填する
+4. `scripts/drift_check.py --as-of <today> || true`: `main.py`と同じlabel/horizon/calibration/macro envでactive schema v3のruntime契約・manifestを検証してから`docs/drift_report.json`を出力。不整合は旧モデルを評価せずunavailableへfail-closeする
 5. `.github/scripts/commit-and-push.sh` で commit/push
 
 `daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。当日分がなければ、マクロ更新 → core と同じ Phase 0/1/2/3 env で `main.py` → `settle_outcomes.py --refill-benchmark` を実行し、DB台帳・Phase 2 snapshot・実現結果まで同日中に回復させます。マクロ更新と決済は core と同様に best-effort で、失敗しても日次シグナル公開を止めません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
@@ -38,7 +38,7 @@
 
 ## 週次処理
 
-- **weekly-model-retrain（土曜 08:00）**: `weekly_model_retrain.py` が銘柄別モデルを実学習して `data/models/<version>/` + `active_model.json` + `model_registry` に登録。続いて `weekly_cross_section_retrain.py` が CS モデルを学習し、ポートフォリオ walk-forward バックテスト + `evaluate_portfolio_kpi_gate()` を実行して `docs/cs_model_quality.json` / `docs/portfolio_backtest.json` を出力。最後に `portfolio_shadow_report.py` が Phase 1 vs Phase 2 の比較と `active_readiness` を `docs/portfolio_shadow_report.json` へ出力
+- **weekly-model-retrain（土曜 08:00）**: `weekly_model_retrain.py` が一意versionをstagingへ作り、銘柄別exact-candidate OOS証跡、schema v3 manifest/checksum、全対象coverageを検証する。合格時だけimmutable directoryをpromoteして`active_model.json`をatomic更新し、`model_registry`へ登録する（DB失敗はregistry eventをoutboxへ待避）。候補却下時は前activeを維持する。続いて`weekly_cross_section_retrain.py`がCSモデルを学習し、v2非重複・往復コスト後ポートフォリオバックテストとKPIゲートを`docs/cs_model_quality.json` / `docs/portfolio_backtest.json`へ出力する。最後に`portfolio_shadow_report.py`がsignal-linked Phase 1予測とsnapshot exact-version Phase 2予測を比較し、`active_readiness`を`docs/portfolio_shadow_report.json`へ出力する
 - **weekly-fundamental-report（土曜 07:00）**: テクニカル更新 → Claude のマクロ/ファンダ agent → **隔週（14日）の pool refresh**（cadence ガード → `/jp-stock-pool-screen` → 決定論 `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新。いずれも `continue-on-error: true` で週次本体を巻き込まない）→ レポートライター agent → commit（`reports` / `docs/curation` / `curation_pool.yml`）→ `curation_notify.py` でレポート URL を LINE 通知 → 隔週 `curation_pool_notify.py` でプール変更を通知 → `weekly_performance_notify.py` で週間実績サマリを LINE 通知（DB 不通・実績ゼロは no-op）。詳細は `ai_ticker_curation/07_pool_refresh.md`
 
 ## publishの同期仕様

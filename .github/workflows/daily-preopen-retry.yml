@@ -76,8 +76,8 @@ jobs:
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
-          # Keep retry inference identical to core. Saved-model failures still
-          # degrade to the legacy daily model inside main.py.
+          # Keep retry inference identical to core. Saved-model failures train
+          # an exact-contract ephemeral candidate inside main.py.
           TRADER_MODEL_MODE: "auto"
           TRADER_TARGET_HORIZON_DAYS: "5"
           TRADER_LABEL_MODE: "triple_barrier"
@@ -99,6 +99,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+        # Legacy-v1 refill only; contract-v2 benchmark remains fail-closed until
+        # matching TOPIX open prices are available.
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Commit and push retry updates

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PerformanceSummary } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
+import { hasCurrentExecutionContract } from "../lib/executionContract";
 import Term from "./Term";
 
 export default function PerformanceCard() {
@@ -13,7 +14,8 @@ export default function PerformanceCard() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     fetchJson<PerformanceSummary>(
       `${basePath}/performance_summary.json`,
-      (v): v is PerformanceSummary => isAvailablePayload(v),
+      (v): v is PerformanceSummary =>
+        isAvailablePayload(v) && hasCurrentExecutionContract(v),
     ).then(setPerf);
   }, []);
 
@@ -47,6 +49,7 @@ export default function PerformanceCard() {
         <div>
           <div className="mb-1 text-xs text-slate-500">
             <Term k="equity_curve">通算リターン</Term>
+            <span className="ml-1">(コスト後)</span>
           </div>
           <div className="text-2xl font-bold text-slate-100">{pct(cumReturn)}</div>
         </div>

@@ -212,11 +212,16 @@ def test_summary_hit_rate_and_curve():
     assert s["horizons"]["1"]["count"] == 3
     assert abs(s["horizons"]["1"]["hit_rate"] - (2.0 / 3.0)) < 1e-9
 
-    # equity curve: day1 mean(0.02,-0.01)=0.005 ; day2 = 0.03
+    # Equity is net of 15 bps per side (30 bps round trip).
+    # day1 gross mean(0.02,-0.01)=0.005 -> net 0.002; day2 0.03 -> 0.027.
     curve = s["equity_curve"]
     assert [p["date"] for p in curve] == ["2026-05-01", "2026-05-02"]
-    assert abs(curve[0]["equity"] - 1.005) < 1e-9
-    assert abs(curve[1]["equity"] - 1.005 * 1.03) < 1e-9
+    assert abs(curve[0]["gross_daily_return"] - 0.005) < 1e-9
+    assert abs(curve[0]["cost_return"] - 0.003) < 1e-9
+    assert abs(curve[0]["net_daily_return"] - 0.002) < 1e-9
+    assert curve[0]["daily_return"] == curve[0]["net_daily_return"]
+    assert abs(curve[0]["equity"] - 1.002) < 1e-9
+    assert abs(curve[1]["equity"] - 1.002 * 1.027) < 1e-9
     assert s["n_long_signals"] == 4  # BUY/MILD_BUY rows across all horizons
 
 

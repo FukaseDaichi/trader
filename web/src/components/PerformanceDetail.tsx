@@ -21,6 +21,7 @@ import {
   SignalOutcomesRecent,
 } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
+import { hasCurrentExecutionContract } from "../lib/executionContract";
 import Term from "./Term";
 import { actionLabel } from "../lib/signal";
 
@@ -38,13 +39,83 @@ function NoData() {
   return <p className="text-slate-400 text-sm">データ蓄積中…</p>;
 }
 
-function RollingStats({ rolling }: { rolling: PerformanceDetailType["rolling"] }) {
+function benchmarkUnavailableMessage(reason: string): string {
+  switch (reason) {
+    case "unavailable_same_basis":
+      return "同じ約定条件の市場平均（TOPIX）データを取得できないため、比較線は表示していません。";
+    case "partial_same_basis_coverage":
+      return "同じ約定条件の市場平均（TOPIX）データが一部不足しているため、比較線は表示していません。";
+    case "no_selected_cohorts":
+      return "市場平均と比較できる運用期間がまだありません。";
+    default:
+      return "市場平均を同じ条件で比較できないため、比較線は表示していません。";
+  }
+}
+
+function outcomesBenchmarkState(outcomes: SignalOutcomesRecent | null): {
+  available: boolean;
+  reason: string | null;
+} {
+  const rows = outcomes?.rows ?? [];
+  if (rows.length === 0) return { available: false, reason: null };
+
+  const declaredBasis = outcomes?.execution_contract?.benchmark_basis;
+  const rowUnavailableBasis = rows.find((row) =>
+    row.benchmark_basis?.startsWith("unavailable"),
+  )?.benchmark_basis;
+  const explicitUnavailable =
+    declaredBasis?.startsWith("unavailable") === true || rowUnavailableBasis != null;
+  const comparableRows = rows.filter(
+    (row) =>
+      row.benchmark_ret != null &&
+      row.excess_ret != null &&
+      typeof row.benchmark_basis === "string" &&
+      row.benchmark_basis.length > 0 &&
+      !row.benchmark_basis.startsWith("unavailable") &&
+      row.benchmark_basis !== "close_to_close_v1",
+  );
+  const available = !explicitUnavailable && comparableRows.length === rows.length;
+  if (available) return { available: true, reason: null };
+  if (explicitUnavailable) {
+    return {
+      available: false,
+      reason: declaredBasis ?? rowUnavailableBasis ?? "unavailable_same_basis",
+    };
+  }
+  return {
+    available: false,
+    reason:
+      comparableRows.length > 0
+        ? "partial_same_basis_coverage"
+        : "unavailable_same_basis",
+  };
+}
+
+function outcomesBenchmarkUnavailableMessage(reason: string): string {
+  if (reason === "partial_same_basis_coverage") {
+    return "同じ約定条件の市場平均（TOPIX）が一部不足しているため、「市場平均との差」列は表示していません。";
+  }
+  return "同じ約定条件の市場平均（TOPIX）を利用できないため、「市場平均との差」列は表示していません。";
+}
+
+function RollingStats({
+  rolling,
+  benchmarkAvailable,
+}: {
+  rolling: PerformanceDetailType["rolling"];
+  benchmarkAvailable: boolean;
+}) {
   if (!rolling) return null;
   const stats = [
     { label: "的中率(直近20日)", value: pct(rolling.hit_rate_20d) },
     { label: "平均リターン(直近20日)", value: pct(rolling.avg_return_20d) },
-    { label: "市場平均との差(直近20日)", value: pct(rolling.excess_return_20d) },
-    { label: "安定度(60日)", value: rolling.sharpe_60d == null ? "—" : rolling.sharpe_60d.toFixed(2) },
+    ...(benchmarkAvailable
+      ? [{ label: "市場平均との差(直近20日)", value: pct(rolling.excess_return_20d) }]
+      : []),
+    {
+      label: "安定度(60日・コスト後)",
+      value: rolling.sharpe_60d == null ? "—" : rolling.sharpe_60d.toFixed(2),
+    },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -60,15 +131,38 @@ function RollingStats({ rolling }: { rolling: PerformanceDetailType["rolling"] }
 
 function EquityCurveSection({ detail }: { detail: PerformanceDetailType | null }) {
   const curve = detail?.equity_curve ?? [];
+  const explicitBenchmarkReason =
+    detail?.benchmark_unavailable_reason ?? detail?.benchmark_coverage?.reason;
+  const completeBenchmark =
+    curve.length > 0 && curve.every((point) => point.benchmark != null);
+  const benchmarkAvailable = completeBenchmark && explicitBenchmarkReason == null;
+  const unavailableReason =
+    curve.length > 0 && !benchmarkAvailable
+      ? (explicitBenchmarkReason ?? "benchmark_missing")
+      : null;
+
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
       <h3 className="mb-4 text-lg font-bold text-white">
         <Term k="equity_curve">資産の伸び</Term>
-        <span className="ml-2 text-sm font-normal text-slate-400">
-          vs <Term k="topix">市場平均</Term>
-        </span>
+        {benchmarkAvailable && (
+          <span className="ml-2 text-sm font-normal text-slate-400">
+            vs <Term k="topix">市場平均</Term>
+          </span>
+        )}
       </h3>
-      <RollingStats rolling={detail?.rolling} />
+      <p className="mb-4 text-xs leading-relaxed text-slate-400">
+        この曲線は、保有期間が重ならない銘柄群（同日エントリー）だけを順番に運用し、往復コストを控除した試算です。重複サンプルを含む的中率・平均リターンとは集計方法が異なります。
+      </p>
+      <RollingStats
+        rolling={detail?.rolling}
+        benchmarkAvailable={benchmarkAvailable}
+      />
+      {unavailableReason && (
+        <p className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+          {benchmarkUnavailableMessage(unavailableReason)}
+        </p>
+      )}
       {curve.length === 0 ? (
         <NoData />
       ) : (
@@ -83,7 +177,9 @@ function EquityCurveSection({ detail }: { detail: PerformanceDetailType | null }
             />
             <Legend />
             <Line dataKey="strategy" stroke="#f87171" dot={false} name="AI" strokeWidth={2} />
-            <Line dataKey="benchmark" stroke="#94a3b8" dot={false} name="市場平均" strokeWidth={1.5} />
+            {benchmarkAvailable && (
+              <Line dataKey="benchmark" stroke="#94a3b8" dot={false} name="市場平均" strokeWidth={1.5} />
+            )}
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -170,14 +266,21 @@ function ReliabilitySection({ detail }: { detail: PerformanceDetailType | null }
 
 function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) {
   const rows = outcomes?.rows ?? [];
+  const benchmark = outcomesBenchmarkState(outcomes);
   return (
     <section className="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-8">
       <h3 className="mb-4 text-lg font-bold text-white">最近のサインの結果</h3>
       {rows.length === 0 ? (
         <NoData />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-slate-300 min-w-[700px]">
+        <>
+          {!benchmark.available && benchmark.reason && (
+            <p className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+              {outcomesBenchmarkUnavailableMessage(benchmark.reason)}
+            </p>
+          )}
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm text-slate-300">
             <thead>
               <tr className="border-b border-slate-800 text-xs text-slate-500">
                 <th className="py-2 pr-3 text-left">いつ</th>
@@ -185,7 +288,11 @@ function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) 
                 <th className="py-2 pr-3 text-left">判断</th>
                 <th className="py-2 pr-3 text-right"><Term k="prob_up">上がる確率</Term></th>
                 <th className="py-2 pr-3 text-right">結果</th>
-                <th className="py-2 pr-3 text-right"><Term k="excess_return">市場平均との差</Term></th>
+                {benchmark.available && (
+                  <th className="py-2 pr-3 text-right">
+                    <Term k="excess_return">市場平均との差</Term>
+                  </th>
+                )}
                 <th className="py-2 pr-3 text-center">当たった?</th>
                 <th className="py-2 pr-3 text-right"><Term k="mae_mfe">最大逆行</Term></th>
                 <th className="py-2 text-right"><Term k="mae_mfe">最大順行</Term></th>
@@ -208,11 +315,13 @@ function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) 
                       {pct(row.realized_ret, true)}
                     </span>
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono">
-                    <span className={row.excess_ret == null ? "text-slate-400" : row.excess_ret >= 0 ? "text-red-300" : "text-blue-300"}>
-                      {pct(row.excess_ret, true)}
-                    </span>
-                  </td>
+                  {benchmark.available && (
+                    <td className="py-2 pr-3 text-right font-mono">
+                      <span className={row.excess_ret == null ? "text-slate-400" : row.excess_ret >= 0 ? "text-red-300" : "text-blue-300"}>
+                        {pct(row.excess_ret, true)}
+                      </span>
+                    </td>
+                  )}
                   <td className="py-2 pr-3 text-center">
                     {row.hit === true ? (
                       <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-300">○ 当たり</span>
@@ -228,7 +337,8 @@ function OutcomesTable({ outcomes }: { outcomes: SignalOutcomesRecent | null }) 
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </section>
   );
@@ -244,11 +354,13 @@ export default function PerformanceDetail() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     fetchJson<PerformanceDetailType>(
       `${basePath}/performance_detail.json`,
-      (v): v is PerformanceDetailType => isAvailablePayload(v),
+      (v): v is PerformanceDetailType =>
+        isAvailablePayload(v) && hasCurrentExecutionContract(v),
     ).then(setDetail);
     fetchJson<SignalOutcomesRecent>(
       `${basePath}/signal_outcomes_recent.json`,
-      (v): v is SignalOutcomesRecent => isAvailablePayload(v),
+      (v): v is SignalOutcomesRecent =>
+        isAvailablePayload(v) && hasCurrentExecutionContract(v),
     ).then(setOutcomes);
   }, []);
 

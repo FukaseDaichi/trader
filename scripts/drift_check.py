@@ -34,7 +34,13 @@ import numpy as np  # noqa: E402
 
 from src import db, model_store, phase1  # noqa: E402
 from src.calibration import brier_score, ic_score  # noqa: E402
-from src.config import DOCS_DIR, TICKERS, get_label_config, get_model_runtime_config  # noqa: E402
+from src.config import (  # noqa: E402
+    BACKTEST_GATE_CONFIG,
+    DOCS_DIR,
+    TICKERS,
+    get_label_config,
+    get_model_runtime_config,
+)
 from src.data_loader import load_data  # noqa: E402
 from src.labels import effective_horizon  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
@@ -140,15 +146,34 @@ def main() -> int:
         "psi_window": _env_int("TRADER_DRIFT_PSI_WINDOW", 250),
     }
 
+    label_cfg = get_label_config()
+    model_cfg = get_model_runtime_config()
     active = model_store.read_active_model()
     if not active:
         _write({"available": False, "reason": "no_active_model", "generated_at": now})
         print("drift: no active model; nothing to check.")
         return 0
 
+    compatibility = model_store.validate_runtime_active_phase1(
+        active,
+        model_config=model_cfg,
+        label_config=label_cfg,
+        gate_config=BACKTEST_GATE_CONFIG,
+    )
+    if not compatibility["compatible"]:
+        _write(
+            {
+                "available": False,
+                "reason": "active_model_incompatible",
+                "generated_at": now,
+                "model_version": active.get("version"),
+                "incompatibilities": compatibility["reasons"],
+            }
+        )
+        print("drift: active model contract/integrity check failed; skipped.")
+        return 0
+
     version = active.get("version")
-    label_cfg = get_label_config()
-    model_cfg = get_model_runtime_config()
     macro_enabled = bool(
         active.get(
             "macro_features_enabled",

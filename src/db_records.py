@@ -8,7 +8,10 @@ in src/db.py and imports from here.
 
 from __future__ import annotations
 
+import math
+
 LEGACY_MODEL_VERSION = "legacy-daily-v0"
+EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX = "ephemeral-phase1-v"
 LEGACY_PREDICTION_HORIZON = 1  # the legacy model predicts next-day direction
 
 # Outcome horizons we evaluate every signal at (independent of the model's horizon).
@@ -16,6 +19,8 @@ OUTCOME_HORIZONS = (1, 5, 10)
 
 LONG_ACTIONS = {"BUY", "MILD_BUY"}
 AVOID_ACTIONS = {"SELL", "MILD_SELL"}
+DEFAULT_COST_BPS = 10.0
+DEFAULT_SLIPPAGE_BPS = 5.0
 
 
 def make_event_id(run_date: str, ticker: str, event_type: str) -> str:
@@ -320,14 +325,35 @@ def _mean(values):
     return sum(vals) / len(vals)
 
 
-def summarize_performance(rows, curve_horizon: int = 1) -> dict:
+def _round_trip_cost_rate(cost_bps, slippage_bps) -> float:
+    try:
+        cost = float(cost_bps)
+        slippage = float(slippage_bps)
+    except (TypeError, ValueError):
+        cost = DEFAULT_COST_BPS
+        slippage = DEFAULT_SLIPPAGE_BPS
+    if not math.isfinite(cost) or cost < 0.0:
+        cost = DEFAULT_COST_BPS
+    if not math.isfinite(slippage) or slippage < 0.0:
+        slippage = DEFAULT_SLIPPAGE_BPS
+    return 2.0 * (cost + slippage) / 10000.0
+
+
+def summarize_performance(
+    rows,
+    curve_horizon: int = 1,
+    *,
+    cost_bps: float = DEFAULT_COST_BPS,
+    slippage_bps: float = DEFAULT_SLIPPAGE_BPS,
+) -> dict:
     """
     Aggregate joined (signals x signal_outcomes) rows into a dashboard summary.
 
     Each row: {entry_date, action, horizon_days, realized_ret, hit}.
-    Hit-rate and the equity curve use LONG actions only (BUY / MILD_BUY);
-    the long-only equity curve compounds the per-day mean realized return at
-    `curve_horizon` (default 1 day).
+    Hit-rate and raw horizon averages use LONG actions only (BUY / MILD_BUY).
+    The long-only equity curve compounds the per-day mean realized return at
+    `curve_horizon` (default 1 day) after deducting full-capital entry and exit
+    costs using the same bps assumptions as the KPI backtest.
     """
     long_rows = [r for r in rows if r.get("action") in LONG_ACTIONS]
 
@@ -356,14 +382,19 @@ def summarize_performance(rows, curve_horizon: int = 1) -> dict:
 
     equity_curve = []
     equity = 1.0
+    round_trip_cost = _round_trip_cost_rate(cost_bps, slippage_bps)
     for d in sorted(by_date):
-        daily_return = _mean(by_date[d]) or 0.0
-        equity *= 1.0 + daily_return
+        gross_daily_return = _mean(by_date[d]) or 0.0
+        net_daily_return = gross_daily_return - round_trip_cost
+        equity *= 1.0 + net_daily_return
         equity_curve.append(
             {
                 "date": d,
                 "equity": equity,
-                "daily_return": daily_return,
+                "gross_daily_return": gross_daily_return,
+                "cost_return": round_trip_cost,
+                "net_daily_return": net_daily_return,
+                "daily_return": net_daily_return,
                 "n": len(by_date[d]),
             }
         )

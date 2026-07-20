@@ -1,4 +1,5 @@
 import os
+import warnings
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
@@ -126,11 +127,92 @@ def _get_env_choice(name, default, choices):
     return value
 
 
+def _env_is_set(name):
+    return os.environ.get(name) not in (None, "")
+
+
+def _get_env_float_with_legacy_alias(primary, legacy, default):
+    """Read a canonical float setting, falling back to a deprecated alias."""
+    if _env_is_set(primary):
+        return _get_env_float(primary, default)
+    if _env_is_set(legacy):
+        warnings.warn(
+            f"{legacy} is deprecated; use {primary}",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return _get_env_float(legacy, default)
+    return float(default)
+
+
+def _get_env_int_with_legacy_alias(primary, legacy, default):
+    """Read a canonical integer setting, falling back to a deprecated alias."""
+    if _env_is_set(primary):
+        return _get_env_int(primary, default)
+    if _env_is_set(legacy):
+        warnings.warn(
+            f"{legacy} is deprecated; use {primary}",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return _get_env_int(legacy, default)
+    return int(default)
+
+
+def _get_auto_threshold_objective():
+    raw = os.environ.get("TRADER_AUTO_THRESHOLD_OBJECTIVE")
+    value = (raw if raw not in (None, "") else "avg_daily_net_return").strip().lower()
+    if value == "expectancy":
+        warnings.warn(
+            "TRADER_AUTO_THRESHOLD_OBJECTIVE=expectancy is deprecated; "
+            "using avg_daily_net_return",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return "avg_daily_net_return"
+    choices = {"avg_daily_net_return", "cagr", "sharpe", "net_return"}
+    if value not in choices:
+        allowed = ", ".join(sorted(choices))
+        raise ValueError(f"TRADER_AUTO_THRESHOLD_OBJECTIVE must be one of: {allowed}")
+    return value
+
+
+def _get_phase1_label_mode():
+    raw = os.environ.get("TRADER_LABEL_MODE")
+    value = (raw if raw not in (None, "") else "triple_barrier").strip().lower()
+    if value == "vol_norm":
+        warnings.warn(
+            "TRADER_LABEL_MODE=vol_norm is no longer a supported Phase 1 mode; "
+            "falling back to triple_barrier",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return "triple_barrier"
+    choices = {"triple_barrier", "binary_1d"}
+    if value not in choices:
+        allowed = ", ".join(sorted(choices))
+        raise ValueError(f"TRADER_LABEL_MODE must be one of: {allowed}")
+    return value
+
+
 def get_backtest_gate_config():
     """
     Runtime config for KPI gate. Defaults are conservative and can be tuned by env vars.
     """
-    return {
+    min_avg_daily_net_return = _get_env_float_with_legacy_alias(
+        "TRADER_KPI_MIN_AVG_DAILY_NET_RETURN",
+        "TRADER_KPI_MIN_EXPECTANCY",
+        0.0001,
+    )
+    min_round_trips = _get_env_int_with_legacy_alias(
+        "TRADER_KPI_MIN_ROUND_TRIPS", "TRADER_KPI_MIN_TRADES", 10
+    )
+    auto_threshold_min_round_trips = _get_env_int_with_legacy_alias(
+        "TRADER_AUTO_THRESHOLD_MIN_ROUND_TRIPS",
+        "TRADER_AUTO_THRESHOLD_MIN_TRADES",
+        8,
+    )
+    config = {
         "enabled": _get_env_bool("TRADER_KPI_GATE_ENABLED", True),
         "validation_years": _get_env_int("TRADER_BT_VALIDATION_YEARS", 4),
         "val_size": _get_env_int("TRADER_BT_VAL_SIZE", 60),
@@ -141,21 +223,21 @@ def get_backtest_gate_config():
         "slippage_bps": _get_env_float("TRADER_BT_SLIPPAGE_BPS", 5.0),
         "allow_short": _get_env_bool("TRADER_BT_ALLOW_SHORT", False),
         "min_cagr": _get_env_float("TRADER_KPI_MIN_CAGR", 0.03),
-        "min_expectancy": _get_env_float("TRADER_KPI_MIN_EXPECTANCY", 0.0001),
+        "min_avg_daily_net_return": min_avg_daily_net_return,
         "max_drawdown": _get_env_float("TRADER_KPI_MAX_DRAWDOWN", 0.25),
         "min_sharpe": _get_env_float("TRADER_KPI_MIN_SHARPE", 0.20),
-        "min_trades": _get_env_int("TRADER_KPI_MIN_TRADES", 10),
+        "min_round_trips": min_round_trips,
         "auto_threshold_enabled": _get_env_bool("TRADER_AUTO_THRESHOLD_ENABLED", True),
-        "auto_threshold_min_trades": _get_env_int(
-            "TRADER_AUTO_THRESHOLD_MIN_TRADES", 8
-        ),
-        "auto_threshold_objective": _get_env_choice(
-            "TRADER_AUTO_THRESHOLD_OBJECTIVE",
-            "expectancy",
-            {"expectancy", "cagr", "sharpe", "net_return"},
-        ),
+        "auto_threshold_min_round_trips": auto_threshold_min_round_trips,
+        "auto_threshold_objective": _get_auto_threshold_objective(),
         "auto_threshold_min_gap": _get_env_float("TRADER_AUTO_THRESHOLD_MIN_GAP", 0.05),
     }
+    # Deprecated dictionary aliases remain readable by older reports/scripts.
+    # Semantics are canonical: completed position episodes and all-day returns.
+    config["min_expectancy"] = min_avg_daily_net_return
+    config["min_trades"] = min_round_trips
+    config["auto_threshold_min_trades"] = auto_threshold_min_round_trips
+    return config
 
 
 def _get_env_str(name, default):
@@ -170,20 +252,16 @@ def get_label_config():
     Phase 1 label / target configuration (roadmap §6.1).
 
     `binary_1d` reproduces the legacy next-day binary target for rollback and
-    A/B comparison; `triple_barrier` (default) and `vol_norm` are the Phase 1
-    horizon-aware targets.
+    A/B comparison. `triple_barrier` is the default horizon-aware target.
+    The removed `vol_norm` value falls back to `triple_barrier` so a stale
+    deployment setting cannot break the daily run.
     """
     return {
-        "label_mode": _get_env_choice(
-            "TRADER_LABEL_MODE",
-            "triple_barrier",
-            {"triple_barrier", "vol_norm", "binary_1d"},
-        ),
+        "label_mode": _get_phase1_label_mode(),
         "horizon_days": max(1, _get_env_int("TRADER_TARGET_HORIZON_DAYS", 5)),
         "tb_tp_atr": max(0.0, _get_env_float("TRADER_TB_TP_ATR", 1.5)),
         "tb_sl_atr": max(0.0, _get_env_float("TRADER_TB_SL_ATR", 1.0)),
         "tb_max_days": max(1, _get_env_int("TRADER_TB_MAX_DAYS", 5)),
-        "vol_col": "volatility",
     }
 
 

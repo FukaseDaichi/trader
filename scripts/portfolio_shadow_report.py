@@ -17,13 +17,12 @@ Robustness (this runs as a ``continue-on-error`` weekly step):
   - Never raises catastrophically; the JSON is always written.
 
 DB join (see migrations/0001 + 0003):
-  ``signal_outcomes.realized_ret`` for (run_date, ticker, horizon) is a MARKET
-  property — it applies to any model's prediction of that name on that date. We
-  anchor on the union of (run_date, ticker) that have a Phase 1 prediction
-  and/or a Phase 2 cs prediction, LEFT JOIN the Phase 1 signal -> its outcome
-  for the shared realized return, and LEFT JOIN both model versions' rows. The
-  Phase 2 portfolio weights come from ``portfolio_snapshots.positions`` (JSONB),
-  fetched separately and merged per (date, ticker).
+  Phase 1 is anchored by ``signals.prediction_id`` (the prediction that really
+  produced the signal), with only current-contract outcomes. Phase 2 is joined
+  to the exact ``portfolio_snapshots.model_version`` used on each run date;
+  prediction filename patterns and today's active registry row are not used as
+  historical provenance. Snapshot positions/weights are fetched separately and
+  merged per (date, ticker), retaining the snapshot model version for audit.
 
 Usage:
   TRADER_DB_ENABLED=false uv run python scripts/portfolio_shadow_report.py
@@ -45,7 +44,11 @@ if str(ROOT_DIR) not in sys.path:
 
 from src import db, portfolio, portfolio_shadow  # noqa: E402
 from src.config import get_cross_section_config  # noqa: E402
+from src.db_records import LEGACY_MODEL_VERSION  # noqa: E402
+from src.execution import EXECUTION_CONTRACT_VERSION  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
+
+CS_MODEL_KIND = "cross_sectional_ranker_v1"
 
 
 def _active_readiness(report, *, gate_passed, min_shadow_days=10):
@@ -99,66 +102,98 @@ def _fetch_pred_outcome_rows(
     conn, start_date: str, end_date: str, horizon_days: int
 ) -> list[dict]:
     """
-    One row per (run_date, ticker) with BOTH models' predictions + the shared
-    market realized return.
+    One row per (run_date, ticker), with source-linked Phase 1 and snapshot-
+    linked Phase 2 predictions plus a comparable realized return when settled.
 
-    Anchor = all (run_date, ticker) in the window that have a Phase 1 OR a
-    Phase 2 cs prediction at this horizon (FULL OUTER JOIN of the two prediction
-    slices). ``realized_ret`` comes from the Phase 1 signal's outcome for the
-    same (run_date, ticker, horizon); LEFT JOINs keep a row even when the signal
-    or outcome is missing (-> NULL, surfaced as None).
+    ``ROW_NUMBER`` is defensive: the schema's prediction uniqueness constraint
+    should already leave one exact snapshot-version row, while the explicit
+    ranking makes the one-row contract visible and robust to legacy anomalies.
     """
     from psycopg.rows import dict_row
 
     sql = (
         "WITH p1 AS ("
-        "  SELECT run_date, ticker, prob_up AS p1_prob_up"
-        "  FROM predictions"
-        "  WHERE horizon_days = %(horizon)s"
-        "    AND run_date BETWEEN %(start)s AND %(end)s"
-        "    AND model_version NOT LIKE 'cs-%%'"
+        "  SELECT p.run_date, p.ticker, p.model_version AS p1_model_version,"
+        "         p.prob_up AS p1_prob_up, s.action AS p1_action,"
+        "         o.realized_ret"
+        "  FROM signals s"
+        "  JOIN predictions p ON p.id = s.prediction_id"
+        "  JOIN model_registry mr ON mr.version = p.model_version"
+        "  LEFT JOIN signal_outcomes o"
+        "    ON o.signal_id = s.id"
+        "   AND o.horizon_days = %(horizon)s"
+        "   AND o.contract_version = %(contract)s"
+        "  WHERE p.horizon_days = %(horizon)s"
+        "    AND p.run_date BETWEEN %(start)s AND %(end)s"
+        "    AND p.cs_rank IS NULL"
+        "    AND (mr.kind = %(phase1_kind)s"
+        "      OR p.model_version = %(legacy_version)s"
+        "      OR (mr.kind = %(auto_stub_kind)s"
+        "          AND (p.model_version LIKE %(phase1_prefix)s"
+        "               OR p.model_version LIKE %(ephemeral_phase1_prefix)s)))"
+        "), p2_ranked AS ("
+        "  SELECT p.id, p.run_date, p.ticker,"
+        "         ps.model_version AS p2_model_version,"
+        "         p.cs_rank AS p2_cs_rank,"
+        "         p.expected_ret AS p2_expected_ret, p.prob_up AS p2_prob_up,"
+        "         ROW_NUMBER() OVER ("
+        "           PARTITION BY p.run_date, p.ticker ORDER BY p.id DESC"
+        "         ) AS provenance_rank"
+        "  FROM portfolio_snapshots ps"
+        "  JOIN predictions p"
+        "    ON p.run_date = ps.run_date"
+        "   AND p.model_version = ps.model_version"
+        "  WHERE p.horizon_days = %(horizon)s"
+        "    AND p.run_date BETWEEN %(start)s AND %(end)s"
         "), p2 AS ("
-        "  SELECT run_date, ticker, cs_rank AS p2_cs_rank,"
-        "         expected_ret AS p2_expected_ret, prob_up AS p2_prob_up"
-        "  FROM predictions"
-        "  WHERE horizon_days = %(horizon)s"
-        "    AND run_date BETWEEN %(start)s AND %(end)s"
-        "    AND model_version LIKE 'cs-%%'"
+        "  SELECT run_date, ticker, p2_model_version, p2_cs_rank,"
+        "         p2_expected_ret, p2_prob_up"
+        "  FROM p2_ranked WHERE provenance_rank = 1"
         ")"
         " SELECT"
         "   COALESCE(p1.run_date, p2.run_date) AS run_date,"
         "   COALESCE(p1.ticker, p2.ticker)     AS ticker,"
-        "   p1.p1_prob_up,"
-        "   sig.action AS p1_action,"
-        "   o.realized_ret,"
-        "   p2.p2_cs_rank, p2.p2_expected_ret, p2.p2_prob_up"
+        "   p1.p1_model_version, p1.p1_prob_up, p1.p1_action,"
+        "   p1.realized_ret,"
+        "   p2.p2_model_version, p2.p2_cs_rank,"
+        "   p2.p2_expected_ret, p2.p2_prob_up"
         " FROM p1"
         " FULL OUTER JOIN p2"
         "   ON p1.run_date = p2.run_date AND p1.ticker = p2.ticker"
-        " LEFT JOIN signals sig"
-        "   ON sig.run_date = COALESCE(p1.run_date, p2.run_date)"
-        "  AND sig.ticker  = COALESCE(p1.ticker, p2.ticker)"
-        " LEFT JOIN signal_outcomes o"
-        "   ON o.signal_id = sig.id AND o.horizon_days = %(horizon)s"
     )
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            sql, {"horizon": horizon_days, "start": start_date, "end": end_date}
+            sql,
+            {
+                "horizon": horizon_days,
+                "start": start_date,
+                "end": end_date,
+                "contract": EXECUTION_CONTRACT_VERSION,
+                "phase1_kind": db.PHASE1_MODEL_KIND,
+                "legacy_version": LEGACY_MODEL_VERSION,
+                "ephemeral_phase1_prefix": (
+                    f"{db.EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX}%"
+                ),
+                "auto_stub_kind": db.AUTO_STUB_MODEL_KIND,
+                "phase1_prefix": f"{db.PHASE1_MODEL_VERSION_PREFIX}%",
+            },
         )
         return cur.fetchall()
 
 
 def _fetch_snapshot_weights(conn, start_date: str, end_date: str) -> dict:
     """
-    {run_date_iso -> {ticker -> {"weight": float|None, "prev_weight": float|None}}}
-    parsed from ``portfolio_snapshots.positions`` (JSONB) over the window.
+    ``{run_date_iso -> {model_version, positions}}`` parsed from snapshots.
+
+    Keeping the exact model version beside the weights makes the historical
+    portfolio provenance auditable independently of today's active CS model.
     """
     from psycopg.rows import dict_row
 
     out: dict[str, dict] = {}
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT run_date, positions FROM portfolio_snapshots"
+            "SELECT run_date, model_version, positions FROM portfolio_snapshots"
             " WHERE run_date BETWEEN %(start)s AND %(end)s",
             {"start": start_date, "end": end_date},
         )
@@ -176,7 +211,10 @@ def _fetch_snapshot_weights(conn, start_date: str, end_date: str) -> dict:
                 "weight": pos.get("target_weight"),
                 "prev_weight": pos.get("prev_weight"),
             }
-        out[str(r.get("run_date"))] = day_map
+        out[str(r.get("run_date"))] = {
+            "model_version": r.get("model_version"),
+            "positions": day_map,
+        }
     return out
 
 
@@ -188,15 +226,31 @@ def _assemble_records(pred_rows: list[dict], weights_by_date: dict) -> list[dict
         ticker = r.get("ticker")
         if not ticker:
             continue
-        wmap = weights_by_date.get(run_date, {})
+        snapshot = weights_by_date.get(run_date, {})
+        snapshot_version = (
+            snapshot.get("model_version") if isinstance(snapshot, dict) else None
+        )
+        p2_model_version = r.get("p2_model_version")
+        provenance_matches = (
+            p2_model_version is not None and p2_model_version == snapshot_version
+        )
+        wmap = (
+            snapshot.get("positions", {})
+            if isinstance(snapshot, dict) and provenance_matches
+            else {}
+        )
         wt = wmap.get(ticker, {})
         records.append(
             {
                 "date": run_date,
                 "ticker": ticker,
                 "realized_ret": r.get("realized_ret"),
+                "p1_model_version": r.get("p1_model_version"),
                 "p1_prob_up": r.get("p1_prob_up"),
                 "p1_action": r.get("p1_action"),
+                "p2_model_version": p2_model_version,
+                "p2_snapshot_model_version": snapshot_version,
+                "p2_provenance_matches_snapshot": provenance_matches,
                 "p2_cs_rank": r.get("p2_cs_rank"),
                 "p2_expected_ret": r.get("p2_expected_ret"),
                 "p2_prob_up": r.get("p2_prob_up"),
@@ -213,8 +267,9 @@ def _resolve_active_cs_version(conn) -> str | None:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT version FROM model_registry"
-                " WHERE active = TRUE AND version LIKE 'cs-%'"
-                " ORDER BY trained_at DESC LIMIT 1"
+                " WHERE active = TRUE AND kind = %s"
+                " ORDER BY trained_at DESC LIMIT 1",
+                (CS_MODEL_KIND,),
             )
             row = cur.fetchone()
         return row[0] if row else None
@@ -293,8 +348,21 @@ def run_report(
         generated_at=generated_at,
         model_version=model_version,
     )
+    snapshot_version_by_date = {
+        str(run_date): str(snapshot["model_version"])
+        for run_date, snapshot in sorted(weights_by_date.items())
+        if isinstance(snapshot, dict) and snapshot.get("model_version")
+    }
+    report["data_provenance"] = {
+        "phase1_prediction": "signals.prediction_id",
+        "phase2_prediction": "portfolio_snapshots.model_version",
+        "outcome_contract_version": EXECUTION_CONTRACT_VERSION,
+        "snapshot_model_versions": sorted(set(snapshot_version_by_date.values())),
+        "snapshot_model_version_by_date": snapshot_version_by_date,
+    }
     report["active_readiness"] = _active_readiness(
-        report, gate_passed=portfolio.read_portfolio_gate()
+        report,
+        gate_passed=portfolio.read_portfolio_gate(expected_model_version=model_version),
     )
     _atomic_write_json(output_path, report)
     print(

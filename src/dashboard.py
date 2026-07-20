@@ -9,11 +9,20 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .config import BASE_DIR, DOCS_DIR, STATE_FILE, TICKERS
+from .config import (
+    BACKTEST_GATE_CONFIG,
+    BASE_DIR,
+    DOCS_DIR,
+    STATE_FILE,
+    TICKERS,
+    get_label_config,
+    get_model_runtime_config,
+)
 from .data_loader import load_data
 from .model import add_features
 from . import db, model_store, performance
 from .db_records import summarize_performance
+from .execution import EXECUTION_CONTRACT_VERSION, execution_contract_metadata
 from .timeutil import JST
 
 MAX_HISTORY_DAYS = 30
@@ -42,6 +51,94 @@ EXPORT_COLUMNS = [
     "ma_60",
     "rsi",
 ]
+
+
+def _summary_accounting_method() -> dict:
+    """Describe the one-session, non-overlapping curve in the compact summary."""
+    return {
+        "name": performance.ACCOUNTING_METHOD,
+        "selection": "daily_horizon_1_cohorts",
+        "horizon_days": 1,
+        "overlapping_horizon_returns_compounded": False,
+        **performance.equity_cost_metadata(
+            BACKTEST_GATE_CONFIG.get("cost_bps", 10.0),
+            BACKTEST_GATE_CONFIG.get("slippage_bps", 5.0),
+        ),
+    }
+
+
+def _performance_execution_contract() -> dict:
+    metadata = execution_contract_metadata(
+        cost_bps=BACKTEST_GATE_CONFIG.get("cost_bps", 10.0),
+        slippage_bps=BACKTEST_GATE_CONFIG.get("slippage_bps", 5.0),
+    )
+    metadata["return_basis"] = "net_after_entry_exit_costs"
+    metadata["cost_treatment"] = "deducted_from_performance_equity"
+    return metadata
+
+
+def _detail_unavailable_metadata(horizon: int = 5) -> dict:
+    """Keep unavailable detail artifacts on the same auditable v2 schema."""
+    accounting = {
+        "name": performance.ACCOUNTING_METHOD,
+        "selection": "eval_date_non_overlap",
+        "fallback_reason": None,
+        "horizon_days": int(horizon),
+        "eligible_cohorts": 0,
+        "selected_cohorts": 0,
+        "overlapping_horizon_returns_compounded": False,
+        "capital_per_cohort": 1.0,
+        **performance.equity_cost_metadata(
+            BACKTEST_GATE_CONFIG.get("cost_bps", 10.0),
+            BACKTEST_GATE_CONFIG.get("slippage_bps", 5.0),
+        ),
+    }
+    return {
+        "execution_contract": _performance_execution_contract(),
+        "contract_coverage": _outcome_contract_coverage([]),
+        "accounting_method": accounting,
+        "benchmark_coverage": {
+            "basis": "same_execution_window_only",
+            "selected_cohorts": 0,
+            "available_cohorts": 0,
+            "coverage_ratio": None,
+            "reason": "no_selected_cohorts",
+        },
+        "benchmark_unavailable_reason": "no_selected_cohorts",
+    }
+
+
+def _outcome_contract_coverage(rows: list[dict]) -> dict:
+    """Return the same execution-contract coverage shape as performance detail."""
+    counts: dict[str, int] = {}
+    has_explicit_version = False
+    for row in rows:
+        version = row.get("contract_version")
+        if version:
+            has_explicit_version = True
+            key = str(version)
+        else:
+            key = "unversioned"
+        counts[key] = counts.get(key, 0) + 1
+
+    if has_explicit_version:
+        included = sum(
+            count
+            for version, count in counts.items()
+            if version == EXECUTION_CONTRACT_VERSION
+        )
+        fallback = None
+    else:
+        included = len(rows)
+        fallback = "unversioned_input_assumed_compatible" if rows else None
+
+    return {
+        "required_contract_version": EXECUTION_CONTRACT_VERSION,
+        "source_counts": dict(sorted(counts.items())),
+        "included_rows": included,
+        "excluded_rows": len(rows) - included,
+        "fallback_assumption": fallback,
+    }
 
 
 def _atomic_write_json(path: Path, payload: Any, indent: int | None = None) -> None:
@@ -366,6 +463,8 @@ def export_performance_summary():
                     "available": False,
                     "reason": "db_disabled",
                     "generated_at": now_str,
+                    "execution_contract": _performance_execution_contract(),
+                    "accounting_method": _summary_accounting_method(),
                 },
                 indent=2,
             )
@@ -384,6 +483,8 @@ def export_performance_summary():
                     "available": False,
                     "reason": "db_unreachable",
                     "generated_at": now_str,
+                    "execution_contract": _performance_execution_contract(),
+                    "accounting_method": _summary_accounting_method(),
                 },
                 indent=2,
             )
@@ -391,13 +492,20 @@ def export_performance_summary():
 
     try:
         rows = db.fetch_outcome_rows(conn)
-        summary = summarize_performance(rows, curve_horizon=1)
+        summary = summarize_performance(
+            rows,
+            curve_horizon=1,
+            cost_bps=BACKTEST_GATE_CONFIG.get("cost_bps", 10.0),
+            slippage_bps=BACKTEST_GATE_CONFIG.get("slippage_bps", 5.0),
+        )
         size_mb = db.db_size_mb(conn)
         warn_mb = float(os.getenv("TRADER_DB_STORAGE_WARN_MB", "400"))
         payload = {
             "available": True,
             "generated_at": now_str,
             "as_of": _resolve_run_date_jst(datetime.now(JST)),
+            "execution_contract": _performance_execution_contract(),
+            "accounting_method": _summary_accounting_method(),
             "n_long_signals": summary["n_long_signals"],
             "horizons": summary["horizons"],
             "equity_curve": summary["equity_curve"],
@@ -432,6 +540,7 @@ def export_performance_detail():
                     "available": False,
                     "reason": "db_disabled",
                     "generated_at": now_str,
+                    **_detail_unavailable_metadata(),
                 },
                 indent=2,
             )
@@ -450,6 +559,7 @@ def export_performance_detail():
                     "available": False,
                     "reason": "db_unreachable",
                     "generated_at": now_str,
+                    **_detail_unavailable_metadata(),
                 },
                 indent=2,
             )
@@ -463,8 +573,10 @@ def export_performance_detail():
         rows = db.fetch_outcome_detail_rows(
             conn, horizon_days=horizon, history_days=history_days
         )
-        mv = db.active_model_version(conn)
-        pred_rows = db.fetch_prediction_outcomes(conn, mv, horizon) if mv else []
+        reliability_data = db.fetch_signal_reliability_rows(
+            conn, horizon_days=horizon, history_days=history_days
+        )
+        pred_rows = reliability_data["rows"]
 
         if not rows:
             _atomic_write_json(
@@ -473,13 +585,24 @@ def export_performance_detail():
                     "available": False,
                     "reason": "insufficient_data",
                     "generated_at": now_str,
+                    **_detail_unavailable_metadata(horizon),
                 },
                 indent=2,
             )
         else:
             detail = performance.build_performance_detail(
-                rows, pred_rows, horizon, history_days, n_bins
+                rows,
+                pred_rows,
+                horizon,
+                history_days,
+                n_bins,
+                cost_bps=BACKTEST_GATE_CONFIG.get("cost_bps", 10.0),
+                slippage_bps=BACKTEST_GATE_CONFIG.get("slippage_bps", 5.0),
             )
+            detail["reliability"]["provenance"] = reliability_data["provenance"]
+            detail["benchmark_unavailable_reason"] = (
+                detail.get("benchmark_coverage") or {}
+            ).get("reason")
             payload = {
                 "available": True,
                 "generated_at": now_str,
@@ -512,6 +635,8 @@ def export_signal_outcomes_recent():
                     "available": False,
                     "reason": "db_disabled",
                     "generated_at": now_str,
+                    "execution_contract": execution_contract_metadata(),
+                    "contract_coverage": _outcome_contract_coverage([]),
                 },
                 indent=2,
             )
@@ -530,6 +655,8 @@ def export_signal_outcomes_recent():
                     "available": False,
                     "reason": "db_unreachable",
                     "generated_at": now_str,
+                    "execution_contract": execution_contract_metadata(),
+                    "contract_coverage": _outcome_contract_coverage([]),
                 },
                 indent=2,
             )
@@ -549,6 +676,8 @@ def export_signal_outcomes_recent():
                     "available": False,
                     "reason": "insufficient_data",
                     "generated_at": now_str,
+                    "execution_contract": execution_contract_metadata(),
+                    "contract_coverage": _outcome_contract_coverage(rows),
                 },
                 indent=2,
             )
@@ -556,6 +685,8 @@ def export_signal_outcomes_recent():
             payload = {
                 "available": True,
                 "generated_at": now_str,
+                "execution_contract": execution_contract_metadata(),
+                "contract_coverage": _outcome_contract_coverage(rows),
                 "rows": recent,
             }
             _atomic_write_json(SIGNAL_OUTCOMES_RECENT_FILE, payload, indent=2)
@@ -608,6 +739,26 @@ def export_model_quality():
                 "available": False,
                 "reason": "no_active_model",
                 "generated_at": now_str,
+            },
+            indent=2,
+        )
+        return
+
+    compatibility = model_store.validate_runtime_active_phase1(
+        active,
+        model_config=get_model_runtime_config(),
+        label_config=get_label_config(),
+        gate_config=BACKTEST_GATE_CONFIG,
+    )
+    if not compatibility["compatible"]:
+        _atomic_write_json(
+            MODEL_QUALITY_FILE,
+            {
+                "available": False,
+                "reason": "active_model_incompatible",
+                "generated_at": now_str,
+                "active_model_version": active.get("version"),
+                "incompatibilities": compatibility["reasons"],
             },
             indent=2,
         )

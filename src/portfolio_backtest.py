@@ -5,17 +5,20 @@ Phase 2 walk-forward, period-rebalanced, long-only portfolio backtest
 Pure logic — pandas / numpy + reuse of ``src/portfolio.py``; NO database or
 network. The backtest is driven by the cross-sectional model OOS prediction
 frame (``date, ticker, raw_score, fwd_return, target_up, target_vol_norm,
-target_rank_bucket``). ``fwd_return`` is the realized H-day forward return for
-that ``(date, ticker)`` — i.e. exactly the holding-period return earned by a
-position opened on ``date``.
+target_rank_bucket`` plus execution provenance). ``date`` is the pre-open
+decision's market-as-of session. Under execution contract v2, ``fwd_return``
+enters at the next session open and exits at the H-th session close.
 
 At each (thinned) rebalance date the long-only book is rebuilt with the same
 pipeline used in production (``select_candidates`` -> ``estimate_covariance``
 -> ``initial_inverse_vol_weights`` -> ``enforce_caps`` -> ``scale_to_target_vol``
 -> ``apply_hysteresis``) and the realized period return / turnover / cost are
-recorded, compounded into an equity curve, and compared against a TOPIX
-benchmark from the macro panel. Risk-adjusted metrics (Sharpe, Sortino, Calmar,
-IR, alpha/beta, tracking error, turnover, hit rate, …) are then computed.
+recorded and compounded into an equity curve. TOPIX is compared only when its
+open at the exact entry session and close at the exact exit session are both
+available. The current close-only macro feed is therefore explicitly marked
+unavailable; it is never substituted with cash/zero return or a close proxy.
+Risk-adjusted metrics (Sharpe, Sortino, Calmar, IR, alpha/beta, tracking error,
+turnover, hit rate, …) are then computed where their inputs exist.
 
 Two correctness concerns dominate the design and are handled explicitly:
 
@@ -31,8 +34,9 @@ Two correctness concerns dominate the design and are handled explicitly:
    daily, so consecutive daily ``fwd_return`` windows overlap by ``H - 1`` days.
    We thin the rebalance dates so that at least ``rebalance_days`` *distinct OOS
    dates* have elapsed between consecutive picks (``_thin_rebalance_dates``).
-   With ``rebalance_days == label_horizon_days`` (the default) this makes the
-   holding windows non-overlapping, ≈ rebalancing every H trading days.
+   With ``rebalance_days == label_horizon_days`` (the default), a decision at
+   row i enters at i+1 and exits at i+H; the next decision is at i+H and its
+   entry at i+H+1. This makes the executable holding windows non-overlapping.
 
 The JSON report writer (``write_portfolio_backtest_report``) needs no DB and
 writes ``docs/portfolio_backtest.json`` atomically; an insufficient / missing
@@ -49,6 +53,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.execution import (
+    ENTRY_PRICE_BASIS,
+    EXECUTION_CONTRACT_VERSION,
+    EXIT_PRICE_BASIS,
+    execution_contract_metadata,
+)
 from src.portfolio import (
     apply_hysteresis,
     enforce_caps,
@@ -112,8 +122,9 @@ def _thin_rebalance_dates(sorted_dates, rebalance_days: int):
     until at least ``rebalance_days`` *distinct OOS dates* have elapsed since the
     last pick (measured by position in the sorted-unique list, which for a daily
     OOS frame ≈ ``rebalance_days`` trading days). This guarantees the realized
-    H-day ``fwd_return`` windows of consecutive picks do not overlap when
-    ``rebalance_days == label_horizon_days``.
+    executable H-session windows do not overlap when ``rebalance_days ==
+    label_horizon_days``: decision i -> entry i+1 -> exit i+H, followed by
+    decision i+H -> entry i+H+1.
 
     Returns the list of picked ``pd.Timestamp`` rebalance dates.
     """
@@ -153,37 +164,97 @@ def _slice_price_frames_asof(price_frames, d) -> dict:
 
 
 def _prepare_topix(macro_panel) -> pd.DataFrame | None:
-    """Return a sorted, deduped ``date``/``topix`` frame, or None if absent."""
+    """Return exact-date TOPIX open/close data, or None when unavailable.
+
+    The normal macro panel currently exposes only the ``topix`` close. That is
+    intentionally insufficient for the v2 next-open-to-H-close contract: using
+    it would create a basis mismatch with portfolio returns.
+    """
     if macro_panel is None or not isinstance(macro_panel, pd.DataFrame):
         return None
-    if "date" not in macro_panel.columns or "topix" not in macro_panel.columns:
+    required = {"date", "topix_open", "topix"}
+    if not required.issubset(macro_panel.columns):
         return None
-    tp = macro_panel[["date", "topix"]].copy()
+    tp = macro_panel[["date", "topix_open", "topix"]].copy()
     tp["date"] = pd.to_datetime(tp["date"], errors="coerce")
+    tp["topix_open"] = pd.to_numeric(tp["topix_open"], errors="coerce")
     tp["topix"] = pd.to_numeric(tp["topix"], errors="coerce")
-    tp = tp.dropna(subset=["date", "topix"]).sort_values("date")
+    tp = tp.dropna(subset=["date", "topix_open", "topix"]).sort_values("date")
+    tp = tp[(tp["topix_open"] > 0) & (tp["topix"] > 0)]
     tp = tp.drop_duplicates(subset="date", keep="last").reset_index(drop=True)
     return tp if not tp.empty else None
 
 
-def _topix_asof(topix, d):
-    """Most-recent topix level with date <= d (backward as-of). None if none."""
-    if topix is None:
+def _single_execution_date(cross: pd.DataFrame, column: str):
+    """Return one unambiguous execution date shared by the cross section."""
+    if column not in cross.columns:
         return None
-    mask = topix["date"] <= d
-    if not bool(mask.any()):
+    converted = pd.to_datetime(cross[column], errors="coerce")
+    if converted.isna().any():
         return None
-    return float(topix.loc[mask, "topix"].iloc[-1])
+    values = converted.unique()
+    if len(values) != 1:
+        return None
+    return pd.Timestamp(values[0])
 
 
-def _topix_after(topix, d):
-    """Topix level at the FIRST date strictly after d (for the last period)."""
-    if topix is None:
-        return None
-    mask = topix["date"] > d
-    if not bool(mask.any()):
-        return None
-    return float(topix.loc[mask, "topix"].iloc[0])
+def _benchmark_coverage(total: int, available: int, reason: str | None) -> dict:
+    """Build the JSON-safe same-basis benchmark coverage contract."""
+    ratio = float(available / total) if total > 0 else None
+    complete = total > 0 and available == total
+    return {
+        "available": complete,
+        "scope": "portfolio_rebalance_periods",
+        "required_basis": f"{ENTRY_PRICE_BASIS}_to_{EXIT_PRICE_BASIS}",
+        "return_basis": "net_after_same_entry_exit_costs",
+        "required_open_column": "topix_open",
+        "total_periods": int(total),
+        "available_periods": int(available),
+        "coverage_ratio": ratio,
+        "reason": None if complete else (reason or "incomplete_same_basis_coverage"),
+    }
+
+
+def _cross_execution_window(cross: pd.DataFrame, decision_date):
+    """Validate one cross section's shared v2 execution provenance.
+
+    A period is usable only when every row names the current contract and all
+    tickers agree on market-as-of, entry, and exit dates. Returning an explicit
+    reason lets the caller exclude malformed periods without converting them
+    into cash returns.
+    """
+    required = {
+        "execution_contract_version",
+        "market_as_of_date",
+        "entry_date",
+        "execution_exit_date",
+    }
+    missing = sorted(required.difference(cross.columns))
+    if missing:
+        return None, None, None, f"missing_execution_columns:{','.join(missing)}"
+    if cross["ticker"].astype(str).duplicated().any():
+        return None, None, None, "duplicate_ticker"
+
+    versions = cross["execution_contract_version"]
+    if versions.isna().any() or not bool(
+        versions.astype(str).eq(EXECUTION_CONTRACT_VERSION).all()
+    ):
+        return None, None, None, "execution_contract_mismatch"
+
+    market_as_of = _single_execution_date(cross, "market_as_of_date")
+    entry_date = _single_execution_date(cross, "entry_date")
+    exit_date = _single_execution_date(cross, "execution_exit_date")
+    if market_as_of is None:
+        return None, None, None, "market_as_of_date_inconsistent"
+    if market_as_of != pd.Timestamp(decision_date):
+        return None, None, None, "market_as_of_date_mismatch"
+    if entry_date is None:
+        return None, None, None, "entry_date_inconsistent"
+    if exit_date is None:
+        return None, None, None, "exit_date_inconsistent"
+    if not market_as_of < entry_date <= exit_date:
+        return None, None, None, "execution_date_order_invalid"
+    return market_as_of, entry_date, exit_date, None
 
 
 # ---------------------------------------------------------------------------
@@ -209,20 +280,23 @@ def run_portfolio_backtest(
     Parameters
     ----------
     oos_predictions : DataFrame with at least ``date, ticker, raw_score,
-        fwd_return``. ``fwd_return`` is the realized ``label_horizon_days``
-        forward return for a position opened on ``date`` (the holding-period
-        return). Selection NEVER reads ``fwd_return``.
+        fwd_return``. In the production contract it also carries
+        ``entry_date`` and ``execution_exit_date``. ``date`` is the decision's
+        market-as-of date; ``fwd_return`` is next-session-open to H-th-session-
+        close. Selection NEVER reads ``fwd_return``.
     price_frames : dict ``ticker -> DataFrame[date, close]`` for the as-of
         covariance estimate (sliced to ``date <= d`` at each rebalance).
-    macro_panel : DataFrame with ``date`` + ``topix`` for the benchmark, or
-        ``None`` (then benchmark returns are 0.0 and IR/alpha/beta degrade
-        gracefully).
+    macro_panel : A same-basis benchmark requires ``date``, ``topix_open`` and
+        ``topix`` (close). A close-only or missing panel is explicitly marked
+        unavailable; benchmark returns and IR/alpha/beta stay ``None``.
     config : dict with portfolio params (see ``src.config.get_portfolio_config``)
         plus ``top_n`` (else pulled from ``get_cross_section_config``).
     sectors : optional ``ticker -> sector`` map for the sector cap.
     rebalance_days : distinct-OOS-date spacing between rebalances; defaults to
         ``label_horizon_days`` to keep holding windows non-overlapping.
-    cost_bps, slippage_bps : per-unit-turnover trading cost in basis points.
+    cost_bps, slippage_bps : per-side, per-unit-turnover trading cost in basis
+        points. Because v2 periods do not overlap, the previous book is fully
+        exited and the new book fully entered; identical names are not netted.
     trading_days : annualization base; ``periods_per_year = trading_days /
         rebalance_days``.
 
@@ -258,6 +332,34 @@ def run_portfolio_backtest(
     slippage_bps = float(slippage_bps)
     trading_days = float(trading_days)
     sectors = sectors or {}
+    topix = _prepare_topix(macro_panel)
+    execution_contract = execution_contract_metadata(
+        cost_bps=cost_bps,
+        slippage_bps=slippage_bps,
+    )
+    cost_rate = (cost_bps + slippage_bps) / 10000.0
+    execution_contract.update(
+        {
+            "return_basis": "net_after_entry_exit_costs",
+            "gross_return_source": "cross_section_oos.fwd_return",
+            "cost_treatment": "deducted_from_portfolio_and_benchmark_returns",
+            "cost_model": "full_exit_then_entry_between_non_overlapping_periods",
+            "round_trip_cost_rate": 2.0 * cost_rate,
+            "benchmark_return_basis": (
+                "net_after_same_entry_exit_costs"
+                if topix is not None
+                else "unavailable_same_basis"
+            ),
+            "benchmark_gross_return_basis": "raw_market_price_before_costs",
+            "benchmark_cost_model": (
+                "full_capital_exit_then_entry_between_non_overlapping_periods"
+            ),
+        }
+    )
+    if topix is not None:
+        execution_contract["benchmark_basis"] = (
+            f"{ENTRY_PRICE_BASIS}_to_{EXIT_PRICE_BASIS}"
+        )
 
     params = {
         "target_vol": target_vol,
@@ -269,21 +371,54 @@ def run_portfolio_backtest(
         "top_n": top_n,
         "cov_lookback_days": cov_lookback_days,
         "rebalance_days": rebalance_days,
+        "label_horizon_days": label_horizon_days,
         "cost_bps": cost_bps,
         "slippage_bps": slippage_bps,
+        "execution_contract_version": EXECUTION_CONTRACT_VERSION,
+        "decision_date_basis": "market_as_of_date",
+        "entry_price_basis": ENTRY_PRICE_BASIS,
+        "exit_price_basis": EXIT_PRICE_BASIS,
     }
 
     # --- 1. Normalize the OOS frame. ---
-    def _insufficient(equity=None):
+    def _insufficient(
+        *,
+        reason="insufficient_periods",
+        candidate_periods=0,
+        valid_periods=0,
+        exclusions=None,
+    ):
+        """Return a fail-closed, JSON-safe unavailable result.
+
+        A single internally evaluated period is not an equity curve and may
+        still contain pandas timestamps. Never expose those unfinished period
+        dictionaries through the report contract.
+        """
+        excluded = list(exclusions or [])
         return {
             "status": "insufficient",
-            "n_periods": 0 if not equity else len(equity),
+            "reason": reason,
+            "n_periods": 0,
             "rebalance_days": rebalance_days,
             "cost_bps": cost_bps,
             "slippage_bps": slippage_bps,
             "metrics": {},
-            "equity": equity or [],
+            "equity": [],
             "params": params,
+            "execution_contract": execution_contract,
+            "data_quality": {
+                "candidate_periods": int(candidate_periods),
+                "valid_periods": int(valid_periods),
+                "excluded_periods": len(excluded),
+                "exclusions": excluded,
+            },
+            "benchmark_coverage": _benchmark_coverage(
+                0,
+                0,
+                "topix_open_unavailable_same_basis"
+                if topix is None
+                else "insufficient_periods",
+            ),
         }
 
     if (
@@ -294,15 +429,25 @@ def run_portfolio_backtest(
         return _insufficient()
 
     oos = oos_predictions.copy()
-    required = {"date", "ticker", "raw_score"}
+    required = {
+        "date",
+        "ticker",
+        "raw_score",
+        "fwd_return",
+        "execution_contract_version",
+        "market_as_of_date",
+        "entry_date",
+        "execution_exit_date",
+    }
     if not required.issubset(set(oos.columns)):
-        return _insufficient()
+        missing = sorted(required.difference(oos.columns))
+        return _insufficient(reason=f"missing_required_columns:{','.join(missing)}")
     oos["date"] = pd.to_datetime(oos["date"], errors="coerce")
+    for col in ("market_as_of_date", "entry_date", "execution_exit_date"):
+        if col in oos.columns:
+            oos[col] = pd.to_datetime(oos[col], errors="coerce")
     oos["raw_score"] = pd.to_numeric(oos["raw_score"], errors="coerce")
-    if "fwd_return" in oos.columns:
-        oos["fwd_return"] = pd.to_numeric(oos["fwd_return"], errors="coerce")
-    else:
-        oos["fwd_return"] = np.nan
+    oos["fwd_return"] = pd.to_numeric(oos["fwd_return"], errors="coerce")
     oos = oos.dropna(subset=["date", "ticker", "raw_score"])
     if oos.empty:
         return _insufficient()
@@ -314,16 +459,24 @@ def run_portfolio_backtest(
         return _insufficient()
 
     # --- 3. Walk each rebalance date. ---
-    cost_rate = (cost_bps + slippage_bps) / 10000.0
-    topix = _prepare_topix(macro_panel)
-
     periods: list[dict] = []
     topn_realized: list[float] = []
     prev_w: dict[str, float] = {}
+    exclusions: list[dict] = []
 
-    for k, d in enumerate(rebalance_dates):
+    for d in rebalance_dates:
         cross = oos[oos["date"] == d]
         if cross.empty:
+            continue
+
+        _, entry_date, exit_date, invalid_reason = _cross_execution_window(cross, d)
+        if invalid_reason is not None:
+            exclusions.append({"date": _date_str(d), "reason": invalid_reason})
+            continue
+        if periods and entry_date <= periods[-1]["exit_date"]:
+            exclusions.append(
+                {"date": _date_str(d), "reason": "overlapping_execution_window"}
+            )
             continue
 
         # cs_rank within d: rank raw_score descending (1 = best).
@@ -338,26 +491,58 @@ def run_portfolio_backtest(
             for i, row in enumerate(cross.itertuples(index=False))
         ]
         selected = select_candidates(cands, top_n=top_n, min_expected_ret=0.0)
+        tickers = [c["ticker"] for c in selected]
+        missing_selected_returns = [
+            tk for tk in tickers if _finite(fwd_by_ticker.get(tk)) is None
+        ]
+        if missing_selected_returns:
+            exclusions.append(
+                {
+                    "date": _date_str(d),
+                    "reason": "selected_fwd_return_unavailable",
+                    "tickers": missing_selected_returns,
+                }
+            )
+            continue
+
         if not selected:
             # No book this period: realize a flat (cash) period, still pay any
-            # turnover from exiting the previous book.
-            turnover = sum(abs(0.0 - prev_w.get(tk, 0.0)) for tk in prev_w)
+            # turnover from fully exiting the previous non-overlapping book.
+            exit_turnover = sum(abs(weight) for weight in prev_w.values())
+            entry_turnover = 0.0
+            turnover = exit_turnover
             cost = turnover * cost_rate
             period_ret = -cost  # gross 0
-            bench_ret = _benchmark_return(topix, d, rebalance_dates, k)
+            gross_bench_ret = _benchmark_return(topix, entry_date, exit_date)
+            benchmark_turnover = 1.0 + (1.0 if periods else 0.0)
+            benchmark_cost = benchmark_turnover * cost_rate
+            bench_ret = (
+                gross_bench_ret - benchmark_cost
+                if gross_bench_ret is not None
+                else None
+            )
             periods.append(
                 {
                     "date": d,
+                    "decision_date": d,
+                    "entry_date": entry_date,
+                    "exit_date": exit_date,
+                    "gross_period_return": 0.0,
+                    "cost_return": cost,
                     "period_return": period_ret,
+                    "gross_benchmark_return": gross_bench_ret,
+                    "benchmark_cost_return": benchmark_cost,
                     "benchmark_return": bench_ret,
                     "gross_exposure": 0.0,
+                    "entry_turnover": entry_turnover,
+                    "exit_turnover": exit_turnover,
+                    "terminal_exit_turnover": 0.0,
                     "turnover": turnover,
+                    "benchmark_turnover": benchmark_turnover,
                 }
             )
             prev_w = {}
             continue
-
-        tickers = [c["ticker"] for c in selected]
 
         # 3b. As-of covariance (NO LEAKAGE): slice price frames to date <= d.
         pf_asof = _slice_price_frames_asof(price_frames, d)
@@ -387,51 +572,125 @@ def run_portfolio_backtest(
             notrade_band=notrade_band,
             min_weight=min_weight,
         )
+        missing_weighted_returns = [
+            tk for tk in w_d if _finite(fwd_by_ticker.get(tk)) is None
+        ]
+        if missing_weighted_returns:
+            exclusions.append(
+                {
+                    "date": _date_str(d),
+                    "reason": "portfolio_fwd_return_unavailable",
+                    "tickers": missing_weighted_returns,
+                }
+            )
+            continue
 
-        # 3d. Turnover + cost over the union of tickers.
-        union = set(w_d) | set(prev_w)
-        turnover = sum(abs(w_d.get(tk, 0.0) - prev_w.get(tk, 0.0)) for tk in union)
+        # 3d. The v2 holding windows do not overlap: the old book is fully
+        # liquidated at its H-close and the new book is established at the next
+        # period's open. Netting identical names would understate both sides.
+        exit_turnover = sum(abs(weight) for weight in prev_w.values())
+        entry_turnover = sum(abs(weight) for weight in w_d.values())
+        turnover = exit_turnover + entry_turnover
         cost = turnover * cost_rate
 
         # 3e. Realized gross period return = sum(w_d * fwd_return_d).
-        gross_return = 0.0
-        for tk, w in w_d.items():
-            r = _finite(fwd_by_ticker.get(tk))
-            if r is not None:
-                gross_return += w * r
+        # Every selected return was validated above; none can silently become
+        # a zero contribution.
+        gross_return = sum(w * float(fwd_by_ticker[tk]) for tk, w in w_d.items())
         period_ret = gross_return - cost
 
         # Long-leg signal quality: equal-weight mean fwd_return of selected.
-        sel_rets = [_finite(fwd_by_ticker.get(tk)) for tk in tickers]
-        sel_rets = [r for r in sel_rets if r is not None]
-        if sel_rets:
-            topn_realized.append(float(np.mean(sel_rets)))
+        sel_rets = [float(fwd_by_ticker[tk]) for tk in tickers]
+        topn_realized.append(float(np.mean(sel_rets)))
 
         # 3f. Benchmark period return.
-        bench_ret = _benchmark_return(topix, d, rebalance_dates, k)
+        gross_bench_ret = _benchmark_return(topix, entry_date, exit_date)
+        benchmark_turnover = 1.0 + (1.0 if periods else 0.0)
+        benchmark_cost = benchmark_turnover * cost_rate
+        bench_ret = (
+            gross_bench_ret - benchmark_cost if gross_bench_ret is not None else None
+        )
 
         # 3g. Record + advance.
         periods.append(
             {
                 "date": d,
+                "decision_date": d,
+                "entry_date": entry_date,
+                "exit_date": exit_date,
+                "gross_period_return": float(gross_return),
+                "cost_return": float(cost),
                 "period_return": period_ret,
+                "gross_benchmark_return": gross_bench_ret,
+                "benchmark_cost_return": benchmark_cost,
                 "benchmark_return": bench_ret,
                 "gross_exposure": float(sum(w_d.values())),
+                "entry_turnover": float(entry_turnover),
+                "exit_turnover": float(exit_turnover),
+                "terminal_exit_turnover": 0.0,
                 "turnover": float(turnover),
+                "benchmark_turnover": benchmark_turnover,
             }
         )
         prev_w = w_d
 
+    # Charge the final close-out explicitly. Every non-overlapping strategy and
+    # benchmark book then has one entry and one exit in the reported run.
+    if periods:
+        terminal_exit = sum(abs(weight) for weight in prev_w.values())
+        terminal_cost = terminal_exit * cost_rate
+        periods[-1]["terminal_exit_turnover"] = float(terminal_exit)
+        periods[-1]["turnover"] += float(terminal_exit)
+        periods[-1]["cost_return"] += float(terminal_cost)
+        periods[-1]["period_return"] -= float(terminal_cost)
+
+        periods[-1]["benchmark_turnover"] += 1.0
+        periods[-1]["benchmark_cost_return"] += cost_rate
+        if periods[-1]["benchmark_return"] is not None:
+            periods[-1]["benchmark_return"] -= cost_rate
+
     if len(periods) < 2:
-        return _insufficient()
+        return _insufficient(
+            reason="insufficient_valid_periods",
+            candidate_periods=len(rebalance_dates),
+            valid_periods=len(periods),
+            exclusions=exclusions,
+        )
 
     # --- 4. Compound equity + benchmark equity + drawdown. ---
     net = np.array([p["period_return"] for p in periods], dtype="float64")
-    bench = np.array([p["benchmark_return"] for p in periods], dtype="float64")
     n_periods = len(periods)
 
+    # Comparison metrics are all-or-nothing. Partial exact-basis coverage would
+    # silently compare different period sets, so it is marked unavailable too.
+    available_benchmark_periods = sum(
+        _finite(p.get("benchmark_return")) is not None for p in periods
+    )
+    if available_benchmark_periods == n_periods:
+        bench = np.array([p["benchmark_return"] for p in periods], dtype="float64")
+        benchmark_reason = None
+    else:
+        bench = None
+        if topix is None:
+            benchmark_reason = "topix_open_unavailable_same_basis"
+        elif any(
+            p.get("entry_date") is None or p.get("exit_date") is None for p in periods
+        ):
+            benchmark_reason = "execution_dates_unavailable"
+        else:
+            benchmark_reason = "incomplete_same_basis_coverage"
+        # Do not publish a partial comparison as if it covered the whole run.
+        for p in periods:
+            p["benchmark_return"] = None
+
+    benchmark_coverage = _benchmark_coverage(
+        n_periods,
+        available_benchmark_periods,
+        benchmark_reason,
+    )
+
     equity_vals = np.cumprod(1.0 + net)
-    bench_equity_vals = np.cumprod(1.0 + bench)
+    bench_equity_vals = np.cumprod(1.0 + bench) if bench is not None else None
     running_max = np.maximum.accumulate(equity_vals)
     drawdown_vals = np.where(running_max > 0, equity_vals / running_max - 1.0, 0.0)
 
@@ -440,13 +699,32 @@ def run_portfolio_backtest(
         equity_rows.append(
             {
                 "date": _date_str(p["date"]),
+                "decision_date": _date_str(p["decision_date"]),
+                "entry_date": _date_str_or_none(p["entry_date"]),
+                "exit_date": _date_str_or_none(p["exit_date"]),
                 "equity": float(equity_vals[i]),
-                "benchmark_equity": float(bench_equity_vals[i]),
+                "benchmark_equity": (
+                    float(bench_equity_vals[i])
+                    if bench_equity_vals is not None
+                    else None
+                ),
+                "gross_period_return": float(p["gross_period_return"]),
+                "cost_return": float(p["cost_return"]),
                 "period_return": float(net[i]),
-                "benchmark_return": float(bench[i]),
+                "gross_benchmark_return": (
+                    float(p["gross_benchmark_return"])
+                    if _finite(p.get("gross_benchmark_return")) is not None
+                    else None
+                ),
+                "benchmark_cost_return": float(p["benchmark_cost_return"]),
+                "benchmark_return": float(bench[i]) if bench is not None else None,
                 "drawdown": float(drawdown_vals[i]),
                 "gross_exposure": float(p["gross_exposure"]),
+                "entry_turnover": float(p["entry_turnover"]),
+                "exit_turnover": float(p["exit_turnover"]),
+                "terminal_exit_turnover": float(p["terminal_exit_turnover"]),
                 "turnover": float(p["turnover"]),
+                "benchmark_turnover": float(p["benchmark_turnover"]),
             }
         )
 
@@ -481,30 +759,30 @@ def run_portfolio_backtest(
         "metrics": metrics,
         "equity": equity_rows,
         "params": params,
+        "execution_contract": execution_contract,
+        "benchmark_coverage": benchmark_coverage,
+        "data_quality": {
+            "candidate_periods": len(rebalance_dates),
+            "valid_periods": n_periods,
+            "excluded_periods": len(exclusions),
+            "exclusions": exclusions,
+        },
     }
 
 
-def _benchmark_return(topix, d, rebalance_dates, k) -> float:
-    """TOPIX period return from ``d`` to the next rebalance date.
-
-    Uses backward as-of levels: ``topix(d)`` and ``topix(d_next)``. For the LAST
-    rebalance (no ``d_next``) we use the first topix level strictly AFTER ``d``
-    (so the final holding period still gets a benchmark when panel data extends
-    past it); if neither is available the period return is ``0.0``.
-    """
-    if topix is None:
-        return 0.0
-    level_d = _topix_asof(topix, d)
-    if level_d is None or level_d <= 0.0:
-        return 0.0
-    if k + 1 < len(rebalance_dates):
-        level_next = _topix_asof(topix, rebalance_dates[k + 1])
-    else:
-        # Last period: use the first available topix strictly after d.
-        level_next = _topix_after(topix, d)
-    if level_next is None or not math.isfinite(level_next):
-        return 0.0
-    return level_next / level_d - 1.0
+def _benchmark_return(topix, entry_date, exit_date) -> float | None:
+    """Return exact TOPIX entry-open to exit-close performance, if present."""
+    if topix is None or entry_date is None or exit_date is None:
+        return None
+    entry_rows = topix[topix["date"] == pd.Timestamp(entry_date)]
+    exit_rows = topix[topix["date"] == pd.Timestamp(exit_date)]
+    if entry_rows.empty or exit_rows.empty:
+        return None
+    entry_open = _finite(entry_rows["topix_open"].iloc[-1])
+    exit_close = _finite(exit_rows["topix"].iloc[-1])
+    if entry_open is None or entry_open <= 0.0 or exit_close is None:
+        return None
+    return exit_close / entry_open - 1.0
 
 
 def _compute_metrics(
@@ -535,8 +813,9 @@ def _compute_metrics(
       * avg_gross = mean gross exposure.
       * capacity_proxy = avg_gross / max(turnover, 1e-6) — a ROUGH churn proxy
         (higher = less churn / more capacity), NOT a notional capacity estimate.
-      * alpha/beta from OLS of net on benchmark: beta = cov/var (0 if var==0);
-        alpha annualized = (mean(net) - beta*mean(bench)) * ppy.
+      * alpha/beta from OLS of net strategy return on net benchmark return
+        after the same entry/exit cost model, when the benchmark has complete
+        same-basis coverage. Otherwise both are None.
       * information_ratio = sqrt(ppy) * mean(active) / std(active, ddof=0),
         active = net - bench.
       * tracking_error = std(active, ddof=0) * sqrt(ppy).
@@ -591,10 +870,13 @@ def _compute_metrics(
     else:
         capacity_proxy = float(avg_gross / max(turnover or 0.0, _CAP_EPS))
 
-    # Alpha / beta (OLS of net on benchmark).
-    mean_bench = _mean(bench)
-    var_bench = float(np.var(bench, ddof=0)) if bench.size else 0.0
-    if mean_net is None or mean_bench is None:
+    # Alpha / beta (OLS of net on benchmark). A missing benchmark is not cash:
+    # it must remain None so the portfolio KPI gate fails closed on missing IR.
+    mean_bench = _mean(bench) if bench is not None else None
+    var_bench = (
+        float(np.var(bench, ddof=0)) if bench is not None and bench.size else None
+    )
+    if mean_net is None or mean_bench is None or var_bench is None:
         beta = None
         alpha = None
     elif var_bench <= 0.0:
@@ -607,9 +889,9 @@ def _compute_metrics(
         alpha = float(alpha_per_period * periods_per_year)
 
     # Active-return metrics (IR, tracking error).
-    active = net - bench
-    mean_active = _mean(active)
-    std_active = _std(active, ddof=0)
+    active = net - bench if bench is not None else None
+    mean_active = _mean(active) if active is not None else None
+    std_active = _std(active, ddof=0) if active is not None else None
     if mean_active is None or std_active is None:
         information_ratio = None
     elif std_active == 0.0:
@@ -648,6 +930,13 @@ def _date_str(value) -> str:
     """Format a date-like value as ``YYYY-MM-DD``."""
     ts = pd.Timestamp(value)
     return ts.strftime("%Y-%m-%d")
+
+
+def _date_str_or_none(value) -> str | None:
+    """Format a date-like value, preserving unavailable execution dates."""
+    if value is None or pd.isna(value):
+        return None
+    return _date_str(value)
 
 
 # ---------------------------------------------------------------------------

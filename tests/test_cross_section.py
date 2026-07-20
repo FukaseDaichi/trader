@@ -24,9 +24,15 @@ sys.path.insert(0, str(ROOT))
 from src.cross_section import (  # noqa: E402
     CS_BASE_FEATURES,
     SECTOR_REL_FEATURES,
+    build_cs_labels,
     build_cs_panel,
     cross_sectional_feature_cols,
     drop_small_date_groups,
+)
+from src.execution import (  # noqa: E402
+    ENTRY_PRICE_BASIS,
+    EXECUTION_CONTRACT_VERSION,
+    EXIT_PRICE_BASIS,
 )
 from src.macro import MACRO_FEATURE_COLS  # noqa: E402
 
@@ -218,8 +224,9 @@ def test_labels_fwd_return_and_target_up():
         if n > H + 5:
             idx = n // 2
             row = grp.iloc[idx]
+            entry_row = grp.iloc[idx + 1]
             fut_row = grp.iloc[idx + H]
-            expected = fut_row["close"] / row["close"] - 1.0
+            expected = fut_row["close"] / entry_row["open"] - 1.0
             actual = row["fwd_return"]
             assert abs(actual - expected) < 1e-9, (
                 f"Ticker {code} idx={idx}: fwd_return={actual} expected={expected}"
@@ -230,6 +237,15 @@ def test_labels_fwd_return_and_target_up():
                 assert row["target_up"] == 1.0
             else:
                 assert row["target_up"] == 0.0
+
+            assert row["market_as_of_date"] == row["date"]
+            assert row["entry_date"] == entry_row["date"]
+            assert row["execution_exit_date"] == fut_row["date"]
+            assert row["entry_price"] == entry_row["open"]
+            assert row["execution_exit_price"] == fut_row["close"]
+            assert row["execution_contract_version"] == EXECUTION_CONTRACT_VERSION
+            assert row["entry_price_basis"] == ENTRY_PRICE_BASIS
+            assert row["exit_price_basis"] == EXIT_PRICE_BASIS
 
     # target_rank_bucket: 0..4 where defined, NaN where fwd_return is NaN.
     defined = panel["fwd_return"].notna()
@@ -244,6 +260,59 @@ def test_labels_fwd_return_and_target_up():
     # NaN where fwd_return is NaN.
     nan_fwd = panel["fwd_return"].isna()
     assert panel.loc[nan_fwd, "target_rank_bucket"].isna().all()
+
+
+@_test
+def test_labels_use_next_open_across_overnight_gap():
+    """The Phase 2 target must include the next-session opening gap."""
+    dates = pd.bdate_range("2026-01-05", periods=4)
+    source = pd.DataFrame(
+        {
+            "date": dates,
+            "ticker": ["GAP.JP"] * 4,
+            "open": [100.0, 150.0, 205.0, 250.0],
+            "close": [100.0, 160.0, 210.0, 255.0],
+            "volatility": [0.02] * 4,
+        }
+    )
+
+    labelled = build_cs_labels(source, {"label_horizon_days": 2})
+    row = labelled.iloc[0]
+    expected = 210.0 / 150.0 - 1.0
+    legacy_close_to_close = 210.0 / 100.0 - 1.0
+    assert abs(row["fwd_return"] - expected) < 1e-12
+    assert abs(row["fwd_return"] - legacy_close_to_close) > 1e-6
+    assert row["entry_date"] == dates[1]
+    assert row["execution_exit_date"] == dates[2]
+
+
+@_test
+def test_labels_keep_ticker_execution_windows_separate():
+    """Interleaved tickers must never borrow another ticker's open/close."""
+    dates = pd.bdate_range("2026-02-02", periods=3)
+    source = pd.DataFrame(
+        [
+            {"date": dates[0], "ticker": "A.JP", "open": 10.0, "close": 11.0},
+            {"date": dates[0], "ticker": "B.JP", "open": 1000.0, "close": 900.0},
+            {"date": dates[1], "ticker": "A.JP", "open": 12.0, "close": 13.0},
+            {"date": dates[1], "ticker": "B.JP", "open": 800.0, "close": 880.0},
+            {"date": dates[2], "ticker": "A.JP", "open": 14.0, "close": 15.0},
+            {"date": dates[2], "ticker": "B.JP", "open": 700.0, "close": 770.0},
+        ]
+    )
+    source["volatility"] = 0.02
+
+    labelled = build_cs_labels(source, {"label_horizon_days": 1})
+    a0 = labelled[(labelled["ticker"] == "A.JP") & (labelled["date"] == dates[0])].iloc[
+        0
+    ]
+    b0 = labelled[(labelled["ticker"] == "B.JP") & (labelled["date"] == dates[0])].iloc[
+        0
+    ]
+    assert abs(a0["fwd_return"] - (13.0 / 12.0 - 1.0)) < 1e-12
+    assert abs(b0["fwd_return"] - (880.0 / 800.0 - 1.0)) < 1e-12
+    assert a0["entry_price"] == 12.0
+    assert b0["entry_price"] == 800.0
 
 
 @_test

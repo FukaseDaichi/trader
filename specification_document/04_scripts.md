@@ -1,6 +1,6 @@
 # 補助スクリプト仕様
 
-更新日: 2026-07-19 JST
+更新日: 2026-07-20 JST
 
 ## ガード・カレンダー
 
@@ -28,7 +28,9 @@ JPX 営業日判定と休日キャッシュ同期。`is-open`（指定日また�
 
 ### `scripts/settle_outcomes.py`
 
-未決済シグナルの 1/5/10 営業日実現結果（realized_ret / hit / MAE / MFE / exit_reason）を銘柄 parquet から計算し `signal_outcomes` へ upsert。`data/macro/macro_panel.parquet` の TOPIX 列から `benchmark_ret` / `excess_ret` を同時に埋める（系列欠損時は NULL で継続）。`--refill-benchmark` で既存 NULL 行の埋め直し（冪等）。決済完了後に `performance_summary.json` / `performance_detail.json` / `signal_outcomes_recent.json` を再エクスポートし、settle 当日の実績を同日 commit に反映する。
+未決済シグナルの 1/5/10 営業日実現結果（realized_ret / hit / MAE / MFE / exit_reason）を銘柄 parquet から計算し `signal_outcomes` へ upsert。約定契約 `next_session_open_to_close_v2` は、判断に使った `market_as_of_date` の次の市場行の寄付きで入り、H営業日目の終値で決済する。休日はカレンダー日加算せず、実在する次のOHLCV行で解決する。
+
+TOPIXパネルは終値のみで同じ翌日寄付き基準を作れないため、v2の `benchmark_ret` / `excess_ret` は NULL とし比較不能理由を保存する。`--refill-benchmark` は旧 `close_to_close_v1` 行だけが対象。migration 0004適用後の既存結果は `--restate-execution-contract` でv2へ再計算・置換でき、通常実行もlegacy行をv2未決済として段階的に置換する。決済完了後に成績JSONを再エクスポートし、settle当日の実績を同日commitへ反映する。
 
 ### `scripts/backfill_state_signals.py`
 
@@ -40,11 +42,11 @@ JPX 営業日判定と休日キャッシュ同期。`is-open`（指定日また�
 
 ### `scripts/weekly_model_retrain.py`
 
-Phase 1 の**実学習**: データ更新 → 特徴量 → ラベル → 銘柄別 LightGBM + isotonic 較正の学習 → `data/models/<version>/` へ保存 → `model_registry` 登録 → `active_model.json` 更新 → `docs/weekly_retrain_report.json` 出力。`state.json` やダッシュボード JSON は更新せず、LINE 通知もしない。銘柄単位の失敗はレポートに記録して継続。
+Phase 1の**実学習とatomic配備**: データ更新 → 特徴量 → v2ラベル → 銘柄別exact final LightGBM + tuning-only isotonic較正／閾値選択 + holdout-only KPIゲート → 一意versionの`.staging/`へschema v3 artifactを保存 → 全対象coverage・gate evidence・manifest/checksum検証 → 合格時だけimmutableな`data/models/<version>/`へpromoteし`active_model.json`をatomic更新 → `model_registry`登録 → `docs/weekly_retrain_report.json`と`docs/model_quality.json`を更新。銘柄単位の失敗はレポートへ残すが候補全体をrejectし、前activeを維持する。DB登録失敗はfile pointer provenance付きの安定event IDでoutboxへ待避し、再送時に現在pointerと一致しない古いactivationは適用しない。`state.json`や日次シグナルは更新せず、LINE通知もしない。
 
 ### `scripts/drift_check.py`
 
-active モデルの rolling IC / Brier / hit-rate（DB の predictions × signal_outcomes）と特徴量 PSI を計算し `docs/drift_report.json` を出力。閾値（`TRADER_DRIFT_*`）割れは exit code で workflow に伝搬し、watchdog が Issue を起票。
+日次推論と同じruntime artifact/gate契約、manifest/checksum、候補合格を先に検証し、互換なactiveモデルだけrolling IC / Brier / hit-rate（signal-linked Phase 1 predictions × v2 signal_outcomes）と特徴量PSIを計算して`docs/drift_report.json`へ出力する。不一致時は旧artifactを正常扱いせずunavailableへfail-closeする。閾値（`TRADER_DRIFT_*`）割れはexit codeでworkflowへ伝搬し、watchdogがIssueを起票。
 
 ## Phase 2（クロスセクション・ポートフォリオ）
 
@@ -58,7 +60,7 @@ active モデルの rolling IC / Brier / hit-rate（DB の predictions × signal
 
 ### `scripts/portfolio_shadow_report.py`
 
-shadow 期間の Phase 1 vs Phase 2 比較（daily IC、的中率等）を `src/portfolio_shadow.py` の純粋ロジックで集計し、`docs/portfolio_shadow_report.json` を出力。比較は、同じ `(date, ticker)` に決済済みリターン・Phase 1 予測・Phase 2 順位/期待収益があり、その日に Phase 2 のポートフォリオ weight が保存された paired 日・銘柄だけで行う。生の観測日数 `n_dates` に加え、`n_paired_dates` / `n_paired_records` / `date_coverage` で有効サンプルと除外理由を監査できる。active 化判断のための `active_readiness`（paired な `shadow_days >= 10` かつポートフォリオゲート通過かつ CS daily IC ≥ Phase 1 比 −0.005）を含む。**active への切替自体は人間が env を変更する**。
+shadow期間のPhase 1 vs Phase 2比較（daily IC、的中率等）を`src/portfolio_shadow.py`の純粋ロジックで集計し、`docs/portfolio_shadow_report.json`を出力する。Phase 1は`signals.prediction_id`に直接紐付く予測、Phase 2は各日の`portfolio_snapshots.model_version`と完全一致するCS予測、結果は現行v2契約だけを使う。同じ`(date, ticker)`に決済済み結果・両予測・保存weightが揃うpaired日／銘柄だけを比較し、`n_dates`、`n_paired_dates`、`n_paired_records`、`date_coverage`、prediction/outcome/snapshot provenance、除外理由を監査できる。`active_readiness`はpairedな`shadow_days >= 10`、ポートフォリオゲート通過、CS daily IC ≥ Phase 1比−0.005を要求する。**activeへの切替自体は人間がenvを変更する**が、TOPIX同一basis coverage不足中はゲートがfail-closeする。
 
 ## 通知
 
@@ -86,7 +88,7 @@ DB から直近 7 日分の outcome を取得し、`digest.build_weekly_summary(
 
 ### `scripts/monthly_audit.py`
 
-全有効銘柄の `evaluate_kpi_gate()` を実行し、集計（passed/failed 件数、平均 CAGR/MaxDD/Sharpe/期待値/turnover）を `docs/monthly_audit.json` へ出力。
+全有効銘柄の`evaluate_kpi_gate()`を独立実行し、集計（passed/failed件数、平均CAGR/MaxDD/Sharpe/期待値/turnover）を`docs/monthly_audit.json`へ出力する。これは月次の再シミュレーション診断であり、配備Phase 1 artifactのexact-candidate証跡や日次actionのゲートではない。
 
 ### `scripts/stress_test.py`
 

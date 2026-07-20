@@ -1,6 +1,6 @@
 # フロントエンド仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-20 JST
 
 ## 技術スタック
 
@@ -49,7 +49,7 @@
 ### 成績ページ（`/performance`）
 
 1. `PerformanceHeadline`: ヘッドライン3枚（的中率(5日後)・平均リターン(5日後)・通算リターン）
-2. `PerformanceDetail`: 資産の伸び vs 市場平均（AI=赤 / 市場平均=slate）、一時的な落ち込み（ドローダウン、青）、確率の正直さ（較正、予測のズレ点数=Brier）、最近のサインの結果テーブル（判断は日本語ラベル、○当たり/×はずれバッジ、最大逆行/最大順行）
+2. `PerformanceDetail`: 往復コスト控除後・非重複cohortの資産の伸び（同一basisが完全な場合だけ市場平均を併記）、一時的な落ち込み（ドローダウン、青）、確率の正直さ（較正、予測のズレ点数=Brier）、最近のサインの結果テーブル（同一basis benchmarkが利用不能なら「市場平均との差」列を隠して理由を表示）
 3. `ModelQualityCard`: モデルの健康診断（良好/注意ピル、予測のズレ点数・順位の当たり具合・チェック対象数）
 
 ### 銘柄詳細（`/stocks/[ticker]`）
@@ -84,6 +84,8 @@
 | `lib/search.ts` | 検索正規化（NFKC+カナ→かな折りたたみ）と `matchesTicker` |
 | `lib/indicators.ts` | やさしい指標ラベル（RSI→過熱感 等） |
 | `types/index.ts` | ダッシュボード JSON の TypeScript 型（`PerformanceDetail` / `SignalOutcomeRow` / `prev_close` / `change_pct` 含む） |
+
+`PerformanceCard` / `PerformanceHeadline` / `PerformanceDetail` / 最近結果は、JSONの `execution_contract.contract_version` が現行 `next_session_open_to_close_v2` と一致する場合だけ表示します。deploy直後に残る旧v1静的JSONを新集計と混在させません。
 
 ## ビルド
 

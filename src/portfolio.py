@@ -971,29 +971,95 @@ def merge_target_weights(signals, snapshot, gate_passed):
     return out
 
 
-def read_portfolio_gate(path=None) -> bool:
+def read_portfolio_gate(path=None, *, expected_model_version=None) -> bool:
     """Whether the weekly portfolio backtest cleared its gate (active-mode safety).
 
-    Reads docs/portfolio_backtest.json. Missing/unavailable/error -> False.
-
-    Current contract: ``run_portfolio_backtest`` emits no explicit pass/fail, so a
-    successful weekly OOS backtest (``available==True``) IS the gate. The
-    ``gate.passed`` branch below is a reserved extension point: if a future
-    backtest report carries an explicit ``{"gate": {"passed": bool}}`` it takes
-    precedence over the ``available`` fallback.
+    Reads docs/portfolio_backtest.json and fails closed unless all active-mode
+    evidence is explicit and internally consistent: the report is available,
+    its model version exactly matches the snapshot being activated,
+    ``gate.passed`` is exactly true with no failures, the execution contract is
+    the current v2 contract, and same-basis benchmark coverage is complete.
+    A missing expected/report model version, legacy availability-only report,
+    or close-to-close report is never accepted.
     """
     from pathlib import Path
     import json
     from .config import DOCS_DIR
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     p = Path(path) if path is not None else (DOCS_DIR / "portfolio_backtest.json")
+    if not isinstance(expected_model_version, str) or not expected_model_version:
+        return False
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001 — missing/corrupt -> not passed
         return False
-    if not isinstance(data, dict) or not data.get("available"):
+    if (
+        not isinstance(data, dict)
+        or data.get("available") is not True
+        or data.get("status") != "ok"
+    ):
         return False
+    report_model_version = data.get("model_version")
+    if (
+        not isinstance(report_model_version, str)
+        or report_model_version != expected_model_version
+    ):
+        return False
+
     gate = data.get("gate")
-    if isinstance(gate, dict) and "passed" in gate:  # reserved extension point
-        return bool(gate["passed"])
-    return True  # available OOS backtest is the gate today
+    if not isinstance(gate, dict) or gate.get("passed") is not True:
+        return False
+    gate_failures = gate.get("failures")
+    if not isinstance(gate_failures, list) or gate_failures:
+        return False
+
+    execution_contract = data.get("execution_contract")
+    if not isinstance(execution_contract, dict):
+        return False
+    if execution_contract.get("contract_version") != EXECUTION_CONTRACT_VERSION:
+        return False
+    if execution_contract.get("return_basis") != "net_after_entry_exit_costs":
+        return False
+    if (
+        execution_contract.get("benchmark_return_basis")
+        != "net_after_same_entry_exit_costs"
+    ):
+        return False
+    try:
+        round_trip_cost_rate = float(execution_contract.get("round_trip_cost_rate"))
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(round_trip_cost_rate) or round_trip_cost_rate < 0.0:
+        return False
+
+    benchmark_coverage = data.get("benchmark_coverage")
+    if not isinstance(benchmark_coverage, dict):
+        return False
+    if benchmark_coverage.get("available") is not True:
+        return False
+    if benchmark_coverage.get("reason") not in (None, ""):
+        return False
+    if benchmark_coverage.get("return_basis") != "net_after_same_entry_exit_costs":
+        return False
+
+    total_periods = benchmark_coverage.get("total_periods")
+    available_periods = benchmark_coverage.get("available_periods")
+    coverage_ratio = benchmark_coverage.get("coverage_ratio")
+    if (
+        not isinstance(total_periods, int)
+        or isinstance(total_periods, bool)
+        or total_periods <= 0
+        or not isinstance(available_periods, int)
+        or isinstance(available_periods, bool)
+        or available_periods != total_periods
+        or data.get("n_periods") != total_periods
+    ):
+        return False
+    try:
+        coverage_ratio = float(coverage_ratio)
+        if not math.isfinite(coverage_ratio) or abs(coverage_ratio - 1.0) > _EPS:
+            return False
+    except (TypeError, ValueError):
+        return False
+    return True

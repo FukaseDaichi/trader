@@ -16,11 +16,11 @@ from src.config import (
 )
 from src.data_loader import update_data, load_data, sync_data_files
 from src.labels import effective_horizon
-from src.model import build_feature_frame, train_and_predict
+from src.model import build_feature_frame, phase1_feature_cols
 from src.predictor import generate_signal
 from src.notifier import send_notification, send_line_text
 from src.dashboard import update_dashboard
-from src.backtest import evaluate_kpi_gate, format_gate_summary, write_backtest_report
+from src.backtest import format_gate_summary, write_backtest_report
 from src import (
     db,
     macro,
@@ -55,8 +55,27 @@ def _now_jst_str() -> str:
 
 
 def _empty_metrics():
+    semantics = {
+        "turnover_days": "sessions with non-zero entry or exit notional",
+        "round_trips": "completed aggregate signed-position episodes",
+        "signal_cohorts": "non-zero signal sleeves opened",
+        "avg_daily_net_return": "mean net return across every simulated session",
+        "expectancy_per_trade": "mean compounded net return of completed round trips",
+        "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
+        "trades": "deprecated alias of round_trips",
+        "expectancy": "deprecated alias of expectancy_per_trade",
+        "turnover": "deprecated alias of avg_daily_turnover",
+    }
     return {
+        "metrics_schema_version": 2,
+        "metrics_semantics": semantics,
         "oos_days": 0,
+        "turnover_days": 0,
+        "round_trips": 0,
+        "signal_cohorts": 0,
+        "avg_daily_net_return": 0.0,
+        "expectancy_per_trade": 0.0,
+        "avg_daily_turnover": 0.0,
         "trades": 0,
         "cagr": 0.0,
         "max_drawdown": 0.0,
@@ -195,16 +214,152 @@ def _label_config_for_mode(model_cfg):
     return label_cfg
 
 
-def _active_model_compatible(active, model_cfg):
-    """
-    Avoid using a saved model trained with a different macro-feature setting.
-    Older pointers lacked the flag; those are treated as macro-enabled.
-    """
-    if not active:
-        return False
-    expected = bool(model_cfg.get("macro_features_enabled", True))
-    actual = bool(active.get("macro_features_enabled", True))
-    return actual == expected
+def _runtime_artifact_contract(model_cfg, label_cfg):
+    feature_cols = phase1_feature_cols(model_cfg.get("macro_features_enabled", True))
+    return model_store.build_phase1_artifact_contract(
+        label_config=label_cfg,
+        feature_columns=feature_cols,
+        macro_features_enabled=model_cfg.get("macro_features_enabled", True),
+        calibration_mode=model_cfg.get("calibration_mode", "isotonic"),
+    )
+
+
+def _runtime_gate_contract(model_cfg, label_cfg):
+    artifact_contract = _runtime_artifact_contract(model_cfg, label_cfg)
+    return model_store.build_phase1_gate_contract(
+        BACKTEST_GATE_CONFIG, artifact_contract
+    )
+
+
+def _active_model_compatibility(active, model_cfg, label_cfg):
+    """Validate pointer, manifest and metadata against the runtime contract."""
+    result = model_store.validate_runtime_active_phase1(
+        active,
+        model_config=model_cfg,
+        label_config=label_cfg,
+        gate_config=BACKTEST_GATE_CONFIG,
+    )
+    return {**result, "expected_contract": result["artifact_contract"]}
+
+
+def _active_model_compatible(active, model_cfg, label_cfg=None):
+    """Boolean compatibility wrapper retained for callers/tests."""
+    return _active_model_compatibility(
+        active, model_cfg, label_cfg or get_label_config()
+    )["compatible"]
+
+
+def _compatibility_reason_text(reasons):
+    parts = []
+    seen = set()
+    for reason in reasons or []:
+        field = reason.get("field")
+        source = reason.get("source")
+        label = reason.get("code", "unknown")
+        if field:
+            label += f":{field}"
+        if source:
+            label += f"@{source}"
+        if label not in seen:
+            seen.add(label)
+            parts.append(label)
+    visible = parts[:8]
+    if len(parts) > len(visible):
+        visible.append(f"and_{len(parts) - len(visible)}_more")
+    return ", ".join(visible) or "unknown"
+
+
+def _bundle_artifact_compatibility(bundle, active):
+    expected = (active or {}).get("artifact_contract")
+    ticker_metadata = (bundle or {}).get("ticker_metadata") or {}
+    result = model_store.compare_phase1_artifact_contract(
+        ticker_metadata.get("artifact_contract"), expected or {}
+    )
+    reasons = list(result["reasons"])
+    reasons.extend(
+        model_store.verify_phase1_contract_metadata_fields(
+            ticker_metadata, expected or {}
+        )
+    )
+    version = (active or {}).get("version")
+    if ticker_metadata.get("model_version") != version:
+        reasons.append(
+            {
+                "code": "ticker_model_version_mismatch",
+                "expected": version,
+                "actual": ticker_metadata.get("model_version"),
+            }
+        )
+    version_contract = ((bundle or {}).get("version_metadata") or {}).get(
+        "artifact_contract"
+    )
+    version_check = model_store.compare_phase1_artifact_contract(
+        version_contract, expected or {}
+    )
+    reasons.extend(
+        {**reason, "source": "bundle_version_metadata"}
+        for reason in version_check["reasons"]
+    )
+    reasons.extend(
+        {**reason, "source": "bundle_version_metadata"}
+        for reason in model_store.verify_phase1_contract_metadata_fields(
+            (bundle or {}).get("version_metadata") or {}, expected or {}
+        )
+    )
+    expected_gate_contract = (active or {}).get("gate_contract") or {}
+    reasons.extend(
+        model_store.compare_phase1_gate_contract(
+            ticker_metadata.get("gate_contract"), expected_gate_contract
+        )["reasons"]
+    )
+    reasons.extend(
+        model_store.verify_phase1_gate_contract_metadata_fields(
+            ticker_metadata, expected_gate_contract
+        )
+    )
+    reasons.extend(
+        {**reason, "source": "bundle_version_metadata"}
+        for reason in model_store.compare_phase1_gate_contract(
+            ((bundle or {}).get("version_metadata") or {}).get("gate_contract"),
+            expected_gate_contract,
+        )["reasons"]
+    )
+    reasons.extend(
+        {**reason, "source": "bundle_version_metadata"}
+        for reason in model_store.verify_phase1_gate_contract_metadata_fields(
+            (bundle or {}).get("version_metadata") or {}, expected_gate_contract
+        )
+    )
+    evidence = ticker_metadata.get("gate_evidence")
+    try:
+        exact_model_hash = model_store.booster_bundle_sha256(
+            {
+                "folds": (bundle or {}).get("folds") or [],
+                "final": (bundle or {}).get("final"),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 -- corrupt saved model fails closed
+        exact_model_hash = ""
+        reasons.append(
+            {
+                "code": "model_bundle_hash_failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
+    reasons.extend(
+        model_store.verify_phase1_gate_evidence(
+            evidence,
+            model_version=version,
+            artifact_contract=expected or {},
+            gate_contract=expected_gate_contract,
+            model_bundle_sha256=exact_model_hash,
+            calibrator_sha256=model_store.payload_sha256(
+                (bundle or {}).get("calibration")
+            ),
+            applied_calibration_id=ticker_metadata.get("applied_calibration_id"),
+        )
+    )
+    return {"compatible": not reasons, "reasons": reasons}
 
 
 def _attach_confidence_fields(signal, gate_result, model_ready):
@@ -272,20 +427,28 @@ def _predict_for_ticker(featured, ticker_info, ctx):
     Produce (prob_up, model_ready, phase1_fields) honoring TRADER_MODEL_MODE.
 
     - phase1: an active saved bundle is required; missing -> not model_ready.
-    - auto:   use the saved bundle when available, else legacy daily training.
-    - legacy: always train from scratch with the configured label.
+    - auto:   use the saved bundle when available, else train one ephemeral
+              exact candidate with its own purged OOS gate evidence.
+    - legacy: always train that ephemeral exact candidate from scratch.
     """
     code = ticker_info["code"]
     mode = ctx["model_cfg"]["model_mode"]
     label_cfg = ctx["label_cfg"]
     active = ctx["active"]
     horizon = effective_horizon(label_cfg)
+    saved_model_error = ctx.get("saved_model_disabled_reason")
 
     if mode in ("auto", "phase1") and active:
         version = active.get("version")
         bundle = model_store.load_model_bundle(version, code)
         if bundle is not None:
-            pred = phase1.predict_ticker(featured, bundle, label_cfg)
+            bundle_check = _bundle_artifact_compatibility(bundle, active)
+            if not bundle_check["compatible"]:
+                saved_model_error = _compatibility_reason_text(bundle_check["reasons"])
+                print(f"Saved bundle disabled for {code}: {saved_model_error}.")
+                bundle = None
+        if bundle is not None:
+            pred = phase1.predict_ticker(featured, bundle)
             if pred is not None:
                 print(
                     f"Inference for {code}: saved model {version} "
@@ -300,12 +463,38 @@ def _predict_for_ticker(featured, ticker_info, ctx):
                         "raw_score": pred["raw_score"],
                         "expected_ret": pred["expected_ret"],
                         "features_hash": pred["features_hash"],
+                        "artifact_schema_version": pred["artifact_schema_version"],
+                        "label_config": pred["label_config"],
+                        "feature_schema_hash": pred["feature_schema_hash"],
+                        "macro_features_enabled": pred["macro_features_enabled"],
+                        "calibration_mode": pred["calibration_mode"],
+                        "calibration_id": pred["calibration_id"],
+                        "applied_calibration_id": pred["applied_calibration_id"],
+                        "execution_contract_version": pred[
+                            "execution_contract_version"
+                        ],
+                        "model_bundle_sha256": pred["model_bundle_sha256"],
+                        "gate_config_hash": pred["gate_config_hash"],
+                        "gate_evidence_sha256": pred["gate_evidence_sha256"],
+                        "gate_result": pred["gate_result"],
                     },
                 )
+            saved_model_error = "saved_bundle_inference_failed"
         if mode == "phase1":
             print(f"Active model has no bundle for {code}; phase1 mode -> failed HOLD.")
-            return 0.5, False, {"model_version": version, "horizon_days": horizon}
-        print(f"No saved bundle for {code}; auto mode -> legacy training fallback.")
+            return (
+                0.5,
+                False,
+                {
+                    "model_version": version,
+                    "horizon_days": active.get("effective_horizon_days", horizon),
+                    "model_error": saved_model_error or "saved_bundle_missing",
+                },
+            )
+        print(
+            f"No saved bundle for {code}; auto mode -> "
+            "exact-contract ephemeral candidate."
+        )
 
     if mode == "phase1":
         print(f"No active model for {code}; phase1 mode -> failed HOLD.")
@@ -315,33 +504,114 @@ def _predict_for_ticker(featured, ticker_info, ctx):
             {
                 "model_version": active.get("version") if active else None,
                 "horizon_days": horizon,
+                "model_error": saved_model_error or "active_model_unavailable",
             },
         )
 
-    # legacy / auto-fallback: train from scratch with the configured label.
-    model, prob_up = train_and_predict(
-        featured, runtime_config=BACKTEST_GATE_CONFIG, label_config=label_cfg
+    # rollback / auto-fallback: train one ephemeral candidate whose own purged
+    # OOS evidence supplies its calibration, thresholds and gate.  No gate from
+    # a separately trained surrogate model is reused.
+    fallback_model_cfg = {
+        "macro_features_enabled": False,
+        "calibration_mode": "none",
+        "min_calibration_rows": int(ctx["model_cfg"].get("min_calibration_rows", 60)),
+    }
+    fallback_artifact_contract = model_store.build_phase1_artifact_contract(
+        label_config=label_cfg,
+        feature_columns=phase1_feature_cols(False),
+        macro_features_enabled=False,
+        calibration_mode="none",
     )
-    if model is None:
+    fallback_gate_contract = model_store.build_phase1_gate_contract(
+        BACKTEST_GATE_CONFIG, fallback_artifact_contract
+    )
+    fallback_version = model_store.phase1_ephemeral_model_version(
+        fallback_artifact_contract, fallback_gate_contract
+    )
+    result, info = phase1.train_ticker_bundle(
+        featured,
+        BACKTEST_GATE_CONFIG,
+        label_cfg,
+        fallback_model_cfg,
+        model_version=fallback_version,
+    )
+    if result is None:
         return (
             0.5,
             False,
             {
-                "model_version": db_records.LEGACY_MODEL_VERSION,
+                "model_version": fallback_version,
                 "horizon_days": horizon,
+                "model_error": info.get("reason", "ephemeral_candidate_failed"),
+            },
+        )
+    metadata = result["metadata"]
+    in_memory_bundle = {
+        "version": fallback_version,
+        "folds": result["boosters"].get("folds") or [],
+        "final": result["boosters"].get("final"),
+        "calibration": metadata.get("calibration"),
+        "feature_reference": metadata.get("feature_reference") or {},
+        "ticker_metadata": metadata,
+        "version_metadata": {
+            "artifact_contract": metadata.get("artifact_contract"),
+            "gate_contract": metadata.get("gate_contract"),
+        },
+    }
+    pred = phase1.predict_ticker(featured, in_memory_bundle)
+    if pred is None:
+        return (
+            0.5,
+            False,
+            {
+                "model_version": fallback_version,
+                "horizon_days": horizon,
+                "model_error": "ephemeral_candidate_inference_failed",
             },
         )
     return (
-        prob_up,
+        pred["prob_up"],
         True,
         {
-            "model_version": db_records.LEGACY_MODEL_VERSION,
-            "horizon_days": horizon,
-            "raw_score": prob_up,
-            "expected_ret": None,
-            "features_hash": None,
+            "model_version": fallback_version,
+            "horizon_days": pred["horizon_days"],
+            "raw_score": pred["raw_score"],
+            "expected_ret": pred["expected_ret"],
+            "features_hash": pred["features_hash"],
+            "artifact_schema_version": pred["artifact_schema_version"],
+            "label_config": pred["label_config"],
+            "feature_schema_hash": pred["feature_schema_hash"],
+            "macro_features_enabled": pred["macro_features_enabled"],
+            "calibration_mode": pred["calibration_mode"],
+            "calibration_id": pred["calibration_id"],
+            "applied_calibration_id": pred["applied_calibration_id"],
+            "execution_contract_version": pred["execution_contract_version"],
+            "model_bundle_sha256": pred["model_bundle_sha256"],
+            "gate_config_hash": pred["gate_config_hash"],
+            "gate_evidence_sha256": pred["gate_evidence_sha256"],
+            "gate_result": pred["gate_result"],
+            "saved_model_fallback_reason": saved_model_error,
         },
     )
+
+
+def _unavailable_model_gate(label_cfg, reason):
+    """Fail-closed gate shape used when no exact model evidence is available."""
+    metrics = _empty_metrics()
+    return {
+        "passed": False,
+        "skipped": False,
+        "reason": "model_gate_evidence_unavailable",
+        "horizon_days": effective_horizon(label_cfg),
+        "label_mode": label_cfg.get("label_mode"),
+        "failures": [reason or "model_gate_evidence_unavailable"],
+        "metrics": metrics,
+        "metrics_tuning": dict(metrics),
+        "metrics_holdout": dict(metrics),
+        "thresholds": None,
+        "threshold_optimization": None,
+        "gate_source": "unavailable",
+    }
 
 
 def _process_ticker(ticker_info, ctx):
@@ -400,10 +670,22 @@ def _process_ticker(ticker_info, ctx):
             ),
         )
 
-    # 4. KPI Gate (cost/slippage-inclusive horizon-aware OOS backtest)
-    gate_result = evaluate_kpi_gate(
-        featured, BACKTEST_GATE_CONFIG, label_config=ctx["label_cfg"]
+    # 4. Predict and load the gate generated by that exact candidate model.
+    # Saved and ephemeral fallback paths both return immutable/in-memory OOS
+    # evidence; a separate daily surrogate gate is never trained here.
+    prob_up, model_ready, phase1_fields = _predict_for_ticker(
+        featured, ticker_info, ctx
     )
+    if not model_ready:
+        print(
+            f"Model inference unavailable for {code}. Falling back to neutral probability."
+        )
+        prob_up = 0.5
+    gate_result = phase1_fields.get("gate_result")
+    if not isinstance(gate_result, dict):
+        gate_result = _unavailable_model_gate(
+            ctx["label_cfg"], phase1_fields.get("model_error")
+        )
     gate_summary = format_gate_summary(gate_result)
     gate_status = "PASS" if gate_result["passed"] else "FAIL"
     print(f"KPI gate {gate_status} for {code}: {gate_summary}")
@@ -422,18 +704,11 @@ def _process_ticker(ticker_info, ctx):
         "metrics_holdout": gate_result.get("metrics_holdout"),
         "thresholds": gate_result.get("thresholds"),
         "threshold_optimization": gate_result.get("threshold_optimization"),
+        "gate_source": gate_result.get("gate_source"),
+        "gate_evidence_sha256": gate_result.get("gate_evidence_sha256"),
+        "model_version": phase1_fields.get("model_version"),
         "data_validation_warnings": validation_warnings,
     }
-
-    # 5. Predict (saved Phase 1 model or legacy fallback per TRADER_MODEL_MODE)
-    prob_up, model_ready, phase1_fields = _predict_for_ticker(
-        featured, ticker_info, ctx
-    )
-    if not model_ready:
-        print(
-            f"Model inference unavailable for {code}. Falling back to neutral probability."
-        )
-        prob_up = 0.5
 
     print(f"Prediction for {code}: Up Probability = {prob_up:.2%}")
     thresholds = gate_result.get("thresholds")
@@ -455,6 +730,23 @@ def _process_ticker(ticker_info, ctx):
     signal["raw_score"] = phase1_fields.get("raw_score")
     signal["expected_ret"] = phase1_fields.get("expected_ret")
     signal["features_hash"] = phase1_fields.get("features_hash")
+    for key in (
+        "artifact_schema_version",
+        "label_config",
+        "feature_schema_hash",
+        "macro_features_enabled",
+        "calibration_mode",
+        "calibration_id",
+        "applied_calibration_id",
+        "execution_contract_version",
+        "model_bundle_sha256",
+        "gate_config_hash",
+        "gate_evidence_sha256",
+        "saved_model_fallback_reason",
+        "model_error",
+    ):
+        if key in phase1_fields:
+            signal[key] = phase1_fields[key]
     signal = _attach_confidence_fields(signal, gate_result, model_ready=model_ready)
 
     if not signal["gate_passed"]:
@@ -744,6 +1036,31 @@ def _run_portfolio_snapshot(phase2, run_date):
     return snapshot
 
 
+def _merge_portfolio_target_weights(signals, snapshot):
+    """Apply an active snapshot only with gate evidence for that exact model.
+
+    Shadow/fallback/missing snapshots return the original list object without
+    consulting the weekly gate, preserving the shadow byte contract. Active
+    snapshots fail closed when their model version is missing or does not match
+    ``portfolio_backtest.json``.
+    """
+    if (
+        not isinstance(snapshot, dict)
+        or snapshot.get("status") != "ok"
+        or snapshot.get("mode") != "active"
+    ):
+        return signals
+
+    gate_passed = portfolio.read_portfolio_gate(
+        expected_model_version=snapshot.get("model_version")
+    )
+    return portfolio.merge_target_weights(
+        signals,
+        snapshot,
+        gate_passed=gate_passed,
+    )
+
+
 def main():
     print("Starting daily stock prediction job...")
 
@@ -766,15 +1083,22 @@ def main():
     label_cfg = _label_config_for_mode(model_cfg)
     macro_panel = macro.load_macro_panel()
     active = None
+    saved_model_disabled_reason = None
     if model_cfg["model_mode"] in ("auto", "phase1"):
         active = model_store.read_active_model()
-        if active and not _active_model_compatible(active, model_cfg):
+        compatibility = _active_model_compatibility(active, model_cfg, label_cfg)
+        if active and not compatibility["compatible"]:
+            saved_model_disabled_reason = _compatibility_reason_text(
+                compatibility["reasons"]
+            )
             print(
-                "Active model macro-feature setting is incompatible with "
-                f"TRADER_MACRO_FEATURES_ENABLED={model_cfg['macro_features_enabled']}; "
-                "saved-model inference disabled for this run."
+                "Active saved model is incompatible with the runtime artifact "
+                f"contract ({saved_model_disabled_reason}); saved inference "
+                "disabled for this run."
             )
             active = None
+        elif not active:
+            saved_model_disabled_reason = "active_model_missing"
     mode = model_cfg["model_mode"]
     active_label = active.get("version") if active else "none"
     print(
@@ -786,6 +1110,7 @@ def main():
         "label_cfg": label_cfg,
         "macro_panel": macro_panel,
         "active": active,
+        "saved_model_disabled_reason": saved_model_disabled_reason,
     }
 
     signals = []
@@ -841,9 +1166,7 @@ def main():
     # Phase 3: reflect active-mode target weights into signals. No-op in shadow /
     # gate-fail / no-snapshot, so shadow behavior is byte-for-byte unchanged.
     try:
-        signals = portfolio.merge_target_weights(
-            signals, snapshot, gate_passed=portfolio.read_portfolio_gate()
-        )
+        signals = _merge_portfolio_target_weights(signals, snapshot)
     except Exception as e:  # noqa: BLE001
         log_exc("merge_target_weights skipped (ignored)", e)
 

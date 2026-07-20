@@ -4,7 +4,7 @@ import lightgbm as lgb
 from datetime import timedelta
 
 from .config import get_label_config
-from .labels import build_labelled_frame
+from .labels import build_labelled_frame, effective_horizon
 from .macro import MACRO_FEATURE_COLS, add_macro_features
 
 
@@ -273,6 +273,18 @@ def _train_single_fold(X_train, y_train, X_val, y_val, seed=42):
     return model
 
 
+def _refit_fixed_rounds(X_train, y_train, *, seed=42, num_boost_round=50):
+    """Refit on all permitted rows after internal early-stopping selection."""
+    params = {**_LGB_PARAMS, "seed": seed}
+    train_data = lgb.Dataset(X_train, label=y_train)
+    return lgb.train(
+        params,
+        train_data,
+        num_boost_round=max(_MIN_BOOST_ROUND, int(num_boost_round)),
+        callbacks=[lgb.log_evaluation(period=0)],
+    )
+
+
 def train_and_predict(df, runtime_config=None, label_config=None):
     """
     Train a LightGBM ensemble via walk-forward cross-validation and predict
@@ -303,12 +315,14 @@ def train_and_predict(df, runtime_config=None, label_config=None):
 
     validation_years = _config_int(config, "validation_years", 4, minimum=1)
     val_size = _config_int(config, "val_size", 60, minimum=1)
-    purge_gap = _config_int(config, "purge_gap", 5, minimum=0)
     n_folds = _config_int(config, "n_folds", 3, minimum=1)
     min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
 
     # Phase 1: horizon-aware label via src.labels (binary_1d == legacy next-day).
     label_cfg = label_config or get_label_config()
+    purge_gap = resolve_purge_gap(
+        config, effective_horizon_days=effective_horizon(label_cfg)
+    )
     labelled = build_labelled_frame(df, label_cfg)
     if labelled.empty:
         print("No labelled rows after target construction.")
@@ -361,7 +375,8 @@ def train_and_predict(df, runtime_config=None, label_config=None):
     # split purely for early stopping, then prediction comes from the
     # ensemble average for stability).
     # ------------------------------------------------------------------
-    train_all = labelled.iloc[:-val_size]
+    final_train_end = len(labelled) - val_size - purge_gap
+    train_all = labelled.iloc[:final_train_end]
     val_all = labelled.iloc[-val_size:]
     if train_all.empty or val_all.empty or len(train_all) < min_train_rows:
         print("Not enough data to train final model.")
@@ -387,11 +402,137 @@ def train_and_predict(df, runtime_config=None, label_config=None):
 # ---------------------------------------------------------------------------
 
 
-def train_horizon_models(labelled, feature_cols, runtime_config=None):
+def resolve_purge_gap(runtime_config=None, *, effective_horizon_days: int = 1) -> int:
+    """Enforce a leakage-safe purge at least as long as the label horizon."""
+    config = runtime_config or {}
+    configured = _config_int(config, "purge_gap", 5, minimum=0)
+    horizon = max(1, int(effective_horizon_days))
+    return max(configured, horizon)
+
+
+def train_with_purged_internal_validation(
+    labelled,
+    feature_cols,
+    *,
+    train_pool_end: int,
+    runtime_config=None,
+    effective_horizon_days: int = 1,
+    seed: int = 42,
+):
+    """Train without exposing an external OOS window to early stopping.
+
+    ``train_pool_end`` is the exclusive end of data that may be used by this
+    model.  The helper takes its early-stopping validation block from the tail
+    of that pool and inserts a horizon-aware purge between the internal train
+    and validation blocks.  Callers can therefore keep their external tuning
+    or holdout block completely unseen until prediction time.
+
+    Returns ``(booster_or_none, split_info)``.  The integer offsets in
+    ``split_info`` make the no-overlap property directly auditable in tests and
+    gate evidence.
     """
-    Walk-forward training that returns the fold boosters, the final booster, and
-    the out-of-sample fold predictions (uncalibrated raw_score + label + the
-    H-day forward return) used downstream for calibration and CV metrics.
+    config = runtime_config or {}
+    val_size = _config_int(config, "val_size", 60, minimum=1)
+    min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
+    purge_gap = resolve_purge_gap(config, effective_horizon_days=effective_horizon_days)
+    pool_end = min(max(0, int(train_pool_end)), len(labelled))
+    internal_val_end = pool_end
+    internal_val_start = internal_val_end - val_size
+    internal_train_end = internal_val_start - purge_gap
+    info = {
+        "train_pool_end": pool_end,
+        "internal_train_start": 0,
+        "internal_train_end": max(0, internal_train_end),
+        "internal_validation_start": max(0, internal_val_start),
+        "internal_validation_end": max(0, internal_val_end),
+        "internal_validation_rows": max(0, internal_val_end - internal_val_start),
+        "purge_gap": purge_gap,
+        "external_oos_used_for_training": False,
+    }
+    if internal_train_end < min_train_rows or internal_val_start < 0:
+        return None, {**info, "reason": "insufficient_internal_training_rows"}
+
+    train_fold = labelled.iloc[:internal_train_end]
+    internal_val = labelled.iloc[internal_val_start:internal_val_end]
+    if train_fold.empty or internal_val.empty:
+        return None, {**info, "reason": "empty_internal_training_split"}
+
+    selector = _train_single_fold(
+        train_fold[feature_cols],
+        train_fold["target_class"],
+        internal_val[feature_cols],
+        internal_val["target_class"],
+        seed=seed,
+    )
+    selected_rounds = getattr(selector, "best_iteration", 0) or 0
+    if selected_rounds <= 0:
+        current_iteration = getattr(selector, "current_iteration", None)
+        selected_rounds = current_iteration() if callable(current_iteration) else 0
+    selected_rounds = max(_MIN_BOOST_ROUND, int(selected_rounds or 0))
+
+    # The internal validation chooses only the number of rounds.  Refit the
+    # returned candidate on every row permitted by train_pool_end, including
+    # the internal validation rows, while the external OOS remains untouched.
+    refit_pool = labelled.iloc[:pool_end]
+    booster = _refit_fixed_rounds(
+        refit_pool[feature_cols],
+        refit_pool["target_class"],
+        seed=seed,
+        num_boost_round=selected_rounds,
+    )
+    return booster, {
+        **info,
+        "reason": "ok",
+        "selected_boost_rounds": selected_rounds,
+        "refit_train_start": 0,
+        "refit_train_end": pool_end,
+        "refit_train_rows": int(len(refit_pool)),
+        "refit_uses_full_permitted_pool": True,
+    }
+
+
+def phase1_training_min_rows(runtime_config=None, *, effective_horizon_days: int = 1):
+    """Minimum rows for isolated tuning, holdout and internal validation."""
+    config = runtime_config or {}
+    val_size = _config_int(config, "val_size", 60, minimum=1)
+    n_folds = _config_int(config, "n_folds", 3, minimum=1)
+    min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
+    purge_gap = resolve_purge_gap(config, effective_horizon_days=effective_horizon_days)
+    horizon = max(1, int(effective_horizon_days))
+    tuning_rows = val_size * max(1, n_folds - 1)
+    return (
+        min_train_rows
+        + purge_gap  # internal train -> internal validation
+        + val_size  # internal early-stopping validation
+        + purge_gap  # tuning model -> external tuning OOS
+        + tuning_rows
+        + horizon  # tuning -> holdout embargo
+        + val_size  # final gate holdout
+    )
+
+
+def train_horizon_models(
+    labelled,
+    feature_cols,
+    runtime_config=None,
+    *,
+    effective_horizon_days: int = 1,
+):
+    """
+    Train a deployable candidate plus chronologically isolated OOS predictions.
+
+    The returned final booster is the exact booster used for the final holdout
+    predictions and later persisted for daily inference.  It is trained only on
+    rows before the holdout (with a purge), and its early-stopping validation is
+    further isolated inside that training pool.  A separate earlier model
+    generates the tuning scores used to fit calibration and thresholds.  The H
+    rows between tuning and holdout are returned as explicit embargo rows and
+    are never scored by downstream KPI logic.
+
+    No tuning or holdout label is passed to either model's early-stopping
+    validation.  ``folds`` is intentionally empty: persisting the earlier
+    tuning model in the inference ensemble would change the probability space
+    relative to the holdout evidence.
 
     `labelled` must already carry `target_class`, `fwd_return`, and `date`
     (see src.labels.build_labelled_frame). `feature_cols` lets the caller train
@@ -399,69 +540,107 @@ def train_horizon_models(labelled, feature_cols, runtime_config=None):
     """
     config = runtime_config or {}
     val_size = _config_int(config, "val_size", 60, minimum=1)
-    purge_gap = _config_int(config, "purge_gap", 5, minimum=0)
+    purge_gap = resolve_purge_gap(config, effective_horizon_days=effective_horizon_days)
     n_folds = _config_int(config, "n_folds", 3, minimum=1)
-    min_train_rows = _config_int(config, "train_min_rows", 200, minimum=50)
-
+    horizon = max(1, int(effective_horizon_days))
+    tuning_rows = val_size * max(1, n_folds - 1)
     n = len(labelled)
-    folds = []
-    oos_frames = []
 
-    for fold_idx in range(n_folds):
-        val_end = n - fold_idx * val_size
-        val_start = val_end - val_size
-        train_end = val_start - purge_gap
-        if val_start < 0:
-            break
-        if train_end < min_train_rows:
-            continue
-        train_fold = labelled.iloc[:train_end]
-        val_fold = labelled.iloc[val_start:val_end]
-        if val_fold.empty:
-            continue
-
-        booster = _train_single_fold(
-            train_fold[feature_cols],
-            train_fold["target_class"],
-            val_fold[feature_cols],
-            val_fold["target_class"],
-            seed=42 + fold_idx,
+    if n_folds < 2:
+        empty = pd.DataFrame(
+            columns=["date", "fwd_return", "target_class", "raw_score", "oos_role"]
         )
-        folds.append(booster)
-        oos = val_fold[["date", "fwd_return", "target_class"]].copy()
-        oos["raw_score"] = booster.predict(val_fold[feature_cols])
-        oos_frames.append(oos)
+        empty.attrs["deployment_split"] = {
+            "reason": "at_least_two_folds_required_for_tuning_holdout",
+            "actual_n_folds": n_folds,
+            "external_oos_used_for_early_stopping": False,
+        }
+        return [], None, empty
 
-    final_model = None
-    if n > val_size:
-        train_all = labelled.iloc[:-val_size]
-        val_all = labelled.iloc[-val_size:]
-        if (
-            not train_all.empty
-            and not val_all.empty
-            and len(train_all) >= min_train_rows
-        ):
-            final_model = _train_single_fold(
-                train_all[feature_cols],
-                train_all["target_class"],
-                val_all[feature_cols],
-                val_all["target_class"],
-                seed=42,
-            )
+    holdout_end = n
+    holdout_start = holdout_end - val_size
+    tuning_end = holdout_start - horizon
+    tuning_start = tuning_end - tuning_rows
+    tuning_train_pool_end = tuning_start - purge_gap
+    deployment_train_pool_end = holdout_start - purge_gap
 
-    if oos_frames:
-        oos_df = (
-            pd.concat(oos_frames, ignore_index=True)
-            .sort_values("date")
-            .drop_duplicates(subset=["date"], keep="first")
-            .reset_index(drop=True)
-        )
-    else:
-        oos_df = pd.DataFrame(
-            columns=["date", "fwd_return", "target_class", "raw_score"]
-        )
+    empty = pd.DataFrame(
+        columns=["date", "fwd_return", "target_class", "raw_score", "oos_role"]
+    )
+    if tuning_start < 0 or tuning_train_pool_end <= 0:
+        empty.attrs["deployment_split"] = {
+            "reason": "insufficient_rows_for_external_oos",
+            "required_rows": phase1_training_min_rows(
+                config, effective_horizon_days=horizon
+            ),
+            "actual_rows": n,
+        }
+        return [], None, empty
 
-    return folds, final_model, oos_df
+    tuning_model, tuning_internal = train_with_purged_internal_validation(
+        labelled,
+        feature_cols,
+        train_pool_end=tuning_train_pool_end,
+        runtime_config=config,
+        effective_horizon_days=horizon,
+        seed=43,
+    )
+    final_model, deployment_internal = train_with_purged_internal_validation(
+        labelled,
+        feature_cols,
+        train_pool_end=deployment_train_pool_end,
+        runtime_config=config,
+        effective_horizon_days=horizon,
+        seed=42,
+    )
+    if tuning_model is None or final_model is None:
+        empty.attrs["deployment_split"] = {
+            "reason": "internal_training_failed",
+            "required_rows": phase1_training_min_rows(
+                config, effective_horizon_days=horizon
+            ),
+            "actual_rows": n,
+            "tuning_internal": tuning_internal,
+            "deployment_internal": deployment_internal,
+        }
+        return [], None, empty
+
+    # Keep all execution metadata produced by labels.py.  The backtest helpers
+    # need the path columns to enforce the no-overlap execution contract.
+    tuning_oos = labelled.iloc[tuning_start:tuning_end].copy()
+    tuning_oos["raw_score"] = tuning_model.predict(tuning_oos[feature_cols])
+    tuning_oos["oos_role"] = "calibration_threshold_tuning"
+
+    embargo = labelled.iloc[tuning_end:holdout_start].copy()
+    embargo["raw_score"] = np.nan
+    embargo["oos_role"] = "embargo"
+
+    holdout_oos = labelled.iloc[holdout_start:holdout_end].copy()
+    holdout_oos["raw_score"] = final_model.predict(holdout_oos[feature_cols])
+    holdout_oos["oos_role"] = "deployment_candidate_holdout"
+
+    oos_df = pd.concat(
+        [tuning_oos, embargo, holdout_oos], ignore_index=True
+    ).reset_index(drop=True)
+    oos_df.attrs["deployment_split"] = {
+        "reason": "ok",
+        "effective_horizon_days": horizon,
+        "effective_purge_gap": purge_gap,
+        "tuning_start_index": tuning_start,
+        "tuning_end_index": tuning_end,
+        "embargo_start_index": tuning_end,
+        "embargo_end_index": holdout_start,
+        "holdout_start_index": holdout_start,
+        "holdout_end_index": holdout_end,
+        "tuning_rows": int(len(tuning_oos)),
+        "embargo_rows": int(len(embargo)),
+        "holdout_rows": int(len(holdout_oos)),
+        "tuning_internal": tuning_internal,
+        "deployment_internal": deployment_internal,
+        "holdout_model_is_persisted_final": True,
+        "external_oos_used_for_early_stopping": False,
+    }
+    return [], final_model, oos_df
 
 
 def predict_prob_with_bundle(bundle, feature_row):

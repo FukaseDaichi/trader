@@ -10,6 +10,7 @@ record_run() itself never raises.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from .config import DATA_DIR
@@ -20,6 +21,12 @@ from .timeutil import now_jst
 from .utils import log_exc
 
 DEFAULT_FALLBACK_DIR = DATA_DIR / "outbox"
+
+PHASE1_MODEL_KIND = "per_ticker_horizon_v1"
+AUTO_STUB_MODEL_KIND = "auto_stub"
+PHASE1_MODEL_VERSION_PREFIX = "per-ticker-v1-"
+EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX = db_records.EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX
+MODEL_REGISTRY_EVENT_KIND = "model_registry"
 
 
 # --- env helpers (canonical implementations live in src/env.py) ------------
@@ -174,6 +181,200 @@ def _upsert_signal(cur, row: dict, prediction_id: int | None = None) -> None:
     )
 
 
+def _model_registry_row(
+    version: str,
+    *,
+    kind: str,
+    universe,
+    feature_set,
+    params,
+    cv_metrics,
+    calibration=None,
+    artifact_uri=None,
+    make_active: bool = True,
+) -> dict:
+    """Build the JSON-safe row shared by direct registration and outbox replay."""
+    return {
+        "version": version,
+        "kind": kind,
+        "universe": universe,
+        "feature_set": feature_set,
+        "params": params,
+        "cv_metrics": cv_metrics,
+        "calibration": calibration,
+        "artifact_uri": artifact_uri,
+        "make_active": bool(make_active),
+    }
+
+
+def _upsert_model_registry(cur, row: dict) -> None:
+    """Idempotently upsert one registry row and scope activation by kind."""
+    from psycopg.types.json import Jsonb
+
+    version = row.get("version")
+    kind = row.get("kind")
+    if not isinstance(version, str) or not version:
+        raise ValueError("model_registry event requires a non-empty version")
+    if not isinstance(kind, str) or not kind:
+        raise ValueError("model_registry event requires a non-empty kind")
+
+    make_active = bool(row.get("make_active", True))
+    cur.execute(
+        "INSERT INTO model_registry"
+        " (version, trained_at, kind, universe, feature_set, params, cv_metrics,"
+        "  calibration, artifact_uri, active)"
+        " VALUES (%s, now(), %s, %s, %s, %s, %s, %s, %s, %s)"
+        " ON CONFLICT (version) DO UPDATE SET"
+        "  trained_at=now(), kind=EXCLUDED.kind, universe=EXCLUDED.universe,"
+        "  feature_set=EXCLUDED.feature_set, params=EXCLUDED.params,"
+        "  cv_metrics=EXCLUDED.cv_metrics, calibration=EXCLUDED.calibration,"
+        "  artifact_uri=EXCLUDED.artifact_uri",
+        (
+            version,
+            kind,
+            Jsonb(row.get("universe") or []),
+            Jsonb(row.get("feature_set") or []),
+            Jsonb(row.get("params") or {}),
+            Jsonb(row.get("cv_metrics") or {}),
+            Jsonb(row.get("calibration"))
+            if row.get("calibration") is not None
+            else None,
+            row.get("artifact_uri"),
+            make_active,
+        ),
+    )
+    if make_active:
+        # Phase 1 and Phase 2 models are independently active. Replaying a
+        # Phase 1 event must never deactivate the active CS model (or vice versa).
+        cur.execute(
+            "UPDATE model_registry SET active = (version = %s) WHERE kind = %s",
+            (version, kind),
+        )
+    elif row.get("_force_inactive"):
+        cur.execute(
+            "UPDATE model_registry SET active = FALSE WHERE version = %s AND kind = %s",
+            (version, kind),
+        )
+
+
+def _registry_replay_row(row: dict) -> dict:
+    """Fail closed when a queued Phase 1 activation is stale.
+
+    The filesystem pointer is authoritative. A registry event queued for an
+    older weekly version may remain after a newer file activation. Replaying it
+    should preserve the historical registry row but must not roll DB active
+    state back to that old version.
+    """
+    replay_row = dict(row)
+    if replay_row.get("kind") != PHASE1_MODEL_KIND or not replay_row.get(
+        "make_active", True
+    ):
+        return replay_row
+
+    params = replay_row.get("params") or {}
+    expected = params.get("file_active_pointer") if isinstance(params, dict) else None
+    expected = expected if isinstance(expected, dict) else {}
+    try:
+        from . import model_store
+
+        current = model_store.read_active_model() or {}
+    except Exception as exc:  # noqa: BLE001
+        log_exc("outbox replay: active model pointer read failed", exc)
+        current = {}
+
+    required = ("version", "manifest_sha256", "config_sha256")
+    pointer_matches = replay_row.get("version") == expected.get("version") and all(
+        isinstance(expected.get(field), str)
+        and bool(expected[field])
+        and current.get(field) == expected[field]
+        for field in required
+    )
+    if pointer_matches:
+        return replay_row
+
+    replay_row["make_active"] = False
+    replay_row["_force_inactive"] = True
+    print(
+        "outbox replay: model_registry activation is stale; "
+        f"upserting {replay_row.get('version')} inactive"
+    )
+    return replay_row
+
+
+def build_model_registry_event(
+    version: str,
+    *,
+    kind: str,
+    universe,
+    feature_set,
+    params,
+    cv_metrics,
+    calibration=None,
+    artifact_uri=None,
+    make_active: bool = True,
+) -> dict:
+    """Build a stable, deduplicable model-registry outbox event."""
+    row = _model_registry_row(
+        version,
+        kind=kind,
+        universe=universe,
+        feature_set=feature_set,
+        params=params,
+        cv_metrics=cv_metrics,
+        calibration=calibration,
+        artifact_uri=artifact_uri,
+        make_active=make_active,
+    )
+    return {
+        "event_id": f"{MODEL_REGISTRY_EVENT_KIND}:{kind}:{version}",
+        "kind": MODEL_REGISTRY_EVENT_KIND,
+        "schema_version": 1,
+        "row": row,
+    }
+
+
+def queue_model_registry_event(
+    version: str,
+    *,
+    kind: str,
+    universe,
+    feature_set,
+    params,
+    cv_metrics,
+    calibration=None,
+    artifact_uri=None,
+    make_active: bool = True,
+) -> dict:
+    """Queue one registry event without touching the network; never raises."""
+    event_id = f"{MODEL_REGISTRY_EVENT_KIND}:{kind}:{version}"
+    try:
+        event = build_model_registry_event(
+            version,
+            kind=kind,
+            universe=universe,
+            feature_set=feature_set,
+            params=params,
+            cv_metrics=cv_metrics,
+            calibration=calibration,
+            artifact_uri=artifact_uri,
+            make_active=make_active,
+        )
+        queued = _queue_events([event])
+        return {
+            "ok": queued == 1,
+            "queued": queued,
+            "event_id": event_id,
+        }
+    except Exception as exc:  # noqa: BLE001
+        log_exc("model_registry event could not be queued", exc)
+        return {
+            "ok": False,
+            "queued": 0,
+            "event_id": event_id,
+            "reason": f"queue_failed: {type(exc).__name__}: {exc}",
+        }
+
+
 def _ensure_fk_parents(cur, events: list[dict]) -> None:
     """
     Stub-insert missing FK parent rows referenced by the events, so that a
@@ -218,6 +419,12 @@ def _apply_one(cur, ev: dict, prediction_ids: dict) -> None:
         row = ev["row"]
         pred_id = prediction_ids.get((row.get("run_date"), row.get("ticker")))
         _upsert_signal(cur, row, prediction_id=pred_id)
+    elif ev.get("kind") == MODEL_REGISTRY_EVENT_KIND:
+        _upsert_model_registry(cur, _registry_replay_row(ev["row"]))
+    else:
+        # In tolerant replay this becomes a dead letter, preserving the
+        # existing property that one poison event cannot stall valid events.
+        raise ValueError(f"unsupported outbox event kind: {ev.get('kind')!r}")
 
 
 def _apply_events(conn, events: list[dict]) -> int:
@@ -307,18 +514,42 @@ def flush_outbox(conn) -> int:
 
 def _link_prediction_ids(conn) -> int:
     """
-    Best-effort refresh of signals.prediction_id from the latest matching
-    prediction (same run_date/ticker). Idempotent and fixes rerun drift.
+    Best-effort refresh of ``signals.prediction_id`` from the latest matching
+    *Phase 1* prediction (same run_date/ticker).
+
+    Phase 2 predictions share the predictions table and may be inserted after
+    Phase 1 on a rerun/outbox replay. Selecting max(id) without a model-kind
+    guard can therefore relink a human-facing Phase 1 signal to a CS score.
+    Keep the link on per-ticker predictions only; ``cs_rank IS NULL`` is an
+    additional guard for auto-stub registry rows written during DB recovery.
     """
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE signals s SET prediction_id = p.id"
+            "WITH phase1_candidates AS ("
+            " SELECT DISTINCT ON (p.run_date, p.ticker)"
+            "  p.run_date, p.ticker, p.id"
             " FROM predictions p"
+            " JOIN model_registry mr ON mr.version = p.model_version"
+            " WHERE p.cs_rank IS NULL"
+            "   AND (mr.kind = %s"
+            "        OR p.model_version = %s"
+            "        OR (mr.kind = %s"
+            "            AND (p.model_version LIKE %s"
+            "                 OR p.model_version LIKE %s)))"
+            " ORDER BY p.run_date, p.ticker, p.id DESC"
+            ")"
+            " UPDATE signals s SET prediction_id = p.id"
+            " FROM phase1_candidates p"
             " WHERE s.status = 'ok'"
             "   AND p.run_date = s.run_date AND p.ticker = s.ticker"
-            "   AND p.id = (SELECT max(id) FROM predictions p2"
-            "               WHERE p2.run_date = s.run_date AND p2.ticker = s.ticker)"
-            "   AND s.prediction_id IS DISTINCT FROM p.id"
+            "   AND s.prediction_id IS DISTINCT FROM p.id",
+            (
+                PHASE1_MODEL_KIND,
+                db_records.LEGACY_MODEL_VERSION,
+                AUTO_STUB_MODEL_KIND,
+                f"{PHASE1_MODEL_VERSION_PREFIX}%",
+                f"{EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX}%",
+            ),
         )
         linked = cur.rowcount
     conn.commit()
@@ -620,16 +851,19 @@ def record_portfolio_snapshot(snapshot: dict, run_date: str) -> dict:
 
 
 def fetch_unsettled(conn) -> list[dict]:
-    """Actionable signals and which OUTCOME_HORIZONS are still missing."""
+    """Actionable signals missing outcomes under the current execution contract."""
     from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT s.id AS signal_id, s.ticker, s.as_of_date, s.action,"
             " COALESCE(array_agg(o.horizon_days) FILTER (WHERE o.horizon_days IS NOT NULL), '{}') AS settled"
             " FROM signals s LEFT JOIN signal_outcomes o ON o.signal_id = s.id"
+            "  AND o.contract_version = %s"
             " WHERE s.status = 'ok' AND s.action IN ('BUY','MILD_BUY','SELL','MILD_SELL')"
-            " GROUP BY s.id, s.ticker, s.as_of_date, s.action"
+            " GROUP BY s.id, s.ticker, s.as_of_date, s.action",
+            (EXECUTION_CONTRACT_VERSION,),
         )
         rows = cur.fetchall()
     result = []
@@ -642,34 +876,87 @@ def fetch_unsettled(conn) -> list[dict]:
 
 
 def upsert_outcome(conn, signal_id: int, horizon_days: int, payload: dict) -> None:
+    from .execution import (
+        BENCHMARK_BASIS,
+        ENTRY_PRICE_BASIS,
+        EXECUTION_CONTRACT_VERSION,
+        EXIT_PRICE_BASIS,
+    )
+
+    params = {
+        "market_as_of_date": payload.get("market_as_of_date"),
+        "entry_price": payload.get("entry_price", payload.get("entry_close")),
+        "exit_price": payload.get("exit_price", payload.get("exit_close")),
+        "entry_price_basis": payload.get("entry_price_basis", ENTRY_PRICE_BASIS),
+        "exit_price_basis": payload.get("exit_price_basis", EXIT_PRICE_BASIS),
+        "contract_version": payload.get("contract_version", EXECUTION_CONTRACT_VERSION),
+        "benchmark_basis": payload.get("benchmark_basis", BENCHMARK_BASIS),
+        "signal_id": signal_id,
+        "horizon_days": horizon_days,
+        **payload,
+    }
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO signal_outcomes"
-            " (signal_id, horizon_days, entry_date, eval_date, entry_close, exit_close,"
-            "  realized_ret, benchmark_ret, excess_ret, hit, mae, mfe, exit_reason)"
-            " VALUES (%(signal_id)s, %(horizon_days)s, %(entry_date)s, %(eval_date)s,"
-            "  %(entry_close)s, %(exit_close)s, %(realized_ret)s, %(benchmark_ret)s,"
-            "  %(excess_ret)s, %(hit)s, %(mae)s, %(mfe)s, %(exit_reason)s)"
+            " (signal_id, horizon_days, market_as_of_date, entry_date, eval_date,"
+            "  entry_close, exit_close, entry_price, exit_price, entry_price_basis,"
+            "  exit_price_basis, contract_version, benchmark_basis, realized_ret,"
+            "  benchmark_ret, excess_ret, hit, mae, mfe, exit_reason)"
+            " VALUES (%(signal_id)s, %(horizon_days)s, %(market_as_of_date)s,"
+            "  %(entry_date)s, %(eval_date)s, %(entry_close)s, %(exit_close)s, %(entry_price)s,"
+            "  %(exit_price)s, %(entry_price_basis)s, %(exit_price_basis)s,"
+            "  %(contract_version)s, %(benchmark_basis)s, %(realized_ret)s,"
+            "  %(benchmark_ret)s, %(excess_ret)s, %(hit)s, %(mae)s, %(mfe)s,"
+            "  %(exit_reason)s)"
             " ON CONFLICT (signal_id, horizon_days) DO UPDATE SET"
-            "  eval_date=EXCLUDED.eval_date, entry_close=EXCLUDED.entry_close,"
-            "  exit_close=EXCLUDED.exit_close, realized_ret=EXCLUDED.realized_ret,"
+            "  market_as_of_date=EXCLUDED.market_as_of_date,"
+            "  entry_date=EXCLUDED.entry_date, eval_date=EXCLUDED.eval_date,"
+            "  entry_close=EXCLUDED.entry_close, exit_close=EXCLUDED.exit_close,"
+            "  entry_price=EXCLUDED.entry_price, exit_price=EXCLUDED.exit_price,"
+            "  entry_price_basis=EXCLUDED.entry_price_basis,"
+            "  exit_price_basis=EXCLUDED.exit_price_basis,"
+            "  contract_version=EXCLUDED.contract_version,"
+            "  benchmark_basis=EXCLUDED.benchmark_basis,"
+            "  realized_ret=EXCLUDED.realized_ret,"
             "  benchmark_ret=EXCLUDED.benchmark_ret, excess_ret=EXCLUDED.excess_ret,"
             "  hit=EXCLUDED.hit, mae=EXCLUDED.mae, mfe=EXCLUDED.mfe, exit_reason=EXCLUDED.exit_reason",
-            {"signal_id": signal_id, "horizon_days": horizon_days, **payload},
+            params,
         )
     conn.commit()
+
+
+def fetch_signals_for_outcome_restatement(conn) -> list[dict]:
+    """Return every actionable signal for one-off execution-contract restatement."""
+    from psycopg.rows import dict_row
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT s.id AS signal_id, s.ticker, s.as_of_date, s.action"
+            " FROM signals s"
+            " WHERE s.status = 'ok'"
+            "   AND s.action IN ('BUY','MILD_BUY','SELL','MILD_SELL')"
+            " ORDER BY s.as_of_date, s.id"
+        )
+        rows = cur.fetchall()
+    for row in rows:
+        if row.get("as_of_date") is not None:
+            row["as_of_date"] = str(row["as_of_date"])
+    return rows
 
 
 def fetch_outcome_rows(conn) -> list[dict]:
     """Joined rows for summarize_performance()."""
     from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT s.as_of_date AS entry_date, s.action, o.horizon_days,"
+            "SELECT o.entry_date, s.action, o.horizon_days,"
             " o.realized_ret, o.hit"
             " FROM signal_outcomes o JOIN signals s ON s.id = o.signal_id"
             " WHERE s.action IN ('BUY','MILD_BUY','SELL','MILD_SELL')"
+            "   AND o.contract_version = %s",
+            (EXECUTION_CONTRACT_VERSION,),
         )
         rows = cur.fetchall()
     # Normalize dates to ISO strings for the pure summarizer.
@@ -680,14 +967,18 @@ def fetch_outcome_rows(conn) -> list[dict]:
 
 
 def fetch_outcomes_missing_benchmark(conn) -> list[dict]:
-    """Settled rows that still need a benchmark return."""
+    """Legacy settled rows that still need a comparable benchmark return."""
     from psycopg.rows import dict_row
+    from .execution import LEGACY_EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret"
+            "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret,"
+            " contract_version"
             " FROM signal_outcomes"
             " WHERE benchmark_ret IS NULL AND realized_ret IS NOT NULL"
+            "   AND contract_version = %s",
+            (LEGACY_EXECUTION_CONTRACT_VERSION,),
         )
         rows = cur.fetchall()
     for r in rows:
@@ -768,48 +1059,53 @@ def register_model_version(
 ) -> None:
     """
     Upsert a model_registry row. When make_active, mark exactly this version
-    active (all others become inactive) so there is a single active model.
+    active within its kind; active models of other kinds are untouched.
     """
-    from psycopg.types.json import Jsonb
-
     with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO model_registry"
-            " (version, trained_at, kind, universe, feature_set, params, cv_metrics,"
-            "  calibration, artifact_uri, active)"
-            " VALUES (%s, now(), %s, %s, %s, %s, %s, %s, %s, %s)"
-            " ON CONFLICT (version) DO UPDATE SET"
-            "  trained_at=now(), kind=EXCLUDED.kind, universe=EXCLUDED.universe,"
-            "  feature_set=EXCLUDED.feature_set, params=EXCLUDED.params,"
-            "  cv_metrics=EXCLUDED.cv_metrics, calibration=EXCLUDED.calibration,"
-            "  artifact_uri=EXCLUDED.artifact_uri",
-            (
+        _upsert_model_registry(
+            cur,
+            _model_registry_row(
                 version,
-                kind,
-                Jsonb(universe),
-                Jsonb(feature_set),
-                Jsonb(params),
-                Jsonb(cv_metrics),
-                Jsonb(calibration) if calibration is not None else None,
-                artifact_uri,
-                bool(make_active),
+                kind=kind,
+                universe=universe,
+                feature_set=feature_set,
+                params=params,
+                cv_metrics=cv_metrics,
+                calibration=calibration,
+                artifact_uri=artifact_uri,
+                make_active=make_active,
             ),
         )
-        if make_active:
-            cur.execute(
-                "UPDATE model_registry SET active = (version = %s) WHERE kind = %s",
-                (version, kind),
-            )
     conn.commit()
 
 
 def set_active_model(conn, version: str) -> None:
+    """Activate ``version`` without disturbing active models of other kinds.
+
+    The signature is retained for compatibility, but the target version must
+    already exist so its registry kind can be resolved unambiguously.
+    """
     with conn.cursor() as cur:
-        cur.execute("UPDATE model_registry SET active = (version = %s)", (version,))
+        cur.execute(
+            "SELECT kind FROM model_registry WHERE version = %s FOR UPDATE",
+            (version,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError(f"model registry version not found: {version}")
+        kind = row[0]
+        cur.execute(
+            "UPDATE model_registry SET active = (version = %s) WHERE kind = %s",
+            (version, kind),
+        )
     conn.commit()
 
 
 def active_model_version(conn) -> str | None:
+    """Return the newest active version across kinds (ambiguous legacy API).
+
+    New callers should use :func:`active_model_version_for_kind`.
+    """
     with conn.cursor() as cur:
         cur.execute(
             "SELECT version FROM model_registry WHERE active = TRUE"
@@ -869,21 +1165,330 @@ def fetch_prediction_outcomes(
     conn, model_version: str, horizon_days: int
 ) -> list[dict]:
     """
-    Joined (predictions x signals x signal_outcomes) rows for one model version
-    at one horizon: prob_up, raw_score, realized_ret, hit. Used by drift_check.
+    Outcomes for predictions actually selected by their signal.
+
+    Drift must not pick a different Phase 1/CS prediction that merely shares a
+    run date and ticker. Only outcomes settled under the current execution
+    contract are comparable with the active model's probabilities.
     """
     from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
-            " FROM predictions p"
-            " JOIN signals s ON s.run_date = p.run_date AND s.ticker = p.ticker"
-            " JOIN signal_outcomes o ON o.signal_id = s.id AND o.horizon_days = %s"
-            " WHERE p.model_version = %s AND p.horizon_days = %s",
-            (horizon_days, model_version, horizon_days),
+            " FROM signals s"
+            " JOIN predictions p ON p.id = s.prediction_id"
+            " JOIN signal_outcomes o ON o.signal_id = s.id"
+            "  AND o.horizon_days = %(horizon)s"
+            "  AND o.contract_version = %(contract)s"
+            " WHERE p.model_version = %(version)s"
+            "  AND p.horizon_days = %(horizon)s",
+            {
+                "horizon": horizon_days,
+                "version": model_version,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
         )
         return cur.fetchall()
+
+
+def _is_phase1_prediction_row(row: dict) -> bool:
+    """Return True only for per-ticker predictions used by Phase 1 signals."""
+    if row.get("cs_rank") is not None:
+        return False
+    kind = str(row.get("model_kind") or "")
+    version = str(row.get("model_version") or "")
+    return (
+        kind == PHASE1_MODEL_KIND
+        or version == db_records.LEGACY_MODEL_VERSION
+        or (
+            kind == AUTO_STUB_MODEL_KIND
+            and (
+                version.startswith(PHASE1_MODEL_VERSION_PREFIX)
+                or version.startswith(EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX)
+            )
+        )
+    )
+
+
+def _as_probability(value) -> float | None:
+    """Normalize a stored probability and reject NaN/out-of-range values."""
+    try:
+        probability = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:
+        return None
+    return probability
+
+
+def _model_contract(row: dict) -> tuple[str, dict] | None:
+    """
+    Return the compatibility signature + JSON-safe contract for a prediction.
+
+    ``model_registry.params.label_config`` is already persisted for Phase 1
+    weekly models. Exact canonical JSON equality is deliberately conservative:
+    differing label/barrier settings must never share a reliability bin. An
+    optional execution_contract key is included automatically when later model
+    manifests persist it. Old auto-stub/legacy rows have no such provenance and
+    therefore cannot be proven compatible across model versions.
+    """
+    params = row.get("model_params")
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(params, dict):
+        return None
+
+    label_config = params.get("label_config")
+    if not isinstance(label_config, dict) or not label_config:
+        return None
+
+    contract = {
+        "horizon_days": int(row["prediction_horizon_days"]),
+        "label_config": label_config,
+        "execution_contract_version": row.get("outcome_contract_version"),
+    }
+    execution_contract = params.get("execution_contract")
+    if execution_contract is not None:
+        contract["execution_contract"] = execution_contract
+    try:
+        signature = json.dumps(
+            contract, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+    except (TypeError, ValueError):
+        return None
+    return signature, contract
+
+
+def _select_signal_reliability_rows(source_rows: list[dict], horizon_days: int) -> dict:
+    """
+    Select traceable Phase 1 probabilities for reliability aggregation.
+
+    The source of truth is ``signals.prediction_id``. ``signals.conviction`` is
+    used only when that link is absent, never to mask a broken/non-Phase-1
+    linked prediction. Among linked rows, the newest known label contract is
+    the reference and compatible model versions are aggregated together.
+    """
+    exclusions: dict[str, int] = {}
+
+    def exclude(reason: str) -> None:
+        exclusions[reason] = exclusions.get(reason, 0) + 1
+
+    linked_candidates: list[dict] = []
+    fallback_candidates: list[dict] = []
+    outcome_contract_versions = sorted(
+        {
+            str(row["outcome_contract_version"])
+            for row in source_rows
+            if row.get("outcome_contract_version") is not None
+        }
+    )
+    outcome_contract_version = (
+        outcome_contract_versions[0] if len(outcome_contract_versions) == 1 else None
+    )
+
+    for source in source_rows:
+        realized_ret = source.get("realized_ret")
+        if realized_ret is None:
+            exclude("missing_realized_return")
+            continue
+
+        prediction_id = source.get("prediction_id")
+        if prediction_id is None:
+            fallback_prob = _as_probability(source.get("conviction"))
+            if fallback_prob is None:
+                exclude("missing_fallback_probability")
+                continue
+            fallback_candidates.append(
+                {
+                    **source,
+                    "prob_up": fallback_prob,
+                    "probability_source": "signals.conviction",
+                    "model_version": None,
+                }
+            )
+            continue
+
+        if source.get("linked_prediction_id") is None:
+            exclude("broken_prediction_link")
+            continue
+        if not _is_phase1_prediction_row(source):
+            exclude("non_phase1_prediction")
+            continue
+        if int(source.get("prediction_horizon_days") or 0) != int(horizon_days):
+            exclude("prediction_horizon_mismatch")
+            continue
+
+        probability = _as_probability(source.get("prediction_prob_up"))
+        if probability is None:
+            # The fallback is intentionally limited to absent prediction_id.
+            exclude("missing_prediction_probability")
+            continue
+
+        contract_info = _model_contract(source)
+        linked_candidates.append(
+            {
+                **source,
+                "prob_up": probability,
+                "probability_source": "predictions.prob_up",
+                "_contract_signature": contract_info[0] if contract_info else None,
+                "_contract": contract_info[1] if contract_info else None,
+            }
+        )
+
+    known_contract_rows = [
+        row for row in linked_candidates if row["_contract_signature"] is not None
+    ]
+    reference_signature = None
+    reference_contract = None
+    reference_version = None
+    if known_contract_rows:
+        reference = max(
+            known_contract_rows,
+            key=lambda row: (
+                str(row.get("run_date") or ""),
+                int(row.get("signal_id") or 0),
+            ),
+        )
+        reference_signature = reference["_contract_signature"]
+        reference_contract = reference["_contract"]
+    elif linked_candidates:
+        # With no persisted label contract, cross-version compatibility cannot
+        # be established. Fail closed to the newest linked model version.
+        reference = max(
+            linked_candidates,
+            key=lambda row: (
+                str(row.get("run_date") or ""),
+                int(row.get("signal_id") or 0),
+            ),
+        )
+        reference_version = reference.get("model_version")
+        reference_contract = {
+            "horizon_days": int(horizon_days),
+            "label_config": None,
+            "execution_contract_version": outcome_contract_version,
+            "compatibility_scope": "single_model_version_missing_contract",
+        }
+    else:
+        reference_contract = {
+            "horizon_days": int(horizon_days),
+            "label_config": None,
+            "execution_contract_version": outcome_contract_version,
+            "compatibility_scope": "conviction_fallback_only",
+        }
+
+    selected_linked: list[dict] = []
+    for row in linked_candidates:
+        if reference_signature is not None:
+            if row["_contract_signature"] is None:
+                exclude("missing_compatibility_contract")
+                continue
+            if row["_contract_signature"] != reference_signature:
+                exclude("incompatible_contract")
+                continue
+        elif row.get("model_version") != reference_version:
+            exclude("missing_compatibility_contract")
+            continue
+        selected_linked.append(row)
+
+    selected = selected_linked + fallback_candidates
+    selected.sort(
+        key=lambda row: (
+            str(row.get("run_date") or ""),
+            int(row.get("signal_id") or 0),
+        )
+    )
+
+    version_counts: dict[str, int] = {}
+    for row in selected_linked:
+        version = str(row.get("model_version") or "unknown")
+        version_counts[version] = version_counts.get(version, 0) + 1
+
+    entry_dates = sorted(
+        str(row["entry_date"]) for row in selected if row.get("entry_date") is not None
+    )
+    provenance = {
+        "phase": "phase1",
+        "source": "signals.prediction_id",
+        "candidate_signal_count": len(source_rows),
+        "observation_count": len(selected),
+        "linked_prediction_count": len(selected_linked),
+        "conviction_fallback_count": len(fallback_candidates),
+        "excluded_count": sum(exclusions.values()),
+        "exclusions": dict(sorted(exclusions.items())),
+        "model_versions": [
+            {"model_version": version, "count": count}
+            for version, count in sorted(version_counts.items())
+        ],
+        "first_entry_date": entry_dates[0] if entry_dates else None,
+        "last_entry_date": entry_dates[-1] if entry_dates else None,
+        "outcome_contract_versions": outcome_contract_versions,
+        "compatibility_contract": reference_contract,
+        "fallback_contract_assumption": (
+            "requested_outcome_horizon_and_execution_contract"
+            if fallback_candidates
+            else None
+        ),
+    }
+
+    clean_rows = []
+    for row in selected:
+        clean_rows.append(
+            {
+                key: value
+                for key, value in row.items()
+                if not key.startswith("_contract")
+            }
+        )
+    return {"rows": clean_rows, "provenance": provenance}
+
+
+def fetch_signal_reliability_rows(
+    conn, horizon_days: int = 5, history_days: int = 180
+) -> dict:
+    """
+    Fetch Phase 1 reliability observations through ``signals.prediction_id``.
+
+    The result contains selected rows plus provenance/fallback/exclusion counts
+    suitable for embedding under ``performance_detail.reliability``. It never
+    consults a generic active model and can aggregate compatible weekly model
+    versions without admitting cross-sectional predictions.
+    """
+    from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT s.id AS signal_id, s.run_date, s.ticker, s.prediction_id,"
+            " s.conviction, o.entry_date, o.realized_ret,"
+            " o.contract_version AS outcome_contract_version,"
+            " p.id AS linked_prediction_id, p.prob_up AS prediction_prob_up,"
+            " p.model_version, p.horizon_days AS prediction_horizon_days, p.cs_rank,"
+            " mr.kind AS model_kind, mr.params AS model_params"
+            " FROM signal_outcomes o"
+            " JOIN signals s ON s.id = o.signal_id"
+            " LEFT JOIN predictions p ON p.id = s.prediction_id"
+            " LEFT JOIN model_registry mr ON mr.version = p.model_version"
+            " WHERE o.horizon_days = %(h)s"
+            "   AND o.contract_version = %(contract)s"
+            "   AND o.entry_date >= (CURRENT_DATE - %(d)s::int)"
+            " ORDER BY s.run_date DESC, s.id DESC",
+            {
+                "h": horizon_days,
+                "d": history_days,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
+        )
+        rows = cur.fetchall()
+    for row in rows:
+        for key in ("run_date", "entry_date"):
+            if row.get(key) is not None:
+                row[key] = str(row[key])
+    return _select_signal_reliability_rows(rows, horizon_days)
 
 
 def fetch_outcome_detail_rows(
@@ -897,22 +1502,33 @@ def fetch_outcome_detail_rows(
     entry_date is normalized to ISO string.
     """
     from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT o.entry_date, s.ticker, t.name, s.action, s.conviction, o.horizon_days,"
+            "SELECT o.market_as_of_date, o.entry_date, o.eval_date,"
+            " o.entry_price, o.exit_price, o.entry_price_basis, o.exit_price_basis,"
+            " o.contract_version, o.benchmark_basis,"
+            " s.ticker, t.name, s.action,"
+            " s.conviction, o.horizon_days,"
             " o.realized_ret, o.benchmark_ret, o.excess_ret, o.hit, o.mae, o.mfe, o.exit_reason"
             " FROM signal_outcomes o"
             " JOIN signals s ON s.id = o.signal_id"
             " LEFT JOIN tickers t ON t.code = s.ticker"
             " WHERE o.horizon_days = %(h)s AND o.entry_date >= (CURRENT_DATE - %(d)s::int)"
+            "   AND o.contract_version = %(contract)s"
             " ORDER BY o.entry_date DESC, s.ticker",
-            {"h": horizon_days, "d": history_days},
+            {
+                "h": horizon_days,
+                "d": history_days,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
         )
         rows = cur.fetchall()
     for r in rows:
-        if r.get("entry_date") is not None:
-            r["entry_date"] = str(r["entry_date"])
+        for key in ("market_as_of_date", "entry_date", "eval_date"):
+            if r.get(key) is not None:
+                r[key] = str(r[key])
     return rows
 
 
