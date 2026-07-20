@@ -1,464 +1,273 @@
 {
-  "available": true,
-  "generated_at": "2026-07-19 23:36:31",
+  "available": false,
+  "reason": "active_model_incompatible",
+  "generated_at": "2026-07-21 07:20:56",
   "active_model_version": "per-ticker-v1-20260718",
-  "horizon_days": 5,
-  "summary": {
-    "tickers": 50,
-    "median_brier": 0.23656882582515953,
-    "median_ic": 0.03788491374443732,
-    "drift_warning": false
-  },
-  "by_ticker": {
-    "7011.JP": {
-      "brier": 0.2347653000594177,
-      "brier_raw": 0.2841656448047928,
-      "ic": 0.005811330162493597,
-      "auc": 0.44695378151260506,
-      "calibration_rows": 180,
-      "psi_max": 0.02258895302911383,
-      "warning": false
+  "incompatibilities": [
+    {
+      "code": "artifact_contract_missing"
     },
-    "6501.JP": {
-      "brier": 0.2296092947958619,
-      "brier_raw": 0.250463381546137,
-      "ic": 0.17282040941970972,
-      "auc": 0.5281498015873016,
-      "calibration_rows": 180,
-      "psi_max": 0.027135784885549692,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "artifact_schema_version",
+      "expected": 3,
+      "actual": null
     },
-    "6701.JP": {
-      "brier": 0.23543559282552995,
-      "brier_raw": 0.268821444762966,
-      "ic": -0.13596545099213547,
-      "auc": 0.4715792181069959,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "label_config",
+      "expected": {
+        "label_mode": "triple_barrier",
+        "horizon_days": 5,
+        "tb_tp_atr": 1.5,
+        "tb_sl_atr": 1.0,
+        "tb_max_days": 5,
+        "vol_col": "volatility"
+      },
+      "actual": null
     },
-    "7013.JP": {
-      "brier": 0.2339701743806222,
-      "brier_raw": 0.2680871493013422,
-      "ic": -0.05755591237304968,
-      "auc": 0.45640763026501086,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "effective_horizon_days",
+      "expected": 5,
+      "actual": null
     },
-    "6762.JP": {
-      "brier": 0.24242798353909462,
-      "brier_raw": 0.2559466645669188,
-      "ic": 0.002408680706957213,
-      "auc": 0.4656545545047287,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "feature_columns",
+      "expected": [
+        "return_1d",
+        "return_2d",
+        "return_3d",
+        "return_5d",
+        "return_10d",
+        "return_20d",
+        "div_ma_5",
+        "div_ma_10",
+        "div_ma_20",
+        "div_ma_60",
+        "ma_5_20_cross",
+        "ma_20_60_cross",
+        "rsi",
+        "rsi_change",
+        "macd",
+        "macd_signal",
+        "macd_hist",
+        "macd_hist_change",
+        "bb_pct_b",
+        "bb_bandwidth",
+        "atr_pct",
+        "volatility",
+        "vol_change",
+        "vol_ratio",
+        "candle_body_pct",
+        "upper_shadow_pct",
+        "lower_shadow_pct",
+        "day_of_week",
+        "month",
+        "is_month_end",
+        "is_month_start",
+        "streak",
+        "gap",
+        "price_position_20d",
+        "macro_usdjpy_ret_20",
+        "macro_usdjpy_ret_60",
+        "macro_usdjpy_vol_20",
+        "macro_topix_ret_20",
+        "macro_topix_vol_20",
+        "macro_topix_above_200dma",
+        "macro_nikkei_ret_20",
+        "macro_nikkei_above_200dma",
+        "macro_nikkei_vi",
+        "macro_jgb10y",
+        "macro_bias_score"
+      ],
+      "actual": null
     },
-    "6723.JP": {
-      "brier": 0.23197837215694356,
-      "brier_raw": 0.2527366384481196,
-      "ic": 0.09742933978058027,
-      "auc": 0.5421671826625387,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "feature_schema_hash",
+      "expected": "86537bda2ebb12faefd8ff5425e5d2c9ef0c7ea3174ffa5bd09ae69b7bf858f0",
+      "actual": null
     },
-    "6758.JP": {
-      "brier": 0.2144005847953217,
-      "brier_raw": 0.2435237196441188,
-      "ic": -0.07963416856800655,
-      "auc": 0.49660825325042396,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "calibration_mode",
+      "expected": "isotonic",
+      "actual": null
     },
-    "1802.JP": {
-      "brier": 0.24043706684551755,
-      "brier_raw": 0.26807358212305865,
-      "ic": -0.1524883582588577,
-      "auc": 0.46137683846248917,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "calibration_id",
+      "expected": "isotonic-pava-v1",
+      "actual": null
     },
-    "8306.JP": {
-      "brier": 0.23195892255892256,
-      "brier_raw": 0.24913338445946068,
-      "ic": 0.05717816286654055,
-      "auc": 0.5382675576850334,
-      "calibration_rows": 180,
-      "psi_max": 0.02359410620579485,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "execution_contract_version",
+      "expected": "next_session_open_to_close_v2",
+      "actual": null
     },
-    "8035.JP": {
-      "brier": 0.24342249845605549,
-      "brier_raw": 0.25929074443138905,
-      "ic": 0.038336249225133866,
-      "auc": 0.47882250652092906,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_missing"
     },
-    "6981.JP": {
-      "brier": 0.24573204076559785,
-      "brier_raw": 0.28029882028850767,
-      "ic": -0.0926121005960066,
-      "auc": 0.39942636238932533,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_evidence_schema_version",
+      "expected": 1,
+      "actual": null
     },
-    "7267.JP": {
-      "brier": 0.2323854589824859,
-      "brier_raw": 0.2473535171526729,
-      "ic": 0.006328668429688246,
-      "auc": 0.4987251402345742,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_evidence_source",
+      "expected": "deployed_candidate_purged_oos_v1",
+      "actual": null
     },
-    "4901.JP": {
-      "brier": 0.23865680615680615,
-      "brier_raw": 0.24755460989268713,
-      "ic": 0.03743357826374077,
-      "auc": 0.5358046558704453,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_config_hash",
+      "expected": "bd8ccb9e265f940200910812c9685d9b7f09cd9abd22d05ffaf0c9c52b02d89d",
+      "actual": null
     },
-    "8411.JP": {
-      "brier": 0.24000749304217509,
-      "brier_raw": 0.26526160189650105,
-      "ic": -0.07906292810041568,
-      "auc": 0.410031746031746,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_contract_sha256",
+      "expected": "7005308fb58680b8babcb87a1485253fbc7d1a1b631bf192e51b297601560f7c",
+      "actual": null
     },
-    "8316.JP": {
-      "brier": 0.2349974457215837,
-      "brier_raw": 0.2641175540550212,
-      "ic": 0.055218303280602225,
-      "auc": 0.48465857161509335,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_missing",
+      "source": "version_metadata"
     },
-    "7974.JP": {
-      "brier": 0.21532300004522223,
-      "brier_raw": 0.2445986742570351,
-      "ic": 0.07249752655473908,
-      "auc": 0.5247402952433023,
-      "calibration_rows": 180,
-      "psi_max": 0.025107434118381174,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "artifact_schema_version",
+      "expected": 3,
+      "actual": null,
+      "source": "version_metadata"
     },
-    "9983.JP": {
-      "brier": 0.24166585764445098,
-      "brier_raw": 0.254901887463893,
-      "ic": 0.17116945176405746,
-      "auc": 0.5376729249011858,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "effective_horizon_days",
+      "expected": 5,
+      "actual": null,
+      "source": "version_metadata"
     },
-    "7751.JP": {
-      "brier": 0.21510131918944653,
-      "brier_raw": 0.22903423713070936,
-      "ic": 0.33180039502207836,
-      "auc": 0.6558513931888544,
-      "calibration_rows": 180,
-      "psi_max": 0.02359410620579485,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "feature_columns",
+      "expected": [
+        "return_1d",
+        "return_2d",
+        "return_3d",
+        "return_5d",
+        "return_10d",
+        "return_20d",
+        "div_ma_5",
+        "div_ma_10",
+        "div_ma_20",
+        "div_ma_60",
+        "ma_5_20_cross",
+        "ma_20_60_cross",
+        "rsi",
+        "rsi_change",
+        "macd",
+        "macd_signal",
+        "macd_hist",
+        "macd_hist_change",
+        "bb_pct_b",
+        "bb_bandwidth",
+        "atr_pct",
+        "volatility",
+        "vol_change",
+        "vol_ratio",
+        "candle_body_pct",
+        "upper_shadow_pct",
+        "lower_shadow_pct",
+        "day_of_week",
+        "month",
+        "is_month_end",
+        "is_month_start",
+        "streak",
+        "gap",
+        "price_position_20d",
+        "macro_usdjpy_ret_20",
+        "macro_usdjpy_ret_60",
+        "macro_usdjpy_vol_20",
+        "macro_topix_ret_20",
+        "macro_topix_vol_20",
+        "macro_topix_above_200dma",
+        "macro_nikkei_ret_20",
+        "macro_nikkei_above_200dma",
+        "macro_nikkei_vi",
+        "macro_jgb10y",
+        "macro_bias_score"
+      ],
+      "actual": null,
+      "source": "version_metadata"
     },
-    "6146.JP": {
-      "brier": 0.21934340721934711,
-      "brier_raw": 0.2378624637646585,
-      "ic": 0.19738827159706196,
-      "auc": 0.647125,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "feature_schema_hash",
+      "expected": "86537bda2ebb12faefd8ff5425e5d2c9ef0c7ea3174ffa5bd09ae69b7bf858f0",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "8766.JP": {
-      "brier": 0.23649549478757398,
-      "brier_raw": 0.2584006562486549,
-      "ic": 0.03587734627957341,
-      "auc": 0.5343435598062353,
-      "calibration_rows": 180,
-      "psi_max": 0.01832197441152723,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "calibration_mode",
+      "expected": "isotonic",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "6301.JP": {
-      "brier": 0.22364043597236874,
-      "brier_raw": 0.23835554398505568,
-      "ic": 0.11912189499908217,
-      "auc": 0.631936719812137,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "calibration_id",
+      "expected": "isotonic-pava-v1",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "6857.JP": {
-      "brier": 0.24761122068814373,
-      "brier_raw": 0.2647882814182542,
-      "ic": -0.022951904788244614,
-      "auc": 0.4131374243733794,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "artifact_contract_flat_field_mismatch",
+      "field": "execution_contract_version",
+      "expected": "next_session_open_to_close_v2",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "6920.JP": {
-      "brier": 0.23976753094400152,
-      "brier_raw": 0.2511390526959041,
-      "ic": 0.0017586671861341294,
-      "auc": 0.5397579948141746,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_missing",
+      "source": "version_metadata"
     },
-    "9433.JP": {
-      "brier": 0.2361941489769919,
-      "brier_raw": 0.2666163914823349,
-      "ic": 0.16287250277683982,
-      "auc": 0.514151526387344,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_evidence_schema_version",
+      "expected": 1,
+      "actual": null,
+      "source": "version_metadata"
     },
-    "6702.JP": {
-      "brier": 0.24691358024691362,
-      "brier_raw": 0.29123225099347166,
-      "ic": -0.16882709403928767,
-      "auc": 0.3839375,
-      "calibration_rows": 180,
-      "psi_max": 0.023573936554991116,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_evidence_source",
+      "expected": "deployed_candidate_purged_oos_v1",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "8725.JP": {
-      "brier": 0.23676190476190473,
-      "brier_raw": 0.25991469551871105,
-      "ic": 0.10536143241268534,
-      "auc": 0.5008646245059288,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_config_hash",
+      "expected": "bd8ccb9e265f940200910812c9685d9b7f09cd9abd22d05ffaf0c9c52b02d89d",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "4661.JP": {
-      "brier": 0.22141723356009066,
-      "brier_raw": 0.249802524512199,
-      "ic": 0.020187575348003736,
-      "auc": 0.48387959866220737,
-      "calibration_rows": 180,
-      "psi_max": 0.023573936554991116,
-      "warning": false
+    {
+      "code": "gate_contract_flat_field_mismatch",
+      "field": "gate_contract_sha256",
+      "expected": "7005308fb58680b8babcb87a1485253fbc7d1a1b631bf192e51b297601560f7c",
+      "actual": null,
+      "source": "version_metadata"
     },
-    "9984.JP": {
-      "brier": 0.2258838383838384,
-      "brier_raw": 0.2517586977910902,
-      "ic": -0.04978415497744542,
-      "auc": 0.5315315315315315,
-      "calibration_rows": 180,
-      "psi_max": 0.022087486912394566,
-      "warning": false
-    },
-    "7203.JP": {
-      "brier": 0.2211095943048983,
-      "brier_raw": 0.238255832343732,
-      "ic": 0.1775586156667714,
-      "auc": 0.5935908582784747,
-      "calibration_rows": 180,
-      "psi_max": 0.022588953029113828,
-      "warning": false
-    },
-    "6098.JP": {
-      "brier": 0.2233156820919721,
-      "brier_raw": 0.2413269481412914,
-      "ic": 0.044584414267999264,
-      "auc": 0.5786439403434014,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8058.JP": {
-      "brier": 0.24767225325884545,
-      "brier_raw": 0.2806784918973635,
-      "ic": -0.04163599043297302,
-      "auc": 0.3872767857142857,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "6861.JP": {
-      "brier": 0.2366421568627451,
-      "brier_raw": 0.24752198134397124,
-      "ic": -0.07554836311811002,
-      "auc": 0.516375,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "4063.JP": {
-      "brier": 0.22303965710215712,
-      "brier_raw": 0.23974300078459618,
-      "ic": 0.30000873934274097,
-      "auc": 0.6054320987654321,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "6503.JP": {
-      "brier": 0.24162771890271012,
-      "brier_raw": 0.2516132899615466,
-      "ic": 0.11785737863473093,
-      "auc": 0.5329792490118577,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "9432.JP": {
-      "brier": 0.22754471863167514,
-      "brier_raw": 0.23820873162592507,
-      "ic": 0.22310771521630968,
-      "auc": 0.6105,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8031.JP": {
-      "brier": 0.24864453473697176,
-      "brier_raw": 0.261305116604217,
-      "ic": 0.04062305268086184,
-      "auc": 0.4572172619047619,
-      "calibration_rows": 180,
-      "psi_max": 0.023292183581932073,
-      "warning": false
-    },
-    "6273.JP": {
-      "brier": 0.24708606911996744,
-      "brier_raw": 0.2709478688845447,
-      "ic": 0.15691300135027308,
-      "auc": 0.4730864197530864,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8001.JP": {
-      "brier": 0.2476722532588454,
-      "brier_raw": 0.26773141311210163,
-      "ic": -0.10171211619975876,
-      "auc": 0.4071180555555556,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "6367.JP": {
-      "brier": 0.24049139751061163,
-      "brier_raw": 0.270125179597216,
-      "ic": -0.018965105001624297,
-      "auc": 0.49098320158102765,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8591.JP": {
-      "brier": 0.24297752808988765,
-      "brier_raw": 0.28253182556615813,
-      "ic": -0.19983078571296664,
-      "auc": 0.37625396825396823,
-      "calibration_rows": 180,
-      "psi_max": 0.021229593906799352,
-      "warning": false
-    },
-    "7741.JP": {
-      "brier": 0.24057026412975455,
-      "brier_raw": 0.25145415550827055,
-      "ic": 0.08200119507633913,
-      "auc": 0.5556241511297692,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "2914.JP": {
-      "brier": 0.22300853228501813,
-      "brier_raw": 0.2576803658598715,
-      "ic": 0.045436165742643225,
-      "auc": 0.5935238095238096,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "4502.JP": {
-      "brier": 0.24987228607918266,
-      "brier_raw": 0.29227881065737465,
-      "ic": -0.1915380384688826,
-      "auc": 0.3847579051383399,
-      "calibration_rows": 180,
-      "psi_max": 0.02510743411838117,
-      "warning": false
-    },
-    "4568.JP": {
-      "brier": 0.22280963895564918,
-      "brier_raw": 0.23787969344714707,
-      "ic": 0.3193181515872001,
-      "auc": 0.6152473227944926,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "4519.JP": {
-      "brier": 0.24075174825174825,
-      "brier_raw": 0.2516949837061917,
-      "ic": 0.1339661239208154,
-      "auc": 0.5332262845849802,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "9434.JP": {
-      "brier": 0.2262181679356476,
-      "brier_raw": 0.2452591382056934,
-      "ic": 0.1955183139021298,
-      "auc": 0.5444078947368421,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "9020.JP": {
-      "brier": 0.23910614525139665,
-      "brier_raw": 0.28109096631622815,
-      "ic": -0.22622586320695748,
-      "auc": 0.3998207655869927,
-      "calibration_rows": 180,
-      "psi_max": 0.023594106205794853,
-      "warning": false
-    },
-    "4452.JP": {
-      "brier": 0.23284289784289783,
-      "brier_raw": 0.24750056951727342,
-      "ic": 0.17586610734594402,
-      "auc": 0.5260180995475113,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8604.JP": {
-      "brier": 0.2413966192537621,
-      "brier_raw": 0.26397626381387107,
-      "ic": -0.06990885639677798,
-      "auc": 0.4688765182186235,
-      "calibration_rows": 180,
-      "psi_max": 0.02097265871102097,
-      "warning": false
-    },
-    "8750.JP": {
-      "brier": 0.24289321789321788,
-      "brier_raw": 0.2764163804853061,
-      "ic": 0.027907423685827288,
-      "auc": 0.4202519017333832,
-      "calibration_rows": 180,
-      "psi_max": null,
-      "warning": false
+    {
+      "code": "active_manifest_missing"
     }
-  }
+  ]
 }
