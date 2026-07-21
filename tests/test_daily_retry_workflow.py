@@ -58,7 +58,9 @@ def test_retry_macro_and_settlement_match_core():
         core_step = _step(core, name)
         retry_step = _step(retry, name)
         assert retry_step["env"] == core_step["env"], f"{name} env differs from core"
-        assert retry_step["run"] == core_step["run"], f"{name} command differs from core"
+        assert retry_step["run"] == core_step["run"], (
+            f"{name} command differs from core"
+        )
         assert retry_step.get("continue-on-error") is True
 
 
@@ -80,10 +82,46 @@ def test_retry_data_steps_are_guarded_and_ordered():
         )
 
 
+def test_retry_refreshes_to_origin_main_before_guard():
+    """Scheduled runs pin actions/checkout to the trigger-time SHA. When core is
+    delayed and commits after this retry was triggered, the pinned tree carries a
+    stale docs/state.json and the guard would re-run the whole pipeline (a
+    duplicate LINE digest, observed 2026-07-21). The retry must refresh the tree
+    to origin/main tip *before* the guard reads state.json.
+    """
+    steps = _retry_steps()
+    names = [item.get("name") for item in steps]
+
+    checkout_idx = next(
+        i
+        for i, s in enumerate(steps)
+        if str(s.get("uses", "")).startswith("actions/checkout")
+    )
+    guard_idx = names.index("Check whether daily update already exists")
+
+    refresh = next(
+        (
+            s
+            for s in steps
+            if "git fetch" in str(s.get("run", ""))
+            and "reset --hard origin/main" in str(s.get("run", ""))
+        ),
+        None,
+    )
+    assert refresh is not None, (
+        "retry must fetch + reset --hard origin/main so the guard sees the core commit"
+    )
+    refresh_idx = steps.index(refresh)
+    assert checkout_idx < refresh_idx < guard_idx, (
+        "refresh step must run after checkout and before the needs-core-run guard"
+    )
+
+
 ALL_TESTS = [
     test_retry_prediction_env_matches_core,
     test_retry_macro_and_settlement_match_core,
     test_retry_data_steps_are_guarded_and_ordered,
+    test_retry_refreshes_to_origin_main_before_guard,
 ]
 
 
