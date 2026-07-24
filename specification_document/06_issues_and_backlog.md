@@ -6,17 +6,6 @@
 
 ## 要対応
 
-### P0運用移行 — execution contract v2を本番DBへ反映する
-
-**かみくだき**: コードは「判断日の次の営業日の寄付きで入り、H営業日目の終値で出る」契約へ直ったが、本番DBの列追加と過去結果の再計算は自動では完了しない。この2作業が終わるまで、旧`close_to_close_v1`の成績と新`next_session_open_to_close_v2`の成績を混ぜて判断してはいけない。
-
-実施順:
-
-1. `uv run python scripts/db_migrate.py`で`migrations/0004_execution_contract.sql`を本番Neonへ適用する。
-2. `uv run python scripts/settle_outcomes.py --restate-execution-contract`を一度実行する。
-3. `signal_outcomes.contract_version`、entry/exit basis、1/5/10営業日の件数、`realized_ret`欠損を確認する。
-4. 旧新の成績差、観測数、再集計不能行を監査記録へ残す。通常settlementもlegacy行を段階的にv2へ置換するが、一括移行の代わりにはしない。
-
 ### P0運用移行 — Phase 1 schema v3モデルを再学習・検証する
 
 **かみくだき**: 旧モデルは新しいラベル、特徴量、較正、約定、KPI証跡の完全性を証明できないため、意図的に互換性エラーとなる。日次`auto`は自身のOOS証跡を持つephemeral candidateへ縮退し、strict `phase1`は`HOLD`になる。新しい週次候補を一度作り、全銘柄の証跡が揃った版だけをactiveにする必要がある。
@@ -43,35 +32,6 @@
 - Phase 2の`turnover`はv2で「旧book全決済＋新book全建て＋最終決済」の両側notionalへ意味が変わった。既定`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER=0.40`は旧netted turnover由来なので、TOPIX open導入後のactive判定前にv2 shadow分布から再校正する。根拠が揃うまでは閾値を無変更のままfail-closeさせる。
 - 4週間経過後も、Phase 2の同一basis benchmark coverageと`active_readiness`を満たした場合に限り、人間がactive化を別途判断する。
 
-## 解決済み（直近）
-
-### ✅ DB 書き込み停止インシデント（2026-06-10〜、2026-07-13 復旧確認・解決）
-
-**かみくだき**: 6/10 のユニバース拡大以降、成績記録（DB）への書き込みが毎日失敗して
-`data/outbox/` に溜まり続けていた（約1ヶ月・34ファイル）。原因は2段構え:
-(a) キュレーションが銘柄を増やしても DB の銘柄マスタは手動シードのみで追随せず
-外部キー違反、(b) outbox 再送が「全件一括・1件失敗で全部やり直し」だったため、
-不良イベント1件が再送全体を永遠にブロック。watchdog は docs の鮮度しか見ておらず
-3週間以上グリーンのままだった。
-
-対応済み（2026-07-09）:
-
-- `src/db.py`: 書き込み前に FK 親（tickers / model_registry スタブ行）を自動確保、
-  outbox 再送を SAVEPOINT による1件ずつ適用+失敗イベントの `data/outbox/dead/` 隔離に変更
-- `scripts/workflow_watchdog.py`: outbox 滞留（5日超のファイル / 10ファイル超）と
-  dead letter、および日次ループ内で HOLD に縮退した銘柄処理失敗を failure として検知（Issue 起票）
-- `scripts/db_migrate.py` / `main.py`: `LEGACY_MODEL_VERSION` の参照先を
-  `src.db_records` に統一して AttributeError を修正
-- 銘柄マスタは manual-db-migrate 再実行でシード済み
-
-**復旧確認（2026-07-13）**: PR #3 マージ（2026-07-09）後、2026-07-10 の preopen core 実行で
-34ファイルの outbox backlog が全量再送・削除され（commit `4b549035`）、`data/outbox/dead/` は
-一度も生成されず（= 全件正常再送）、`docs/signal_outcomes_recent.json`（2026-07-13 生成）に
-停止期間だった 6/16〜7/2 エントリーの 5日決済が 27件、当時の
-`close_to_close_v1`契約では`realized_ret`/`benchmark_ret`/`excess_ret`欠損なしで復帰した。
-これはDB復旧の履歴であり、現在のv2契約の同一basis benchmarkが利用可能という意味ではない。
-既存行は上記P0移行でv2へ再集計する。
-
 ## 対応しない（方針）
 
 ### 週次レポートの品質検証は実装しない
@@ -89,22 +49,6 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
 
 ## 運用チェックリスト（時限・要人間判断）
 
-- [x] ~~**DB 復旧確認（次の営業日朝）**: preopen core 実行後に `data/outbox/*.jsonl` が消えて
-  いること（= backlog 全量再送成功）、`docs/signal_outcomes_recent.json` に 6/16 以降の
-  エントリーが決済され始めること、`data/outbox/dead/` が空か極少であることを確認。
-  dead letter があれば中身を見て、修正後に outbox 直下へ戻して再送するか削除する~~
-  → **2026-07-13 確認済み**: outbox は 2026-07-10 実行（commit `4b549035`）で 34ファイル全量再送・
-  削除、dead letter は生成なし、6/16〜7/2 エントリーの決済が復帰（27件・欠損なし）
-- [x] **旧v1時点のshadow評価仕切り直し**: DB 停止期間（6/16〜7/9）は Phase 1 vs Phase 2 比較の
-  計測データが欠けている。`portfolio_shadow_report.py` は欠損期間を除いた paired 日だけを
-  `active_readiness.shadow_days` に数え、両 Phase の指標も同じ日・銘柄母集団で比較するよう
-  修正済み。2026-07-19 再集計では paired 12日 / 33銘柄、CS IC 差 +0.0329 だが、portfolio
-  gate は IR -2.17・turnover 0.43 で不合格だった。この判断は履歴として残すが、v2移行後の
-  active判定へ流用しない
-- [x] ~~**2026-06-24 目安**（shadow 開始 2026-06-10 から 10 営業日）: `active_readiness` を見て
-  active 化を判断~~ → 2026-07-09 判断: **見送り**（gate 不合格・IC 大差負け・計測欠損）。
-  v2移行後も見送りを維持し、TOPIX同一basis benchmarkがない間は切替不可
-- [ ] 本番DBへmigration 0004を適用し、v2再集計と件数・差分監査を完了する
 - [ ] schema v3週次候補を全対象coverageでactive化し、registry同期状態を確認する
 - [ ] canonical envへ移行し、deprecation warningが消えたことを確認する
 - [ ] v2/schema v3移行後の4週間shadow監視を完了する

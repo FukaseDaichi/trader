@@ -67,7 +67,53 @@ def test_settlement_uses_same_next_open_window_as_labels():
     assert one_day["benchmark_basis"] == "unavailable_same_basis"
 
 
-ALL_TESTS = [test_settlement_uses_same_next_open_window_as_labels]
+def test_settlement_falls_back_to_archived_inactive_ticker_data():
+    prices = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-09", "2026-01-13"]),
+            "open": [100.0, 120.0],
+            "high": [101.0, 122.0],
+            "low": [99.0, 119.0],
+            "close": [100.0, 121.0],
+        }
+    )
+    captured = []
+    original_load = settle_outcomes.load_data
+    original_load_archived = settle_outcomes.load_archived_data
+    original_upsert = settle_outcomes.db.upsert_outcome
+    try:
+        settle_outcomes.load_data = lambda ticker: None
+        settle_outcomes.load_archived_data = lambda ticker: prices.copy()
+        settle_outcomes.db.upsert_outcome = lambda conn, signal_id, horizon, payload: (
+            captured.append((signal_id, horizon, payload))
+        )
+        count = settle_outcomes._settle_for_ticker(
+            object(),
+            "8053.JP",
+            [
+                {
+                    "signal_id": 8,
+                    "as_of_date": "2026-01-09",
+                    "action": "BUY",
+                    "missing_horizons": [1],
+                }
+            ],
+            {},
+        )
+    finally:
+        settle_outcomes.load_data = original_load
+        settle_outcomes.load_archived_data = original_load_archived
+        settle_outcomes.db.upsert_outcome = original_upsert
+
+    assert count == 1
+    assert captured[0][2]["entry_date"] == "2026-01-13"
+    assert captured[0][2]["entry_price"] == 120.0
+
+
+ALL_TESTS = [
+    test_settlement_uses_same_next_open_window_as_labels,
+    test_settlement_falls_back_to_archived_inactive_ticker_data,
+]
 
 
 def main() -> int:

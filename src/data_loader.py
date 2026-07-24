@@ -431,6 +431,30 @@ def load_data(ticker_code):
     return None
 
 
+def load_archived_data(ticker_code):
+    """Load the newest archived OHLCV history for an inactive ticker."""
+    archive_dir = DATA_DIR / "archive"
+    candidates = sorted(
+        archive_dir.glob(f"{ticker_code}*.parquet"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for file_path in candidates:
+        df = pd.read_parquet(file_path)
+        normalized = _normalize_ohlcv(df)
+        if normalized is None:
+            print(
+                f"Archived data for {ticker_code} is missing required OHLCV columns."
+            )
+            continue
+        validated = _validate_ohlcv(
+            normalized, ticker_code=ticker_code, source="archive"
+        )
+        if validated is not None:
+            return validated
+    return None
+
+
 def _archive_target_path(file_path):
     archive_dir = DATA_DIR / "archive"
     archive_dir.mkdir(parents=True, exist_ok=True)

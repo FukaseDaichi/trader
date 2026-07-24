@@ -38,7 +38,7 @@ from src.db_records import (  # noqa: E402
     compute_benchmark_ret,
     compute_outcome,
 )
-from src.data_loader import load_data  # noqa: E402
+from src.data_loader import load_archived_data, load_data  # noqa: E402
 from src.execution import (  # noqa: E402
     BENCHMARK_BASIS,
     ENTRY_PRICE_BASIS,
@@ -79,6 +79,8 @@ def _settle_for_ticker(
     conn, ticker: str, signals: list[dict], _topix_by_date: dict
 ) -> int:
     df = load_data(ticker)
+    if df is None:
+        df = load_archived_data(ticker)
     if df is None or df.empty or "date" not in df.columns:
         return 0
     df = df.sort_values("date").reset_index(drop=True)
