@@ -6,17 +6,6 @@
 
 ## 要対応
 
-### P0運用移行 — Phase 1 schema v3モデルを再学習・検証する
-
-**かみくだき**: 旧モデルは新しいラベル、特徴量、較正、約定、KPI証跡の完全性を証明できないため、意図的に互換性エラーとなる。日次`auto`は自身のOOS証跡を持つephemeral candidateへ縮退し、strict `phase1`は`HOLD`になる。新しい週次候補を一度作り、全銘柄の証跡が揃った版だけをactiveにする必要がある。
-
-実施順:
-
-1. `uv run python scripts/weekly_model_retrain.py --output docs/weekly_retrain_report.json`を実行する。
-2. `deployment.candidate_validation.passed=true`、全対象coverage、artifact schema v3、manifest checksum、active pointerのversion一致を確認する。
-3. `model_registry`登録成功、またはDB不通時にregistry eventが`data/outbox/`へ1件だけ安定IDで待機していることを確認する。
-4. `docs/model_quality.json`と`docs/drift_report.json`が同じruntime契約のactive版を参照することを確認する。
-
 ### P0制約 — Phase 2 active化を継続禁止する
 
 **かみくだき**: 現在のマクロパネルはTOPIX終値しか持たず、戦略と同じ「翌営業日寄付き→H営業日目終値」の比較リターンを作れない。これを終値同士のリターンで代用するとIRが別条件になるため、benchmarkは意図的にunavailableとなり、activeゲートは閉じる。
@@ -49,7 +38,6 @@ AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE �
 
 ## 運用チェックリスト（時限・要人間判断）
 
-- [ ] schema v3週次候補を全対象coverageでactive化し、registry同期状態を確認する
 - [ ] canonical envへ移行し、deprecation warningが消えたことを確認する
 - [ ] v2/schema v3移行後の4週間shadow監視を完了する
 - [ ] v2 shadowのturnover分布から`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`を再校正する
