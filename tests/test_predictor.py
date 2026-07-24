@@ -73,9 +73,25 @@ def test_exit_plan_none_on_missing_atr():
     assert predictor.build_long_exit_plan(1000.0, float("nan"), _LABEL_CFG) is None
 
 
+def test_exit_plan_none_on_nonfinite_input():
+    assert predictor.build_long_exit_plan(float("inf"), 30.0, _LABEL_CFG) is None
+    assert predictor.build_long_exit_plan(1000.0, float("inf"), _LABEL_CFG) is None
+    assert predictor.build_long_exit_plan(1000.0, float("-inf"), _LABEL_CFG) is None
+
+
 def test_exit_plan_none_on_nonpositive():
     assert predictor.build_long_exit_plan(0.0, 30.0, _LABEL_CFG) is None
     assert predictor.build_long_exit_plan(1000.0, 0.0, _LABEL_CFG) is None
+
+
+def test_thresholds_reject_nonfinite_values():
+    for key in predictor.DEFAULT_SIGNAL_THRESHOLDS:
+        for value in (float("nan"), float("inf"), float("-inf")):
+            try:
+                predictor.resolve_thresholds({key: value})
+            except ValueError:
+                continue
+            raise AssertionError(f"{key} accepted non-finite value {value}")
 
 
 def test_exit_plan_returns_native_python_types():
@@ -194,7 +210,9 @@ ALL_TESTS = [
     test_exit_plan_uses_defaults_when_no_config,
     test_exit_plan_custom_widths,
     test_exit_plan_none_on_missing_atr,
+    test_exit_plan_none_on_nonfinite_input,
     test_exit_plan_none_on_nonpositive,
+    test_thresholds_reject_nonfinite_values,
     test_exit_plan_returns_native_python_types,
     test_buy_signal_attaches_exit_plan,
     test_mild_buy_attaches_exit_plan,

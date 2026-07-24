@@ -1,6 +1,6 @@
 # 段階導入・リスク・残課題
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-24 JST
 
 AI 銘柄キュレーションの主要部品は実装済みです。この文書は、現行運用のリスク、ロールバック、残課題を整理します。
 
@@ -49,10 +49,10 @@ AI 銘柄キュレーションの主要部品は実装済みです。この文�
 | ファンダキャッシュ陳腐化 | 古い業績根拠で昇格 | `max_fundamental_age_days` 超過で conservative mode |
 | コールドスタート | 履歴不足で KPI gate 不通過 | `data/watchlist/` warmup と `min_warmup_rows` |
 | whipsaw | 日次往復入替 | `cooldown_days`, `min_gap`, `max_daily_swaps` |
-| レポートの事実誤り | 誤情報通知 | skill で入力 JSON 由来に限定。validator 追加が残課題 |
+| レポートの事実誤り | 誤情報通知 | skillで入力JSON由来に限定。シグナルや売買判断には使わず、機械validatorは追加しない方針 |
 | push 競合 | workflow 失敗 | commit helper の rebase + retry |
 | publish の削除 | `docs/curation/` 消失 | `rsync --exclude 'curation'` 済み |
-| LINE 通知失敗 | レポート未通知 | 失敗は非致命。リトライ追加が残課題 |
+| LINE 通知失敗 | レポート未通知 | 共通`send_line_text()`が429/5xx/接続エラーをbounded retryし、最終失敗も非致命 |
 | プール agent の誤採点 | 不適切な候補がプール入り | 決定論 merge の流動性フロア（ローカル parquet）・`min_fund_score_to_add`・churn/セクター上限・監査ログ |
 | 古い pool 提案の再処理 | agent 失敗時に stale な `pool_candidates_latest.json` を有効扱いし cadence を消費 | 残課題（提案 `as_of` の鮮度判定）。実害は冪等で小（既存名は再追加されない） |
 
@@ -77,11 +77,8 @@ AI 銘柄キュレーションの主要部品は実装済みです。この文�
 
 | 課題 | 現状 | 推奨 |
 |---|---|---|
-| レポート validator | 未実装 | front matter、免責、銘柄コード存在、空ファイルを通知前に検証 |
-| LINE retry | 未実装 | 429/5xx/timeout に限定して backoff retry |
 | archive からの自動復元 | 未実装 | 再昇格時に `data/archive/{code}.parquet` を検出して復元 |
 | TOPIX 相対力 | 未実装 | 指数データ取得を入れるか、現行の個別モメンタムで継続 |
-| フロント表示 | 未実装 | `decision_latest.json` と `reports/weekly_latest.md` へのリンクを dashboard に追加 |
 | `.claude/settings.local.json` | ローカル設定として存在 | CI 側の tool 制限は workflow の `claude_args` が主。必要なら repo-wide settings を整理 |
 | pool 提案の鮮度判定 | 未実装 | agent 失敗時に stale な valid 提案を再処理し cadence を消費しうる。`pool_candidates_latest.json` の `as_of` を実行日と照合し、古ければ no-op 扱いにする |
 | `curation_pool.yml` のコメント保持 | 未対応 | 初回の自動変更で手書きのセクター見出し/ヘッダが `yaml.safe_dump` で消える（`tickers.yml` と同じ機械管理の挙動）。保持するなら round-trip YAML を検討 |

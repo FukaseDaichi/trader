@@ -12,8 +12,8 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
 - **Daily signals**: fetch OHLCV from Stooq (yfinance fallback), build 34
   technical + 11 macro features, gate each ticker through a walk-forward OOS
   backtest (KPI gate), predict `prob_up` with LightGBM, emit 5-level signals
-  (`BUY`/`MILD_BUY`/`HOLD`/`MILD_SELL`/`SELL`), notify gate-passed non-HOLD
-  signals via LINE.
+  (`BUY`/`MILD_BUY`/`HOLD`/`MILD_SELL`/`SELL`), and summarize gate-passed
+  non-HOLD signals in the daily LINE digest.
 - **Phase 0 — measurement**: write predictions/signals through to Neon
   Postgres (`DATABASE_URL`, schema in `migrations/`) and settle executable
   1/5/10-session outcomes (next-session open to horizon-session close). DB
@@ -38,7 +38,7 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
 Full as-built specs, known issues, and backlog: `specification_document/`
 (start at its `README.md`; completed phase plans normally live in git history,
 while user-requested decision records or plans with unfinished operational
-rollout remain in `plans/` with explicit status).
+rollout remain in `specification_document/plans/` with explicit status).
 
 ## Commands
 
@@ -54,8 +54,9 @@ cd web && npm run build:prod              # static export with /trader base path
 cd web && npm run lint
 ```
 
-`main.py` works without `.env`: LINE notification and DB writes are skipped
-when unconfigured. `.env.example` is the authoritative, commented list of all
+`main.py` works without `.env`: LINE notification and DB connections are
+skipped when unconfigured; replayable prediction/signal events are retained in
+`data/outbox/`. `.env.example` is the authoritative, commented list of all
 environment variables (data source, KPI gate, Phase 0/1/2 knobs); defaults
 live in `src/config.py`.
 
@@ -66,8 +67,9 @@ live in `src/config.py`.
 Per enabled ticker in `tickers.yml`:
 
 1. **Data sync** (`src/data_loader.py`): Stooq CSV with yfinance fallback when
-   stale, OHLCV validation, merge into `data/*.parquet`. Parquet files of
-   disabled tickers are archived to `data/archive/`, never deleted.
+   stale, non-finite OHLCV row removal and price/OHLC validation, merge into
+   `data/*.parquet`. Parquet files of disabled tickers are archived to
+   `data/archive/`, never deleted.
 2. **Features** (`src/model.py`, `src/macro.py`): 34 technical + 11 macro
    features (USD/JPY, TOPIX, Nikkei, Nikkei VI, JGB10y from `data/macro/`).
 3. **Predict + exact gate** (`src/phase1.py`, `src/model_store.py`,
@@ -125,14 +127,17 @@ Next.js 16 + React 19 + Recharts 3 + TailwindCSS 4, static export served from
   `signal_outcomes_recent.json` and `curation/macro_latest.json` power optional
   cards/sections that hide when absent or `available: false`. (`history_data.json`
   is a removed legacy contract — the frontend does NOT read it.) All card fetches
-  go through `src/lib/fetchJson.ts` (runtime-validated; bad JSON → card hidden).
-- `src/app/page.tsx` (home) + `RegimeBanner`, `src/app/performance/page.tsx`
-  (net non-overlapping equity, TOPIX only when same-basis coverage is complete,
-  drawdown / calibration / recent outcomes via
-  `PerformanceDetail`), `src/app/stocks/[ticker]/` (detail). `src/components/`:
-  `StockChart`, `SignalCard`, `PerformanceCard`, `ModelQualityCard`,
-  `PortfolioCard`, `PerformanceDetail`, `RegimeBanner`. Types in
-  `src/types/index.ts`.
+  go through `src/lib/fetchJson.ts`; HTTP/JSON parse failures and payloads rejected
+  by each call's runtime guard become `null`. Required-contract guards validate
+  the fields pages unconditionally dereference; optional guards are shallow.
+- `src/app/page.tsx` (home: `SiteHeader`, `TodayHero`, `StockExplorer`,
+  performance/portfolio cards, glossary, footer),
+  `src/app/performance/page.tsx` (net non-overlapping equity, TOPIX only when
+  same-basis coverage is complete, drawdown / calibration / recent outcomes
+  via `PerformanceDetail`), and `src/app/stocks/[ticker]/` (detail with
+  `StockChart`, `SignalNarrative`, and `ThresholdGauge`). `SiteHeader` owns the
+  optional market-mood pill; `SiteFooter` links the weekly reports and latest
+  curation decision. Types live in `src/types/index.ts`.
 
 ### CI/CD (`.github/workflows/`)
 
@@ -177,8 +182,9 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   `--delete`. **Any new data file under `docs/` must be added to that
   workflow's `--exclude` list**, or the next publish deletes it
   (`tests/test_publish_workflow.py` checks this).
-- Never let an agent edit `tickers.yml`; only the deterministic
-  `scripts/curation_merge.py` may change it.
+- Never let an agent edit `tickers.yml` directly. Automated curation must use
+  `scripts/curation_merge.py`; an explicitly requested universe selection may
+  use deterministic `scripts/universe_select.py --apply`.
 - `docs/history_data.json` is a legacy contract; `src/dashboard.py` removes it.
 - Japanese UI convention: red (`赤`) means up and blue (`青`) means down.
 
@@ -188,7 +194,8 @@ Local instruction sets stored in `SKILL.md` files. For this repository:
 
 - `jp-stock-ticker-curation` (`skills/jp-stock-ticker-curation/SKILL.md`):
   interactive research of fundamentally strong Japanese stocks from primary
-  sources (IR, filings), updating `tickers.yml` with source-backed picks.
+  sources (IR, filings), then source-backed proposal and deterministic
+  application through `scripts/curation_merge.py` when guardrails permit.
   Trigger: the user names the skill or asks to research JP stocks and update
   `tickers.yml`. Read `SKILL.md` first, load `references/` only as needed.
   Prefer primary sources with concrete dates; afterwards report changed
@@ -202,10 +209,11 @@ running in GitHub Actions (`claude-code-action@v1`). Cadence: technical screen
 refresh **biweekly** (inside the Saturday workflow).
 
 **Critical invariant**: curation agents emit JSON/Markdown only and never edit
-those two files directly. The deterministic `scripts/curation_merge.py`
-(→ `tickers.yml`) and `scripts/curation_pool_merge.py` (→ `curation_pool.yml`)
-are the **sole writers**, under guardrails (churn/sector cap, warmup, cooldown,
-freshness, pool liquidity floor + add-only/replace). A PreToolUse hook
+those two files directly. In automated curation, the deterministic
+`scripts/curation_merge.py` (→ `tickers.yml`) and
+`scripts/curation_pool_merge.py` (→ `curation_pool.yml`) are the writers, under
+guardrails (churn/sector cap, warmup, cooldown, freshness, pool liquidity floor
++ add-only/replace). A PreToolUse hook
 (`.claude/hooks/protect-deterministic-files.sh`) enforces the no-direct-edit
 rule. CI skills live in `.claude/skills/`; tuning knobs in `tickers.yml`
 `settings.curation` (pool knobs under `.pool`).

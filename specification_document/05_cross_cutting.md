@@ -1,6 +1,6 @@
 # データ契約・横断仕様
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 ## 設定ファイル
 
@@ -33,13 +33,13 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 
 ### `.env` / 環境変数
 
-すべての環境変数の正典はコメント付き`.env.example`（データソース、KPIゲート、閾値最適化、Phase 0 DB、Phase 1ラベル/モデル/較正/ドリフト、Phase 2 CS/ポートフォリオ、Phase 3通知/実績）。既定値は`src/config.py`。KPIのcanonical名は`TRADER_KPI_MIN_AVG_DAILY_NET_RETURN`、`TRADER_KPI_MIN_ROUND_TRIPS`、`TRADER_AUTO_THRESHOLD_MIN_ROUND_TRIPS`、objective=`avg_daily_net_return`で、旧`EXPECTANCY`／`TRADES`名は警告付きaliasのみ。`vol_norm`は未対応で、残存envは警告して`triple_barrier`へ縮退する。`main.py`は`.env`なしでも動作し、LINE通知とDB書き込みはスキップされます。
+すべての環境変数の正典はコメント付き`.env.example`（データソース、KPIゲート、閾値最適化、Phase 0 DB、Phase 1ラベル/モデル/較正/ドリフト、Phase 2 CS/ポートフォリオ、Phase 3通知/実績）。既定値は`src/config.py`。`src.env`経由のfloat設定は有限値のみ有効で、`NaN` / `Infinity` は主要設定ではfail-fast、データ取得などの日次補助設定では警告後に既定値へ縮退する。KPIのcanonical名は`TRADER_KPI_MIN_AVG_DAILY_NET_RETURN`、`TRADER_KPI_MIN_ROUND_TRIPS`、`TRADER_AUTO_THRESHOLD_MIN_ROUND_TRIPS`、objective=`avg_daily_net_return`で、旧`EXPECTANCY`／`TRADES`名は警告付きaliasのみ。`vol_norm`は未対応で、残存envは警告して`triple_barrier`へ縮退する。`main.py`は`.env`なしでも動作し、LINE通知とDB接続をスキップする一方、再送可能なprediction/signalイベントは`data/outbox/`へ保存する。
 
 ## ローカルデータ（data/）
 
 | パス | 内容 |
 |---|---|
-| `data/{code}.parquet` | 有効銘柄の日足 OHLCV。`date` は tz なし datetime、価格正値・OHLC 関係・異常終値変化を検証済み（警告は attrs → レポート） |
+| `data/{code}.parquet` | 有効銘柄の日足 OHLCV。`date` は tz なし datetime。OHLCVが有限な行だけを残し、価格正値・OHLC 関係・異常終値変化を検証済み（警告は attrs → レポート） |
 | `data/archive/` | 無効化銘柄の parquet 退避先（削除しない） |
 | `data/watchlist/{code}.parquet` | キュレーション候補の warmup データ。gitignore 対象、昇格時に `data/` へ移動 |
 | `data/macro/macro_panel.parquet` | マクロ系列パネル（usdjpy/topix/nikkei/nikkei_vi/jgb10y + 派生特徴量）。`update_macro_snapshots.py` が更新。`topix` は TOPIX 連動 ETF（1305）のプロキシ値（1306 は調整後系列にも分割級の不連続が残るため不採用）、`nikkei_vi`/`jgb10y` は取得元がなく無効化（全行 NaN） |
@@ -47,7 +47,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | `data/models/<version>/` | immutableなPhase 1 schema v3。`manifest.json`、version metadata、全対象銘柄のexact final booster、較正器、feature reference、gate evidenceとchecksum |
 | `data/models/active_model.json` | atomic replaceされるPhase 1 active pointer。version、artifact/gate契約、manifest/config hash、git commit、activation provenanceを保持 |
 | `data/models/cs-v1-*/` + `data/models/active_cs_model.json` | Phase 2 CS モデルバンドルと active ポインタ |
-| `data/outbox/YYYY-MM-DD.jsonl` | DB不通時のprediction/signal/model_registryイベントキュー（安定event_idで冪等、復旧時リプレイ）。registry active再送は現在のfile pointer provenanceと一致する場合だけ適用し、古い待機イベントで巻き戻さない。不良イベントは`data/outbox/dead/`へ隔離 |
+| `data/outbox/*.jsonl` | DB不通時のprediction/signal/model_registryイベントキュー（ファイル名は生成時刻、安定event_idで冪等、復旧時リプレイ）。registry active再送は現在のfile pointer provenanceと一致する場合だけ適用し、古い待機イベントで巻き戻さない。不良イベントは`data/outbox/dead/`へ隔離 |
 | `data/jpx_holidays.json` | JPX 休日キャッシュ（`{"holidays": {...}}` 形式と日付キー直下形式の両対応） |
 
 Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列名のまま特徴量計算の意味を変える場合はartifact schema versionを上げて再学習し、旧版をruntime互換とみなさない。
@@ -166,6 +166,6 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 - `docs/history_data.json` は廃止済み契約。`src/dashboard.py` と publish workflow が存在すれば削除する
 - `web/public/` はローカル開発用同期先。公開元は `docs/`
 - **`docs/` 直下に新しいデータファイルを追加したら publish workflow の `--exclude` へ追加**（`tests/test_publish_workflow.py` が検査）
-- `state.json` の `last_update` は JST。監査系レポートの `generated_at` は一部 naive（JST 未統一）
+- `state.json` の `last_update` は JST。監査・再学習・バックテスト系レポートの `generated_at` は `+09:00` 付き JST ISO 8601
 - テストは pytest 非依存の standalone スクリプト（`uv run python tests/test_<name>.py`）。DB 不要で全件実行できる
 - `main.py` をローカル実行すると `docs/` / `web/public/`（git 管理対象）と `data/outbox/` が書き換わるため、コミット前に `git checkout -- docs/ web/public/` 等での復元に注意

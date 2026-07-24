@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import warnings
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from .model import (
     train_with_purged_internal_validation,
 )
 from .predictor import action_from_probability, resolve_thresholds
+from .timeutil import now_jst_iso
 
 _LONG_ONLY_POSITION = {
     "BUY": 1.0,
@@ -1096,7 +1097,7 @@ def summarize_holdout(entries):
 def write_backtest_report(entries):
     label_cfg = get_label_config()
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "label_mode": label_cfg.get("label_mode"),
         "horizon_days": effective_horizon(label_cfg),
         "execution_contract": execution_contract_metadata(),

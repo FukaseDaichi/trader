@@ -1,6 +1,6 @@
 # 補助スクリプト仕様
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 ## ガード・カレンダー
 
@@ -115,5 +115,5 @@ KPI 設定の `--cost-bps`（既定20）と `--slippage-bps`（既定10）だけ
 ## 実装上の共通点
 
 - 多くのスクリプトは `ROOT_DIR` を `sys.path` へ追加し、リポジトリ外からも `src.*` を import 可能
-- DB 系スクリプトは `TRADER_DB_ENABLED=false` または `DATABASE_URL` 未設定で no-op
-- 監査系レポートの `generated_at` は一部 timezone naive な `datetime.now()`、キュレーション系は `+09:00` 付き（`06_issues_and_backlog.md` の低優先課題）
+- DB参照や毎回再生成できるsnapshot書き込みは、`TRADER_DB_ENABLED=false`または`DATABASE_URL`未設定でno-op。週次Phase 1のmodel registry登録など再送が必要なイベントは`data/outbox/`へ保存
+- 監査・再学習・バックテスト系レポートの `generated_at` は、`src.timeutil.now_jst_iso()` による timezone-aware な JST ISO 8601 形式

@@ -1,6 +1,6 @@
 # specification_document の構成
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 このディレクトリは、**ソースコードを正とする現行仕様（as-built）**と、**未解決の課題・バックログ**を管理します。通常の実装計画は完了後に削除しますが、ユーザー指定の優先度一覧や運用移行を伴う計画は、判断記録として明示的に保持できます。
 
@@ -28,5 +28,5 @@
    git log --diff-filter=D --summary -- 'specification_document/plans/' 'specification_document/improvement_roadmap.md'
    ```
 
-   Phase 0（計測基盤）/ Phase 1（シグナル品質）/ Phase 2（クロスセクション・ポートフォリオ）/ Phase 3（手動トレードUX・堅牢化）の各計画と、その大元の `improvement_roadmap.md` は **全フェーズ実装完了を確認のうえ 2026-06-11 に削除**した（テスト20スイート全パス、成果物突合済み）。
+   Phase 0（計測基盤）/ Phase 1（シグナル品質）/ Phase 2（クロスセクション・ポートフォリオ）/ Phase 3（手動トレードUX・堅牢化）の各計画と、その大元の `improvement_roadmap.md` は **全フェーズ実装完了を確認のうえ 2026-06-11 に削除**した（当時のテスト20スイート全パス、成果物突合済み）。
 4. `ai_ticker_curation/` 配下のファイル名は `scripts/curation_*.py` や `curation_pool.yml` のコメントから参照されているため、改名・削除しない。

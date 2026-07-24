@@ -31,6 +31,10 @@ def resolve_thresholds(thresholds=None):
             if key in thresholds and thresholds[key] is not None:
                 resolved[key] = float(thresholds[key])
 
+    for key, value in resolved.items():
+        if not math.isfinite(value):
+            raise ValueError(f"thresholds.{key} must be finite")
+
     sell = resolved["sell"]
     mild_sell = resolved["mild_sell"]
     mild_buy = resolved["mild_buy"]
@@ -59,6 +63,15 @@ def _is_missing_or_nan(value):
         return True
     try:
         return math.isnan(float(value))
+    except (TypeError, ValueError):
+        return True
+
+
+def _is_missing_or_nonfinite(value):
+    if value is None:
+        return True
+    try:
+        return not math.isfinite(float(value))
     except (TypeError, ValueError):
         return True
 
@@ -96,7 +109,7 @@ def build_long_exit_plan(close_price, atr, label_config=None):
     Prices are rounded to whole yen (JP equities trade in integer prices);
     percentages are signed relative moves from the entry close.
     """
-    if _is_missing_or_nan(close_price) or _is_missing_or_nan(atr):
+    if _is_missing_or_nonfinite(close_price) or _is_missing_or_nonfinite(atr):
         return None
     close_price = float(close_price)
     atr = float(atr)

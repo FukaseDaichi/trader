@@ -1,6 +1,6 @@
 # フロントエンド仕様
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 ## 技術スタック
 
@@ -18,7 +18,7 @@
 
 ## データ取得
 
-静的 JSON をクライアント側で fetch します。`src/lib/fetchJson.ts` の `fetchJson<T>(path, isValid)` が共通入口で、**ランタイム型ガードに通らない JSON は null 扱い**（=カード非表示）になります。HTTP エラー・parse 失敗・検証失敗のどれでも UI 全体は壊れません。
+静的 JSON をクライアント側で fetch します。`src/lib/fetchJson.ts` の `fetchJson<T>(path, isValid)` が共通入口で、ランタイム型ガードに通らないJSONは`null`扱いになります。HTTPエラー・parse失敗・ガード不合格は各画面のエラー表示またはカード単位の非表示へ縮退します。必須2契約のガードは画面が無条件参照する最小フィールド、任意契約の共通ガードはトップレベル`available`だけを検査します。
 
 | 画面/部品 | 読み込み先 | 契約 |
 |---|---|---|
@@ -94,13 +94,15 @@ npm run dev --prefix web          # 開発
 npm run build --prefix web        # 通常ビルド
 npm run build:prod --prefix web   # GitHub Pages 向け（NEXT_PUBLIC_BASE_PATH=/trader）
 npm run lint --prefix web
+npm --prefix web exec -- tsc --noEmit --project web/tsconfig.json
 ```
 
-ユニットテストランナーは導入しない（リポジトリ慣習）。品質ゲートは `npm run lint && npx tsc --noEmit`。
+ユニットテストランナーは導入しない（リポジトリ慣習）。品質ゲートはlint、TypeScript型検査、本番静的ビルドです。
 
 ## 現行制約
 
 - エラーバウンダリ、専用 404、専用 loading ページは未実装
+- ランタイム型ガードは最小限で、任意JSONのネストした全フィールドまでは検証しない
 - チャートのアクセシビリティ対応は限定的
 - `tailwind-merge` は依存にあるが未使用
 - 検索状態の URL クエリ保存、ライト/ダーク切替はスコープ外

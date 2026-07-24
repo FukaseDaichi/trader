@@ -576,7 +576,7 @@ def run_retrain(output_path: Path, version: str) -> int:
 
     active_after = model_store.read_active_model() or {}
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "model_version": version,
         "candidate_version": version,
         "active_model_version": active_after.get("version"),

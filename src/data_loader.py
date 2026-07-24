@@ -3,6 +3,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
@@ -147,6 +148,12 @@ def _validate_ohlcv(df, ticker_code=None, source=None):
     warnings = []
 
     price_cols = ["open", "high", "low", "close"]
+    finite_mask = np.isfinite(validated[price_cols + ["volume"]]).all(axis=1)
+    invalid_finite = int((~finite_mask).sum())
+    if invalid_finite:
+        warnings.append(f"invalid_non_finite_ohlcv:{invalid_finite}")
+        validated = validated.loc[finite_mask].copy()
+
     positive_mask = (validated[price_cols] > 0).all(axis=1) & (validated["volume"] >= 0)
     invalid_positive = int((~positive_mask).sum())
     if invalid_positive:

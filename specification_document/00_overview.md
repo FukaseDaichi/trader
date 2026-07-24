@@ -1,8 +1,8 @@
 # 現行仕様概要
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
-このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-07-20 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.claude/skills/`、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
+このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-07-24 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.claude/skills/`、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
 
 ## 対象
 

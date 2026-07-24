@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI株式トレーダー フロントエンド
 
-## Getting Started
+`web/`は、リポジトリ直下の`docs/`に生成されるJSONを表示するNext.js静的ダッシュボードです。本番はVercelではなく、`/trader`ベースパスで静的エクスポートしてGitHub Pagesから配信します。
 
-First, run the development server:
+## ローカル開発
+
+リポジトリ直下で実行します。
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install --prefix web
+npm run dev --prefix web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+開発サーバーは通常[http://localhost:3000](http://localhost:3000)で開きます。`web/public/dashboard_index.json`と`web/public/tickers/*.json`は`main.py`実行時、またはpublish workflowのビルド前に`docs/`から同期されます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 検証と本番ビルド
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint --prefix web
+npm --prefix web exec -- tsc --noEmit --project web/tsconfig.json
+npm run build:prod --prefix web
+```
 
-## Learn More
+`build:prod`は`NEXT_PUBLIC_BASE_PATH=/trader`を設定し、`web/out/`へ静的サイトを出力します。`Daily Publish Dashboard` workflowがこの出力を`docs/`へ同期し、パイプライン生成JSONを除外して保護します。
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+画面構成、データ契約、表示規約は[フロントエンド仕様](../specification_document/02_frontend_web.md)、システム全体のセットアップは[ルートREADME](../README.md)を参照してください。

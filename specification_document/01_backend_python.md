@@ -1,6 +1,6 @@
 # Pythonバックエンド仕様
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 ## モジュールマップ
 
@@ -8,6 +8,8 @@
 |---|---|
 | `main.py` | 日次処理のオーケストレーション。銘柄単位の障害分離と run 全体の縮退運転 |
 | `src/config.py` | env 読み込みと設定 dict の組み立て（`get_*_config()` 群）。`tickers.yml` 検証 |
+| `src/env.py` | env の文字列・整数・有限float・booleanを共通解析。不正値のfail-fast／既定値縮退方針を呼び出し側が選択 |
+| `src/timeutil.py` | JSTの現在日時・日付と、UTCオフセット付きISO 8601文字列の共通生成 |
 | `src/data_loader.py` | OHLCV 取得（Stooq → yfinance フォールバック）、検証、parquet 保存、無効銘柄の退避 |
 | `src/model.py` | 34 テクニカル特徴量、`build_feature_frame()`、purged internal validation付きPhase 1学習。`train_and_predict()`は互換helperとして残るが日次配信経路では不使用 |
 | `src/macro.py` | マクロパネル（USD/JPY・TOPIX・日経・日経VI・JGB10y）と 11 マクロ特徴量 |
@@ -67,7 +69,7 @@
 
 `load_tickers()` は `tickers.yml` を検証してから `enabled` 銘柄を抽出します（`code`/`name` 非空必須、`enabled` boolean、code 重複エラー、`settings.max_tickers` の件数制限）。`settings.curation` や `watchlist` はキュレーション用で、日次予測本体は無視します。
 
-全環境変数の正典はコメント付きの `.env.example` です（既定値は `src/config.py`）。
+全環境変数の正典はコメント付きの `.env.example` です（既定値は `src/config.py`）。`src.env`経由のfloat設定は有限値のみ有効で、`NaN` / `Infinity` は受け付けません。`src/config.py` が起動時に読む主要設定は不正値でfail-fastし、データ取得など日次処理中の補助設定は警告して既定値へ縮退します。
 
 ## データ取得（src/data_loader.py）
 
@@ -75,7 +77,7 @@
 - Stooq URL: `https://stooq.com/q/d/l/?s={ticker_code}&i=d`、yfinance は `NNNN.JP` → `NNNN.T`
 - 鮮度判定: `data/jpx_holidays.json` で JST の直近完了営業日と比較（`TRADER_DATA_STALE_OPEN_DAYS`、既定 0）
 - フォールバック: Stooq 失敗または鮮度不足時、`TRADER_YF_FALLBACK_ENABLED=true` なら yfinance
-- 検証: 正値、OHLC 関係、異常な終値変化。警告は DataFrame attrs 経由でレポートの `data_validation_warnings` へ
+- 検証: OHLCVの非有限値を含む行を除外したうえで、価格の正値、OHLC 関係、異常な終値変化を検査。警告は DataFrame attrs 経由でレポートの `data_validation_warnings` へ
 - `update_data(dest_dir=...)` で任意ディレクトリへ保存可能（キュレーション warmup は `data/watchlist/`）
 
 ## 特徴量
@@ -133,9 +135,10 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 ## シグナルとATR出口プラン（src/predictor.py）
 
 - `generate_signal()` は生のアクションが `BUY` / `MILD_BUY` のときだけ `build_long_exit_plan()` を呼びます。`SELL` / `MILD_SELL` / `HOLD` にロング出口は付きません。
+- 5つのシグナル閾値は有限値で、売買確率は`0..1`、順序は`sell < mild_sell < mild_buy < buy`を必須とします。不正なら`ValueError`とし、日次の銘柄単位障害分離によってfailed HOLDへ縮退します。
 - 利確価格は `round(close + tb_tp_atr × ATR)`、損切価格は `round(close - tb_sl_atr × ATR)`、時間出口は `tb_max_days` 営業日です。既定値は `+1.5 ATR` / `-1.0 ATR` / 5営業日で、トリプルバリア学習ラベルと同じ `get_label_config()` を使います。
 - `exit_plan` は `take_profit_price` / `stop_price` / 両者の現在値比 / `time_exit_days` / ATR / ATR倍率を持ち、主要値はシグナル直下にも平坦化されます。既存DB列との互換のため `stop_loss` は `stop_price` と同じ値です。`limit_price` は強い `BUY` / `SELL` の入口指値目安（現在値から0.5%）で、出口価格とは別です。
-- ATRが欠損・NaN・0以下なら `exit_plan: null` に縮退します。ゲート未達またはモデル失敗でHOLDへ強制するときは `_clear_entry_exit_fields()` が `limit_price`、利確、損切、期限をすべて `null` にします。出口プランは手動注文の目安で、自動発注は行いません。
+- 終値またはATRが欠損・非有限、もしくはATRが0以下なら `exit_plan: null` に縮退します。ゲート未達またはモデル失敗でHOLDへ強制するときは `_clear_entry_exit_fields()` が `limit_price`、利確、損切、期限をすべて `null` にします。出口プランは手動注文の目安で、自動発注は行いません。
 
 ## Phase 2 クロスセクション + ポートフォリオ
 
@@ -155,9 +158,9 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 
 ## 計測（Phase 0: src/db.py, src/db_records.py）
 
-- `record_run()`: signals → `predictions` + `signals` テーブルへ upsert（event_id `run_date:ticker:event_type` で冪等）。接続不可時は `data/outbox/YYYY-MM-DD.jsonl` へキューし、次回成功時に `flush_outbox()` でリプレイ
+- `record_run()`: signals → `predictions` + `signals` テーブルへ upsert（event_id `run_date:ticker:event_type` で冪等）。接続不可時は時刻名の `data/outbox/*.jsonl` へキューし、次回成功時に `flush_outbox()` でリプレイ
 - 週次Phase 1の`model_registry`登録もDB障害時はactive file pointerのprovenanceを含む安定event IDでoutboxへキューする。リプレイ時のactive更新は`kind`単位で、Phase 1登録がCS activeフラグを消さない
-- `DATABASE_URL` 未設定または `TRADER_DB_ENABLED=false` なら DB 系は全て no-op
+- `DATABASE_URL` 未設定または `TRADER_DB_ENABLED=false` ならDB接続は行わず、日次prediction/signal、Phase 2 prediction、週次model registryなど再送可能なイベントはoutboxへ保存する。参照・集計や毎回再生成できるsnapshot書き込みはno-op
 - 決済は `scripts/settle_outcomes.py`（`04_scripts.md`）。`signal_outcomes` は `market_as_of_date`、実際の `entry_date`、価格基準、`contract_version` を保持する。TOPIXパネルは終値しかなくv2と同基準の翌日寄付きが作れないため、v2の `benchmark_ret` / `excess_ret` は NULL、`benchmark_basis=unavailable_same_basis` とする。旧v1だけが close-to-close TOPIX補填対象
 - `db_size_mb()` による容量監視（`TRADER_DB_STORAGE_WARN_MB=400` 超で performance_summary に警告）
 

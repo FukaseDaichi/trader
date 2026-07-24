@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -22,6 +21,7 @@ from src.backtest import evaluate_kpi_gate
 from src.config import BACKTEST_GATE_CONFIG, TICKERS
 from src.data_loader import load_data
 from src.model import add_features
+from src.timeutil import now_jst_iso
 
 
 def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> int:
@@ -76,7 +76,7 @@ def run_stress_test(output_path: Path, cost_bps: float, slippage_bps: float) -> 
 
     ok_entries = [e for e in entries if e.get("status") == "ok"]
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "assumption": {"cost_bps": cost_bps, "slippage_bps": slippage_bps},
         "summary": {
             "total": len(entries),

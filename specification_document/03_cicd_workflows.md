@@ -1,6 +1,6 @@
 # GitHub Actions仕様
 
-更新日: 2026-07-20 JST
+更新日: 2026-07-24 JST
 
 ## ワークフロー一覧
 
@@ -19,6 +19,7 @@
 | Nightly Rotating Refresh | `nightly-rotating-refresh.yml` | 平日 19:30 | 銘柄をバケット分割して更新 | `data/`, `docs/rotating_refresh_report.json` |
 | Quarterly Stress Test | `quarterly-stress-test.yml` | 四半期初日 10:00 | 高コスト前提 KPI 評価 | `docs/stress_test_report.json` |
 | Manual DB Migrate | `manual-db-migrate.yml` | 手動（`workflow_dispatch`） | `migrations/*.sql` を冪等適用（`dry_run` でプレビュー） | なし（DB のみ） |
+| CI Tests | `ci-tests.yml` | code/workflow変更のpush・pull request、手動 | Pythonの全`tests/test_*.py`をplain scriptとして実行 + frontend lint・本番静的ビルド | なし |
 
 ## 日次処理
 
@@ -61,7 +62,7 @@ workflowが直接使うJavaScript ActionはNode 24対応版に統一していま
 
 GitHub-hosted `ubuntu-latest` を前提とします。self-hosted runnerへ移す場合は、Node 24 Actionに必要なActions Runner `v2.327.1` 以上を使います。
 
-書き込み系 workflow は `contents: write`、watchdog は `contents: read` + `issues: write`、`manual-db-migrate` は `contents: read` のみ（本番 DB へ適用するだけで commit/push しない）。日次 core/retry は concurrency group `daily-core-main` で直列化、publish は `daily-publish-main`、キュレーション系は `daily-curation-main` / `weekly-fundamental-main`。
+書き込み系 workflow は `contents: write`、watchdog は `contents: read` + `issues: write`、`manual-db-migrate` と `ci-tests` は `contents: read` のみ（commit/pushしない）。日次 core/retry は concurrency group `daily-core-main` で直列化、publish は `daily-publish-main`、キュレーション系は `daily-curation-main` / `weekly-fundamental-main`。`ci-tests` はref単位で旧実行をcancelし、`docs/`・`data/`・`reports/`だけのbot更新では起動しません。
 
 commit/push は `.github/scripts/commit-and-push.sh` に集約（`git add -A` → commit → `git pull --rebase --autostash` → push 最大 3 回リトライ、差分なしは正常終了）。
 

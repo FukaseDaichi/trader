@@ -11,6 +11,7 @@ intact:
 
 from __future__ import annotations
 
+import math
 import os
 
 _TRUTHY = {"1", "true", "yes", "on"}
@@ -40,10 +41,13 @@ def get_env_float(name: str, default: float, *, invalid: str = "default") -> flo
     if raw in (None, ""):
         return float(default)
     try:
-        return float(raw)
+        value = float(raw)
+        if not math.isfinite(value):
+            raise ValueError
+        return value
     except ValueError as e:
         if invalid == "raise":
-            raise ValueError(f"{name} must be a float value") from e
+            raise ValueError(f"{name} must be a finite float value") from e
         print(f"Invalid {name}={raw!r}. Falling back to {default}.")
         return float(default)
 

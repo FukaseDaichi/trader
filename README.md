@@ -9,7 +9,7 @@
 - **Phase 2（ポートフォリオ・シャドー運用中）**: ユニバース全体を1つのクロスセクショナルモデルで予測し、リスク制約付きロングオンリーの目標ポートフォリオを毎日提案（シャドー中はPhase 1のシグナル・通知に影響しない）
 - **Phase 3（手動トレードUX・運用堅牢化）**: トリプルバリアと同じ幅を使うATR出口プラン、v2約定・非重複cohort・往復コスト後の実績ページ（同一basis TOPIXがある場合だけ比較）と個別結果履歴（`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、fail-closedなactive mode配線
 
-このREADMEは2026-07-20時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。P0/P1設計是正の実装結果と未完了の運用移行は`specification_document/plans/2026-07-20-critical-high-priority-remediation.md`、現行仕様・既知課題は`specification_document/`を参照してください。
+このREADMEは2026-07-24時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。P0/P1設計是正の実装結果と未完了の運用移行は`specification_document/plans/2026-07-20-critical-high-priority-remediation.md`、現行仕様・既知課題は`specification_document/`を参照してください。
 
 ## 公開ダッシュボード
 
@@ -22,12 +22,12 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 ## 現行機能
 
 - `tickers.yml`の有効銘柄（現在約50銘柄）を監視対象にする
-- Stooqから日足OHLCVを取得し、鮮度不足または取得失敗時はyfinanceへフォールバックする
+- Stooqから日足OHLCVを取得し、非有限値を含む行を除外して価格・OHLC関係を検証する。鮮度不足または取得失敗時はyfinanceへフォールバックする
 - JPX休日キャッシュでデータ鮮度とGitHub Actionsの営業日実行を判定する
 - テクニカル34個＋マクロ/レジーム11個の特徴量を生成する（USD/JPY、TOPIX、日経平均、日経VI、JGB10年）
 - 実際に推論する同一candidateのpurged OOSをtuning/embargo/holdoutへ分離し、日次sleeveのCAGR、最大ドローダウン、Sharpe、平均日次純リターン、往復取引数を評価する。証跡不一致またはKPI未達銘柄は`HOLD`へ強制する
 - 銘柄ごとのBUY/MILD_BUY/MILD_SELL/SELL閾値を自動最適化する
-- ゲートを通過した`BUY`/`MILD_BUY`に、学習ラベルと同じトリプルバリア幅を使った利確・損切り・時間出口（既定: `+1.5 ATR` / `-1.0 ATR` / 5営業日）を付ける。ATR欠損時は出口プランだけを省略して日次処理を継続する
+- ゲートを通過した`BUY`/`MILD_BUY`に、学習ラベルと同じトリプルバリア幅を使った利確・損切り・時間出口（既定: `+1.5 ATR` / `-1.0 ATR` / 5営業日）を付ける。終値またはATRが欠損・非有限の場合は出口プランだけを省略して日次処理を継続する
 - schema v3 manifest/checksum検証済みの週次モデル（isotonic較正付き）で日次推論し、保存モデルが無い銘柄はartifact/gate契約hash付きversionと自身のholdoutゲート証跡を持つephemeral candidateへフォールバックする（`TRADER_MODEL_MODE=auto`）
 - 予測・シグナル・実現リターンと週次model registry登録をNeon Postgresへ書き込み、DB不通時は`data/outbox/`のJSONLキューへ退避して次回再送する
 - 日次推論と同じruntime artifact契約を検証したうえでIC/Brier/PSIによるモデルドリフト監視を行い、しきい値超過でGitHub Issueを自動起票する
@@ -44,7 +44,7 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 |---|---|---|
 | 日次ジョブ | `main.py` | データ更新、特徴量、KPIゲート、予測、通知、Phase 0 DB書き込み、Phase 2推論、ダッシュボード更新 |
 | 設定 | `src/config.py`, `tickers.yml`, `.env.example` | 銘柄、環境変数、パス、KPI/モデル/ポートフォリオ設定 |
-| データ取得 | `src/data_loader.py` | Stooq/yfinance取得、鮮度・異常値検証、parquet同期、無効銘柄の退避 |
+| データ取得 | `src/data_loader.py` | Stooq/yfinance取得、鮮度・OHLCV有限性/異常値検証、parquet同期、無効銘柄の退避 |
 | 特徴量・モデル | `src/model.py`, `src/macro.py`, `src/labels.py` | テクニカル/マクロ特徴量、ラベル生成、LightGBM学習・推論 |
 | モデル運用 | `src/model_store.py`, `src/phase1.py`, `src/calibration.py` | schema v3 artifact、exact-candidate証跡、manifest/checksum、atomic active化、保存／ephemeral推論、isotonic較正 |
 | KPIゲート | `src/backtest.py` | purged OOSのtuning/holdout分離、日次sleeveシミュレーション、閾値最適化、metrics schema v2 |
@@ -117,7 +117,7 @@ uv run python main.py
 
 ## 環境変数
 
-主要な変数のみ示します。全変数と詳細コメントは`.env.example`が正です。
+主要な変数のみ示します。全変数と詳細コメントは`.env.example`が正です。数値の環境変数には有限値を指定し、`NaN`や`Infinity`は使用しません。共通パーサーを使うfloat設定は、起動時に組み立てる主要設定では不正値をエラーにし、データ取得などの日次補助設定では警告して既定値へ戻します。
 
 ### 基本・データ取得
 
@@ -148,8 +148,8 @@ uv run python main.py
 
 | 変数 | 用途 | 既定値 |
 |---|---|---|
-| `DATABASE_URL` | Neon Postgres接続文字列。未設定ならDB書き込みスキップ | 未設定 |
-| `TRADER_DB_ENABLED` | DB書き込みの有効化 | `true` |
+| `DATABASE_URL` | Neon Postgres接続文字列。未設定ならDB接続をスキップし、prediction/signal等をoutboxへ保存 | 未設定 |
+| `TRADER_DB_ENABLED` | DB接続の有効化。`false`時も再送可能なイベントはoutboxへ保存 | `true` |
 | `TRADER_DB_FALLBACK_DIR` | DB不通時のJSONLキュー出力先 | `data/outbox` |
 | `TRADER_DB_WRITE_TIMEOUT_SEC` | DB接続タイムアウト秒 | `15` |
 | `TRADER_DB_STORAGE_WARN_MB` | DBサイズ警告しきい値MB | `400` |
@@ -325,6 +325,7 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 | `Nightly Rotating Refresh` | 平日 19:30 | 有効銘柄を分割して夜間更新 |
 | `Quarterly Stress Test` | 四半期初日 10:00 | 高コスト前提のKPI確認 |
 | `Manual DB Migrate` | 手動 | `migrations/*.sql`を冪等適用（DB初期化/更新。`dry_run`でプレビュー） |
+| `CI Tests` | push / pull request / 手動 | Pythonの全plain-scriptテストとフロントエンドlint・本番静的ビルド |
 
 すべての書き込み系workflowは、commit/pushを共通ヘルパ`.github/scripts/commit-and-push.sh`（`git pull --rebase --autostash`＋最大3回リトライ）に集約しています。
 
@@ -354,13 +355,13 @@ Claudeをサブスク（`CLAUDE_CODE_OAUTH_TOKEN`）でGitHub Actions上で実�
 
 ## 銘柄選定スキル（対話実行）
 
-このリポジトリには、対話的に`tickers.yml`を更新するための`jp-stock-ticker-curation`スキルがあります。依頼例:
+このリポジトリには、一次情報から候補を調査し、ガードレールを通る変更だけを決定論`curation_merge.py`経由で`tickers.yml`へ反映する`jp-stock-ticker-curation`スキルがあります。依頼例:
 
 ```text
 jp-stock-ticker-curation を使って、最新情報で有望な日本株を選んで tickers.yml を更新して
 ```
 
-スキルは企業IRや決算資料などの一次情報を優先し、業績モメンタム、ガイダンス、還元方針、バリュエーション、セクター分散を見て`tickers.yml`を更新します。
+スキルは企業IRや決算資料などの一次情報を優先し、業績モメンタム、ガイダンス、還元方針、バリュエーション、セクター分散を見て候補JSONを作ります。`tickers.yml`は直接編集せず、現在のテクニカル結果、warmup、churn、セクター、鮮度のガードを満たす候補だけを決定論スクリプトが反映します。条件未達の候補は提案として報告し、安全策を迂回しません。
 
 ## 注意
 

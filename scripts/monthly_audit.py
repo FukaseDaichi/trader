@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -21,6 +20,7 @@ from src.backtest import evaluate_kpi_gate
 from src.config import BACKTEST_GATE_CONFIG, TICKERS
 from src.data_loader import load_data
 from src.model import add_features
+from src.timeutil import now_jst_iso
 
 
 def _safe_mean(values: list[float]) -> float:
@@ -99,7 +99,7 @@ def run_audit(output_path: Path) -> int:
     }
 
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "summary": summary,
         "entries": entries,
     }

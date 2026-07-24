@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -19,6 +18,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.config import TICKERS
 from src.data_loader import load_data
+from src.timeutil import now_jst_iso
 
 
 def run_universe_refresh(output_path: Path) -> int:
@@ -42,7 +42,7 @@ def run_universe_refresh(output_path: Path) -> int:
         )
 
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "universe_size": len(entries),
         "active_tickers": [e["ticker"] for e in entries],
         "entries": entries,

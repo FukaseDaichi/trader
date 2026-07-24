@@ -16,5 +16,9 @@ def now_jst() -> datetime:
     return datetime.now(JST)
 
 
+def now_jst_iso() -> str:
+    return now_jst().isoformat(timespec="seconds")
+
+
 def today_jst() -> date:
     return now_jst().date()
