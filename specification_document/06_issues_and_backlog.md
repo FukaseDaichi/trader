@@ -1,55 +1,147 @@
-# 既知の課題・運用チェックリスト・バックログ
+# 既知の課題・運用計画・バックログ
 
 更新日: 2026-07-24 JST
 
-この文書は「現時点で直っていないこと」と「対応方針」を扱います。各項目は**かみくだき説明**を先頭に置きます。解決済みの修正履歴は git log を参照してください。
+この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」を扱います。解決済みの修正履歴はgit logを参照してください。日付は最短の目安であり、条件未達なら延期します。
 
-## 要対応
+## 結論
 
-### P0制約 — Phase 2 active化を継続禁止する
+- **2026-07-25（土）の週次処理後に行う**: v2/schema v3移行後として初めてのPhase 2バックテストとshadow reportを新しい基準値にする。2026-07-19の旧レポートはactive判断へ流用しない。
+- **2026-07-27（月）から2026-08-21（金）まで行う**: 最低4週間、日次・週次のshadow運用を監視する。期間経過だけで完了扱いにせず、観測数が実際に増えていることを必要条件にする。
+- **2026-08-22（土）に最初の総合判定を行う**: 全active条件が揃った場合だけ、人間がactive化の是非を判断する。条件未達なら日付に関係なくshadowを継続する。
+- **最短でも2026-08-24（月）まではactive化しない**: `TRADER_PORTFOLIO_MODE=shadow`を維持する。これは予定日ではなく、全条件合格時の最短日である。
 
-**かみくだき**: 現在のマクロパネルはTOPIX終値しか持たず、戦略と同じ「翌営業日寄付き→H営業日目終値」の比較リターンを作れない。これを終値同士のリターンで代用するとIRが別条件になるため、benchmarkは意図的にunavailableとなり、activeゲートは閉じる。
+## 現在地（2026-07-24）
 
-- `portfolio_backtest.json`は現行v2、net-vs-net、benchmark完全coverage、明示的なgate合格、かつ当日snapshotと同じCS `model_version`が揃う場合だけactive可とする。旧レポートで新モデルをactive化しない。
-- 同一basisのTOPIX open系列を取得・検証するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
-- TOPIX openを追加しない方針なら、Phase 2 activeは未提供のままとし、benchmarkなしshadow分析として明記する。
+| 項目 | 状態 | 判断 |
+| --- | --- | --- |
+| execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
+| Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
+| Phase 1個別KPI gate | `gate_passed_tickers=0/50` | 要監視。新しいactionable signalと決済サンプルが増えない可能性がある |
+| drift | 50銘柄すべて実績サンプル不足。breachは未判定 | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
+| Phase 2レポート | 最新は2026-07-19生成。portfolio gate不合格（IR・turnover）、`active_ready=false` | v2/schema v3移行後の基準値として使わず、2026-07-25に更新する |
+| TOPIX benchmark | 同一basisのopen系列がなく、v2の`benchmark_ret`/`excess_ret`はNULL | active化を禁止するP0制約 |
+| 実行モード | core/retry workflowとも`TRADER_PORTFOLIO_MODE=shadow`を明示 | 維持する |
 
-### P1運用移行 — 設定名と4週間shadow監視
+## 実施計画
 
-- 実行環境から旧`TRADER_KPI_MIN_EXPECTANCY`、`TRADER_KPI_MIN_TRADES`、`TRADER_AUTO_THRESHOLD_MIN_TRADES`、objective=`expectancy`、`TRADER_LABEL_MODE=vol_norm`を除去し、`.env.example`のcanonical名へ移行する。旧値は警告付きalias／安全縮退としてしか残っていない。
-- v2再集計とschema v3 active化後、新旧成績差、観測数、ephemeral fallback率、銘柄別ゲート通過率、reliability source内訳を最低4週間shadow監視する。
-- Phase 2の`turnover`はv2で「旧book全決済＋新book全建て＋最終決済」の両側notionalへ意味が変わった。既定`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER=0.40`は旧netted turnover由来なので、TOPIX open導入後のactive判定前にv2 shadow分布から再校正する。根拠が揃うまでは閾値を無変更のままfail-closeさせる。
-- 4週間経過後も、Phase 2の同一basis benchmark coverageと`active_readiness`を満たした場合に限り、人間がactive化を別途判断する。
+### 1. 次の週次処理 — 新しいshadow基準値を作る（2026-07-25 08:00 JST）
+
+定期workflowに任せ、終了後に次を確認する。
+
+- Phase 1候補がschema v3、全対象coverage、candidate validation合格であること。週次ごとにversionが変わるのは正常であり、固定versionではなくruntime契約の一致を確認する。
+- Phase 2 CSモデル、`portfolio_backtest.json`、`portfolio_shadow_report.json`が同じ週次実行で更新されること。
+- `portfolio_backtest.json`のexecution contractがv2、net-vs-net、CS `model_version`が当日snapshotと一致すること。
+- `active_readiness.active_ready=false`であることを確認する。TOPIX同一basis coverageがない間にtrueなら異常として扱う。
+- model registry失敗やoutbox/dead letterがないことを確認する。
+
+2026-07-19以前のportfolio/shadow指標は移行前の履歴としてのみ残し、新しいactive判断には使用しない。
+
+### 2. 初週 — 観測が増えるか確認する（2026-07-27〜08-01）
+
+最初の営業週は、単にエラーがないことではなく、次の分母が増えていることを確認する。
+
+- 保存済みschema v3モデルの利用率とephemeral fallback率
+- 銘柄別KPI gate通過数、actionable signal数、HOLD縮退理由
+- v2の1/5/10日決済件数と`realized_ret`欠損
+- driftの`n_outcomes`と`insufficient_sample_tickers`
+- shadow reportの`n_paired_dates`、`n_paired_records`、date coverage、除外理由
+- Phase 1/Phase 2のdaily IC差、portfolio gate、IR、turnover
+
+**2026-08-01の判定点**:
+
+- `gate_passed_tickers=0`が続き、actionable signal・決済・paired dataが増えない場合、4週間ただ待つのをやめてPhase 1品質調査を開始する。
+- 調査では銘柄別の失敗理由、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibrationを確認する。
+- シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
+- artifact不整合、registry不一致、日次ephemeral fallback急増があれば、その日のうちに調査する。active化の時計は停止する。
+
+### 3. 並行判断 — TOPIX openの方針を決める（期限: 2026-08-01）
+
+この判断は4週間後まで先送りしない。次のどちらかを明示的に選ぶ。
+
+1. **Phase 2 activeを将来提供する**: 同一basisのTOPIX open系列の取得元、調整方法、欠損時契約を決め、履歴をbackfillする。実装後にv2・net-vs-netでCSバックテストを再実行する。
+2. **TOPIX openを追加しない**: Phase 2は期限を定めないshadow-only機能とし、active化関連のチェック項目は保留ではなく「提供しない方針」として整理する。
+
+終値同士のTOPIXリターンで代用する案は採用しない。戦略と比較条件が変わり、IRの意味が壊れるためである。
+
+### 4. 4週間shadow監視（2026-07-27〜08-21）
+
+週次確認日は2026-08-01、08-08、08-15、08-22とする。毎週、同じ観点で記録する。
+
+| 観点 | 合格方向 | 即時停止条件 |
+| --- | --- | --- |
+| Phase 1 artifact | schema v3、全coverage、runtime互換、registry一致 | checksum/manifest/契約不一致 |
+| Phase 1 gate | 通過銘柄とactionable観測が増え、失敗理由を説明できる | 0/50固定で観測が増えない |
+| drift/reliability | outcome数が増え、sourceとversion provenanceが明確 | fallback急増、十分なサンプルで閾値breach |
+| Phase 2 provenance | v2、exact CS version、paired coverageが増える | 旧契約・別version・欠損補完の混入 |
+| portfolio KPI | gate合格、IR・DD・Sharpe・turnoverが有限で再現可能 | benchmark coverage不足、必須指標NULL、gate不合格 |
+| 運用健全性 | DB/outbox/dead letter、ダイジェスト、dashboardが整合 | 書き込み停止、鮮度低下、通知とDBの不一致 |
+
+4週間という期間は必要条件であって十分条件ではない。休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
+
+### 5. 最初の総合判定（2026-08-22）
+
+以下を**すべて**満たした場合だけ、active化を人間が検討できる。
+
+- [ ] 4週間の週次記録があり、観測数とpaired coverageが実際に増加
+- [ ] Phase 1 schema v3のruntime/manifest/registryが継続して整合
+- [ ] Phase 1のKPI通過・actionable signal・決済サンプルが、判断に使える量まで増加
+- [ ] TOPIX同一basis open系列の契約・履歴・完全coverageを確認
+- [ ] portfolio backtestが現行v2、strategy net対benchmark net、必須指標有限、明示的gate合格
+- [ ] v2 shadow分布を根拠に`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`を再校正し、変更理由を記録
+- [ ] shadow reportの`active_readiness.active_ready=true`
+- [ ] backtestと当日snapshotのCS `model_version`が完全一致
+- [ ] 最終的なactive化を人間が明示承認
+
+1項目でも未達なら`shadow`を継続する。現在の証拠では、TOPIX coverage不足、portfolio gate不合格、Phase 1 gate 0/50のためactive化できない。
+
+### 6. 条件合格後のみ — controlled active化（最短2026-08-24）
+
+- coreとretryの`TRADER_PORTFOLIO_MODE`を同時に`active`へ変更する。片方だけ変更しない。
+- 最初の1週間は毎朝、ダイジェストの建玉、`docs/portfolio_latest.json`、DB `signals.target_weight`を照合する。
+- gate fail、snapshot欠損、CS version不一致時にtarget weightが反映されず、安全に縮退することを確認する。
+- 最初の週次レビューは2026-08-29を目安とする。異常時は`shadow`へ戻す。
+
+## 今後の流れの妥当性検証
+
+全体の順序は妥当だが、次の補強を入れた。
+
+1. **旧shadowレポートを基準にしない**: v2/schema v3移行前の2026-07-19レポートは条件が違うため、2026-07-25を新しい基準日にする。
+2. **観測数の増加を初週に判定する**: 現在0/50 gateのため、期間だけ待っても証拠が増えないリスクがある。2026-08-01に品質調査への分岐を置く。
+3. **TOPIX判断を監視と並行する**: TOPIX openがない限りactiveは構造的に不可能なので、4週間後に着手する順序では遅い。
+4. **turnover再校正を最後にする**: 現行`0.40`を今変更せず、v2 shadow分布と同一basis benchmarkが揃ってから決める。
+5. **active化を日付で自動実行しない**: 2026-08-24は最短日であり、全ゲートと人間承認が優先する。
+
+## 継続中のP0制約
+
+### Phase 2 active化を禁止する
+
+現在のマクロパネルはTOPIX終値しか持たず、戦略と同じ「翌営業日寄付き→H営業日目終値」の比較リターンを作れない。`portfolio_backtest.json`は現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`が揃う場合だけactive可とする。
+
+同一basisのTOPIX open系列を取得・検証するか、shadow-only方針を決めるまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 
 ## 対応しない（方針）
 
 ### 週次レポートの品質検証は実装しない
 
-AI が書く `reports/weekly_*.md` は内容チェックなしで URL が LINE 通知されますが、シグナルや売買判断には一切影響しないため、リスクは「レポートの読み味」だけです。品質はこだわらない方針。
+AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知されますが、シグナルや売買判断には影響しないため、リスクはレポートの読み味だけです。品質はこだわらない方針です。
 
 ## 低優先・観察
 
-| 項目                        | 内容                                                                                                                                                                                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CS 較正の粗さ               | shadow の建玉で複数銘柄の `expected_ret`/`prob_up` が同値（score-bucket 較正の粒度）。gross も低め（0.24 前後）。バグではなく shadow 期間の観察対象。改善候補: isotonic 連続化                                                           |
-| `8766.JP` の旧履歴異常      | Yahoo の調整済み系列にも 2005 年の株式分割級の不連続（最大 17295.3%）が残る。現行検証は警告して処理継続するため日次停止にはならないが、次回は学習用履歴の開始日カットまたは corporate action 補正を検討する             |
-| `usdjpy` の行数が少ない     | 系列の歴史差によるもので異常ではない（参考情報）                                                                                                                                                                                         |
-| 月次監査・stress testのモデル同一性 | `monthly_audit.py` / `stress_test.py`は独立`evaluate_kpi_gate()`シミュレーションで、配備Phase 1 exact candidateの保証ではない。日次action・active化は制御しない。将来はschema v3 `gate_evidence`を再評価する監査へ寄せる |
+| 項目 | いつ判断するか | 内容 |
+| --- | --- | --- |
+| CS較正の粗さ | 2026-08-22のshadowレビュー | 同値scoreや低grossが成績・分散を実際に阻害した場合だけ、isotonic連続化を検討する |
+| `8766.JP`の旧履歴異常 | 2026-08-22までに再確認。学習失敗やdrift breachになれば即時 | 2005年の株式分割級不連続が残る。学習開始日カットまたはcorporate action補正を検討する |
+| `usdjpy`の行数が少ない | macro鮮度警告が出た時だけ | 系列の歴史差によるもので、現時点では異常ではない |
+| 月次監査・stress testのモデル同一性 | P1運用移行完了後 | 配備Phase 1 exact candidateの`gate_evidence`を再評価する監査へ寄せる。日次action・active化は制御しない |
 
-## 運用チェックリスト（時限・要人間判断）
+## Phase 4+バックログ
 
-- [ ] canonical envへ移行し、deprecation warningが消えたことを確認する
-- [ ] v2/schema v3移行後の4週間shadow監視を完了する
-- [ ] v2 shadowのturnover分布から`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`を再校正する
-- [ ] TOPIX同一basis open系列とexact CS model-version gateを含む全active条件を確認する
-- [ ] active 化後 1 週間: ダイジェストの建玉と DB `signals.target_weight` の一致を毎朝確認
-
-## Phase 4+ バックログ（未着手の将来案）
-
-- **fills（約定）記録**: 手動約定の入力経路 → `fills` テーブル → 提案 vs 実約定の乖離計測
-- 発注指示出力（証券会社 CSV / API、`src/execution.py`。不可逆処理は決定論コード限定の原則を維持）
-- `signals.action` のポートフォリオ駆動化の再評価（現状は active でも action はモデル由来のまま）
-- `active_readiness` の GitHub Issue 自動起票
-- TOPIX open系列の取得元・調整方法・欠損時契約の決定（実装まではPhase 2 active不可）
-- DB 長期アーカイブ自動化（`backtest_equity` の parquet 退避、400MB 警告は既存）と Alembic 導入判断
-- ダッシュボードの認証・ユーザー管理
+| 項目 | 着手条件・時期 |
+| --- | --- |
+| fills（手動約定）記録 | active pilotを行う方針が決まった後。提案と実約定の乖離計測が必要になった時 |
+| 発注指示出力（証券会社CSV/API） | fillsとリスク管理を先に整備し、不可逆処理を決定論コードに限定できた後 |
+| `signals.action`のポートフォリオ駆動化再評価 | controlled active pilotの結果を確認した後 |
+| `active_readiness`のGitHub Issue自動起票 | TOPIX coverageを実装し、active readinessが実際の運用判断に使える段階 |
+| DB長期アーカイブとAlembic | DBサイズ警告（既定400MB）が近づいた時 |
+| ダッシュボードの認証・ユーザー管理 | 公開範囲を限定する要件または複数ユーザー要件が生じた時 |
