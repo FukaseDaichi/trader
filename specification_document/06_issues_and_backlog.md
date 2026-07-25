@@ -6,10 +6,11 @@
 
 ## 結論
 
-- **2026-07-25（土）の週次処理後に行う**: v2/schema v3移行後として初めてのPhase 2バックテストとshadow reportを新しい基準値にする。2026-07-19の旧レポートはactive判断へ流用しない。
 - **2026-07-27（月）から2026-08-21（金）まで行う**: 最低4週間、日次・週次のshadow運用を監視する。期間経過だけで完了扱いにせず、観測数が実際に増えていることを必要条件にする。
 - **2026-08-22（土）に最初の総合判定を行う**: 全active条件が揃った場合だけ、人間がactive化の是非を判断する。条件未達なら日付に関係なくshadowを継続する。
 - **最短でも2026-08-24（月）まではactive化しない**: `TRADER_PORTFOLIO_MODE=shadow`を維持する。これは予定日ではなく、全条件合格時の最短日である。
+
+2026-07-19以前のportfolio/shadow指標はv2/schema v3移行前の履歴であり、以降のactive判断には使用しない。
 
 ## 現在地（2026-07-26）
 
@@ -20,24 +21,12 @@
 | Phase 1個別KPI gate | `gate_passed_tickers=0/50` | 要監視。新しいactionable signalと決済サンプルが増えない可能性がある |
 | drift | 50銘柄すべて実績サンプル不足。breachは未判定 | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
 | Phase 2レポート | 公式`docs/portfolio_backtest.json`は2026-07-25生成・`cs-v1-20260725`のままで、gate不合格（`ir_unavailable_same_basis`・`turnover>0.40`）、`active_ready=false`。同モデルの`oos_predictions.parquet`を使い2026-07-26にローカルで`topix_open`込みの再バックテストを実施し、`benchmark_coverage.coverage_ratio=1.0`、`information_ratio=0.9461`（`alpha=0.1554`、`beta=0.5141`、`tracking_error=0.1070`）、`gate.failures=["turnover>0.40"]`を測定 | ローカル測定は`ir_unavailable_same_basis`解消の裏付け。公式backtestへの反映は次回の定期パイプライン実行（2026-08-01週次retrain）を待つ |
-| TOPIX benchmark | `topix_open`をマクロパネルに実装済み。2026-07-26のローカル再バックテストで`coverage_ratio=1.0`（35/35期間）を確認し、IRが算出可能になった | active化のP0制約から除外。以後は評価対象の指標として扱う |
+| TOPIX benchmark | `topix_open`をマクロパネルに実装済み（詳細は上記Phase 2レポート行を参照） | active化のP0制約から除外。以後は評価対象の指標として扱う |
 | 実行モード | core/retry workflowとも`TRADER_PORTFOLIO_MODE=shadow`を明示 | 維持する |
 
 ## 実施計画
 
-### 1. 次の週次処理 — 新しいshadow基準値を作る（2026-07-25 08:00 JST）
-
-定期workflowに任せ、終了後に次を確認する。
-
-- Phase 1候補がschema v3、全対象coverage、candidate validation合格であること。週次ごとにversionが変わるのは正常であり、固定versionではなくruntime契約の一致を確認する。
-- Phase 2 CSモデル、`portfolio_backtest.json`、`portfolio_shadow_report.json`が同じ週次実行で更新されること。
-- `portfolio_backtest.json`のexecution contractがv2、net-vs-net、CS `model_version`が当日snapshotと一致すること。
-- `active_readiness.active_ready=false`であることを確認する。TOPIX同一basis coverageがない間にtrueなら異常として扱う。
-- model registry失敗やoutbox/dead letterがないことを確認する。
-
-2026-07-19以前のportfolio/shadow指標は移行前の履歴としてのみ残し、新しいactive判断には使用しない。
-
-### 2. 初週 — 観測が増えるか確認する（2026-07-27〜08-01）
+### 1. 初週 — 観測が増えるか確認する（2026-07-27〜08-01）
 
 最初の営業週は、単にエラーがないことではなく、次の分母が増えていることを確認する。
 
@@ -55,13 +44,11 @@
 - シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
 - artifact不整合、registry不一致、日次ephemeral fallback急増があれば、その日のうちに調査する。active化の時計は停止する。
 
-### 3. 並行判断 — TOPIX openの方針を決める（期限: 2026-08-01 / 決定日: 2026-07-26）
+### 2. TOPIX open方針の決定（2026-07-26、実装済み）
 
-**決定: オプション1（Phase 2 activeを将来提供する）を選び、実装済み。** 同一basisのTOPIX open系列は既存のTOPIX連動ETF `1305.T`（現行の`topix`終値列と同一銘柄）から取得し、マクロパネルへ`topix_open`列として追加した。設計は`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`、実装計画は`specification_document/plans/2026-07-26-topix-open-benchmark-plan.md`を参照。実装後、`cs-v1-20260725`の`oos_predictions.parquet`を用いてv2・net-vs-netでCSバックテストをローカル再実行し、`coverage_ratio=1.0`・`information_ratio=0.9461`を確認した（現在地表を参照）。公式`docs/portfolio_backtest.json`への反映は2026-08-01の週次retrainを待つ。
+**決定: オプション1（Phase 2 activeを将来提供する）を選び、実装済み。** 同一basisのTOPIX open系列は既存のTOPIX連動ETF `1305.T`（現行の`topix`終値列と同一銘柄）から取得し、マクロパネルへ`topix_open`列として追加した。設計は`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`（不採用にした案の理由も記載）、実装計画は`specification_document/plans/2026-07-26-topix-open-benchmark-plan.md`を参照。実装後、`cs-v1-20260725`の`oos_predictions.parquet`を用いてv2・net-vs-netでCSバックテストをローカル再実行し、`coverage_ratio=1.0`・`information_ratio=0.9461`を確認した（現在地表を参照）。公式`docs/portfolio_backtest.json`への反映は2026-08-01の週次retrainを待つ。
 
-終値同士のTOPIXリターンで代用する案は採用しなかった。戦略と比較条件が変わり、IRの意味が壊れるためである。
-
-### 4. 4週間shadow監視（2026-07-27〜08-21）
+### 3. 4週間shadow監視（2026-07-27〜08-21）
 
 週次確認日は2026-08-01、08-08、08-15、08-22とする。毎週、同じ観点で記録する。
 
@@ -76,7 +63,7 @@
 
 4週間という期間は必要条件であって十分条件ではない。休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
 
-### 5. 最初の総合判定（2026-08-22）
+### 4. 最初の総合判定（2026-08-22）
 
 以下を**すべて**満たした場合だけ、active化を人間が検討できる。
 
@@ -92,7 +79,7 @@
 
 1項目でも未達なら`shadow`を継続する。TOPIX同一basis benchmarkは実装済みだが、現在の証拠ではportfolio gate不合格（`turnover>0.40`・`cs_ic_vs_phase1`が負）とPhase 1 gate 0/50のためactive化できない。
 
-### 6. 条件合格後のみ — controlled active化（最短2026-08-24）
+### 5. 条件合格後のみ — controlled active化（最短2026-08-24）
 
 - coreとretryの`TRADER_PORTFOLIO_MODE`を同時に`active`へ変更する。片方だけ変更しない。
 - 最初の1週間は毎朝、ダイジェストの建玉、`docs/portfolio_latest.json`、DB `signals.target_weight`を照合する。
@@ -105,15 +92,14 @@
 
 1. **旧shadowレポートを基準にしない**: v2/schema v3移行前の2026-07-19レポートは条件が違うため、2026-07-25を新しい基準日にする。
 2. **観測数の増加を初週に判定する**: 現在0/50 gateのため、期間だけ待っても証拠が増えないリスクがある。2026-08-01に品質調査への分岐を置く。
-3. **TOPIX判断を監視と並行する**: TOPIX openがない限りactiveは構造的に不可能なので、4週間後に着手する順序では遅い。
-4. **turnover再校正を最後にする**: 現行`0.40`を今変更せず、v2 shadow分布と同一basis benchmarkが揃ってから決める。
-5. **active化を日付で自動実行しない**: 2026-08-24は最短日であり、全ゲートと人間承認が優先する。
+3. **turnover再校正を最後にする**: 現行`0.40`を今変更せず、v2 shadow分布と同一basis benchmarkが揃ってから決める。
+4. **active化を日付で自動実行しない**: 2026-08-24は最短日であり、全ゲートと人間承認が優先する。
 
 ## 継続中のP0制約
 
 ### Phase 2 active化を禁止する
 
-同一basisのTOPIX open系列は`topix_open`として実装済みであり、`ir_unavailable_same_basis`はもはやactive化を禁止する理由ではない（2026-07-26のローカル測定で`coverage_ratio=1.0`を確認、現在地表を参照）。ただし次の2件は本設計の対象外として明示的に残っている（`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`の期待結果表を参照）。
+同一basisのTOPIX open系列は`topix_open`として実装済みであり、`ir_unavailable_same_basis`はもはやactive化を禁止する理由ではない（詳細は現在地表を参照）。ただし次の2件は本設計の対象外として明示的に残っている（`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`の期待結果表を参照）。
 
 - `portfolio_backtest.json`のgateが`turnover>0.40`で不合格のまま
 - `cs_ic_vs_phase1`が負のまま（Phase 2のCS ICがPhase 1を下回る）
