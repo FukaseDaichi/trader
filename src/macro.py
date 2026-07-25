@@ -117,21 +117,21 @@ def _extreme_move(values: pd.Series) -> tuple[int, float] | None:
 def _open_rejection_reason(frame: pd.DataFrame) -> str | None:
     """Why this frame's ``open`` cannot be trusted, or None when it is sound.
 
-    Three failure modes, each of which would otherwise corrupt the same-basis
-    benchmark silently: unusable levels, a split-scale jump inside the open
-    series, and an open carried on a different adjustment basis than the close.
-    The last one leaves both series internally continuous, so only the intraday
-    open-to-close ratio exposes it.
+    Two failure modes reject the whole open series: a split-scale jump inside
+    it, and an open carried on a different adjustment basis than the close
+    (both series stay internally continuous in that case, so only the
+    intraday open-to-close ratio exposes it).
 
-    A NaN on some dates is not a failure: those dates simply have no benchmark
-    and the consumer reports incomplete coverage instead of inventing a return.
+    Individual non-finite/non-positive values are already turned into NaN by
+    the caller before this runs, the same as a genuine missing observation --
+    a handful of them (e.g. a thinly-traded ETF's earliest sessions) is a
+    per-date gap, not proof the whole series is untrustworthy. Only when
+    every date is a gap is the series rejected outright.
     """
     opens = frame["open"]
     present = opens.notna()
     if not present.any():
         return "no open levels supplied"
-    if not np.isfinite(opens[present]).all() or (opens[present] <= 0).any():
-        return "non-finite or non-positive open levels"
 
     bad = _extreme_move(opens)
     if bad is not None:
@@ -182,6 +182,12 @@ def _validated_market_frame(
     out["close"] = pd.to_numeric(out["close"], errors="coerce")
     if has_open:
         out["open"] = pd.to_numeric(out["open"], errors="coerce")
+        # An isolated bad value (e.g. a thinly-traded ETF's earliest sessions
+        # recording a zero print) is a per-date gap, not proof the whole open
+        # series is untrustworthy -- null just that date and let the rest of
+        # the history stand.
+        invalid_open = ~np.isfinite(out["open"]) | (out["open"] <= 0)
+        out.loc[invalid_open, "open"] = np.nan
     out = (
         out.dropna(subset=["date", "close"])
         .sort_values("date")

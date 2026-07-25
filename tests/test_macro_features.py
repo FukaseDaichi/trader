@@ -126,6 +126,7 @@ def test_latest_snapshot_row():
     assert row["market_bias"] == "neutral"
     assert latest_snapshot_row(pd.DataFrame()) is None
 
+
 def test_topix_open_is_not_forward_filled_off_session():
     """USD/JPY trades on JP holidays, so the outer join creates dates on which
     TOPIX did not trade. Forward-filling the open there would pair yesterday's
@@ -423,6 +424,29 @@ def test_fetch_market_series_partial_missing_open_is_retained_as_nan():
     assert result["close"].tolist() == [101.0, 102.0, 103.0, 104.0]
 
 
+def test_stale_isolated_non_positive_open_becomes_gap_not_full_rejection():
+    """Regression: real 1305.T history (fetched 2026-07-26) has 3 zero-valued
+    open rows in 2009, the ETF's earliest thinly-traded sessions -- every date
+    since is clean. A blanket 'any bad value kills the whole series' rule
+    would silently disable the benchmark forever. Only the bad date should
+    become a gap; the rest of a long, otherwise-clean history must survive."""
+    idx = pd.date_range("2026-01-01", periods=5, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [0.0, 101.0, 102.0, 103.0, 104.0],
+            "Close": [100.5, 101.5, 102.5, 103.5, 104.5],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert "open" in result.columns
+    assert bool(result["open"].isna().iloc[0])
+    assert result["open"].iloc[1:].tolist() == [101.0, 102.0, 103.0, 104.0]
+
+
 def test_fetch_market_series_extreme_open_move_drops_open_keeps_close():
     """A split-scale jump inside the open series poisons benchmark returns.
     Drop the open only — the close still feeds every macro feature."""
@@ -529,6 +553,7 @@ ALL_TESTS = [
     test_fetch_market_series_open_opt_in_carries_open_column,
     test_fetch_market_series_open_opt_in_tolerates_missing_open,
     test_fetch_market_series_partial_missing_open_is_retained_as_nan,
+    test_stale_isolated_non_positive_open_becomes_gap_not_full_rejection,
     test_fetch_market_series_extreme_open_move_drops_open_keeps_close,
     test_fetch_market_series_open_close_basis_mismatch_drops_open,
     test_fetch_market_series_extreme_close_move_still_rejects_whole_series,
