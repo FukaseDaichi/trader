@@ -449,6 +449,38 @@ def test_backtest_benchmark_alpha_beta():
     assert no_bench["metrics"]["beta"] is None
 
 
+def test_macro_panel_with_open_feeds_benchmark_preparation():
+    """End-to-end contract: the producer (src.macro.build_macro_panel) and the
+    consumer (_prepare_topix / _benchmark_return) must agree on the same-basis
+    benchmark columns. Each side is tested in isolation elsewhere; this is the
+    test that fails if they drift apart."""
+    from src.macro import build_macro_panel
+
+    dates = pd.bdate_range("2026-01-05", periods=10)
+    top = pd.DataFrame(
+        {
+            "date": dates,
+            "close": [2800.0 + i * 5 for i in range(10)],
+            "open": [2795.0 + i * 5 for i in range(10)],
+        }
+    )
+
+    panel = build_macro_panel({"topix": top})
+    prepared = pbt._prepare_topix(panel)
+    assert prepared is not None
+    assert list(prepared.columns) == ["date", "topix_open", "topix"]
+    assert len(prepared) == 10
+
+    # entry open -> exit close, exactly the v2 execution contract
+    ret = pbt._benchmark_return(prepared, dates[1], dates[5])
+    expected = (2800.0 + 5 * 5) / (2795.0 + 1 * 5) - 1.0
+    assert abs(ret - expected) < 1e-12
+
+    # a close-only panel stays fail-closed rather than substituting a basis
+    close_only = build_macro_panel({"topix": top[["date", "close"]]})
+    assert pbt._prepare_topix(close_only) is None
+
+
 def test_backtest_execution_windows_do_not_overlap():
     tickers = _tickers()
     res = pbt.run_portfolio_backtest(
@@ -986,6 +1018,7 @@ ALL_TESTS = [
     test_nonoverlap_turnover_charges_full_exit_and_entry,
     test_backtest_no_lookahead_cov,
     test_backtest_benchmark_alpha_beta,
+    test_macro_panel_with_open_feeds_benchmark_preparation,
     test_backtest_execution_windows_do_not_overlap,
     test_cross_execution_provenance_mismatch_excludes_period,
     test_overlapping_window_and_duplicate_cross_rows_fail_closed,
