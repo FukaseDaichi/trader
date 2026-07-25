@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.macro import (  # noqa: E402
     DEFAULT_MARKET_SERIES,
+    MACRO_AUX_LEVEL_COLS,
     MACRO_FEATURE_COLS,
     MACRO_LEVEL_COLS,
     add_macro_features,
@@ -124,6 +125,74 @@ def test_latest_snapshot_row():
     assert row["topix"] is None  # not supplied
     assert row["market_bias"] == "neutral"
     assert latest_snapshot_row(pd.DataFrame()) is None
+
+
+def test_topix_open_is_not_forward_filled_off_session():
+    """USD/JPY trades on JP holidays, so the outer join creates dates on which
+    TOPIX did not trade. Forward-filling the open there would pair yesterday's
+    open with yesterday's close and invent a benchmark return that every
+    downstream check accepts: exact date match, positive levels, no NaN."""
+    usd = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-07"]),
+            "close": [150.0, 150.5, 151.0],
+        }
+    )
+    top = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-07"]),
+            "close": [2800.0, 2820.0],
+            "open": [2790.0, 2810.0],
+        }
+    )
+    panel = build_macro_panel({"usdjpy": usd, "topix": top}).set_index("date")
+    # the off-session date still carries a forward-filled close (unchanged) ...
+    assert panel.loc["2026-01-06", "topix"] == 2800.0
+    # ... but no open, so exact-date consumers exclude that date
+    assert np.isnan(panel.loc["2026-01-06", "topix_open"])
+    # real sessions keep their own open
+    assert panel.loc["2026-01-05", "topix_open"] == 2790.0
+    assert panel.loc["2026-01-07", "topix_open"] == 2810.0
+
+
+def test_build_macro_panel_always_emits_topix_open_column():
+    """The panel's column set must not depend on whether the open was
+    available, so downstream readers never branch on schema shape."""
+    usd, _ = _series("2026-01-01", 30, 0.1, "usdjpy")
+    top, _ = _series("2026-01-01", 30, 1.0, "topix")  # close-only series
+    panel = build_macro_panel({"usdjpy": usd, "topix": top})
+    expected = ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
+    for col in expected:
+        assert col in panel.columns, col
+    assert panel["topix_open"].isna().all()
+    assert MACRO_AUX_LEVEL_COLS == ["topix_open"]
+    # and on the empty-input path
+    assert "topix_open" in build_macro_panel({}).columns
+
+
+def test_latest_snapshot_row_ignores_topix_open():
+    """topix_open is benchmark-only. macro_snapshots must not gain a column,
+    so no DB migration is implied by this panel change."""
+    top = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-06"]),
+            "close": [2800.0, 2820.0],
+            "open": [2790.0, 2810.0],
+        }
+    )
+    panel = build_macro_panel({"topix": top})
+    row = latest_snapshot_row(panel)
+    assert set(row.keys()) == {
+        "date",
+        "usdjpy",
+        "topix",
+        "nikkei",
+        "nikkei_vi",
+        "jgb10y",
+        "market_bias",
+        "regime",
+    }
+    assert row["topix"] == 2820.0
 
 
 def test_phase1_feature_cols_respects_macro_flag():
@@ -329,6 +398,9 @@ ALL_TESTS = [
     test_build_macro_panel_columns_and_returns,
     test_build_macro_panel_empty_input,
     test_latest_snapshot_row,
+    test_topix_open_is_not_forward_filled_off_session,
+    test_build_macro_panel_always_emits_topix_open_column,
+    test_latest_snapshot_row_ignores_topix_open,
     test_phase1_feature_cols_respects_macro_flag,
     test_default_series_symbols_are_fetchable_or_disabled,
     test_fetch_market_series_disabled_spec_touches_no_source,
