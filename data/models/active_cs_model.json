@@ -1,10 +1,30 @@
 {
-  "version": "cs-v1-20260718",
   "kind": "cross_sectional_ranker_v1",
   "horizon_days": 5,
   "objective": "ranker",
   "macro_features_enabled": true,
   "universe_size": 50,
   "portfolio_enabled": true,
-  "generated_at": "2026-07-19T23:38:17+09:00"
+  "generated_at": "2026-07-25T09:24:28+09:00",
+  "execution_contract": {
+    "contract_version": "next_session_open_to_close_v2",
+    "market_as_of_basis": "session_close",
+    "decision_timing": "next_session_preopen",
+    "entry_price_basis": "next_session_open",
+    "exit_price_basis": "horizon_session_close",
+    "benchmark_basis": "unavailable_same_basis",
+    "return_basis": "raw_market_price_before_costs",
+    "cost_treatment": "strategy_simulation_only"
+  },
+  "benchmark_coverage": {
+    "available": false,
+    "scope": "all_oos_decision_dates",
+    "required_basis": "next_session_open_to_horizon_session_close",
+    "required_open_column": "topix_open",
+    "total_periods": 180,
+    "available_periods": 0,
+    "coverage_ratio": 0.0,
+    "reason": "topix_open_unavailable_same_basis"
+  },
+  "version": "cs-v1-20260725"
 }
