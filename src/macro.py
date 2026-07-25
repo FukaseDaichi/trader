@@ -55,6 +55,11 @@ DEFAULT_MARKET_SERIES = {
 # Raw level columns kept in the panel (for the macro_snapshots DB row).
 MACRO_LEVEL_COLS = ["usdjpy", "topix", "nikkei", "nikkei_vi", "jgb10y"]
 
+# Benchmark-only level columns. These are NOT model features and NOT part of
+# the macro_snapshots DB row; they exist so the Phase 2 backtest can measure a
+# same-basis benchmark (next-session open -> horizon-session close).
+MACRO_AUX_LEVEL_COLS = ["topix_open"]
+
 # Stable model-feature schema. add_macro_features always emits exactly these.
 MACRO_FEATURE_COLS = [
     "macro_usdjpy_ret_20",
@@ -311,19 +316,33 @@ def fetch_all_series(series_config: dict | None = None) -> dict[str, pd.DataFram
 
 
 def _aligned_levels(series_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """Outer-join each series' close on date, forward-filled, into one frame."""
+    """Outer-join each series' close on date, forward-filled, into one frame.
+
+    A series carrying an ``open`` also contributes ``<key>_open``. Only closes
+    are forward-filled. A forward-filled open would pair yesterday's open with
+    yesterday's close on a date the instrument never traded and manufacture a
+    benchmark return that passes every downstream check, so opens stay NaN
+    off-session and exact-date consumers exclude those dates.
+    """
     panel = None
+    close_cols: list[str] = []
     for key, df in series_data.items():
         if df is None or df.empty or "close" not in df.columns:
             continue
-        col = df[["date", "close"]].copy()
+        take = ["date", "close"]
+        renames = {"close": key}
+        if "open" in df.columns:
+            take.append("open")
+            renames["open"] = f"{key}_open"
+        col = df[take].copy()
         col["date"] = pd.to_datetime(col["date"]).dt.tz_localize(None)
-        col = col.rename(columns={"close": key}).sort_values("date")
+        col = col.rename(columns=renames).sort_values("date")
         panel = col if panel is None else panel.merge(col, on="date", how="outer")
+        close_cols.append(key)
     if panel is None:
         return pd.DataFrame(columns=["date"])
     panel = panel.sort_values("date").reset_index(drop=True)
-    for key in series_data:
+    for key in close_cols:
         if key in panel.columns:
             panel[key] = panel[key].ffill()
     return panel
@@ -338,10 +357,18 @@ def build_macro_panel(
     """
     panel = _aligned_levels(series_data or {})
     if panel.empty:
-        return pd.DataFrame(columns=["date"] + MACRO_LEVEL_COLS + MACRO_FEATURE_COLS)
+        return pd.DataFrame(
+            columns=(
+                ["date"]
+                + MACRO_LEVEL_COLS
+                + MACRO_AUX_LEVEL_COLS
+                + MACRO_FEATURE_COLS
+            )
+        )
 
-    # Guarantee level columns exist for the snapshot row.
-    for col in MACRO_LEVEL_COLS:
+    # Guarantee level columns exist for the snapshot row, and the auxiliary
+    # benchmark levels so the panel schema never depends on availability.
+    for col in MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS:
         if col not in panel.columns:
             panel[col] = np.nan
 
@@ -373,7 +400,9 @@ def build_macro_panel(
     bias = encode_market_bias((qualitative or {}).get("market_bias"))
     panel["macro_bias_score"] = bias
 
-    cols = ["date"] + MACRO_LEVEL_COLS + MACRO_FEATURE_COLS
+    cols = (
+        ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
+    )
     return panel[[c for c in cols if c in panel.columns]].reset_index(drop=True)
 
 
