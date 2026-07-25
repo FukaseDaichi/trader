@@ -294,6 +294,123 @@ def test_fetch_market_series_extreme_yfinance_move_is_unavailable():
     assert fake.calls == ["max"]
 
 
+def test_only_topix_opts_into_open_levels():
+    """Open levels exist for the same-basis benchmark only. Every other series
+    stays close-only so its fetch path is byte-for-byte unchanged."""
+    assert DEFAULT_MARKET_SERIES["topix"].get("open") is True
+    for key, spec in DEFAULT_MARKET_SERIES.items():
+        if key != "topix":
+            assert not spec.get("open"), key
+
+
+def test_fetch_market_series_open_opt_in_carries_open_column():
+    idx = pd.date_range("2026-01-01", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [100.0, 101.0, 102.0, 103.0],
+            "Close": [101.0, 102.0, 103.0, 104.0],
+        },
+        index=idx,
+    )
+    with_open, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert with_open is not None
+    assert list(with_open.columns) == ["date", "close", "open"]
+    assert with_open["open"].tolist() == [100.0, 101.0, 102.0, 103.0]
+
+    without_open, _ = _with_fake_yf({"max": raw}, {"stooq": None, "yfinance": "1305.T"})
+    assert without_open is not None
+    assert list(without_open.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_open_opt_in_tolerates_missing_open():
+    """A provider that returns no open at all must still yield the close."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="D", name="Date")
+    raw = pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=idx)
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_partial_missing_open_is_retained_as_nan():
+    """A gap on one date is not a reason to discard the whole open series;
+    exact-date consumers drop that date and report incomplete coverage."""
+    idx = pd.date_range("2026-01-01", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [100.0, np.nan, 102.0, 103.0],
+            "Close": [101.0, 102.0, 103.0, 104.0],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert "open" in result.columns
+    assert bool(result["open"].isna().iloc[1])
+    assert result["close"].tolist() == [101.0, 102.0, 103.0, 104.0]
+
+
+def test_fetch_market_series_extreme_open_move_drops_open_keeps_close():
+    """A split-scale jump inside the open series poisons benchmark returns.
+    Drop the open only — the close still feeds every macro feature."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [400.0, 40.0, 40.5, 41.0],
+            "Close": [40.2, 40.4, 40.6, 41.2],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+    assert result["close"].tolist() == [40.2, 40.4, 40.6, 41.2]
+
+
+def test_fetch_market_series_open_close_basis_mismatch_drops_open():
+    """Close adjusted for a 10:1 split, open left raw. Both series are
+    internally continuous, so only the intraday open-to-close ratio exposes
+    the basis mismatch."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [400.0, 402.0, 404.0, 406.0],
+            "Close": [40.1, 40.3, 40.5, 40.7],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_extreme_close_move_still_rejects_whole_series():
+    """Close-side failure keeps its existing meaning: the whole series is
+    unusable, regardless of how sound the open looks."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [40.0, 40.5, 41.0, 41.5],
+            "Close": [400.0, 40.0, 41.0, 420.0],
+        },
+        index=idx,
+    )
+    result, fake = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is None
+    assert fake.calls == ["max"]
+
+
 def test_build_feature_frame_macro_disabled_omits_macro_columns():
     dates = pd.date_range("2026-01-01", periods=90, freq="D")
     close = pd.Series([100.0 + i * 0.5 for i in range(90)])
@@ -337,6 +454,13 @@ ALL_TESTS = [
     test_fetch_market_series_prefers_adjusted_close_fixture,
     test_fetch_market_series_extreme_stooq_move_falls_back_to_yfinance,
     test_fetch_market_series_extreme_yfinance_move_is_unavailable,
+    test_only_topix_opts_into_open_levels,
+    test_fetch_market_series_open_opt_in_carries_open_column,
+    test_fetch_market_series_open_opt_in_tolerates_missing_open,
+    test_fetch_market_series_partial_missing_open_is_retained_as_nan,
+    test_fetch_market_series_extreme_open_move_drops_open_keeps_close,
+    test_fetch_market_series_open_close_basis_mismatch_drops_open,
+    test_fetch_market_series_extreme_close_move_still_rejects_whole_series,
     test_build_feature_frame_macro_disabled_omits_macro_columns,
 ]
 

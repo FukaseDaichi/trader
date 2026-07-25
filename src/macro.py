@@ -37,13 +37,16 @@ MACRO_PANEL_FILE = MACRO_DIR / "macro_panel.parquet"
 #     stub), so TOPIX ETF 1305 serves as the benchmark proxy. 1306 was retired
 #     here because Yahoo retains unadjusted 10:1 discontinuities even with
 #     auto_adjust=True. Only returns/shape-based features consume this proxy.
+#     The topix entry also opts into `open` levels: the Phase 2 backtest
+#     compares strategy returns on a next-session-open to horizon-session-close
+#     basis, which a close-only series cannot express. No other series needs it.
 #   - nikkei_vi / jgb10y: disabled — no Yahoo listing exists and the Stooq
 #     symbols are unverifiable while the endpoint is down (JGB 10y candidate:
 #     `10jpy.b`). Their levels/features stay NaN per the robustness rule;
 #     re-enable only with a source verified end-to-end.
 DEFAULT_MARKET_SERIES = {
     "usdjpy": {"stooq": "usdjpy", "yfinance": "JPY=X"},
-    "topix": {"stooq": "1305.jp", "yfinance": "1305.T"},
+    "topix": {"stooq": "1305.jp", "yfinance": "1305.T", "open": True},
     "nikkei": {"stooq": "^nkx", "yfinance": "^N225"},
     "nikkei_vi": {"stooq": None, "yfinance": None},
     "jgb10y": {"stooq": None, "yfinance": None},
@@ -92,16 +95,88 @@ def encode_market_bias(value) -> float:
 # --- network fetch (best-effort) -------------------------------------------
 
 
-def _validated_market_close(
-    df: pd.DataFrame | None, *, source: str, symbol: str
+def _extreme_move(values: pd.Series) -> tuple[int, float] | None:
+    """First index whose day-over-day move breaches the discontinuity limit.
+
+    Returns ``(index, return)`` or ``None`` when the series is continuous.
+    NaN gaps propagate as NaN returns and never trigger a false positive.
+    """
+    returns = values.pct_change(fill_method=None)
+    extreme = returns.abs() > _MAX_MARKET_DAILY_MOVE
+    if not extreme.any():
+        return None
+    idx = int(np.flatnonzero(extreme.to_numpy())[0])
+    return idx, float(returns.iloc[idx])
+
+
+def _open_rejection_reason(frame: pd.DataFrame) -> str | None:
+    """Why this frame's ``open`` cannot be trusted, or None when it is sound.
+
+    Three failure modes, each of which would otherwise corrupt the same-basis
+    benchmark silently: unusable levels, a split-scale jump inside the open
+    series, and an open carried on a different adjustment basis than the close.
+    The last one leaves both series internally continuous, so only the intraday
+    open-to-close ratio exposes it.
+
+    A NaN on some dates is not a failure: those dates simply have no benchmark
+    and the consumer reports incomplete coverage instead of inventing a return.
+    """
+    opens = frame["open"]
+    present = opens.notna()
+    if not present.any():
+        return "no open levels supplied"
+    if not np.isfinite(opens[present]).all() or (opens[present] <= 0).any():
+        return "non-finite or non-positive open levels"
+
+    bad = _extreme_move(opens)
+    if bad is not None:
+        idx, ret = bad
+        date = frame["date"].iloc[idx].strftime("%Y-%m-%d")
+        return (
+            f"daily open move {ret:.1%} on {date} exceeds {_MAX_MARKET_DAILY_MOVE:.0%}"
+        )
+
+    intraday = frame["close"] / opens - 1.0
+    extreme = intraday.abs() > _MAX_MARKET_DAILY_MOVE
+    if extreme.any():
+        idx = int(np.flatnonzero(extreme.to_numpy())[0])
+        date = frame["date"].iloc[idx].strftime("%Y-%m-%d")
+        return (
+            f"open/close basis mismatch: intraday move "
+            f"{float(intraday.iloc[idx]):.1%} on {date} exceeds "
+            f"{_MAX_MARKET_DAILY_MOVE:.0%}"
+        )
+    return None
+
+
+def _validated_market_frame(
+    df: pd.DataFrame | None,
+    *,
+    source: str,
+    symbol: str,
+    want_open: bool = False,
 ) -> pd.DataFrame | None:
-    """Normalize and reject split-scale discontinuities in a market series."""
+    """Normalize and reject split-scale discontinuities in a market series.
+
+    Returns ``[date, close]``, plus an ``open`` column when the caller asked for
+    one and the provider supplied one that passes the same integrity checks.
+    A close-side failure rejects the whole series as before. An open-side
+    failure drops only the open: the close and every macro feature built from
+    it must survive so the daily run never breaks.
+    """
     if df is None or df.empty or not {"date", "close"}.issubset(df.columns):
         return None
 
-    out = df[["date", "close"]].copy()
+    cols = ["date", "close"]
+    has_open = bool(want_open) and "open" in df.columns
+    if has_open:
+        cols.append("open")
+
+    out = df[cols].copy()
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.tz_localize(None)
     out["close"] = pd.to_numeric(out["close"], errors="coerce")
+    if has_open:
+        out["open"] = pd.to_numeric(out["open"], errors="coerce")
     out = (
         out.dropna(subset=["date", "close"])
         .sort_values("date")
@@ -112,12 +187,10 @@ def _validated_market_close(
         print(f"macro: rejected invalid {source} levels for {symbol}")
         return None
 
-    daily_returns = out["close"].pct_change(fill_method=None)
-    extreme = daily_returns.abs() > _MAX_MARKET_DAILY_MOVE
-    if extreme.any():
-        bad_idx = int(np.flatnonzero(extreme.to_numpy())[0])
+    bad = _extreme_move(out["close"])
+    if bad is not None:
+        bad_idx, bad_return = bad
         bad_date = out["date"].iloc[bad_idx].strftime("%Y-%m-%d")
-        bad_return = float(daily_returns.iloc[bad_idx])
         print(
             f"macro: rejected {source} series for {symbol}: "
             f"daily move {bad_return:.1%} on {bad_date} exceeds "
@@ -125,21 +198,38 @@ def _validated_market_close(
         )
         return None
 
+    if has_open:
+        reason = _open_rejection_reason(out)
+        if reason is not None:
+            print(
+                f"macro: dropped {source} open for {symbol}: {reason} (close retained)"
+            )
+            out = out.drop(columns=["open"])
+
     return out
 
 
 def fetch_market_series(spec: dict) -> pd.DataFrame | None:
     """
     Fetch one series as a [date, close] frame, trying Stooq then yfinance.
+    A spec with ``open: True`` also carries an ``open`` column when the provider
+    supplies a trustworthy one (the same-basis benchmark needs it).
     Returns None on failure (caller treats the series as unavailable).
     """
     from .data_loader import download_stooq_data
+
+    want_open = bool(spec.get("open"))
 
     stooq_symbol = spec.get("stooq")
     if stooq_symbol:
         df = download_stooq_data(stooq_symbol)
         if df is not None and not df.empty and "close" in df.columns:
-            out = _validated_market_close(df, source="Stooq", symbol=str(stooq_symbol))
+            out = _validated_market_frame(
+                df,
+                source="Stooq",
+                symbol=str(stooq_symbol),
+                want_open=want_open,
+            )
             if out is not None:
                 return out
 
@@ -173,11 +263,19 @@ def fetch_market_series(spec: dict) -> pd.DataFrame | None:
                 # Some older yfinance versions and test doubles still return an
                 # explicit Adj Close even with auto_adjust=True. Prefer it when
                 # present so compatibility never regresses to a raw close.
+                # That path can pair an adjusted close with a raw open; the
+                # intraday basis check in _open_rejection_reason catches it.
                 close_col = "adj close" if "adj close" in raw.columns else "close"
                 if close_col in raw.columns and "date" in raw.columns:
-                    out = raw[["date", close_col]].rename(columns={close_col: "close"})
-                    out = _validated_market_close(
-                        out, source="yfinance", symbol=str(yf_symbol)
+                    take = ["date", close_col]
+                    if want_open and "open" in raw.columns:
+                        take.append("open")
+                    out = raw[take].rename(columns={close_col: "close"})
+                    out = _validated_market_frame(
+                        out,
+                        source="yfinance",
+                        symbol=str(yf_symbol),
+                        want_open=want_open,
                     )
                     if out is not None:
                         return out
