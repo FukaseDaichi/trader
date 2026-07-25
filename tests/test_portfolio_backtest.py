@@ -449,6 +449,74 @@ def test_backtest_benchmark_alpha_beta():
     assert no_bench["metrics"]["beta"] is None
 
 
+def test_macro_panel_with_open_feeds_benchmark_preparation():
+    """End-to-end contract: the producer (src.macro.build_macro_panel) and the
+    consumer (_prepare_topix / _benchmark_return) must agree on the same-basis
+    benchmark columns. Each side is tested in isolation elsewhere; this is the
+    test that fails if they drift apart."""
+    from src.macro import build_macro_panel
+
+    dates = pd.bdate_range("2026-01-05", periods=10)
+    top = pd.DataFrame(
+        {
+            "date": dates,
+            "close": [2800.0 + i * 5 for i in range(10)],
+            "open": [2795.0 + i * 5 for i in range(10)],
+        }
+    )
+
+    panel = build_macro_panel({"topix": top})
+    prepared = pbt._prepare_topix(panel)
+    assert prepared is not None
+    assert list(prepared.columns) == ["date", "topix_open", "topix"]
+    assert len(prepared) == 10
+
+    # entry open -> exit close, exactly the v2 execution contract
+    ret = pbt._benchmark_return(prepared, dates[1], dates[5])
+    expected = (2800.0 + 5 * 5) / (2795.0 + 1 * 5) - 1.0
+    assert abs(ret - expected) < 1e-12
+
+    # a close-only panel stays fail-closed rather than substituting a basis
+    close_only = build_macro_panel({"topix": top[["date", "close"]]})
+    assert pbt._prepare_topix(close_only) is None
+
+
+def test_partial_topix_open_coverage_is_incomplete_and_ir_stays_none():
+    """A same-basis benchmark that's missing topix_open on SOME dates (a
+    provider gap, or the per-date NaN Task 4 introduced for isolated bad
+    values) must not be silently treated as full coverage. This state was
+    unreachable before Task 4 -- an invalid open used to kill the whole
+    series -- and had no test at the backtest level until now."""
+    tickers = _tickers()
+    frames = _price_frames(tickers, seed=12)
+    oos = _oos_predictions(tickers, seed=13, signal=0.05)
+    cfg = _config()
+
+    macro = _macro_panel(include_open=True)
+    # Null every 3rd date's open so at least some (but not all) rebalance
+    # periods lose their benchmark, regardless of exact entry/exit alignment.
+    macro.loc[macro.index[::3], "topix_open"] = np.nan
+
+    result = pbt.run_portfolio_backtest(
+        oos,
+        frames,
+        macro,
+        cfg,
+        sectors=_sectors(tickers),
+        label_horizon_days=H,
+    )
+    assert result["status"] == "ok"
+    coverage = result["benchmark_coverage"]
+    assert coverage["available"] is False
+    assert coverage["reason"] == "incomplete_same_basis_coverage"
+    assert 0.0 < coverage["coverage_ratio"] < 1.0, coverage
+    assert result["metrics"]["information_ratio"] is None
+
+    gate = evaluate_portfolio_kpi_gate(result, _gate_config())
+    assert gate["passed"] is False, gate
+    assert any("ir" in failure for failure in gate["failures"]), gate["failures"]
+
+
 def test_backtest_execution_windows_do_not_overlap():
     tickers = _tickers()
     res = pbt.run_portfolio_backtest(
@@ -986,6 +1054,8 @@ ALL_TESTS = [
     test_nonoverlap_turnover_charges_full_exit_and_entry,
     test_backtest_no_lookahead_cov,
     test_backtest_benchmark_alpha_beta,
+    test_macro_panel_with_open_feeds_benchmark_preparation,
+    test_partial_topix_open_coverage_is_incomplete_and_ir_stays_none,
     test_backtest_execution_windows_do_not_overlap,
     test_cross_execution_provenance_mismatch_excludes_period,
     test_overlapping_window_and_duplicate_cross_rows_fail_closed,
