@@ -10,6 +10,13 @@
 
 **Spec:** `specification_document/plans/2026-07-26-topix-open-benchmark-design.md`
 
+> **2026-07-26 追記:** Task 1完了後、実データ検証（Task 4）で
+> `_open_rejection_reason`の「非有限・非正なら列全体を破棄」ルールが、
+> `1305.T`全履歴中の2009年の異常値3件で始値全体を無効化する問題が発覚し、
+> 日付単位のNaN化に修正した（コミット`4c56b844`）。以下のTask 1コード
+> ブロックはこの修正前の実装を示す。修正の詳細は設計doc
+> `2026-07-26-topix-open-benchmark-design.md`の§4.4を参照。
+
 ## Global Constraints
 
 - The daily signal run must never break. A failure in the open path degrades to close-only behaviour; it never raises and never aborts the pipeline (AGENTS.md).

@@ -365,10 +365,7 @@ def build_macro_panel(
     if panel.empty:
         return pd.DataFrame(
             columns=(
-                ["date"]
-                + MACRO_LEVEL_COLS
-                + MACRO_AUX_LEVEL_COLS
-                + MACRO_FEATURE_COLS
+                ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
             )
         )
 
@@ -406,9 +403,7 @@ def build_macro_panel(
     bias = encode_market_bias((qualitative or {}).get("market_bias"))
     panel["macro_bias_score"] = bias
 
-    cols = (
-        ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
-    )
+    cols = ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
     return panel[[c for c in cols if c in panel.columns]].reset_index(drop=True)
 
 

@@ -14,9 +14,13 @@ Usage:
   uv run python scripts/settle_outcomes.py --refill-benchmark
   uv run python scripts/settle_outcomes.py --restate-execution-contract
 
-The macro panel has TOPIX-proxy closes but no next-session open.  Contract v2
-therefore leaves benchmark_ret NULL instead of mixing a close-to-close proxy
-with the stock's open-to-close return. Legacy v1 rows can still be refilled.
+The macro panel now carries a same-basis TOPIX-proxy open (topix_open, added
+2026-07-26 for the Phase 2 portfolio backtest), but this per-signal
+settlement path does not consume it yet -- that wiring is separate,
+untracked-as-started work (see specification_document/06_issues_and_backlog.md).
+Contract v2 therefore still leaves benchmark_ret NULL instead of mixing a
+close-to-close proxy with the stock's open-to-close return. Legacy v1 rows
+can still be refilled.
 Exits 0 (no-op) when DB is disabled / unreachable.
 """
 
@@ -112,9 +116,12 @@ def _settle_for_ticker(
                 path_highs=path["high"].astype(float).tolist(),
                 path_lows=path["low"].astype(float).tolist(),
             )
-            # TOPIX proxy data has closes only. A prior-close benchmark would
-            # include an overnight move unavailable to the stock strategy, so
-            # v2 fails closed rather than publishing a mismatched excess return.
+            # A same-basis TOPIX open now exists in the macro panel (see
+            # src/macro.py's topix_open), but this per-signal settlement path
+            # does not consume it yet -- that wiring is separate work. A
+            # prior-close benchmark would include an overnight move
+            # unavailable to the stock strategy, so v2 fails closed here
+            # rather than publishing a mismatched excess return.
             benchmark_ret = None
             excess_ret = None
             db.upsert_outcome(

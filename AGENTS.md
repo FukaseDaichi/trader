@@ -27,7 +27,8 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   Phase 1 signals or notifications.
 - **Phase 3 — manual-trading UX + hardening**: execution-contract-versioned
   settlement and benchmark coverage (`benchmark_ret`/`excess_ret` stay NULL
-  when no same-basis TOPIX open exists), a settle-day performance
+  since this settlement path does not yet consume the macro panel's
+  same-basis TOPIX open), a settle-day performance
   export (`docs/performance_detail.json` + `docs/signal_outcomes_recent.json`),
   a daily LINE digest and weekly performance summary (with bounded push retry),
   a `/performance` dashboard page (TOPIX shown only with complete same-basis
