@@ -212,6 +212,11 @@ def get_backtest_gate_config():
         "TRADER_AUTO_THRESHOLD_MIN_TRADES",
         8,
     )
+    sample_sufficiency_metric = _get_env_choice(
+        "TRADER_KPI_SAMPLE_SUFFICIENCY_METRIC",
+        "independent_signal_cohorts",
+        {"round_trips", "independent_signal_cohorts"},
+    )
     config = {
         "enabled": _get_env_bool("TRADER_KPI_GATE_ENABLED", True),
         "validation_years": _get_env_int("TRADER_BT_VALIDATION_YEARS", 4),
@@ -227,8 +232,15 @@ def get_backtest_gate_config():
         "max_drawdown": _get_env_float("TRADER_KPI_MAX_DRAWDOWN", 0.25),
         "min_sharpe": _get_env_float("TRADER_KPI_MIN_SHARPE", 0.20),
         "min_round_trips": min_round_trips,
+        "sample_sufficiency_metric": sample_sufficiency_metric,
+        "min_independent_signal_cohorts": _get_env_int(
+            "TRADER_KPI_MIN_INDEPENDENT_SIGNAL_COHORTS", 5
+        ),
         "auto_threshold_enabled": _get_env_bool("TRADER_AUTO_THRESHOLD_ENABLED", True),
         "auto_threshold_min_round_trips": auto_threshold_min_round_trips,
+        "auto_threshold_min_independent_signal_cohorts": _get_env_int(
+            "TRADER_AUTO_THRESHOLD_MIN_INDEPENDENT_SIGNAL_COHORTS", 8
+        ),
         "auto_threshold_objective": _get_auto_threshold_objective(),
         "auto_threshold_min_gap": _get_env_float("TRADER_AUTO_THRESHOLD_MIN_GAP", 0.05),
     }

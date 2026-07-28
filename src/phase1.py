@@ -312,8 +312,12 @@ def train_ticker_bundle(
         thresholds=thresholds,
         horizon=horizon_days,
     )
-    metrics_tuning = backtest_module._compute_metrics(sim_tuning)
-    metrics_holdout = backtest_module._compute_metrics(sim_holdout)
+    metrics_tuning = backtest_module._compute_metrics(
+        sim_tuning, horizon=horizon_days
+    )
+    metrics_holdout = backtest_module._compute_metrics(
+        sim_holdout, horizon=horizon_days
+    )
     gate_disabled = not bool(canonical_gate_config.get("enabled", True))
     failures = (
         []

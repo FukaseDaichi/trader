@@ -110,7 +110,7 @@
 
 週次学習は`scripts/weekly_model_retrain.py`（土曜）が行う。時刻・git commit・UUIDを含む一意versionを`data/models/.staging/`へ作成し、全対象銘柄coverage、exact booster／較正器／ゲート証跡、schema v3契約、manifestファイル集合/checksum、前版からのcoverage劣化を検査する。合格時だけimmutableな`data/models/<version>/`へpromoteし、`active_model.json`をatomic replaceする。1銘柄でも失敗、証跡欠損、checksum不一致、pointer更新失敗なら前activeを維持する。
 
-artifact schema v3は、label config、実効H、順序付きfeature columns/hash、macro有無、較正mode/実装ID、execution contract、gate configを保持する。銘柄bundleにはexact booster bundle hash、calibrator hash、tuning/embargo/holdout split、OOS予測hash、KPI schema v2、閾値、判定を自己checksum付き`gate_evidence`として保存する。シグナルには`model_version` / `horizon_days` / `raw_score` / `expected_ret` / 日次入力の`features_hash`に加え、artifact・gate provenanceが付き、主要予測値は`predictions`へ残る。
+artifact schema v3は、label config、実効H、順序付きfeature columns/hash、macro有無、較正mode/実装ID、execution contract、gate configを保持する。銘柄bundleにはexact booster bundle hash、calibrator hash、tuning/embargo/holdout split、OOS予測hash、KPI metrics schema v3、閾値、判定を自己checksum付き`gate_evidence`として保存する。シグナルには`model_version` / `horizon_days` / `raw_score` / `expected_ret` / 日次入力の`features_hash`に加え、artifact・gate provenanceが付き、主要予測値は`predictions`へ残る。
 
 特徴量列を変えず計算意味だけを変更する場合は`PHASE1_ARTIFACT_SCHEMA_VERSION`を更新し、再学習する。列順/hashだけでは意味変更を検知できないため、schema versionがその互換性境界である。
 
@@ -120,11 +120,11 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 
 1. walk-forward で OOS 予測を収集（ラベル設定と同じ horizon）。各モデルのearly stopping用validationは外部OOSより前のtrain pool内に別途切り出し、内部trainとの間にも実効purge gap（設定値とHの大きい方）を置く。外部OOSは予測だけに使い、学習・round数選択には渡さない
 2. OOS を閾値チューニング用と holdout 用に時系列分割し、その間に実効ホライズン H 以上の判断行を embargo する。分離できない場合はチューニングせず固定閾値で全OOSをholdout評価
-3. 閾値グリッドから全シミュレーション日を使う目的関数（既定 `avg_daily_net_return`）最大の組を選択（`TRADER_AUTO_THRESHOLD_*`）。`auto_threshold_min_round_trips` を満たす候補が無い場合は疎な最良候補を採用せず既定閾値へ戻し、その候補は診断情報にだけ残す
+3. 閾値グリッドから全シミュレーション日を使う目的関数（既定 `avg_daily_net_return`）最大の組を選択（`TRADER_AUTO_THRESHOLD_*`）。既定では、エントリー間隔を実効horizon以上空けて数える`independent_signal_cohorts`が8件以上の候補だけを選択可能とする。条件を満たす候補が無い場合は疎な最良候補を採用せず既定閾値へ戻し、その候補は診断情報にだけ残す
 4. 毎日のシグナルへ `1/H` 資本のsleeveを割り当て、最大gross 1.0で日次mark-to-market。新規sleeve初日は翌日寄付き→終値、既存sleeveは前日終値→当日終値（overnightを含む）。入口・時間出口の両側にコスト/スリッページを課す
-5. `round_trips` / `cagr` / `avg_daily_net_return` / `max_drawdown` / `sharpe` でゲート判定。必須値が欠損・NaN・Infなら閾値比較を通さず`*_unavailable`でfail-closeし、未達銘柄と同様に表示`HOLD`へ強制
+5. `independent_signal_cohorts`（既定5件）/ `cagr` / `avg_daily_net_return` / `max_drawdown` / `sharpe` でゲート判定。`round_trips`は集約建玉の損益診断として残し、サンプル充足性には使わない。必須値が欠損・NaN・Infなら閾値比較を通さず`*_unavailable`でfail-closeし、未達銘柄と同様に表示`HOLD`へ強制
 
-指標schema v2は、売買発生日数 `turnover_days`、完結した建玉エピソード数 `round_trips`、独立シグナル数 `signal_cohorts`、全シミュレーション日の日次純リターン平均 `avg_daily_net_return`、完結エピソードごとの複利純損益平均 `expectancy_per_trade` を分離します。互換フィールド `trades` / `expectancy` / `turnover` はそれぞれ `round_trips` / `expectancy_per_trade` / `avg_daily_turnover` の非推奨aliasで、意味は `metrics_semantics` に明示します。
+指標schema v3は、売買発生日数 `turnover_days`、完結した建玉エピソード数 `round_trips`、全エントリー数 `signal_cohorts`、実効horizon分の重複を除いた `independent_signal_cohorts`、全シミュレーション日の日次純リターン平均 `avg_daily_net_return`、完結エピソードごとの複利純損益平均 `expectancy_per_trade` を分離します。互換フィールド `trades` / `expectancy` / `turnover` はそれぞれ `round_trips` / `expectancy_per_trade` / `avg_daily_turnover` の非推奨aliasで、意味は `metrics_semantics` に明示します。
 
 既定の基本閾値は `BUY=0.80` / `MILD_BUY=0.65` / `MILD_SELL=0.25` / `SELL=0.10` / `volatility_limit=0.04`。ゲート有効時は銘柄ごとの最適化閾値が実シグナルに使われます。`TRADER_KPI_GATE_ENABLED=false` では `skipped: true` の通過扱い。
 

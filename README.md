@@ -47,7 +47,7 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 | データ取得 | `src/data_loader.py` | Stooq/yfinance取得、鮮度・OHLCV有限性/異常値検証、parquet同期、無効銘柄の退避 |
 | 特徴量・モデル | `src/model.py`, `src/macro.py`, `src/labels.py` | テクニカル/マクロ特徴量、ラベル生成、LightGBM学習・推論 |
 | モデル運用 | `src/model_store.py`, `src/phase1.py`, `src/calibration.py` | schema v3 artifact、exact-candidate証跡、manifest/checksum、atomic active化、保存／ephemeral推論、isotonic較正 |
-| KPIゲート | `src/backtest.py` | purged OOSのtuning/holdout分離、日次sleeveシミュレーション、閾値最適化、metrics schema v2 |
+| KPIゲート | `src/backtest.py` | purged OOSのtuning/holdout分離、日次sleeveシミュレーション、horizon重複を除いた独立cohort充足性、閾値最適化、metrics schema v3 |
 | シグナル | `src/predictor.py` | 上昇確率から5段階アクションへ変換し、ロングへATR利確・損切り・時間出口を付与（ボラティリティガード付き） |
 | 計測DB | `src/db.py`, `src/db_records.py`, `migrations/` | Neon Postgres書き込み、outboxフォールバック、スキーマ |
 | ポートフォリオ | `src/universe.py`, `src/cross_section.py`, `src/cs_model.py`, `src/portfolio.py`, `src/portfolio_backtest.py`, `src/portfolio_shadow.py` | ユニバース選定、CSパネル/モデル、目標ウェイト構築、ウォークフォワード検証、シャドー比較 |

@@ -446,6 +446,9 @@ _METRICS_SEMANTICS = {
     "turnover_days": "sessions with non-zero entry or exit notional",
     "round_trips": "completed aggregate signed-position episodes",
     "signal_cohorts": "non-zero signal sleeves opened",
+    "independent_signal_cohorts": (
+        "entry sessions separated by at least the effective horizon"
+    ),
     "avg_daily_net_return": "mean net return across every simulated session",
     "expectancy_per_trade": "mean compounded net return of completed round trips",
     "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
@@ -453,6 +456,8 @@ _METRICS_SEMANTICS = {
     "expectancy": "deprecated alias of expectancy_per_trade",
     "turnover": "deprecated alias of avg_daily_turnover",
 }
+
+_METRICS_SCHEMA_VERSION = 3
 
 
 def _position_sign(value, tolerance=1e-12):
@@ -511,19 +516,46 @@ def _completed_round_trip_returns(sim):
     return completed
 
 
-def _compute_metrics(sim):
+def _independent_signal_cohorts(sim, horizon=1):
+    """Count entry sessions after conservatively removing horizon overlap."""
+    if sim.empty or "entry_cohorts" not in sim.columns:
+        return 0
+
+    h = max(1, int(horizon))
+    entries = pd.to_numeric(sim["entry_cohorts"], errors="coerce").fillna(0)
+    if "market_row_number" in sim.columns:
+        positions = pd.to_numeric(
+            sim["market_row_number"], errors="coerce"
+        ).reset_index(drop=True)
+    else:
+        positions = pd.Series(np.arange(len(sim)), dtype=float)
+
+    count = 0
+    next_eligible = None
+    for position, entry_count in zip(positions, entries.reset_index(drop=True)):
+        if entry_count <= 0 or not np.isfinite(position):
+            continue
+        current = int(position)
+        if next_eligible is None or current >= next_eligible:
+            count += 1
+            next_eligible = current + h
+    return count
+
+
+def _compute_metrics(sim, horizon=1):
     if sim.empty:
         avg_daily_net_return = 0.0
         expectancy_per_trade = 0.0
         avg_daily_turnover = 0.0
         round_trips = 0
         return {
-            "metrics_schema_version": 2,
+            "metrics_schema_version": _METRICS_SCHEMA_VERSION,
             "metrics_semantics": dict(_METRICS_SEMANTICS),
             "oos_days": 0,
             "turnover_days": 0,
             "round_trips": round_trips,
             "signal_cohorts": 0,
+            "independent_signal_cohorts": 0,
             "avg_daily_net_return": avg_daily_net_return,
             "expectancy_per_trade": expectancy_per_trade,
             "avg_daily_turnover": avg_daily_turnover,
@@ -548,6 +580,7 @@ def _compute_metrics(sim):
         if "entry_cohorts" in sim.columns
         else 0
     )
+    independent_signal_cohorts = _independent_signal_cohorts(sim, horizon=horizon)
 
     total_return = float(equity.iloc[-1] - 1.0)
     years = oos_days / 252.0
@@ -573,12 +606,13 @@ def _compute_metrics(sim):
     avg_daily_turnover = float(turnover.mean())
 
     return {
-        "metrics_schema_version": 2,
+        "metrics_schema_version": _METRICS_SCHEMA_VERSION,
         "metrics_semantics": dict(_METRICS_SEMANTICS),
         "oos_days": int(oos_days),
         "turnover_days": turnover_days,
         "round_trips": round_trips,
         "signal_cohorts": signal_cohorts,
+        "independent_signal_cohorts": independent_signal_cohorts,
         "avg_daily_net_return": avg_daily_net_return,
         "expectancy_per_trade": expectancy_per_trade,
         "avg_daily_turnover": avg_daily_turnover,
@@ -594,6 +628,25 @@ def _compute_metrics(sim):
     }
 
 
+def _sample_sufficiency(config, *, auto_threshold=False):
+    metric = str(config.get("sample_sufficiency_metric", "round_trips")).strip()
+    if metric == "independent_signal_cohorts":
+        key = (
+            "auto_threshold_min_independent_signal_cohorts"
+            if auto_threshold
+            else "min_independent_signal_cohorts"
+        )
+        default = 8 if auto_threshold else 5
+    elif metric == "round_trips":
+        key = "auto_threshold_min_round_trips" if auto_threshold else "min_round_trips"
+        legacy_key = "auto_threshold_min_trades" if auto_threshold else "min_trades"
+        default = 8 if auto_threshold else 10
+        return metric, int(config.get(key, config.get(legacy_key, default)))
+    else:
+        raise ValueError(f"unsupported sample sufficiency metric: {metric!r}")
+    return metric, int(config.get(key, default))
+
+
 def _evaluate_gate_rules(metrics, config):
     failures = []
 
@@ -604,7 +657,7 @@ def _evaluate_gate_rules(metrics, config):
             return None
         return value if np.isfinite(value) else None
 
-    min_round_trips = int(config.get("min_round_trips", config.get("min_trades", 10)))
+    sample_metric, min_sample_count = _sample_sufficiency(config)
     min_avg_daily_net_return = float(
         config.get(
             "min_avg_daily_net_return",
@@ -612,16 +665,16 @@ def _evaluate_gate_rules(metrics, config):
         )
     )
 
-    round_trips = finite_metric("round_trips")
+    sample_count = finite_metric(sample_metric)
     cagr = finite_metric("cagr")
     avg_daily_net_return = finite_metric("avg_daily_net_return")
     max_drawdown = finite_metric("max_drawdown")
     sharpe = finite_metric("sharpe")
 
-    if round_trips is None:
-        failures.append("round_trips_unavailable")
-    elif round_trips < min_round_trips:
-        failures.append(f"round_trips<{min_round_trips}")
+    if sample_count is None:
+        failures.append(f"{sample_metric}_unavailable")
+    elif sample_count < min_sample_count:
+        failures.append(f"{sample_metric}<{min_sample_count}")
     if cagr is None:
         failures.append("cagr_unavailable")
     elif cagr < float(config["min_cagr"]):
@@ -674,11 +727,8 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
     objective = _canonical_threshold_objective(
         config.get("auto_threshold_objective", "avg_daily_net_return")
     )
-    min_round_trips = int(
-        config.get(
-            "auto_threshold_min_round_trips",
-            config.get("auto_threshold_min_trades", 8),
-        )
+    sample_metric, min_sample_count = _sample_sufficiency(
+        config, auto_threshold=True
     )
 
     if tuning_oos.empty or not enabled:
@@ -686,8 +736,8 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
             "enabled": enabled,
             "optimized": False,
             "objective": objective,
-            "min_round_trips": min_round_trips,
-            "min_trades": min_round_trips,
+            "sample_sufficiency_metric": sample_metric,
+            "min_sample_count": min_sample_count,
             "candidate_count": 1,
             "selection": "default_no_tuning" if tuning_oos.empty else "default",
         }
@@ -701,7 +751,7 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
         sim = _simulate_strategy(
             tuning_oos, config, thresholds=threshold, horizon=horizon
         )
-        metrics = _compute_metrics(sim)
+        metrics = _compute_metrics(sim, horizon=horizon)
         score = _score_for_objective(metrics, objective)
         rank = (score, metrics["sharpe"], metrics["cagr"], metrics["net_return_total"])
         candidate = {
@@ -709,6 +759,7 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
             "metrics": metrics,
             "rank": rank,
             "round_trips": int(metrics["round_trips"]),
+            "sample_count": int(metrics[sample_metric]),
             "score": score,
         }
         if _threshold_signature(threshold) == _threshold_signature(default_thresholds):
@@ -717,7 +768,7 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
         if best_any is None or candidate["rank"] > best_any["rank"]:
             best_any = candidate
 
-        if candidate["round_trips"] >= min_round_trips:
+        if candidate["sample_count"] >= min_sample_count:
             if best_feasible is None or candidate["rank"] > best_feasible["rank"]:
                 best_feasible = candidate
 
@@ -728,8 +779,8 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
             "enabled": enabled,
             "optimized": False,
             "objective": objective,
-            "min_round_trips": min_round_trips,
-            "min_trades": min_round_trips,
+            "sample_sufficiency_metric": sample_metric,
+            "min_sample_count": min_sample_count,
             "candidate_count": len(candidates),
             "selection": "default_no_feasible_candidate",
         }
@@ -739,6 +790,7 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
                     "selected_score": float(selected_default["score"]),
                     "selected_round_trips": int(selected_default["round_trips"]),
                     "selected_trades": int(selected_default["round_trips"]),
+                    "selected_sample_count": int(selected_default["sample_count"]),
                     "selected_metrics": selected_default["metrics"],
                 }
             )
@@ -747,8 +799,9 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
                 "thresholds": resolve_thresholds(diagnostic["thresholds"]),
                 "score": float(diagnostic["score"]),
                 "round_trips": int(diagnostic["round_trips"]),
+                "sample_count": int(diagnostic["sample_count"]),
                 "metrics": diagnostic["metrics"],
-                "rejected_reason": f"round_trips<{min_round_trips}",
+                "rejected_reason": f"{sample_metric}<{min_sample_count}",
             }
         return default_thresholds, metadata
 
@@ -758,8 +811,8 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
             "enabled": enabled,
             "optimized": False,
             "objective": objective,
-            "min_round_trips": min_round_trips,
-            "min_trades": min_round_trips,
+            "sample_sufficiency_metric": sample_metric,
+            "min_sample_count": min_sample_count,
             "candidate_count": len(candidates),
             "selection": "default",
         }
@@ -772,13 +825,14 @@ def _optimize_thresholds(tuning_oos, config, horizon=1):
         "enabled": enabled,
         "optimized": optimized,
         "objective": objective,
-        "min_round_trips": min_round_trips,
-        "min_trades": min_round_trips,
+        "sample_sufficiency_metric": sample_metric,
+        "min_sample_count": min_sample_count,
         "candidate_count": len(candidates),
         "selection": "feasible_best",
         "selected_score": float(selected["score"]),
         "selected_round_trips": int(selected["round_trips"]),
         "selected_trades": int(selected["round_trips"]),
+        "selected_sample_count": int(selected["sample_count"]),
         "selected_metrics": selected["metrics"],
     }
 
@@ -794,11 +848,8 @@ def evaluate_kpi_gate(df, config, label_config=None):
     objective = _canonical_threshold_objective(
         config.get("auto_threshold_objective", "avg_daily_net_return")
     )
-    min_round_trips = int(
-        config.get(
-            "auto_threshold_min_round_trips",
-            config.get("auto_threshold_min_trades", 8),
-        )
+    sample_metric, min_sample_count = _sample_sufficiency(
+        config, auto_threshold=True
     )
     execution_contract = execution_contract_metadata(
         cost_bps=config.get("cost_bps"),
@@ -812,17 +863,17 @@ def evaluate_kpi_gate(df, config, label_config=None):
             "horizon_days": horizon,
             "label_mode": label_mode,
             "execution_contract": execution_contract,
-            "metrics": _compute_metrics(pd.DataFrame()),
-            "metrics_tuning": _compute_metrics(pd.DataFrame()),
-            "metrics_holdout": _compute_metrics(pd.DataFrame()),
+            "metrics": _compute_metrics(pd.DataFrame(), horizon=horizon),
+            "metrics_tuning": _compute_metrics(pd.DataFrame(), horizon=horizon),
+            "metrics_holdout": _compute_metrics(pd.DataFrame(), horizon=horizon),
             "failures": [],
             "thresholds": default_thresholds,
             "threshold_optimization": {
                 "enabled": bool(config.get("auto_threshold_enabled", True)),
                 "optimized": False,
                 "objective": objective,
-                "min_round_trips": min_round_trips,
-                "min_trades": min_round_trips,
+                "sample_sufficiency_metric": sample_metric,
+                "min_sample_count": min_sample_count,
                 "candidate_count": 1,
                 "selection": "default",
                 "data_split": "disabled",
@@ -853,17 +904,17 @@ def evaluate_kpi_gate(df, config, label_config=None):
             "horizon_days": horizon,
             "label_mode": label_mode,
             "execution_contract": execution_contract,
-            "metrics": _compute_metrics(pd.DataFrame()),
-            "metrics_tuning": _compute_metrics(pd.DataFrame()),
-            "metrics_holdout": _compute_metrics(pd.DataFrame()),
+            "metrics": _compute_metrics(pd.DataFrame(), horizon=horizon),
+            "metrics_tuning": _compute_metrics(pd.DataFrame(), horizon=horizon),
+            "metrics_holdout": _compute_metrics(pd.DataFrame(), horizon=horizon),
             "failures": [f"rows<{min_required}"],
             "thresholds": default_thresholds,
             "threshold_optimization": {
                 "enabled": bool(config.get("auto_threshold_enabled", True)),
                 "optimized": False,
                 "objective": objective,
-                "min_round_trips": min_round_trips,
-                "min_trades": min_round_trips,
+                "sample_sufficiency_metric": sample_metric,
+                "min_sample_count": min_sample_count,
                 "candidate_count": 1,
                 "selection": "default",
                 "data_split": "insufficient_rows",
@@ -893,12 +944,12 @@ def evaluate_kpi_gate(df, config, label_config=None):
     sim_tuning = _simulate_strategy(
         tuning_oos, config, thresholds=thresholds, horizon=horizon
     )
-    metrics_tuning = _compute_metrics(sim_tuning)
+    metrics_tuning = _compute_metrics(sim_tuning, horizon=horizon)
 
     sim_holdout = _simulate_strategy(
         holdout_oos, config, thresholds=thresholds, horizon=horizon
     )
-    metrics_holdout = _compute_metrics(sim_holdout)
+    metrics_holdout = _compute_metrics(sim_holdout, horizon=horizon)
 
     metrics_for_gate = metrics_holdout
     failures = _evaluate_gate_rules(metrics_for_gate, config)
@@ -942,6 +993,7 @@ def format_gate_summary(result):
         f"MaxDD={metrics.get('max_drawdown', 0.0):.1%}, "
         f"Sharpe={metrics.get('sharpe', 0.0):.2f}, "
         f"AvgDailyNet={metrics.get('avg_daily_net_return', 0.0):.3%}, "
+        f"IndependentCohorts={metrics.get('independent_signal_cohorts', 0)}, "
         f"RoundTrips={metrics.get('round_trips', 0)}, "
         f"Thr{optimized_flag}=B{thresholds['buy']:.2f}/MB{thresholds['mild_buy']:.2f}/"
         f"MS{thresholds['mild_sell']:.2f}/S{thresholds['sell']:.2f}"

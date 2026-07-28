@@ -67,8 +67,9 @@ def _gate_contract(contract=None):
 
 def _gate_metrics(sharpe):
     return {
-        "metrics_schema_version": 2,
+        "metrics_schema_version": 3,
         "round_trips": 20,
+        "independent_signal_cohorts": 20,
         "cagr": 0.10,
         "avg_daily_net_return": 0.001,
         "max_drawdown": -0.10,
@@ -563,10 +564,21 @@ def test_gate_evidence_rejects_logical_contradictions_and_old_source():
         "metrics_holdout": {
             field: value
             for field, value in valid["metrics_holdout"].items()
-            if field != "round_trips"
+            if field != "independent_signal_cohorts"
         },
     }
     contradictions.append(model_store.finalize_phase1_gate_evidence(missing_metric))
+    missing_round_trips = {
+        **valid,
+        "metrics_holdout": {
+            field: value
+            for field, value in valid["metrics_holdout"].items()
+            if field != "round_trips"
+        },
+    }
+    contradictions.append(
+        model_store.finalize_phase1_gate_evidence(missing_round_trips)
+    )
     bad_split = {
         **valid,
         "threshold_optimization": {

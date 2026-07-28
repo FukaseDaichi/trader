@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hand-computable regression tests for KPI metric contract v2 (DR-007)."""
+"""Hand-computable regression tests for KPI metric contract v3 (DR-007)."""
 
 from __future__ import annotations
 
@@ -59,6 +59,7 @@ def test_no_trade_metrics_are_zero():
     assert metrics["turnover_days"] == 0
     assert metrics["round_trips"] == 0
     assert metrics["signal_cohorts"] == 0
+    assert metrics["independent_signal_cohorts"] == 0
     assert metrics["avg_daily_net_return"] == 0.0
     assert metrics["expectancy_per_trade"] == 0.0
 
@@ -81,7 +82,36 @@ def test_continuous_holding_is_one_round_trip():
     _assert_close(metrics["expectancy_per_trade"], expected_trade_return)
     assert metrics["trades"] == metrics["round_trips"]
     assert metrics["expectancy"] == metrics["expectancy_per_trade"]
-    assert metrics["metrics_schema_version"] == 2
+    assert metrics["metrics_schema_version"] == 3
+
+
+def test_horizon_overlap_is_removed_from_independent_signal_cohorts():
+    metrics = _compute_metrics(
+        _sim(
+            [0.0] * 11,
+            [1.0] * 11,
+            [1.0] * 10 + [0.0],
+            [1.0] * 11,
+            [1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1],
+        ),
+        horizon=5,
+    )
+    assert metrics["signal_cohorts"] == 5
+    assert metrics["independent_signal_cohorts"] == 3
+
+
+def test_market_row_positions_define_independent_cohort_spacing():
+    sim = _sim(
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0],
+        [1.0, 1.0, 0.0],
+        [1.0, 1.0, 1.0],
+        [1, 1, 1],
+    )
+    sim["market_row_number"] = [10, 12, 15]
+    metrics = _compute_metrics(sim, horizon=5)
+    assert metrics["signal_cohorts"] == 3
+    assert metrics["independent_signal_cohorts"] == 2
 
 
 def test_staged_position_is_not_counted_as_multiple_round_trips():
@@ -177,6 +207,31 @@ def test_gate_required_metrics_fail_closed_when_missing_or_nonfinite():
             metrics = {**valid, field: invalid}
             failures = _evaluate_gate_rules(metrics, config)
             assert failures.count(failure) == 1, (field, invalid, failures)
+
+
+def test_gate_uses_independent_signal_cohort_minimum_when_configured():
+    metrics = {
+        "round_trips": 1,
+        "independent_signal_cohorts": 4,
+        "cagr": 0.10,
+        "avg_daily_net_return": 0.001,
+        "max_drawdown": -0.10,
+        "sharpe": 1.0,
+    }
+    config = {
+        "sample_sufficiency_metric": "independent_signal_cohorts",
+        "min_independent_signal_cohorts": 5,
+        "min_round_trips": 10,
+        "min_avg_daily_net_return": 0.0,
+        "min_cagr": 0.0,
+        "max_drawdown": 0.25,
+        "min_sharpe": 0.2,
+    }
+    assert _evaluate_gate_rules(metrics, config) == [
+        "independent_signal_cohorts<5"
+    ]
+    metrics["independent_signal_cohorts"] = 5
+    assert _evaluate_gate_rules(metrics, config) == []
 
 
 def _oos_frame(rows, horizon):
@@ -344,10 +399,11 @@ def test_sparse_best_threshold_is_diagnostic_only_when_no_candidate_is_feasible(
     config = {
         "auto_threshold_enabled": True,
         "auto_threshold_objective": "avg_daily_net_return",
-        "auto_threshold_min_round_trips": 8,
+        "sample_sufficiency_metric": "independent_signal_cohorts",
+        "auto_threshold_min_independent_signal_cohorts": 8,
         # A deliberately lower global gate minimum must not make the sparse
         # optimized threshold actionable.
-        "min_round_trips": 1,
+        "min_independent_signal_cohorts": 1,
         "min_avg_daily_net_return": -1.0,
         "min_cagr": -1.0,
         "max_drawdown": 1.0,
@@ -361,10 +417,11 @@ def test_sparse_best_threshold_is_diagnostic_only_when_no_candidate_is_feasible(
         )
         return frame
 
-    def fake_metrics(simulation):
+    def fake_metrics(simulation, horizon=1):
         sparse_candidate = simulation.attrs["threshold_kind"] == "sparse"
         return {
             "round_trips": 2 if sparse_candidate else 1,
+            "independent_signal_cohorts": 2 if sparse_candidate else 1,
             "avg_daily_net_return": 0.50 if sparse_candidate else 0.01,
             "sharpe": 2.0 if sparse_candidate else 0.5,
             "cagr": 1.0 if sparse_candidate else 0.1,
@@ -388,7 +445,8 @@ def test_sparse_best_threshold_is_diagnostic_only_when_no_candidate_is_feasible(
     diagnostic = metadata["best_any_diagnostic"]
     assert diagnostic["thresholds"] == sparse
     assert diagnostic["round_trips"] == 2
-    assert diagnostic["rejected_reason"] == "round_trips<8"
+    assert diagnostic["sample_count"] == 2
+    assert diagnostic["rejected_reason"] == "independent_signal_cohorts<8"
     # The global KPI gate can pass the default's one trip, but never receives
     # the rejected high-scoring sparse threshold.
     assert _evaluate_gate_rules(metadata["selected_metrics"], config) == []
@@ -412,6 +470,9 @@ def test_canonical_kpi_env_names_populate_compatibility_aliases():
     assert config["min_trades"] == 12
     assert config["auto_threshold_min_round_trips"] == 9
     assert config["auto_threshold_min_trades"] == 9
+    assert config["sample_sufficiency_metric"] == "independent_signal_cohorts"
+    assert config["min_independent_signal_cohorts"] == 5
+    assert config["auto_threshold_min_independent_signal_cohorts"] == 8
 
 
 def test_legacy_kpi_env_names_warn_and_map_to_canonical_contract():
@@ -438,10 +499,13 @@ def test_legacy_kpi_env_names_warn_and_map_to_canonical_contract():
 ALL_TESTS = [
     test_no_trade_metrics_are_zero,
     test_continuous_holding_is_one_round_trip,
+    test_horizon_overlap_is_removed_from_independent_signal_cohorts,
+    test_market_row_positions_define_independent_cohort_spacing,
     test_staged_position_is_not_counted_as_multiple_round_trips,
     test_position_reversal_completes_two_round_trips,
     test_gate_and_objective_use_all_session_net_returns,
     test_gate_required_metrics_fail_closed_when_missing_or_nonfinite,
+    test_gate_uses_independent_signal_cohort_minimum_when_configured,
     test_threshold_holdout_has_horizon_embargo_and_no_return_overlap,
     test_insufficient_boundary_uses_fixed_threshold_holdout,
     test_reported_execution_boundary_overlap_disables_tuning,

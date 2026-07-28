@@ -1,6 +1,6 @@
 # 既知の課題・運用計画・バックログ
 
-更新日: 2026-07-26 JST
+更新日: 2026-07-29 JST
 
 この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」を扱います。解決済みの修正履歴はgit logを参照してください。日付は最短の目安であり、条件未達なら延期します。
 
@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
 | Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
-| Phase 1個別KPI gate | `gate_passed_tickers=0/50` | 要監視。新しいactionable signalと決済サンプルが増えない可能性がある |
+| Phase 1個別KPI gate | 本番artifactは`gate_passed_tickers=0/50`。5日horizonに合わせたindependent cohort gateをコード実装し、2026-07-29ローカル再学習で7/50通過・最新6 actionableを確認 | コードとmetrics-v3 artifactを同じrollout単位で更新する。詳細は`plans/2026-07-29-phase1-gate-sample-sufficiency-plan.md` |
 | drift | 50銘柄すべて実績サンプル不足。breachは未判定 | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
 | Phase 2レポート | 公式`docs/portfolio_backtest.json`は2026-07-25生成・`cs-v1-20260725`のままで、gate不合格（`ir_unavailable_same_basis`・`turnover>0.40`）、`active_ready=false`。同モデルの`oos_predictions.parquet`を使い2026-07-26にローカルで`topix_open`込みの再バックテストを実施し、`benchmark_coverage.coverage_ratio=1.0`、`information_ratio=0.9461`（`alpha=0.1554`、`beta=0.5141`、`tracking_error=0.1070`）、`gate.failures=["turnover>0.40"]`を測定 | ローカル測定は`ir_unavailable_same_basis`解消の裏付け。公式backtestへの反映は次回の定期パイプライン実行（2026-08-01週次retrain）を待つ |
 | TOPIX benchmark | `topix_open`をマクロパネルに実装済み（詳細は上記Phase 2レポート行を参照） | active化のP0制約から除外。以後は評価対象の指標として扱う |
@@ -39,8 +39,8 @@
 
 **2026-08-01の判定点**:
 
-- `gate_passed_tickers=0`が続き、actionable signal・決済・paired dataが増えない場合、4週間ただ待つのをやめてPhase 1品質調査を開始する。
-- 調査では銘柄別の失敗理由、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibrationを確認する。
+- `gate_passed_tickers=0`固定の原因調査は2026-07-29に前倒し実施した。集約建玉のround tripsを5日horizonのサンプル充足性へ流用した二重ロックが主因であり、independent cohort gateを実装済み。
+- 本番rollout後は銘柄別の失敗理由、independent cohorts、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibrationを確認する。
 - シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
 - artifact不整合、registry不一致、日次ephemeral fallback急増があれば、その日のうちに調査する。active化の時計は停止する。
 
@@ -104,7 +104,7 @@
 - `portfolio_backtest.json`のgateが`turnover>0.40`で不合格のまま
 - `cs_ic_vs_phase1`が負のまま（Phase 2のCS ICがPhase 1を下回る）
 
-これに加えてPhase 1個別KPI gateも`gate_passed_tickers=0/50`のままである。`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。
+これに加えて本番Phase 1個別KPI gateは`gate_passed_tickers=0/50`のままである。independent cohort gateはローカルで7/50通過を確認したが、本番artifactのrolloutと実績観測は未完了である。`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。
 
 turnoverの再校正、`cs_ic_vs_phase1`の改善、Phase 1 gate通過数の回復のいずれも確認できるまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 

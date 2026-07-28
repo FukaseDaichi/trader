@@ -184,6 +184,13 @@ def canonical_phase1_gate_config(
     )
     if objective == "expectancy":
         objective = "avg_daily_net_return"
+    sample_metric = str(
+        cfg.get("sample_sufficiency_metric", "independent_signal_cohorts")
+    ).strip()
+    if sample_metric not in {"round_trips", "independent_signal_cohorts"}:
+        raise ValueError(
+            f"unsupported Phase 1 sample sufficiency metric: {sample_metric!r}"
+        )
     configured_purge = max(0, int(cfg.get("purge_gap", 5)))
     return {
         "enabled": bool(cfg.get("enabled", True)),
@@ -205,6 +212,10 @@ def canonical_phase1_gate_config(
         "max_drawdown": float(cfg.get("max_drawdown", 0.25)),
         "min_sharpe": float(cfg.get("min_sharpe", 0.20)),
         "min_round_trips": int(cfg.get("min_round_trips", cfg.get("min_trades", 10))),
+        "sample_sufficiency_metric": sample_metric,
+        "min_independent_signal_cohorts": int(
+            cfg.get("min_independent_signal_cohorts", 5)
+        ),
         "auto_threshold_enabled": bool(cfg.get("auto_threshold_enabled", True)),
         "auto_threshold_min_round_trips": int(
             cfg.get(
@@ -212,9 +223,12 @@ def canonical_phase1_gate_config(
                 cfg.get("auto_threshold_min_trades", 8),
             )
         ),
+        "auto_threshold_min_independent_signal_cohorts": int(
+            cfg.get("auto_threshold_min_independent_signal_cohorts", 8)
+        ),
         "auto_threshold_objective": objective,
         "auto_threshold_min_gap": float(cfg.get("auto_threshold_min_gap", 0.05)),
-        "metrics_schema_version": 2,
+        "metrics_schema_version": 3,
     }
 
 
@@ -515,7 +529,7 @@ def verify_phase1_gate_evidence(
             reasons.append({"code": "gate_evidence_payload_missing", "field": field})
     for field in ("metrics_tuning", "metrics_holdout"):
         metrics = evidence.get(field)
-        if isinstance(metrics, dict) and metrics.get("metrics_schema_version") != 2:
+        if isinstance(metrics, dict) and metrics.get("metrics_schema_version") != 3:
             reasons.append(
                 {
                     "code": "gate_evidence_metrics_schema_invalid",
@@ -527,6 +541,7 @@ def verify_phase1_gate_evidence(
     if isinstance(holdout_metrics, dict):
         for field in (
             "round_trips",
+            "independent_signal_cohorts",
             "cagr",
             "avg_daily_net_return",
             "max_drawdown",

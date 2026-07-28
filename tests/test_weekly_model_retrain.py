@@ -65,8 +65,9 @@ def _successful_result(booster: lgb.Booster, version: str) -> dict:
         "volatility_limit": 0.04,
     }
     metrics_tuning = {
-        "metrics_schema_version": 2,
+        "metrics_schema_version": 3,
         "round_trips": 20,
+        "independent_signal_cohorts": 20,
         "cagr": 0.10,
         "avg_daily_net_return": 0.001,
         "max_drawdown": -0.10,
