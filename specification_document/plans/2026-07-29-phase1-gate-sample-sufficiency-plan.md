@@ -1,7 +1,7 @@
 # Phase 1 KPI gate サンプル充足性改善 実装・ロールアウト計画
 
 作成日: 2026-07-29 JST  
-ステータス: コード実装・ローカル検証完了、本番artifact更新は未実施  
+ステータス: コード・metrics-v3 artifact実装済み、ローカルactive化・runtime検証完了。DB registryはoutbox待機、remote未反映
 関連: `specification_document/06_issues_and_backlog.md`「Phase 1個別KPI gate」
 
 ## 1. 結論
@@ -156,18 +156,23 @@ tests/test_weekly_model_retrain.py          4/4
 
 その後、`tests/test_*.py`を全件実行し、45ファイルすべて成功した。
 
-## 7. 残るロールアウト作業
+## 7. Artifact生成結果と残るロールアウト作業
 
-コードを本番へ出す前に、同じ変更を含むcommitから新しい週次artifactを生成する。
-コードだけを先に出すと旧metrics-v2 artifactが拒否され、日次が50銘柄すべてを
-ephemeral再学習するため、コードと新artifactは同じrollout単位で扱う。
+コードcommit `48f737a8`から次のartifactを生成し、ローカルactive化した。
 
-- [ ] 一意なversionで全50銘柄を週次再学習する。
-- [ ] manifest coverage 50/50、checksum、gate evidenceを検証する。
-- [ ] 新artifactとコードを同じ変更セットへ含める。
-- [ ] DB registry登録またはoutbox queue成功を確認する。
-- [ ] active pointerが新gate contractを指すことを確認する。
-- [ ] 本番相当dry runでsaved-model利用50/50、ephemeral fallback 0を確認する。
+```text
+per-ticker-v1-20260729T053212-48f737a8b19b-79c270de
+```
+
+- [x] 一意なversionで全50銘柄を週次再学習する。
+- [x] manifest coverage 50/50、201ファイルのchecksum、gate evidenceを検証する。
+- [x] 新artifactとコードを同じ変更セットへ含める。
+- [x] DB無効環境でregistry eventをoutboxへqueueする。
+- [x] active pointerが新gate contractを指すことを確認する。
+- [x] 本番相当dry runでruntime compatible、saved bundle load 50/50、
+      prediction 50/50、ephemeral fallback 0を確認する。
+- [ ] code、artifact、active pointer、outbox eventをremoteへ反映する。
+- [ ] 次回DB接続成功時にregistry eventがreplayされることを確認する。
 - [ ] 最初の5営業日はgate通過数、actionable数、settlement、driftを確認する。
 
 Phase 2はshadowのまま維持し、この変更と同時にactive化しない。

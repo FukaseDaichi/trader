@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
 | Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
-| Phase 1個別KPI gate | 本番artifactは`gate_passed_tickers=0/50`。5日horizonに合わせたindependent cohort gateをコード実装し、2026-07-29ローカル再学習で7/50通過・最新6 actionableを確認 | コードとmetrics-v3 artifactを同じrollout単位で更新する。詳細は`plans/2026-07-29-phase1-gate-sample-sufficiency-plan.md` |
+| Phase 1個別KPI gate | independent cohort gateとmetrics-v3 artifactを実装し、2026-07-29ローカルactive化。50/50 bundle・prediction、7/50 gate通過・最新6 actionableを確認 | DB registryはoutbox待機、remote反映と5営業日の観測が未完了。詳細は`plans/2026-07-29-phase1-gate-sample-sufficiency-plan.md` |
 | drift | 50銘柄すべて実績サンプル不足。breachは未判定 | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
 | Phase 2レポート | 公式`docs/portfolio_backtest.json`は2026-07-25生成・`cs-v1-20260725`のままで、gate不合格（`ir_unavailable_same_basis`・`turnover>0.40`）、`active_ready=false`。同モデルの`oos_predictions.parquet`を使い2026-07-26にローカルで`topix_open`込みの再バックテストを実施し、`benchmark_coverage.coverage_ratio=1.0`、`information_ratio=0.9461`（`alpha=0.1554`、`beta=0.5141`、`tracking_error=0.1070`）、`gate.failures=["turnover>0.40"]`を測定 | ローカル測定は`ir_unavailable_same_basis`解消の裏付け。公式backtestへの反映は次回の定期パイプライン実行（2026-08-01週次retrain）を待つ |
 | TOPIX benchmark | `topix_open`をマクロパネルに実装済み（詳細は上記Phase 2レポート行を参照） | active化のP0制約から除外。以後は評価対象の指標として扱う |
@@ -104,7 +104,7 @@
 - `portfolio_backtest.json`のgateが`turnover>0.40`で不合格のまま
 - `cs_ic_vs_phase1`が負のまま（Phase 2のCS ICがPhase 1を下回る）
 
-これに加えて本番Phase 1個別KPI gateは`gate_passed_tickers=0/50`のままである。independent cohort gateはローカルで7/50通過を確認したが、本番artifactのrolloutと実績観測は未完了である。`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。
+これに加えてPhase 1 individual gateはindependent cohort方式でローカル7/50通過まで改善したが、remote反映・DB registry replay・実績観測は未完了である。`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。
 
 turnoverの再校正、`cs_ic_vs_phase1`の改善、Phase 1 gate通過数の回復のいずれも確認できるまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 

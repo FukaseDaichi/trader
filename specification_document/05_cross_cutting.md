@@ -33,7 +33,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 
 ### `.env` / 環境変数
 
-すべての環境変数の正典はコメント付き`.env.example`（データソース、KPIゲート、閾値最適化、Phase 0 DB、Phase 1ラベル/モデル/較正/ドリフト、Phase 2 CS/ポートフォリオ、Phase 3通知/実績）。既定値は`src/config.py`。`src.env`経由のfloat設定は有限値のみ有効で、`NaN` / `Infinity` は主要設定ではfail-fast、データ取得などの日次補助設定では警告後に既定値へ縮退する。KPIのcanonical名は`TRADER_KPI_MIN_AVG_DAILY_NET_RETURN`、`TRADER_KPI_MIN_ROUND_TRIPS`、`TRADER_AUTO_THRESHOLD_MIN_ROUND_TRIPS`、objective=`avg_daily_net_return`で、旧`EXPECTANCY`／`TRADES`名は警告付きaliasのみ。`vol_norm`は未対応で、残存envは警告して`triple_barrier`へ縮退する。`main.py`は`.env`なしでも動作し、LINE通知とDB接続をスキップする一方、再送可能なprediction/signalイベントは`data/outbox/`へ保存する。
+すべての環境変数の正典はコメント付き`.env.example`（データソース、KPIゲート、閾値最適化、Phase 0 DB、Phase 1ラベル/モデル/較正/ドリフト、Phase 2 CS/ポートフォリオ、Phase 3通知/実績）。既定値は`src/config.py`。`src.env`経由のfloat設定は有限値のみ有効で、`NaN` / `Infinity` は主要設定ではfail-fast、データ取得などの日次補助設定では警告後に既定値へ縮退する。KPIのcanonical名は`TRADER_KPI_MIN_AVG_DAILY_NET_RETURN`、`TRADER_KPI_SAMPLE_SUFFICIENCY_METRIC=independent_signal_cohorts`、`TRADER_KPI_MIN_INDEPENDENT_SIGNAL_COHORTS`、`TRADER_AUTO_THRESHOLD_MIN_INDEPENDENT_SIGNAL_COHORTS`、objective=`avg_daily_net_return`である。旧round-trip方式の設定と`EXPECTANCY`／`TRADES` aliasはbaseline互換用に残す。`vol_norm`は未対応で、残存envは警告して`triple_barrier`へ縮退する。`main.py`は`.env`なしでも動作し、LINE通知とDB接続をスキップする一方、再送可能なprediction/signalイベントは`data/outbox/`へ保存する。
 
 ## ローカルデータ（data/）
 
