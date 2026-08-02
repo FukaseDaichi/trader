@@ -9,7 +9,7 @@
 - **Phase 2（ポートフォリオ・シャドー運用中）**: ユニバース全体を1つのクロスセクショナルモデルで予測し、リスク制約付きロングオンリーの目標ポートフォリオを毎日提案（シャドー中はPhase 1のシグナル・通知に影響しない）
 - **Phase 3（手動トレードUX・運用堅牢化）**: トリプルバリアと同じ幅を使うATR出口プラン、v2約定・非重複cohort・往復コスト後の実績ページ（同一basis TOPIXがある場合だけ比較）と個別結果履歴（`/performance`）、朝のダイジェスト通知と週次実績サマリ（LINEリトライ付き）、fail-closedなactive mode配線
 
-このREADMEは2026-07-24時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。P0/P1設計是正の実装結果と未完了の運用移行は`specification_document/plans/2026-07-20-critical-high-priority-remediation.md`、現行仕様・既知課題は`specification_document/`を参照してください。
+このREADMEは2026-08-02時点のソースコードを正として更新しています。Phase 0〜3はすべて実装済みです。現行仕様は`specification_document/`（起点は`README.md`）、未完了の運用移行・既知課題・今後の実装予定は`specification_document/06_issues_and_backlog.md`を参照してください。
 
 ## 公開ダッシュボード
 

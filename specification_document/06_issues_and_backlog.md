@@ -1,8 +1,8 @@
 # 既知の課題・運用計画・バックログ
 
-更新日: 2026-07-29 JST
+更新日: 2026-08-02 JST
 
-この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」を扱います。解決済みの修正履歴はgit logを参照してください。日付は最短の目安であり、条件未達なら延期します。
+この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」「今後実装する予定のもの」を扱う唯一の一覧です。解決済みの修正履歴はgit logを参照してください。日付は最短の目安であり、条件未達なら延期します。
 
 ## 結論
 
@@ -12,43 +12,45 @@
 
 2026-07-19以前のportfolio/shadow指標はv2/schema v3移行前の履歴であり、以降のactive判断には使用しない。
 
-## 現在地（2026-07-26）
+## 現在地（2026-08-02）
 
 | 項目 | 状態 | 判断 |
 | --- | --- | --- |
 | execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
 | Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
-| Phase 1個別KPI gate | independent cohort gateとmetrics-v3 artifactを実装し、2026-07-29ローカルactive化。50/50 bundle・prediction、7/50 gate通過・最新6 actionableを確認 | DB registryはoutbox待機、remote反映と5営業日の観測が未完了。詳細は`plans/2026-07-29-phase1-gate-sample-sufficiency-plan.md` |
-| drift | 50銘柄すべて実績サンプル不足。breachは未判定 | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
-| Phase 2レポート | 公式`docs/portfolio_backtest.json`は2026-07-25生成・`cs-v1-20260725`のままで、gate不合格（`ir_unavailable_same_basis`・`turnover>0.40`）、`active_ready=false`。同モデルの`oos_predictions.parquet`を使い2026-07-26にローカルで`topix_open`込みの再バックテストを実施し、`benchmark_coverage.coverage_ratio=1.0`、`information_ratio=0.9461`（`alpha=0.1554`、`beta=0.5141`、`tracking_error=0.1070`）、`gate.failures=["turnover>0.40"]`を測定 | ローカル測定は`ir_unavailable_same_basis`解消の裏付け。公式backtestへの反映は次回の定期パイプライン実行（2026-08-01週次retrain）を待つ |
-| TOPIX benchmark | `topix_open`をマクロパネルに実装済み（詳細は上記Phase 2レポート行を参照） | active化のP0制約から除外。以後は評価対象の指標として扱う |
+| Phase 1個別KPI gate | independent cohort gate（metrics schema v3）をremoteへ反映済み。2026-08-01の週次再学習が`per-ticker-v1-20260801T090258-76bcfb375e42-9b960e8b`を生成。`data/outbox/`はディレクトリ自体が無く、registry eventの滞留なし。本番2026-07-31時点で50銘柄中7銘柄がgate通過、actionable 7件（MILD_BUY 6・MILD_SELL 1） | コード・artifact・観測は本番稼働。残るのは5営業日観測の完了（2026-08-03、08-04）のみ |
+| drift | 50銘柄すべて`warning`（実績サンプル不足）。`breached=false` | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
+| Phase 2レポート | 公式`docs/portfolio_backtest.json`が2026-08-01に`cs-v1-20260801`で再生成され、`benchmark_coverage.coverage_ratio=1.0`（35/35期間）。`information_ratio=-0.3905`、`alpha=0.0364`、`beta=0.3846`、`tracking_error=0.1210`、`turnover=0.9205`、`gate.failures=["ir<0.00","turnover>0.40"]` | `ir_unavailable_same_basis`は解消。公式artifactで初めてIRが測れた結果、**IRは負**。Phase 2を育てるか畳むかの判断材料が揃った（下記「Phase 2の継続判断」） |
+| Phase 2 shadow report | 2026-08-01時点で`shadow_days=19`、`n_paired_dates=19`、`n_paired_records=54`、`cs_ic_vs_phase1=-0.2404`、`active_ready=false` | 維持する |
+| TOPIX benchmark | `topix_open`をマクロパネルに実装済み・本番反映済み | active化のP0制約から除外。以後は評価対象の指標として扱う |
 | 実行モード | core/retry workflowとも`TRADER_PORTFOLIO_MODE=shadow`を明示 | 維持する |
 
 ## 実施計画
 
-### 1. 初週 — 観測が増えるか確認する（2026-07-27〜08-01）
+### 1. Phase 1 independent cohort gateの本番観測（2026-07-29〜08-04）
 
-最初の営業週は、単にエラーがないことではなく、次の分母が増えていることを確認する。
+2026-07-29に本番反映した。残作業は最初の5営業日（07-29、07-30、07-31、08-03、08-04）の観測完了のみで、07-31までの3営業日は正常である。
 
-- 保存済みschema v3モデルの利用率とephemeral fallback率
+毎営業日、次を確認する。
+
 - 銘柄別KPI gate通過数、actionable signal数、HOLD縮退理由
+- independent cohorts、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibration
+- 保存済みschema v3モデルの利用率とephemeral fallback率（fallbackは0が正常）
 - v2の1/5/10日決済件数と`realized_ret`欠損
 - driftの`n_outcomes`と`insufficient_sample_tickers`
-- shadow reportの`n_paired_dates`、`n_paired_records`、date coverage、除外理由
-- Phase 1/Phase 2のdaily IC差、portfolio gate、IR、turnover
 
-**2026-08-01の判定点**:
+**ロールバック条件**（1つでも該当したら、旧コードと旧artifact pointerを同じ単位で戻す。新gate evidenceを旧設定で再利用せず、旧contractに一致するartifactへ戻す）:
 
-- `gate_passed_tickers=0`固定の原因調査は2026-07-29に前倒し実施した。集約建玉のround tripsを5日horizonのサンプル充足性へ流用した二重ロックが主因であり、independent cohort gateを実装済み。
-- 本番rollout後は銘柄別の失敗理由、independent cohorts、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibrationを確認する。
-- シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
-- artifact不整合、registry不一致、日次ephemeral fallback急増があれば、その日のうちに調査する。active化の時計は停止する。
+- artifact、manifest、gate contract、registryの不一致
+- 日次処理の停止
+- actionable signalが10件超の日が2営業日連続
+- gate通過が再び0/50で2営業日連続
+- settlement、DB write-through、LINE digestの契約不整合
+- 事前評価を大きく超えるdrawdownまたはturnover異常
 
-### 2. TOPIX open方針の決定（2026-07-26、実装済み）
+シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
 
-**決定: オプション1（Phase 2 activeを将来提供する）を選び、実装済み。** 同一basisのTOPIX open系列は既存のTOPIX連動ETF `1305.T`（現行の`topix`終値列と同一銘柄）から取得し、マクロパネルへ`topix_open`列として追加した。設計は`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`（不採用にした案の理由も記載）、実装計画は`specification_document/plans/2026-07-26-topix-open-benchmark-plan.md`を参照。実装後、`cs-v1-20260725`の`oos_predictions.parquet`を用いてv2・net-vs-netでCSバックテストをローカル再実行し、`coverage_ratio=1.0`・`information_ratio=0.9461`を確認した（現在地表を参照）。公式`docs/portfolio_backtest.json`への反映は2026-08-01の週次retrainを待つ。
-
-### 3. 4週間shadow監視（2026-07-27〜08-21）
+### 2. 4週間shadow監視（2026-07-27〜08-21）
 
 週次確認日は2026-08-01、08-08、08-15、08-22とする。毎週、同じ観点で記録する。
 
@@ -63,50 +65,58 @@
 
 4週間という期間は必要条件であって十分条件ではない。休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
 
-### 4. 最初の総合判定（2026-08-22）
+### 3. 最初の総合判定（2026-08-22）
 
 以下を**すべて**満たした場合だけ、active化を人間が検討できる。
 
 - [ ] 4週間の週次記録があり、観測数とpaired coverageが実際に増加
 - [ ] Phase 1 schema v3のruntime/manifest/registryが継続して整合
 - [ ] Phase 1のKPI通過・actionable signal・決済サンプルが、判断に使える量まで増加
-- [x] TOPIX同一basis open系列の契約・履歴・完全coverageを確認（2026-07-26、`cs-v1-20260725`によるローカル再バックテストで`coverage_ratio=1.0`を測定。公式`docs/portfolio_backtest.json`は未反映のため、2026-08-22のレビューで同じcoverageが公式artifactでも再現されることを確認する）
+- [x] TOPIX同一basis open系列の契約・履歴・完全coverageを確認（2026-08-01の公式`docs/portfolio_backtest.json`で`coverage_ratio=1.0`を確認済み）
 - [ ] portfolio backtestが現行v2、strategy net対benchmark net、必須指標有限、明示的gate合格
 - [ ] v2 shadow分布を根拠に`TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`を再校正し、変更理由を記録
 - [ ] shadow reportの`active_readiness.active_ready=true`
 - [ ] backtestと当日snapshotのCS `model_version`が完全一致
 - [ ] 最終的なactive化を人間が明示承認
 
-1項目でも未達なら`shadow`を継続する。TOPIX同一basis benchmarkは実装済みだが、現在の証拠ではportfolio gate不合格（`turnover>0.40`・`cs_ic_vs_phase1`が負）とPhase 1 gate 0/50のためactive化できない。
+1項目でも未達なら`shadow`を継続する。
 
-### 5. 条件合格後のみ — controlled active化（最短2026-08-24）
+### 4. 条件合格後のみ — controlled active化（最短2026-08-24）
 
 - coreとretryの`TRADER_PORTFOLIO_MODE`を同時に`active`へ変更する。片方だけ変更しない。
 - 最初の1週間は毎朝、ダイジェストの建玉、`docs/portfolio_latest.json`、DB `signals.target_weight`を照合する。
 - gate fail、snapshot欠損、CS version不一致時にtarget weightが反映されず、安全に縮退することを確認する。
 - 最初の週次レビューは2026-08-29を目安とする。異常時は`shadow`へ戻す。
 
-## 今後の流れの妥当性検証
-
-全体の順序は妥当だが、次の補強を入れた。
-
-1. **旧shadowレポートを基準にしない**: v2/schema v3移行前の2026-07-19レポートは条件が違うため、2026-07-25を新しい基準日にする。
-2. **観測数の増加を初週に判定する**: 現在0/50 gateのため、期間だけ待っても証拠が増えないリスクがある。2026-08-01に品質調査への分岐を置く。
-3. **turnover再校正を最後にする**: 現行`0.40`を今変更せず、v2 shadow分布と同一basis benchmarkが揃ってから決める。
-4. **active化を日付で自動実行しない**: 2026-08-24は最短日であり、全ゲートと人間承認が優先する。
-
 ## 継続中のP0制約
 
 ### Phase 2 active化を禁止する
 
-同一basisのTOPIX open系列は`topix_open`として実装済みであり、`ir_unavailable_same_basis`はもはやactive化を禁止する理由ではない（詳細は現在地表を参照）。ただし次の2件は本設計の対象外として明示的に残っている（`specification_document/plans/2026-07-26-topix-open-benchmark-design.md`の期待結果表を参照）。
+同一basisのTOPIX open系列は`topix_open`として実装・本番反映済みであり、`ir_unavailable_same_basis`はもはやactive化を禁止する理由ではない。代わりに公式artifactで測れるようになった実数値が、次の2件でgate不合格を出している。
 
-- `portfolio_backtest.json`のgateが`turnover>0.40`で不合格のまま
-- `cs_ic_vs_phase1`が負のまま（Phase 2のCS ICがPhase 1を下回る）
+- `information_ratio=-0.3905` → gate `ir<0.00`（同一basis benchmark比でマイナス）
+- `turnover=0.9205` → gate `turnover>0.40`
+- 併せて`cs_ic_vs_phase1=-0.2404`（Phase 2のCS ICがPhase 1を下回る）
 
-これに加えてPhase 1 individual gateはindependent cohort方式でローカル7/50通過まで改善したが、remote反映・DB registry replay・実績観測は未完了である。`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。
+`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。上記が解消するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 
-turnoverの再校正、`cs_ic_vs_phase1`の改善、Phase 1 gate通過数の回復のいずれも確認できるまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
+### TOPIX同一basis benchmarkの決定記録（2026-07-26 決定、2026-08-01 本番反映）
+
+将来の再検討時に同じ議論を繰り返さないための記録。
+
+- **採用**: ベンチマークの原資産は既存の`topix`終値列と同一のTOPIX連動ETF `1305.T`。始値と終値が同一銘柄・同一調整係数・同一応答から得られ、基準が原理的にズレない。1305は寄付きで実際に買えるため、コスト控除後の比較対象として妥当。
+- **不採用: TOPIX指数`^TPX`** — Yahooで空（2026-07-26再確認）。
+- **不採用: `1306.T`** — Yahooが未調整の10:1不連続を残す既知問題。
+- **不採用: TOPIX OHLCを別ソースから取得** — TOPIXの定義が2つになり、マクロ特徴量との整合も別途必要になる。
+- **不採用: ベンチマーク専用parquetを別に持つ** — 同一銘柄のデータが2箇所に分かれ、取得タイミング差で始値と終値の日付が食い違いうる。回避したい基準ズレを自ら作り込む。
+- **不採用: TOPIX終値同士のリターンで代用** — 戦略と比較条件が変わり、IRの意味が壊れる。
+- **スコープ外として意図的に据え置いた**: Phase 1特徴量（`topix_open`はモデルが読まない生データ列。artifact schema上げと再学習を回避）、DBスキーマ（`macro_snapshots`と`latest_snapshot_row()`は無変更）、既存`topix`終値の前日埋め挙動、`scripts/settle_outcomes.py`の`benchmark_ret`。
+
+列の契約（前日埋めしない、非有限・非正は当該日付のみNaN、不連続や始値終値の基準ズレは始値列のみ破棄）は`05_cross_cutting.md`が正典。
+
+### Phase 2の継続判断
+
+TOPIX open実装の目的は「active化の実現」ではなく「IRという評価軸を初めて測定可能にすること」だった。公式artifactで測った結果はIR **負**（-0.3905）であり、これはPhase 2を縮小・shadow-onlyに畳む根拠になりうる。2026-08-22のレビューでは、active条件の消化だけでなく「Phase 2を育てるか畳むか」も明示的に判断する。
 
 ## 対応しない（方針）
 
@@ -114,7 +124,19 @@ turnoverの再校正、`cs_ic_vs_phase1`の改善、Phase 1 gate通過数の回�
 
 AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知されますが、シグナルや売買判断には影響しないため、リスクはレポートの読み味だけです。品質はこだわらない方針です。
 
-## 低優先・観察
+## 今後の実装予定（統合バックログ）
+
+未実装・未着手のものはすべてここに集約します。個別の実装計画ドキュメントは作らず、着手が決まった時点で`plans/YYYY-MM-DD-<topic>.md`を作成し、完了したら削除してこの表へ戻します。
+
+### 着手条件が既に揃っているもの
+
+| 項目 | 内容 | 備考 |
+| --- | --- | --- |
+| `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.9205`。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | 2026-08-22の総合判定の必須項目。数値合わせのために緩めない |
+| `cs_ic_vs_phase1`の改善 | Phase 2のCS ICがPhase 1を下回る（`-0.2404`）。特徴量・ラベル・学習設計の見直しが必要 | 改善見込みが立たない場合はPhase 2縮小の判断材料 |
+| 決済側の同一basis benchmark | `scripts/settle_outcomes.py` / `db_records.compute_benchmark_ret()`は今もclose-to-closeのみで、v2の`benchmark_ret`/`excess_ret`はNULL・`benchmark_basis=unavailable_same_basis`。マクロパネルに`topix_open`が入ったので、翌営業日寄付き→H営業日目終値の同一basis benchmarkを決済側でも計算できる | データ側のブロッカーは解消済み。着手すれば`performance_summary.json`の`benchmark`もnullでなくなる |
+
+### 観察中（条件が揃ったら判断）
 
 | 項目 | いつ判断するか | 内容 |
 | --- | --- | --- |
@@ -123,13 +145,13 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 | `usdjpy`の行数が少ない | macro鮮度警告が出た時だけ | 系列の歴史差によるもので、現時点では異常ではない |
 | 月次監査・stress testのモデル同一性 | P1運用移行完了後 | 配備Phase 1 exact candidateの`gate_evidence`を再評価する監査へ寄せる。日次action・active化は制御しない |
 
-## Phase 4+バックログ
+### Phase 4+
 
 | 項目 | 着手条件・時期 |
 | --- | --- |
 | fills（手動約定）記録 | active pilotを行う方針が決まった後。提案と実約定の乖離計測が必要になった時 |
 | 発注指示出力（証券会社CSV/API） | fillsとリスク管理を先に整備し、不可逆処理を決定論コードに限定できた後 |
 | `signals.action`のポートフォリオ駆動化再評価 | controlled active pilotの結果を確認した後 |
-| `active_readiness`のGitHub Issue自動起票 | TOPIX coverageを実装し、active readinessが実際の運用判断に使える段階 |
+| `active_readiness`のGitHub Issue自動起票 | active readinessが実際の運用判断に使える段階（TOPIX coverageは実装済み） |
 | DB長期アーカイブとAlembic | DBサイズ警告（既定400MB）が近づいた時 |
 | ダッシュボードの認証・ユーザー管理 | 公開範囲を限定する要件または複数ユーザー要件が生じた時 |

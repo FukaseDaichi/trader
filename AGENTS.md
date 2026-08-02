@@ -37,9 +37,11 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   itself stays a deliberate manual step gated on the shadow report).
 
 Full as-built specs, known issues, and backlog: `specification_document/`
-(start at its `README.md`; completed phase plans normally live in git history,
-while user-requested decision records or plans with unfinished operational
-rollout remain in `specification_document/plans/` with explicit status).
+(start at its `README.md`). Completed plans are deleted and live in git
+history; everything still open — remaining operational rollout, decision
+records worth not re-litigating, and future work — is consolidated in
+`specification_document/06_issues_and_backlog.md`. `plans/` is created only
+while an implementation plan is in flight, and does not currently exist.
 
 ## Commands
 

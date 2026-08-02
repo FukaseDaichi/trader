@@ -1,6 +1,6 @@
 # Pythonバックエンド仕様
 
-更新日: 2026-07-24 JST
+更新日: 2026-08-02 JST
 
 ## モジュールマップ
 
@@ -12,7 +12,7 @@
 | `src/timeutil.py` | JSTの現在日時・日付と、UTCオフセット付きISO 8601文字列の共通生成 |
 | `src/data_loader.py` | OHLCV 取得（Stooq → yfinance フォールバック）、検証、parquet 保存、無効銘柄の退避 |
 | `src/model.py` | 34 テクニカル特徴量、`build_feature_frame()`、purged internal validation付きPhase 1学習。`train_and_predict()`は互換helperとして残るが日次配信経路では不使用 |
-| `src/macro.py` | マクロパネル（USD/JPY・TOPIX・日経・日経VI・JGB10y）と 11 マクロ特徴量 |
+| `src/macro.py` | マクロパネル（USD/JPY・TOPIX・日経・日経VI・JGB10y）と 11 マクロ特徴量。加えてPhase 2の同一basis benchmark用の補助level列 `topix_open`（特徴量ではない。契約は `05_cross_cutting.md`） |
 | `src/execution.py` | 約定契約 `next_session_open_to_close_v2`。判断可能日、翌営業日寄付き、H営業日目終値を横断的に解決 |
 | `src/labels.py` | ラベル生成（`triple_barrier` / `binary_1d`）と `effective_horizon()` |
 | `src/calibration.py` | isotonic 較正、Brier、reliability ビン |
@@ -130,7 +130,7 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 
 ポートフォリオ単位のゲート `evaluate_portfolio_kpi_gate()`（Sharpe / MaxDD / 情報比 / 回転率、`TRADER_PORTFOLIO_BACKTEST_*`）は週次のクロスセクション再学習時に評価され、結果は `docs/cs_model_quality.json` に加えて `docs/portfolio_backtest.json` の `gate: {passed, failures}` にも書き出されます。`portfolio.read_portfolio_gate()` は、`available=true`、明示的な `gate.passed=true`（failuresなし）、現行 `next_session_open_to_close_v2`、net-vs-net、完全な同一basis benchmark coverage、バックテストと当日snapshotのCS `model_version`一致がすべて整合するときだけactiveを許可します。gateなし・availabilityだけの旧レポート、close-to-close契約、別versionの旧レポートはfail-closedです。
 
-ポートフォリオのwalk-forwardは、各cross sectionの全行でv2契約・market-as-of・entry・exitが共通かを検証し、不整合期間と選択/保有銘柄の`fwd_return`欠損期間を`data_quality.exclusions`へ理由付きで除外します。有効期間が2未満なら`insufficient`です。H日窓は非重複なので同一銘柄でも前bookと次bookの差分相殺はせず、前book全決済＋次book全建てをturnoverに数え、最終bookの決済も必ず課金します。TOPIXも同じfull exit/entry方式でコスト・スリッページ控除後にし、戦略net対benchmark netでIR等を算出します。コスト前は`gross_period_return` / `gross_benchmark_return`に保持します。必須ゲート指標がNULL/NaN/Infなら閾値比較を通さず、指標別のunavailable理由でfail-closedです。
+ポートフォリオのwalk-forwardは、各cross sectionの全行でv2契約・market-as-of・entry・exitが共通かを検証し、不整合期間と選択/保有銘柄の`fwd_return`欠損期間を`data_quality.exclusions`へ理由付きで除外します。有効期間が2未満なら`insufficient`です。H日窓は非重複なので同一銘柄でも前bookと次bookの差分相殺はせず、前book全決済＋次book全建てをturnoverに数え、最終bookの決済も必ず課金します。TOPIXも同じfull exit/entry方式でコスト・スリッページ控除後にし、戦略net対benchmark netでIR等を算出します。benchmarkのentryにはマクロパネルの`topix_open`（前日埋めなし）を日付完全一致で使い、欠損日は`_benchmark_coverage()`が`coverage_ratio<1.0`として正直に報告します。コスト前は`gross_period_return` / `gross_benchmark_return`に保持します。必須ゲート指標がNULL/NaN/Infなら閾値比較を通さず、指標別のunavailable理由でfail-closedです。
 
 ## シグナルとATR出口プラン（src/predictor.py）
 
