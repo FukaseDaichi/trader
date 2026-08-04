@@ -1,6 +1,6 @@
 # specification_document の構成
 
-更新日: 2026-06-11 JST
+更新日: 2026-08-04 JST
 
 このディレクトリは、**ソースコードを正とする現行仕様（as-built）**と、**未解決の課題・バックログ**を管理します。将来案や実装計画は完了したら削除し、ここには「いまの姿」と「これからやること」だけを残します。
 
@@ -16,6 +16,7 @@
 | [05_cross_cutting.md](05_cross_cutting.md) | データ契約（docs/ JSON・DB・parquet）と横断仕様 |
 | [06_issues_and_backlog.md](06_issues_and_backlog.md) | 既知の課題・運用チェックリスト・将来バックログ |
 | [ai_ticker_curation/](ai_ticker_curation/) | AI銘柄キュレーションの設計・契約（スクリプトのコードコメントから参照される正典） |
+| [diagrams/](diagrams/) | 対外発表向けアーキテクチャ図（Excalidraw、4枚構成） |
 
 ## 運用ルール
 

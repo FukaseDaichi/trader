@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>diagram preview</title>
+<style>body{font-family:sans-serif;background:#f5f5f5;padding:20px}
+svg{background:#fff;border:1px solid #ccc;max-width:100%;height:auto;display:block;margin:8px 0 40px}</style>
+<h1>Excalidraw preview</h1>
+<div id="root">loading...</div>
+<script type="module">
+window.EXCALIDRAW_ASSET_PATH = "https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/";
+import * as ex from "https://esm.sh/@excalidraw/excalidraw@0.18.0?bundle-deps";
+const root = document.getElementById("root");
+root.textContent = "";
+for (const f of ["01_system_overview","02_daily_pipeline","03_ai_curation","04_schedule"]) {
+  const h = document.createElement("h2"); h.textContent = f; root.append(h);
+  try {
+    const data = await (await fetch(f + ".excalidraw")).json();
+    const svg = await ex.exportToSvg({
+      elements: data.elements,
+      appState: {...data.appState, exportBackground: true},
+      files: {},
+    });
+    root.append(svg);
+  } catch (e) {
+    const p = document.createElement("pre"); p.textContent = "ERROR " + e; root.append(p);
+    console.error(f, e);
+  }
+}
+</script>
