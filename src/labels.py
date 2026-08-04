@@ -5,16 +5,17 @@ Pure pandas/numpy logic with NO database/network dependency, so it can be
 unit-tested standalone (tests/test_labels.py). The legacy next-day binary
 target is reproducible via `label_mode="binary_1d"` for rollback / A-B tests.
 
-Every builder adds three canonical columns:
+Every builder adds three canonical columns under execution contract
+``next_session_open_to_close_v2``:
 
-  - `fwd_return`   : H-day forward simple return, close[t+H]/close[t] - 1.
+  - `fwd_return`   : executable H-session return,
+                     close[t+H]/open[t+1] - 1.
                      Used for realized-return backtests and expected-return
                      estimates (objective fact, independent of the label).
   - `target_class` : 0/1 up-down label used to train the probability head
                      (keeps `prob_up` / action mapping / calibration intact).
-  - `target`       : the canonical training label for the mode. For binary
-                     modes it equals `target_class`; for `vol_norm` it is the
-                     continuous volatility-normalized forward return.
+  - `target`       : the canonical binary training label. It equals
+                     `target_class` for every supported Phase 1 mode.
 
 Rows whose label cannot be computed (the last H rows, or rows missing inputs
 such as ATR/volatility) are left as NaN and dropped by build_labelled_frame().
@@ -22,14 +23,32 @@ such as ATR/volatility) are left as NaN and dropped by build_labelled_frame().
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
-LABEL_MODES = ("triple_barrier", "vol_norm", "binary_1d")
+from .execution import add_execution_columns, first_barrier_touch
+
+LABEL_MODES = ("triple_barrier", "binary_1d")
 
 
-def _forward_return(close: pd.Series, horizon_days: int) -> pd.Series:
-    return close.shift(-int(horizon_days)) / close - 1.0
+def _normalize_label_mode(label_mode: str) -> str:
+    """Normalize Phase 1 mode, preserving safe startup for stale settings."""
+    mode = str(label_mode).strip().lower()
+    if mode == "vol_norm":
+        warnings.warn(
+            "Phase 1 label_mode='vol_norm' is no longer supported; "
+            "falling back to 'triple_barrier'",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+        return "triple_barrier"
+    if mode not in LABEL_MODES:
+        raise ValueError(
+            f"unknown label_mode: {mode!r} (expected one of {LABEL_MODES})"
+        )
+    return mode
 
 
 def _binary_from_forward(fwd: pd.Series) -> pd.Series:
@@ -41,28 +60,10 @@ def _binary_from_forward(fwd: pd.Series) -> pd.Series:
 
 
 def add_forward_return_labels(df: pd.DataFrame, horizon_days: int = 5) -> pd.DataFrame:
-    """H-day forward return + sign(forward return) binary label."""
-    out = df.copy()
-    fwd = _forward_return(out["close"], horizon_days)
-    out["fwd_return"] = fwd
-    out["target_class"] = _binary_from_forward(fwd)
+    """Executable H-session return + sign(return) binary label."""
+    out = add_execution_columns(df, horizon_days)
+    out["target_class"] = _binary_from_forward(out["fwd_return"])
     out["target"] = out["target_class"]
-    return out
-
-
-def add_vol_normalized_labels(
-    df: pd.DataFrame, horizon_days: int = 5, vol_col: str = "volatility"
-) -> pd.DataFrame:
-    """Volatility-normalized forward return regression target (roadmap §6.1)."""
-    out = add_forward_return_labels(df, horizon_days)
-    if vol_col in out.columns:
-        vol = pd.to_numeric(out[vol_col], errors="coerce")
-    else:
-        vol = pd.Series(np.nan, index=out.index, dtype="float64")
-    safe_vol = vol.where(vol > 0)
-    out["target_vol_norm"] = out["fwd_return"] / safe_vol
-    out["target"] = out["target_vol_norm"]
-    # target_class (sign of forward return) is kept for the probability head.
     return out
 
 
@@ -76,25 +77,29 @@ def add_triple_barrier_labels(
     """
     Triple-barrier label (López de Prado style), aligned with manual TP/SL.
 
-    For each entry row i (entry = close[i], a = ATR[i]):
-      - take-profit barrier  = entry + tp_atr * a
+    For each market-as-of row i (a = ATR[i]):
+      - executable entry      = open[i+1]
+      - take-profit barrier   = entry + tp_atr * a
       - stop-loss barrier     = entry - sl_atr * a
-      - time barrier          = horizon_days bars ahead
-    The label is the FIRST barrier touched scanning bars i+1..i+H:
+      - time barrier          = close[i+H] (H executable sessions)
+    The label is the FIRST barrier touched scanning bars i+1..i+H.  Each
+    session's open is checked before its high/low, so an overnight gap through
+    a barrier resolves at that open:
       TP first -> 1, SL first -> 0; if neither is touched, time exit uses the
-      sign of close[i+H] vs entry. When TP and SL are touched in the SAME bar,
-      we conservatively assume SL first (worst case for a long).
+      sign of close[i+H] vs open[i+1]. When TP and SL are touched in the SAME
+      bar, we conservatively assume SL first (worst case for a long).
 
-    `fwd_return` is always the fixed H-day forward return (for the backtest),
-    independent of where the barrier exit actually happened.
+    `fwd_return` is always the fixed executable H-session return (for the
+    backtest), independent of where the barrier exit actually happened.
     """
-    out = df.copy()
+    out = add_execution_columns(df, horizon_days)
     n = len(out)
     h = max(1, int(horizon_days))
 
     close = pd.to_numeric(out["close"], errors="coerce").to_numpy(dtype="float64")
-    high = pd.to_numeric(out["high"], errors="coerce").to_numpy(dtype="float64")
-    low = pd.to_numeric(out["low"], errors="coerce").to_numpy(dtype="float64")
+    entry_price = pd.to_numeric(out["entry_price"], errors="coerce").to_numpy(
+        dtype="float64"
+    )
     if atr_col in out.columns:
         atr = pd.to_numeric(out[atr_col], errors="coerce").to_numpy(dtype="float64")
     else:
@@ -102,64 +107,53 @@ def add_triple_barrier_labels(
 
     labels = np.full(n, np.nan)
     reasons: list[str | None] = [None] * n
+    exit_dates: list[str | None] = [None] * n
 
     for i in range(n):
-        entry = close[i]
+        entry = entry_price[i]
         a = atr[i]
         if not (np.isfinite(entry) and entry > 0 and np.isfinite(a) and a > 0):
             continue
 
+        if i + h > n - 1:
+            continue
+
         tp_level = entry + tp_atr * a
         sl_level = entry - sl_atr * a
-        last = min(i + h, n - 1)
-
-        resolved = False
-        for j in range(i + 1, last + 1):
-            touch_tp = np.isfinite(high[j]) and high[j] >= tp_level
-            touch_sl = np.isfinite(low[j]) and low[j] <= sl_level
-            if touch_tp and touch_sl:
-                labels[i], reasons[i] = 0.0, "sl"  # same bar: conservative
-                resolved = True
-                break
-            if touch_tp:
-                labels[i], reasons[i] = 1.0, "tp"
-                resolved = True
-                break
-            if touch_sl:
-                labels[i], reasons[i] = 0.0, "sl"
-                resolved = True
-                break
-
-        if not resolved and i + h <= n - 1 and np.isfinite(close[i + h]):
+        exit_index, reason = first_barrier_touch(
+            out,
+            entry_index=i + 1,
+            exit_index=i + h,
+            take_profit=tp_level,
+            stop_loss=sl_level,
+        )
+        if reason is not None:
+            labels[i] = 1.0 if reason.startswith("tp") else 0.0
+            reasons[i] = reason
+            exit_dates[i] = str(pd.Timestamp(out["date"].iloc[exit_index]).date())
+        elif np.isfinite(close[i + h]):
             labels[i] = 1.0 if close[i + h] > entry else 0.0
             reasons[i] = "time"
-        # otherwise: not enough forward data -> leave NaN
+            exit_dates[i] = str(pd.Timestamp(out["date"].iloc[i + h]).date())
 
-    out["fwd_return"] = _forward_return(out["close"], h)
     out["target_class"] = labels
     out["target"] = labels
     out["tb_exit_reason"] = reasons
+    out["tb_exit_date"] = exit_dates
     return out
-
-
-def target_kind(label_mode: str) -> str:
-    """'regression' for vol_norm, otherwise 'binary' (probability head)."""
-    return "regression" if label_mode == "vol_norm" else "binary"
 
 
 def effective_horizon(config: dict | None) -> int:
     """
     Holding horizon (business days) implied by the label config:
-      binary_1d -> 1, triple_barrier -> tb_max_days, vol_norm -> horizon_days.
+      binary_1d -> 1, triple_barrier -> tb_max_days.
     Used by the horizon-aware backtest and daily inference.
     """
     cfg = config or {}
-    mode = cfg.get("label_mode", "triple_barrier")
+    mode = _normalize_label_mode(cfg.get("label_mode", "triple_barrier"))
     if mode == "binary_1d":
         return 1
-    if mode == "triple_barrier":
-        return max(1, int(cfg.get("tb_max_days", cfg.get("horizon_days", 5))))
-    return max(1, int(cfg.get("horizon_days", 5)))
+    return max(1, int(cfg.get("tb_max_days", cfg.get("horizon_days", 5))))
 
 
 def build_labelled_frame(df: pd.DataFrame, config: dict | None = None) -> pd.DataFrame:
@@ -167,13 +161,13 @@ def build_labelled_frame(df: pd.DataFrame, config: dict | None = None) -> pd.Dat
     Dispatch to the configured label builder and return a clean labelled frame.
 
     config keys (see src.config.get_label_config):
-      label_mode, horizon_days, tb_tp_atr, tb_sl_atr, tb_max_days, vol_col
+      label_mode, horizon_days, tb_tp_atr, tb_sl_atr, tb_max_days
 
     Rows missing a usable `target`, `target_class`, or `fwd_return` are dropped,
     so the last H rows (unknown forward return) always fall out.
     """
     cfg = config or {}
-    mode = cfg.get("label_mode", "triple_barrier")
+    mode = _normalize_label_mode(cfg.get("label_mode", "triple_barrier"))
     horizon = max(1, int(cfg.get("horizon_days", 5)))
 
     out = df.copy()
@@ -184,21 +178,17 @@ def build_labelled_frame(df: pd.DataFrame, config: dict | None = None) -> pd.Dat
 
     if mode == "binary_1d":
         out = add_forward_return_labels(out, horizon_days=1)
-    elif mode == "vol_norm":
-        out = add_vol_normalized_labels(
-            out, horizon_days=horizon, vol_col=cfg.get("vol_col", "volatility")
-        )
-    elif mode == "triple_barrier":
+    else:
         out = add_triple_barrier_labels(
             out,
             horizon_days=int(cfg.get("tb_max_days", horizon)),
             tp_atr=float(cfg.get("tb_tp_atr", 1.5)),
             sl_atr=float(cfg.get("tb_sl_atr", 1.0)),
         )
-    else:
-        raise ValueError(f"unknown label_mode: {mode!r} (expected one of {LABEL_MODES})")
 
-    out = out.dropna(subset=["target", "target_class", "fwd_return"]).reset_index(drop=True)
+    out = out.dropna(subset=["target", "target_class", "fwd_return"]).reset_index(
+        drop=True
+    )
     if not out.empty:
         out["target_class"] = out["target_class"].astype(int)
     return out

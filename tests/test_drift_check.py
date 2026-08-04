@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.drift_check import _drift_reasons  # noqa: E402
+from scripts import drift_check  # noqa: E402
+
+_drift_reasons = drift_check._drift_reasons
 
 
 THRESHOLDS = {
@@ -55,10 +58,45 @@ def test_metric_threshold_breach_requires_sufficient_outcomes():
     assert breach_reasons == []
 
 
+def test_incompatible_active_model_is_reported_unavailable():
+    payloads = []
+    incompatibilities = [{"code": "active_manifest_integrity_failed"}]
+    with (
+        mock.patch.object(
+            drift_check.model_store,
+            "read_active_model",
+            return_value={"version": "phase1-invalid"},
+        ),
+        mock.patch.object(
+            drift_check.model_store,
+            "validate_runtime_active_phase1",
+            return_value={
+                "compatible": False,
+                "reasons": incompatibilities,
+            },
+        ) as validate,
+        mock.patch.object(drift_check, "_write", side_effect=payloads.append),
+        mock.patch.object(sys, "argv", ["drift_check.py"]),
+    ):
+        assert drift_check.main() == 0
+
+    validate.assert_called_once()
+    assert payloads == [
+        {
+            "available": False,
+            "reason": "active_model_incompatible",
+            "generated_at": payloads[0]["generated_at"],
+            "model_version": "phase1-invalid",
+            "incompatibilities": incompatibilities,
+        }
+    ]
+
+
 ALL_TESTS = [
     test_psi_warning_is_not_breach_when_outcomes_insufficient,
     test_psi_warning_becomes_breach_when_outcomes_sufficient,
     test_metric_threshold_breach_requires_sufficient_outcomes,
+    test_incompatible_active_model_is_reported_unavailable,
 ]
 
 

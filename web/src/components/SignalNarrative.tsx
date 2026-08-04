@@ -79,7 +79,11 @@ export default function SignalNarrative({ signal }: { signal: Signal }) {
     body = <>{signal.reason || "本日の予測データがありません。"}</>;
   }
 
-  const showPlan = isBuySide(action) && (signal.limit_price != null || signal.stop_loss != null);
+  const takeProfit = signal.take_profit_price;
+  const stopPrice = signal.stop_price ?? signal.stop_loss;
+  const showPlan =
+    isBuySide(action) &&
+    (signal.limit_price != null || takeProfit != null || stopPrice != null);
 
   return (
     <div className={clsx("rounded-xl border p-5", actionCardClass(action))}>
@@ -90,29 +94,65 @@ export default function SignalNarrative({ signal }: { signal: Signal }) {
       </div>
       <p className="text-sm leading-relaxed text-slate-200">{body}</p>
       {showPlan && (
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {signal.limit_price != null && (
-            <div className="rounded-lg bg-slate-900/60 px-3 py-2.5">
-              <Term k="limit_price" className="text-xs text-slate-400">
-                買ってよい上限
-              </Term>
-              <div className="mt-1 text-base font-bold text-slate-100">
-                {formatPrice(signal.limit_price)}
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {takeProfit != null && (
+              // 日本語UI: 赤=上昇。利確は上のライン。
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2.5">
+                <Term k="take_profit" className="text-xs text-slate-400">
+                  利確ライン
+                </Term>
+                <div className="mt-1 text-base font-bold text-red-300">
+                  {formatPrice(takeProfit)}
+                  {signal.take_profit_pct != null && (
+                    <span className="ml-1 text-xs font-normal text-red-300/70">
+                      ({signedPct(signal.take_profit_pct)})
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          {signal.stop_loss != null && (
-            <div className="rounded-lg bg-slate-900/60 px-3 py-2.5">
-              <Term k="stop_loss" className="text-xs text-slate-400">
-                撤退ライン
-              </Term>
-              <div className="mt-1 text-base font-bold text-slate-100">
-                {formatPrice(signal.stop_loss)}
+            )}
+            {stopPrice != null && (
+              // 日本語UI: 青=下落。損切りは下のライン。
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2.5">
+                <Term k="stop_loss" className="text-xs text-slate-400">
+                  撤退ライン
+                </Term>
+                <div className="mt-1 text-base font-bold text-blue-300">
+                  {formatPrice(stopPrice)}
+                  {signal.stop_pct != null && (
+                    <span className="ml-1 text-xs font-normal text-blue-300/70">
+                      ({signedPct(signal.stop_pct)})
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+            {signal.limit_price != null && (
+              <span>
+                <Term k="limit_price">買ってよい上限</Term>{" "}
+                <span className="font-semibold text-slate-200">
+                  {formatPrice(signal.limit_price)}
+                </span>
+              </span>
+            )}
+            {signal.time_exit_days != null && (
+              <span>
+                <Term k="time_exit">手仕舞い期限</Term>{" "}
+                <span className="font-semibold text-slate-200">
+                  {signal.time_exit_days}営業日
+                </span>
+              </span>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+function signedPct(v: number): string {
+  return `${v >= 0 ? "+" : ""}${(v * 100).toFixed(1)}%`;
 }

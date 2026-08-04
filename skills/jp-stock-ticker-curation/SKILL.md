@@ -1,19 +1,28 @@
 ---
 name: jp-stock-ticker-curation
-description: Research and curate fundamentally strong Japanese stock candidates from up-to-date internet sources, then update `tickers.yml` in trader repositories. Use when a user asks to add, replace, shortlist, or refresh JP tickers based on earnings momentum, guidance revisions, valuation rerating room, balance sheet quality, shareholder returns, or other fundamental upside drivers, and expects source-backed rationale plus a direct YAML edit.
+description: Research and curate fundamentally strong Japanese stock candidates from up-to-date internet sources, then submit a source-backed proposal and apply eligible changes through the repository's deterministic curation workflow without directly editing `tickers.yml`. Use when a user asks to add, replace, shortlist, or refresh JP tickers based on earnings momentum, guidance revisions, valuation rerating room, balance sheet quality, shareholder returns, or other fundamental upside drivers.
 ---
 
 # JP Stock Ticker Curation
 
-Use this skill to refresh `tickers.yml` with a fundamentally driven JP stock basket.
-Prioritize primary sources, date-stamped facts, and explicit tradeoffs over generic stock picks or chart-only stories.
+Use this skill to research a fundamentally driven JP stock basket and, when
+requested, pass it through the repository's deterministic curation guardrails.
+Prioritize primary sources, date-stamped facts, and explicit tradeoffs over
+generic stock picks or chart-only stories.
+
+Never edit `tickers.yml` or `curation_pool.yml` directly. Only deterministic
+repository scripts may write them. Do not bypass pool membership, warmup,
+technical, freshness, churn, cooldown, or sector guards to force a requested
+name into the enabled universe.
 
 ## Workflow
 
 1. Confirm local schema and constraints.
-- Read `tickers.yml`, `README.md`, and `src/config.py`.
-- Keep existing YAML structure and `settings` unless user asks to change them.
-- Detect naming convention (`name` in Japanese or English) and keep it consistent.
+- Read `AGENTS.md`, `tickers.yml`, `curation_pool.yml`, `README.md`, and
+  `src/config.py`.
+- Read the `fundamental_latest.json` contract in
+  `../../specification_document/ai_ticker_curation/04_data_contracts.md` before
+  creating a proposal.
 - Treat repository paths as repo-relative when documenting changes.
 
 2. Gather latest market evidence from the web.
@@ -34,23 +43,36 @@ Prioritize primary sources, date-stamped facts, and explicit tradeoffs over gene
 - Score each candidate on earnings quality, guidance, valuation, cash generation, shareholder return, and fundamental catalysts.
 - Drop low-conviction names and keep a balanced sector mix.
 
-5. Select final tickers for `tickers.yml`.
+5. Select the proposed tickers.
 - Choose the final set size from user intent. If unspecified, use 5-8 names.
 - Keep portfolio concentration reasonable; avoid one-sector dominance.
-- Use ticker codes in `NNNN.JP` format and set `enabled: true` for selected names.
+- Use ticker codes in `NNNN.JP` format.
 
-6. Edit `tickers.yml`.
-- Update only the `tickers` entries unless the user requests `settings` changes.
-- Preserve valid YAML and ordering that matches the chosen basket logic.
-- Prefer `apply_patch` for single-file edits.
-- Preserve UTF-8. If PowerShell output shows mojibake for Japanese names, do not rewrite names based on terminal rendering alone.
+6. Apply only through the deterministic curation path when requested.
+- For a shortlist-only request, do not mutate repository state.
+- For an apply request, write a date-stamped proposal such as
+  `docs/curation/interactive_fundamental_<YYYY-MM-DD>.json` using the
+  `fundamental_latest.json` contract. Do not overwrite the automated
+  `fundamental_latest.json`.
+- Refresh the deterministic technical baseline:
+  `uv run python scripts/technical_screen.py --pool curation_pool.yml --date <YYYY-MM-DD>`.
+- Confirm every proposed candidate is already in `curation_pool.yml`, appears in
+  `docs/curation/technical_latest.json`, and has sufficient warmup. If not, stop
+  at a source-backed proposal and report the unmet prerequisite.
+- Run `scripts/curation_merge.py` with the current technical JSON and the
+  interactive fundamental proposal using `--dry-run` first. Inspect
+  `docs/curation/decision_latest.json`.
+- If the user requested application and the dry run proposes guarded changes,
+  rerun the same command with `--apply`. If the guardrails reject or defer a
+  candidate, do not edit YAML to override the result.
 
 7. Validate and report.
-- Re-open the file and verify syntax/structure.
+- Re-open the decision log and, if changed, `tickers.yml`.
 - Run a lightweight parser check via the project config loader:
   `uv run python -c "from src.config import load_tickers; print(len(load_tickers()))"`
 - Mention that the next `main.py` / watchdog run will treat the updated enabled ticker universe as the source of truth.
-- Report final picks, concise rationale, and source links.
+- Report proposed picks, actually applied changes, guardrail rejections or
+  prerequisites, concise rationale, and source links.
 - State limitations (no guarantee of returns; data can change quickly).
 
 ## Source Quality Rules
@@ -65,7 +87,8 @@ Prioritize primary sources, date-stamped facts, and explicit tradeoffs over gene
 ## Output Contract
 
 When finishing, provide:
-- The updated file path.
+- The proposal and decision-log paths, plus `tickers.yml` only if the
+  deterministic merge changed it.
 - Final ticker list in code + name format.
 - 1-2 line rationale per sector/theme bucket.
 - A link list of sources used.

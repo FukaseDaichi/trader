@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-06-20T08:00:00+09:00",
+  "as_of": "2026-06-20",
+  "market_bias": "neutral",
+  "summary": "日米ともに直近会合はタカ派。日銀は6/16に政策金利を1.00%へ引き上げ（QT減額は2027/4で停止し月2.0兆円で横ばい）、FedはWarsh新議長の初会合で3.50-3.75%据え置きもドットプロット中央値を3.8%へ上方修正。それでもドル円は約161円と円安で介入警戒（〜162円）、加えて米イラン情勢と原油高がコストプッシュ要因。輸出株は円安が追い風だが、米金利高止まりと地政学・原油リスクが相殺し、全体は中立〜やや慎重。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "hawkish", "next_event": "2026-07-29", "note": "6/16-17会合で3.50-3.75%を全会一致で据え置き。SEPドットプロット中央値を3.4%(3月)→3.8%へ上方修正、年内据え置き〜利上げ示唆。Warsh新議長の初会合、インフレ見通し引き上げ。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-07-31", "note": "6/15-16会合で+0.25%利上げ、政策金利1.00%（賛成7・反対1、植田総裁入院で氷見野副総裁が代行）。長期国債買入は2027/4以降は減額停止し月2.0兆円で横ばい維持。物価は26年度後半に目標と整合的との見方。"},
+    "usdjpy": {"level": 161.1, "trend": "円安", "as_of": "2026-06-19", "note": "6/19に161円台へ。日銀利上げにもかかわらず、Fedタカ派による日米金利差と米イラン情勢の安全資産ドル買いが円安を主導。約162円が当局の介入警戒ライン（4-5月に約11.7兆円規模の介入実績）。"}
+  },
+  "themes": [
+    {
+      "id": "boj-hike-to-1pct",
+      "title": "日銀が政策金利を1.00%へ引き上げ",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-16", "description": "6/15-16会合で政策金利を0.75%→1.00%へ+0.25%利上げ（賛成7・反対1）。QTは2027/4以降に減額を止め月2.0兆円で横ばい維持。年内追加利上げの可能性も。"},
+      "affected_sectors": ["銀行", "保険", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8591.JP"],
+      "rationale": "短期金利上昇と国債利回り上昇は銀行の貸出・預金利ざや、保険の運用利回りを改善し、メガバンク・保険にtailwind。一方で割高なグロースや金利感応度の高い建設・不動産系には相対的にheadwind。次回7/31会合まで追加利上げ観測が継続。",
+      "sources": [
+        {"title": "政策金利1.00％への引き上げ ～2026年6月の日銀金融政策決定会合～（第一生命経済研究所）", "url": "https://www.dlri.co.jp/report/macro/623090.html", "date": "2026-06-16", "type": "primary"},
+        {"title": "日銀利上げ1.0%へ 6月決定会合、物価高を抑制 国債購入（日本経済新聞）", "url": "https://www.nikkei.com/article/DGKKZO96813460Q6A610C2MM8000/", "date": "2026-06-16", "type": "primary"},
+        {"title": "2026年の金融政策決定会合等の日程（日本銀行）", "url": "https://www.boj.or.jp/about/organization/policyboard/pb_geppo/data/pbgp2507e.pdf", "date": "2025-07-31", "type": "primary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold-warsh",
+      "title": "Fedタカ派据え置き（ドットプロット上方修正・Warsh新議長）",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-17", "description": "6/16-17 FOMCで3.50-3.75%を据え置き。ドットプロット中央値を3.4%→3.8%へ引き上げ、年内利下げ見込みを実質的に削除。Warsh新議長の初会合でインフレ見通しを上方修正。"},
+      "affected_sectors": ["半導体製造装置", "半導体", "情報・通信"],
+      "affected_codes": ["8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP", "9984.JP"],
+      "rationale": "米金利高止まりは割引率上昇を通じて高PERグロース・半導体製造装置・グロース系（ソフトバンクG等）にheadwind。一方で日米金利差を維持し円安を下支えする点は輸出株にとっては別途tailwind要因（fxテーマ参照）。次回7/29 FOMCまで利下げ観測は後退。",
+      "sources": [
+        {"title": "Fed Holds Rates June 2026; Dot Plot Flips to a Hike (StockTitan)", "url": "https://www.stocktitan.net/articles/fed-rate-decision-june-17-2026", "date": "2026-06-17", "type": "secondary"},
+        {"title": "June Fed Decision Delivered: Rates Held Unchanged but Dot Plot Significantly Raised (TradingKey)", "url": "https://www.tradingkey.com/analysis/economic/central-banks/261973912-fed-federal-fomc-2-economic-projections-decision-rates-tradingkey", "date": "2026-06-17", "type": "secondary"},
+        {"title": "The Fed - Meeting calendars and information (Federal Reserve)", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "date": "2026-06-17", "type": "primary"}
+      ]
+    },
+    {
+      "id": "weak-yen-161",
+      "title": "ドル円161円台の円安（介入警戒）",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-19", "description": "ドル円が161円台へ上昇。日銀利上げ後も日米金利差と米イラン情勢の安全資産ドル買いで円安が進行。約162円が介入警戒ラインで、4-5月に約11.7兆円規模の円買い介入実績。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器", "機械"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP"],
+      "rationale": "円安は輸出企業の円換算収益・採算を押し上げ自動車・電機・電子部品・商社・精密・機械にtailwind。ただし既に161円・介入警戒ライン接近のため一段の円安余地は限定的で、当局介入が入れば急速な円高反転リスク（→confidence medium）。輸入・内需（小売・食品）にはheadwind。",
+      "sources": [
+        {"title": "ドル円、161円を突破＝NY為替速報（みんかぶFX）", "url": "https://fx.minkabu.jp/news/370731", "date": "2026-06-19", "type": "secondary"},
+        {"title": "11.7兆円規模となった2026年4月～5月の為替介入の効果を考える（三井住友DSアセットマネジメント）", "url": "https://www.smd-am.co.jp/market/ichikawa/2026/06/irepo260601/", "date": "2026-06-01", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "oil-iran-shock",
+      "title": "米イラン情勢と原油高（コストプッシュ）",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-09", "description": "WTIは6月初旬98-102ドル。米イラン軍事衝突（2月開始）とホルムズ海峡リスクが継続し、EIAは6-7月のブレント平均を約105ドル/バレルと予想。"},
+      "affected_sectors": ["小売", "食品", "化学", "商社"],
+      "affected_codes": ["9983.JP", "2914.JP", "4063.JP", "4901.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP"],
+      "rationale": "原油高+円安はエネルギー・原材料の輸入コストを押し上げ、内需・小売・食品・化学にコストプッシュのheadwind。リスクオフ心理も重し。一方、資源・エネルギー権益を持つ商社には収益面でtailwind両面性があり、ネットでは広範なJP株にとってheadwind寄り。",
+      "sources": [
+        {"title": "WTI原油見通し：イランによるミサイル攻撃報道が影響し原油3営業日続伸（OANDA）", "url": "https://www.oanda.jp/lab-education/market_news/2026_06_04_wtioil/", "date": "2026-06-04", "type": "secondary"},
+        {"title": "イラン情勢を踏まえ、今後の原油価格をどうみるか（日本総研）", "url": "https://www.jri.co.jp/page.jsp?id=113466", "date": "2026-06-09", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8591.JP", "8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP", "9984.JP", "7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP", "9983.JP", "2914.JP", "4063.JP", "4901.JP"],
+  "notes": "日米ともタカ派だが波及方向は逆。日銀利上げは銀行・保険にtailwind、Fedタカ派据え置き（米金利高止まり）はグロース・半導体製造装置にheadwind。円安は輸出株tailwindだが介入警戒ラインに接近し追随余地は限定的。米イラン情勢・原油高はコストプッシュ・リスクオフ要因。次回会合は日銀7/31・Fed7/29。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる（特に為替介入・地政学イベント・原油）。"
+}

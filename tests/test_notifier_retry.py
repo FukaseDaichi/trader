@@ -23,6 +23,7 @@ import src.notifier as notifier  # noqa: E402
 # Tiny helper: fake exception with a .status attribute
 # ---------------------------------------------------------------------------
 
+
 class FakeLineError(Exception):
     def __init__(self, status):
         super().__init__(f"fake LINE error (status={status})")
@@ -33,11 +34,12 @@ class FakeLineError(Exception):
 # Pure-helper tests
 # ---------------------------------------------------------------------------
 
+
 def test_should_retry_on_429_and_5xx():
     assert notifier._should_retry(429) is True
     assert notifier._should_retry(503) is True
-    assert notifier._should_retry(None) is True   # timeout/connection error
-    assert notifier._should_retry(400) is False   # bad request: give up
+    assert notifier._should_retry(None) is True  # timeout/connection error
+    assert notifier._should_retry(400) is False  # bad request: give up
 
 
 def test_backoff_grows():
@@ -49,6 +51,7 @@ def test_backoff_grows():
 # ---------------------------------------------------------------------------
 # send_line_text retry-loop tests (monkeypatched)
 # ---------------------------------------------------------------------------
+
 
 def _save_env():
     return {
@@ -74,8 +77,12 @@ def test_always_retryable_returns_false_sleeps_n_minus_1():
     try:
         notifier.LINE_CONFIG = {"channel_access_token": "t", "user_id": "u"}
         # default max_attempts=3 → sleep called 2 times
-        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(FakeLineError(503))
-        result = notifier.send_line_text("hello", sleep_fn=lambda s: sleep_calls.append(s))
+        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(
+            FakeLineError(503)
+        )
+        result = notifier.send_line_text(
+            "hello", sleep_fn=lambda s: sleep_calls.append(s)
+        )
         assert result is False
         assert len(sleep_calls) == 2  # max_attempts-1 = 3-1 = 2
     finally:
@@ -92,8 +99,12 @@ def test_fast_fail_on_400():
     sleep_calls = []
     try:
         notifier.LINE_CONFIG = {"channel_access_token": "t", "user_id": "u"}
-        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(FakeLineError(400))
-        result = notifier.send_line_text("hello", sleep_fn=lambda s: sleep_calls.append(s))
+        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(
+            FakeLineError(400)
+        )
+        result = notifier.send_line_text(
+            "hello", sleep_fn=lambda s: sleep_calls.append(s)
+        )
         assert result is False
         assert len(sleep_calls) == 0
     finally:
@@ -119,7 +130,9 @@ def test_retry_once_then_succeed():
             # second call succeeds (returns None)
 
         notifier._push_once = push_once_flaky
-        result = notifier.send_line_text("hello", sleep_fn=lambda s: sleep_calls.append(s))
+        result = notifier.send_line_text(
+            "hello", sleep_fn=lambda s: sleep_calls.append(s)
+        )
         assert result is True
         assert len(sleep_calls) == 1
     finally:
@@ -136,10 +149,14 @@ def test_bad_env_value_falls_back_without_raising():
     sleep_calls = []
     try:
         notifier.LINE_CONFIG = {"channel_access_token": "t", "user_id": "u"}
-        os.environ["TRADER_NOTIFY_RETRY_MAX"] = "x"      # invalid int
+        os.environ["TRADER_NOTIFY_RETRY_MAX"] = "x"  # invalid int
         os.environ["TRADER_NOTIFY_RETRY_BASE_SEC"] = "y"  # invalid float
-        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(FakeLineError(503))
-        result = notifier.send_line_text("hello", sleep_fn=lambda s: sleep_calls.append(s))
+        notifier._push_once = lambda token, user_id, text: (_ for _ in ()).throw(
+            FakeLineError(503)
+        )
+        result = notifier.send_line_text(
+            "hello", sleep_fn=lambda s: sleep_calls.append(s)
+        )
         assert result is False
         assert len(sleep_calls) == 2  # fell back to default max_attempts=3
     finally:
@@ -162,7 +179,9 @@ def test_config_missing_returns_false_no_sleep_no_push():
             push_calls[0] += 1
 
         notifier._push_once = push_should_not_be_called
-        result = notifier.send_line_text("hello", sleep_fn=lambda s: sleep_calls.append(s))
+        result = notifier.send_line_text(
+            "hello", sleep_fn=lambda s: sleep_calls.append(s)
+        )
         assert result is False
         assert len(sleep_calls) == 0
         assert push_calls[0] == 0

@@ -41,9 +41,110 @@ def _load_enabled_tickers(path: Path) -> list[str]:
     return result
 
 
+def _holdout_warnings(report) -> list[str]:
+    """Warn (non-failing) when gate-passed tickers had no holdout split.
+
+    Those passes were tuned and evaluated on the same OOS rows, so they are
+    optimistic; keep them visible without opening an issue for each run.
+    """
+    if not isinstance(report, dict):
+        return []
+    entries = report.get("entries")
+    if not isinstance(entries, list):
+        return []
+    codes = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("passed"):
+            continue
+        if entry.get("skipped"):
+            continue
+        optimization = entry.get("threshold_optimization") or {}
+        if not optimization.get("holdout_used"):
+            codes.append(str(entry.get("ticker")))
+    if not codes:
+        return []
+    return [f"gate_passed_without_holdout:{','.join(codes)}"]
+
+
+def _ticker_processing_failures(report) -> list[str]:
+    """List per-ticker failures recorded by the non-fatal daily loop.
+
+    ``main.py`` intentionally converts a ticker exception (and other unusable
+    ticker states) into a failed HOLD entry so one bad ticker never stops the
+    daily run.  That graceful degradation must still make the watchdog fail,
+    otherwise a complete-looking report can hide broken ticker-days.
+    """
+    if not isinstance(report, dict):
+        return []
+    entries = report.get("entries")
+    if not isinstance(entries, list):
+        return []
+
+    failed: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        reason = str(entry.get("reason") or "status_failed")
+        if entry.get("status") != "failed" and reason != "ticker_processing_failed":
+            continue
+        ticker = str(entry.get("ticker") or "unknown")
+        item = f"{ticker}({reason})"
+        if item not in failed:
+            failed.append(item)
+
+    if not failed:
+        return []
+    return [f"backtest_ticker_failures:{','.join(failed)}"]
+
+
+def _outbox_problems(
+    outbox_dir: Path,
+    today: str,
+    max_age_days: int = 5,
+    max_files: int = 10,
+) -> tuple[list[str], list[str]]:
+    """
+    Detect a stuck DB write-through backlog from the committed outbox.
+
+    Ages come from the filename stamp (YYYYMMDDHHMMSS.jsonl), not mtime — CI
+    checkouts reset mtimes. Failures open a GitHub Issue via the watchdog
+    workflow; the 2026-07 incident went unnoticed for 3+ weeks because only
+    docs/ freshness was checked.
+    """
+    failures: list[str] = []
+    warnings: list[str] = []
+    if not outbox_dir.exists():
+        return failures, warnings
+
+    today_date = datetime.strptime(today, "%Y-%m-%d").date()
+    stale: list[str] = []
+    files = sorted(outbox_dir.glob("*.jsonl"))
+    for path in files:
+        stamp = path.stem[:8]
+        try:
+            file_date = datetime.strptime(stamp, "%Y%m%d").date()
+        except ValueError:
+            warnings.append(f"outbox_unparsable:{path.name}")
+            continue
+        if (today_date - file_date).days > max_age_days:
+            stale.append(stamp)
+    if stale:
+        failures.append(f"outbox_stale_files:{len(stale)}:oldest={min(stale)}")
+    if len(files) > max_files:
+        failures.append(f"outbox_backlog:{len(files)}")
+
+    # Quarantined events are lost measurement rows until a human moves them
+    # back into the outbox (or deletes them) — always open an issue.
+    dead = list((outbox_dir / "dead").glob("*.jsonl"))
+    if dead:
+        failures.append(f"outbox_dead_letters:{len(dead)}")
+    return failures, warnings
+
+
 def run_daily_check(args: argparse.Namespace) -> int:
     today = args.today or _today_jst_iso()
     failures: list[str] = []
+    warnings: list[str] = []
 
     state_file = Path(args.state_file)
     index_file = Path(args.index_file if args.index_file else args.history_file)
@@ -58,7 +159,9 @@ def run_daily_check(args: argparse.Namespace) -> int:
         failures.append(f"missing_or_invalid:{state_file}")
     else:
         history = state.get("history", [])
-        has_today = any(isinstance(item, dict) and item.get("date") == today for item in history)
+        has_today = any(
+            isinstance(item, dict) and item.get("date") == today for item in history
+        )
         if not has_today:
             failures.append("state_not_updated_today")
 
@@ -67,7 +170,9 @@ def run_daily_check(args: argparse.Namespace) -> int:
         failures.append(f"missing_or_invalid:{index_file}")
     else:
         if index_file.exists() and index_file.stat().st_size > max_index_bytes:
-            failures.append(f"dashboard_index_too_large:{index_file.stat().st_size}>{max_index_bytes}")
+            failures.append(
+                f"dashboard_index_too_large:{index_file.stat().st_size}>{max_index_bytes}"
+            )
 
         last_update = index_data.get("last_update")
         if not isinstance(last_update, str) or not last_update:
@@ -82,11 +187,15 @@ def run_daily_check(args: argparse.Namespace) -> int:
             enabled = _load_enabled_tickers(tickers_file)
             expected = len(enabled)
             if expected > 0 and len(index_tickers) < expected:
-                failures.append(f"dashboard_index_tickers_short:{len(index_tickers)}/{expected}")
+                failures.append(
+                    f"dashboard_index_tickers_short:{len(index_tickers)}/{expected}"
+                )
 
             missing_codes = [code for code in enabled if code not in index_tickers]
             if missing_codes:
-                failures.append(f"dashboard_index_missing_codes:{','.join(missing_codes)}")
+                failures.append(
+                    f"dashboard_index_missing_codes:{','.join(missing_codes)}"
+                )
 
             total_ticker_bytes = 0
             for code in enabled:
@@ -116,11 +225,23 @@ def run_daily_check(args: argparse.Namespace) -> int:
             expected = len(enabled)
             if expected > 0 and len(entries) < expected:
                 failures.append(f"backtest_entries_short:{len(entries)}/{expected}")
+            failures.extend(_ticker_processing_failures(report))
+        warnings.extend(_holdout_warnings(report))
+
+    outbox_failures, outbox_warnings = _outbox_problems(
+        Path(args.outbox_dir),
+        today,
+        max_age_days=int(args.max_outbox_age_days),
+        max_files=int(args.max_outbox_files),
+    )
+    failures.extend(outbox_failures)
+    warnings.extend(outbox_warnings)
 
     payload = {
         "date": today,
         "ok": len(failures) == 0,
         "failures": failures,
+        "warnings": warnings,
     }
     print(json.dumps(payload, ensure_ascii=False))
 
@@ -134,9 +255,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--index-file", default="docs/dashboard_index.json")
     parser.add_argument("--ticker-dir", default="docs/tickers")
     # Backward-compatible alias used by older calls.
-    parser.add_argument("--history-file", default="docs/dashboard_index.json", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--history-file", default="docs/dashboard_index.json", help=argparse.SUPPRESS
+    )
     parser.add_argument("--report-file", default="docs/backtest_report.json")
     parser.add_argument("--tickers-file", default="tickers.yml")
+    parser.add_argument("--outbox-dir", default="data/outbox")
+    parser.add_argument("--max-outbox-age-days", type=int, default=5)
+    parser.add_argument("--max-outbox-files", type=int, default=10)
     parser.add_argument("--max-index-bytes", type=int, default=1_000_000)
     parser.add_argument("--max-ticker-total-bytes", type=int, default=10_000_000)
     return parser

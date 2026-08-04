@@ -37,6 +37,7 @@ _NEG_INF = float("-inf")
 # Candidate assembly
 # ---------------------------------------------------------------------------
 
+
 def load_universe_candidates(
     tickers_cfg: dict,
     pool: list[dict],
@@ -124,6 +125,7 @@ def load_universe_candidates(
 # Liquidity helper
 # ---------------------------------------------------------------------------
 
+
 def compute_liquidity(df: pd.DataFrame | None, window: int = 20) -> float | None:
     """
     Compute the 20-day average trading value (close * volume) from the last
@@ -150,6 +152,7 @@ def compute_liquidity(df: pd.DataFrame | None, window: int = 20) -> float | None
 # ---------------------------------------------------------------------------
 # Ranking
 # ---------------------------------------------------------------------------
+
 
 def rank_candidates(
     candidates: list[dict],
@@ -200,6 +203,7 @@ def rank_candidates(
 # Sector cap
 # ---------------------------------------------------------------------------
 
+
 def apply_sector_cap(
     ranked: list[dict],
     target_size: int,
@@ -247,6 +251,7 @@ def apply_sector_cap(
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
+
 
 def select_target_universe(
     candidates: list[dict],
@@ -312,6 +317,7 @@ def select_target_universe(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _to_float(value) -> float | None:
     """Convert a value to float, returning None on failure."""

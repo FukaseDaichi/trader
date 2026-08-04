@@ -35,7 +35,11 @@ def run(pool_path: Path | None, out_dir: Path) -> int:
     cfg = load_tickers_config()
     enabled = set(enabled_codes(cfg))
     pool_codes = [p["code"] for p in load_pool(pool_path)]
-    watch_codes = [w["code"] for w in (cfg.get("watchlist") or []) if isinstance(w, dict) and w.get("code")]
+    watch_codes = [
+        w["code"]
+        for w in (cfg.get("watchlist") or [])
+        if isinstance(w, dict) and w.get("code")
+    ]
 
     # Warm pool + watchlist candidates that are not already enabled
     # (enabled tickers get their top-level data refreshed by main.py).
@@ -79,9 +83,13 @@ def run(pool_path: Path | None, out_dir: Path) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Warm up candidate data for AI ticker curation")
+    p = argparse.ArgumentParser(
+        description="Warm up candidate data for AI ticker curation"
+    )
     p.add_argument("--pool", default=None, help="path to curation_pool.yml")
-    p.add_argument("--out-dir", default=None, help="output dir (default: data/watchlist)")
+    p.add_argument(
+        "--out-dir", default=None, help="output dir (default: data/watchlist)"
+    )
     return p
 
 

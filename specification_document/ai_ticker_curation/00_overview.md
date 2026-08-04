@@ -1,6 +1,6 @@
 # AI銘柄キュレーション 現行仕様 — 概要
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-24 JST
 ステータス: 実装済み機能の As-built 仕様。
 
 このサブディレクトリは、AI 銘柄キュレーションの現行仕様です。実装は `.github/workflows/daily-ticker-curation.yml`、`.github/workflows/weekly-fundamental-report.yml`、`scripts/curation_*`、`scripts/technical_screen.py`、`.claude/skills/*`、`curation_pool.yml`、`tickers.yml settings.curation` にあります。
@@ -23,7 +23,7 @@
 | ファンダ頻度 | 土曜 07:00 JST の週次。日次 merge は直近 `fundamental_latest.json` をキャッシュ利用 |
 | プール頻度 | 土曜の**隔週（14日）**。ファンダ後に `/jp-stock-pool-screen` → `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新（`07_pool_refresh.md`） |
 | 週次レポート | `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` |
-| 通知 | `curation_notify.py` が週次レポートの GitHub blob URL を LINE 通知 |
+| 通知 | `curation_notify.py` が週次レポートの GitHub blob URL、`curation_pool_notify.py` が隔週プール変更を共通のbounded retry付きLINE送信で通知 |
 
 ## 3. スコープ
 
@@ -39,7 +39,7 @@
 
 - 売買執行・発注
 - 既存予測パイプラインや LightGBM モデルの置換
-- フロントエンドでのキュレーション履歴の一覧表示（Phase 3 の `RegimeBanner` が `macro_latest.json` の表示と決定ログ・週次レポートへのリンクを持つのみ。`../02_frontend_web.md` 参照）
+- フロントエンドでのキュレーション履歴の一覧表示（`SiteHeader`内の市場ムードピルが`macro_latest.json`を表示し、`SiteFooter`が決定ログと週次レポートへのリンクだけを持つ。`../02_frontend_web.md`参照）
 
 ## 4. 全体アーキテクチャ
 
@@ -82,7 +82,7 @@
 | ファイル | 内容 |
 |---|---|
 | `00_overview.md` | 本書。目的・全体像・設計判断 |
-| `01_agent_design.md` | 4 agent の役割、skill、入出力 |
+| `01_agent_design.md` | 5 agent の役割、skill、入出力 |
 | `02_merge_guardrails.md` | `curation_merge.py` の合成ロジックと guardrail |
 | `03_workflows_cicd.md` | 2 workflow の実行順、認証、障害時挙動 |
 | `04_data_contracts.md` | ファイルスキーマと統合制約 |

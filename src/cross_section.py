@@ -6,14 +6,15 @@ Assembles a long panel (one row per date × ticker) with:
   - within-date z-score and percentile-rank cross-sectional features,
   - within-(date, sector) relative-rank features,
   - liquidity features (turnover, adv20),
-  - forward-return labels (fwd_return, target_vol_norm, target_up,
-    target_rank_bucket).
+  - executable forward-return labels (fwd_return, target_vol_norm, target_up,
+    target_rank_bucket) plus entry/exit provenance.
 
 Design constraints
 ------------------
 - NO future leakage: all cross-sectional normalizations use only same-date rows
-  (groupby("date").transform). Labels use per-ticker shift(-H), which only peeks
-  H rows ahead within that ticker's time series — no cross-ticker contamination.
+  (groupby("date").transform). Labels apply the shared execution contract per
+  ticker: decide with the current close, enter at the next session open, and
+  exit at the H-th session close. There is no cross-ticker contamination.
 - Robustness: missing macro / sector / liquidity never raise; they leave NaN
   columns that LightGBM tolerates.
 - Deterministic: no random state in pure functions.
@@ -27,6 +28,12 @@ import numpy as np
 import pandas as pd
 
 from .config import get_cross_section_config
+from .execution import (
+    ENTRY_PRICE_BASIS,
+    EXECUTION_CONTRACT_VERSION,
+    EXIT_PRICE_BASIS,
+    add_execution_columns,
+)
 from .macro import MACRO_FEATURE_COLS
 from .model import build_feature_frame
 
@@ -52,6 +59,7 @@ SECTOR_REL_FEATURES = ["return_20d", "return_5d"]
 # ---------------------------------------------------------------------------
 # 1. build_ticker_feature_frame
 # ---------------------------------------------------------------------------
+
 
 def build_ticker_feature_frame(
     df: pd.DataFrame,
@@ -102,6 +110,7 @@ def build_ticker_feature_frame(
 # 2. build_panel
 # ---------------------------------------------------------------------------
 
+
 def build_panel(
     tickers_data: list[tuple[dict, pd.DataFrame]],
     macro_panel: pd.DataFrame | None = None,
@@ -141,6 +150,7 @@ def build_panel(
 # 3. add_cross_sectional_features
 # ---------------------------------------------------------------------------
 
+
 def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
     Add within-date z-score and percentile-rank columns for CS_BASE_FEATURES.
@@ -167,7 +177,7 @@ def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
 
         col_z = f"cs_z_{f}"
         raw = panel[f]
-        denom = std_pop.where(std_pop > 0)          # NaN when std==0 or NaN
+        denom = std_pop.where(std_pop > 0)  # NaN when std==0 or NaN
         z = (raw - mean) / denom
         # Where x is finite but denom is NaN -> z becomes NaN; replace with 0.0
         finite_x = raw.notna() & np.isfinite(raw.values.astype(float))
@@ -185,6 +195,7 @@ def add_cross_sectional_features(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # 4. add_sector_features
 # ---------------------------------------------------------------------------
+
 
 def add_sector_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
@@ -216,6 +227,7 @@ def add_sector_features(panel: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # 5. add_liquidity_features
 # ---------------------------------------------------------------------------
+
 
 def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
@@ -253,9 +265,8 @@ def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
     # Within-date percentile rank of raw turnover.
     if "cs_rank_turnover" not in panel.columns:
         if "turnover" in panel.columns:
-            panel["cs_rank_turnover"] = (
-                panel.groupby("date")["turnover"]
-                .rank(pct=True, method="average")
+            panel["cs_rank_turnover"] = panel.groupby("date")["turnover"].rank(
+                pct=True, method="average"
             )
         else:
             panel["cs_rank_turnover"] = np.nan
@@ -267,6 +278,7 @@ def add_liquidity_features(panel: pd.DataFrame) -> pd.DataFrame:
 # 6. build_cs_labels
 # ---------------------------------------------------------------------------
 
+
 def build_cs_labels(
     panel: pd.DataFrame,
     label_config: dict | None = None,
@@ -275,9 +287,13 @@ def build_cs_labels(
     Add forward-return labels to the panel.
 
     Labels (H = label_horizon_days from config or label_config):
-      - ``fwd_return``        : H-day forward return, computed PER TICKER (no
-                                cross-ticker bleed). NaN for the last H rows of
-                                each ticker.
+      - ``fwd_return``        : executable H-session forward return, computed
+                                PER TICKER (no cross-ticker bleed) as the H-th
+                                session close divided by the next session open.
+                                NaN for the last H rows of each ticker.
+      - ``market_as_of_date``, ``entry_date``, ``execution_exit_date``,
+        ``entry_price``, ``execution_exit_price``: auditable execution-window
+        provenance from the shared v2 contract.
       - ``target_vol_norm``   : fwd_return / volatility (NaN where vol <= 0).
       - ``target_up``         : 1.0 if fwd_return > 0 else 0.0; NaN where
                                 fwd_return is NaN.
@@ -302,18 +318,33 @@ def build_cs_labels(
 
     panel = panel.copy()
 
-    # Per-ticker forward return: sort by date within ticker, shift(-h).
-    # This is the ONLY place we look forward; it's within a ticker's own series.
-    panel = panel.sort_values(["ticker", "date"]).reset_index(drop=True)
+    # Apply the common executable-price contract independently to every
+    # ticker. Concatenating the per-ticker results (instead of shifting the
+    # stacked panel) is the isolation boundary that prevents a ticker's last
+    # row from using another ticker's first open/close.
+    labelled_groups: list[pd.DataFrame] = []
+    for _, grp in panel.groupby("ticker", sort=False, dropna=False):
+        ordered = grp.sort_values("date").reset_index(drop=True)
+        labelled_groups.append(add_execution_columns(ordered, h))
 
-    def _fwd(grp):
-        close = grp["close"]
-        return close.shift(-h) / close - 1.0
+    if labelled_groups:
+        panel = pd.concat(labelled_groups, ignore_index=True)
+    else:
+        # Keep the empty-frame schema useful to callers and metadata tests.
+        panel["fwd_return"] = pd.Series(dtype="float64")
+        for col in (
+            "market_as_of_date",
+            "entry_date",
+            "execution_exit_date",
+            "entry_price",
+            "execution_exit_price",
+            "execution_contract_version",
+        ):
+            panel[col] = pd.Series(dtype="object")
 
-    panel["fwd_return"] = (
-        panel.groupby("ticker", group_keys=False)
-        .apply(_fwd, include_groups=False)
-    )
+    panel["entry_price_basis"] = ENTRY_PRICE_BASIS
+    panel["exit_price_basis"] = EXIT_PRICE_BASIS
+    panel["execution_contract_version"] = EXECUTION_CONTRACT_VERSION
 
     # target_vol_norm
     if "volatility" in panel.columns:
@@ -358,6 +389,7 @@ def build_cs_labels(
 # 7. cross_sectional_feature_cols
 # ---------------------------------------------------------------------------
 
+
 def cross_sectional_feature_cols(macro_enabled: bool = True) -> list[str]:
     """
     Stable ordered list of cross-sectional model feature columns.
@@ -384,6 +416,7 @@ def cross_sectional_feature_cols(macro_enabled: bool = True) -> list[str]:
 # 8. drop_small_date_groups
 # ---------------------------------------------------------------------------
 
+
 def drop_small_date_groups(
     panel: pd.DataFrame,
     min_names: int | None = None,
@@ -405,6 +438,7 @@ def drop_small_date_groups(
 # ---------------------------------------------------------------------------
 # 9. build_cs_panel  (convenience pipeline)
 # ---------------------------------------------------------------------------
+
 
 def build_cs_panel(
     tickers_data: list[tuple[dict, pd.DataFrame]],
@@ -428,7 +462,9 @@ def build_cs_panel(
     Suitable for both training (with_labels=True) and daily inference
     (with_labels=False, then take the latest date).
     """
-    panel = build_panel(tickers_data, macro_panel=macro_panel, macro_enabled=macro_enabled)
+    panel = build_panel(
+        tickers_data, macro_panel=macro_panel, macro_enabled=macro_enabled
+    )
     if panel.empty:
         return panel
 

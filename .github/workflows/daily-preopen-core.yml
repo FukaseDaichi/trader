@@ -20,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.3.2
 
       - name: Set up Python
         run: uv python install
@@ -62,7 +62,8 @@ jobs:
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
-          # Phase 1: use the saved model when available, else legacy fallback.
+          # Phase 1: use a compatible saved model, else train an exact-contract
+          # ephemeral candidate with its own calibration and holdout evidence.
           TRADER_MODEL_MODE: "auto"
           TRADER_TARGET_HORIZON_DAYS: "5"
           TRADER_LABEL_MODE: "triple_barrier"
@@ -89,8 +90,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
-        # --refill-benchmark is idempotent (fills only NULL benchmark_ret rows),
-        # so past settlements self-heal whenever TOPIX-proxy data is available.
+        # --refill-benchmark is idempotent for legacy v1 rows only. Contract-v2
+        # benchmark fields stay NULL until TOPIX open prices support the exact
+        # same entry/exit basis; active portfolio gating therefore fails closed.
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Publish model drift report
@@ -100,6 +102,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
+          # Keep runtime artifact/gate validation identical to the prediction
+          # step. A future non-default rollout must not make drift inspect the
+          # active bundle under a different label/feature contract.
+          TRADER_TARGET_HORIZON_DAYS: "5"
+          TRADER_LABEL_MODE: "triple_barrier"
+          TRADER_CALIBRATION_MODE: "isotonic"
+          TRADER_MACRO_FEATURES_ENABLED: "true"
         # Publish docs/drift_report.json for the dashboard; alerting (Issue) is
         # handled by daily-watchdog. A breach exit code must not fail core.
         run: uv run python scripts/drift_check.py --as-of "${{ steps.market.outputs.today_jst }}" || true

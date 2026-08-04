@@ -35,6 +35,7 @@ from src.cross_section import cross_sectional_feature_cols  # noqa: E402
 # Synthetic labelled-panel builder (matches build_cs_panel schema)
 # ---------------------------------------------------------------------------
 
+
 def _make_planted_panel(
     n_tickers: int = 30,
     n_dates: int = 160,
@@ -89,10 +90,13 @@ def _make_planted_panel(
     return panel.sort_values(["date", "ticker"]).reset_index(drop=True)
 
 
-def _small_group_panel(n_dates: int = 160, names_per_date: int = 3, seed: int = 3) -> pd.DataFrame:
+def _small_group_panel(
+    n_dates: int = 160, names_per_date: int = 3, seed: int = 3
+) -> pd.DataFrame:
     """A panel with tiny daily cross-sections (forces ranker -> regression)."""
-    return _make_planted_panel(n_tickers=names_per_date, n_dates=n_dates,
-                               macro_enabled=False, seed=seed)
+    return _make_planted_panel(
+        n_tickers=names_per_date, n_dates=n_dates, macro_enabled=False, seed=seed
+    )
 
 
 # Config override: tiny min_daily_names so the synthetic panel passes the gate,
@@ -118,10 +122,12 @@ def _cfg(**overrides) -> dict:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_train_ranker_returns_bundle():
     panel = _make_planted_panel()
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert bundle is not None, f"expected a bundle, info={info}"
     assert info["objective"] == "ranker", info
     assert bundle["booster"] is not None
@@ -136,19 +142,23 @@ def test_train_ranker_returns_bundle():
 
 def test_train_regression_returns_bundle():
     panel = _make_planted_panel()
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="regression"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="regression"), macro_enabled=False, seed=42
+    )
     assert bundle is not None, f"expected a bundle, info={info}"
     assert info["objective"] == "regression"
     m = bundle["metrics"]
     assert m["daily_ic"] is not None and np.isfinite(m["daily_ic"])
-    assert m["topn_realized_return"] is not None and np.isfinite(m["topn_realized_return"])
+    assert m["topn_realized_return"] is not None and np.isfinite(
+        m["topn_realized_return"]
+    )
 
 
 def test_predict_shape_and_rank():
     panel = _make_planted_panel()
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert bundle is not None, info
 
     # Latest cross-section: drop labels to mimic inference input.
@@ -159,8 +169,14 @@ def test_predict_shape_and_rank():
 
     n = latest["ticker"].nunique()
     assert len(preds) == n, f"expected {n} rows, got {len(preds)}"
-    assert list(preds.columns) == ["ticker", "raw_score", "cs_rank",
-                                   "score_pct", "prob_up", "expected_ret"]
+    assert list(preds.columns) == [
+        "ticker",
+        "raw_score",
+        "cs_rank",
+        "score_pct",
+        "prob_up",
+        "expected_ret",
+    ]
     # cs_rank is a permutation of 1..N
     assert sorted(preds["cs_rank"].tolist()) == list(range(1, n + 1))
     # prob_up in [0, 1]
@@ -171,8 +187,9 @@ def test_predict_shape_and_rank():
 
 def test_ranker_fallback_to_regression():
     panel = _small_group_panel(names_per_date=3)
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert bundle is not None, info
     assert bundle["objective"] == "regression", bundle["objective"]
     assert info["fallback_reason"], "expected a fallback_reason to be recorded"
@@ -181,15 +198,17 @@ def test_ranker_fallback_to_regression():
 
 def test_fit_and_apply_calibration_monotonic():
     panel = _make_planted_panel()
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert bundle is not None, info
     cal = bundle["calibration"]
     assert cal["applied"], cal
 
     # apply over the bucket centres -> prob in [0,1], and an overall up trend.
-    centres = [(cal["edges"][i] + cal["edges"][i + 1]) / 2.0
-               for i in range(cal["n_buckets"])]
+    centres = [
+        (cal["edges"][i] + cal["edges"][i + 1]) / 2.0 for i in range(cal["n_buckets"])
+    ]
     probs = [cm.apply_score_calibration(cal, c)[0] for c in centres]
     assert all(0.0 <= p <= 1.0 for p in probs), probs
     # Monotone non-decreasing TREND overall: top bucket prob > bottom bucket prob.
@@ -206,15 +225,17 @@ def test_cs_metrics_perfect_ranking():
     for d in dates:
         ret = rng.normal(size=12)
         for i in range(12):
-            rows.append({
-                "date": d,
-                "ticker": f"{i}.JP",
-                "raw_score": float(ret[i]),  # score == fwd_return exactly
-                "fwd_return": float(ret[i]),
-                "target_up": 1.0 if ret[i] > 0 else 0.0,
-                "target_vol_norm": float(ret[i]),
-                "target_rank_bucket": 0.0,
-            })
+            rows.append(
+                {
+                    "date": d,
+                    "ticker": f"{i}.JP",
+                    "raw_score": float(ret[i]),  # score == fwd_return exactly
+                    "fwd_return": float(ret[i]),
+                    "target_up": 1.0 if ret[i] > 0 else 0.0,
+                    "target_vol_norm": float(ret[i]),
+                    "target_rank_bucket": 0.0,
+                }
+            )
     oos = pd.DataFrame(rows)
     m = cm.cs_metrics(oos, top_n=4)
     assert m["daily_ic"] is not None and abs(m["daily_ic"] - 1.0) < 1e-6, m["daily_ic"]
@@ -227,21 +248,26 @@ def test_cs_metrics_perfect_ranking():
 def test_insufficient_panel_returns_none():
     # 5 tickers x 4 dates => far below train_min_rows and fold-date requirement.
     panel = _make_planted_panel(n_tickers=5, n_dates=4, macro_enabled=False)
-    bundle, info = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                                     macro_enabled=False, seed=42)
+    bundle, info = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert bundle is None
     assert "reason" in info and info["reason"]
 
 
 def test_determinism():
     panel = _make_planted_panel()
-    b1, _ = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                              macro_enabled=False, seed=42)
-    b2, _ = cm.train_cs_model(panel, config=_cfg(objective="ranker"),
-                              macro_enabled=False, seed=42)
+    b1, _ = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
+    b2, _ = cm.train_cs_model(
+        panel, config=_cfg(objective="ranker"), macro_enabled=False, seed=42
+    )
     assert b1 is not None and b2 is not None
     assert b1["metrics"]["daily_ic"] == b2["metrics"]["daily_ic"], (
-        b1["metrics"]["daily_ic"], b2["metrics"]["daily_ic"])
+        b1["metrics"]["daily_ic"],
+        b2["metrics"]["daily_ic"],
+    )
 
 
 ALL_TESTS = [

@@ -69,11 +69,16 @@ except ModuleNotFoundError:
     )
 
 from src.config import DATA_DIR, get_cross_section_config
-from src.universe import compute_liquidity, load_universe_candidates, select_target_universe
+from src.universe import (
+    compute_liquidity,
+    load_universe_candidates,
+    select_target_universe,
+)
 
 # ---------------------------------------------------------------------------
 # Parquet loader (no network; returns None on missing file)
 # ---------------------------------------------------------------------------
+
 
 def _load_parquet(code: str, source: str) -> pd.DataFrame | None:
     """
@@ -133,6 +138,7 @@ def _enrich_candidates(candidates: list[dict]) -> list[dict]:
 # tickers.yml update
 # ---------------------------------------------------------------------------
 
+
 def _apply_universe(
     cfg: dict,
     selected: list[dict],
@@ -154,14 +160,6 @@ def _apply_universe(
     """
     today = today_jst_iso()
     selected_codes = {c["code"]: c for c in selected}
-    currently_enabled = set(enabled_codes(cfg))
-
-    # Build a lookup of existing ticker entries by code
-    existing: dict[str, dict] = {
-        t["code"]: t
-        for t in cfg.get("tickers", [])
-        if isinstance(t, dict) and t.get("code")
-    }
 
     new_tickers: list[dict] = []
     seen_codes: set[str] = set()
@@ -205,7 +203,11 @@ def _apply_universe(
             continue
         # Check if the code exists in watchlist (to carry over metadata)
         watchlist_entry = next(
-            (w for w in cfg.get("watchlist", []) if isinstance(w, dict) and w.get("code") == code),
+            (
+                w
+                for w in cfg.get("watchlist", [])
+                if isinstance(w, dict) and w.get("code") == code
+            ),
             None,
         )
         entry: dict = {
@@ -227,7 +229,8 @@ def _apply_universe(
     new_cfg = dict(cfg)
     new_cfg["tickers"] = new_tickers
     new_cfg["watchlist"] = [
-        w for w in cfg.get("watchlist", [])
+        w
+        for w in cfg.get("watchlist", [])
         if not (isinstance(w, dict) and w.get("code") in selected_codes)
     ]
     settings = dict(new_cfg.get("settings") or {})
@@ -271,6 +274,7 @@ def _move_selected_data(selected: list[dict]) -> list[dict]:
 # Reporting helpers
 # ---------------------------------------------------------------------------
 
+
 def _build_json_report(
     result: dict,
     target_size: int,
@@ -281,10 +285,7 @@ def _build_json_report(
     passing_warmup = len(result["selected"]) + len(result["dropped_for_cap"])
     if result["status"] == "insufficient_universe":
         # When insufficient, selected is [], so we need to count differently
-        passing_warmup = (
-            total_candidates
-            - len(result["filtered_low_warmup"])
-        )
+        passing_warmup = total_candidates - len(result["filtered_low_warmup"])
 
     return {
         "generated_at": now_jst_iso(),
@@ -307,7 +308,11 @@ def _build_json_report(
         ],
         "sector_exposure": result["sector_exposure"],
         "dropped_for_cap": [
-            {"code": c["code"], "sector": c.get("sector"), "combined": c.get("combined")}
+            {
+                "code": c["code"],
+                "sector": c.get("sector"),
+                "combined": c.get("combined"),
+            }
             for c in result["dropped_for_cap"]
         ],
         "filtered_low_warmup": [
@@ -332,19 +337,24 @@ def _print_summary(result: dict, apply: bool, output_path: Path) -> None:
         for w in result["warnings"]:
             print(f"  WARNING: {w}")
     if result["filtered_low_warmup"]:
-        print(f"  filtered_low_warmup ({len(result['filtered_low_warmup'])}): "
-              + ", ".join(c["code"] for c in result["filtered_low_warmup"][:10])
-              + ("..." if len(result["filtered_low_warmup"]) > 10 else ""))
+        print(
+            f"  filtered_low_warmup ({len(result['filtered_low_warmup'])}): "
+            + ", ".join(c["code"] for c in result["filtered_low_warmup"][:10])
+            + ("..." if len(result["filtered_low_warmup"]) > 10 else "")
+        )
     if result["dropped_for_cap"]:
-        print(f"  dropped_for_cap ({len(result['dropped_for_cap'])}): "
-              + ", ".join(c["code"] for c in result["dropped_for_cap"][:10])
-              + ("..." if len(result["dropped_for_cap"]) > 10 else ""))
+        print(
+            f"  dropped_for_cap ({len(result['dropped_for_cap'])}): "
+            + ", ".join(c["code"] for c in result["dropped_for_cap"][:10])
+            + ("..." if len(result["dropped_for_cap"]) > 10 else "")
+        )
     print(f"  report: {output_path}")
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def build_parser() -> argparse.ArgumentParser:
     cs_cfg = get_cross_section_config()
@@ -424,15 +434,19 @@ def main() -> int:
             new_cfg = _apply_universe(cfg, result["selected"], target_size)
             save_tickers_config(new_cfg)
             newly_enabled = [
-                c["code"] for c in result["selected"]
+                c["code"]
+                for c in result["selected"]
                 if c["code"] not in set(enabled_codes(cfg))
             ]
             newly_disabled = [
-                code for code in enabled_codes(cfg)
+                code
+                for code in enabled_codes(cfg)
                 if code not in {c["code"] for c in result["selected"]}
             ]
-            print(f"  tickers.yml updated: +{len(newly_enabled)} enabled, "
-                  f"-{len(newly_disabled)} disabled")
+            print(
+                f"  tickers.yml updated: +{len(newly_enabled)} enabled, "
+                f"-{len(newly_disabled)} disabled"
+            )
             if data_moves:
                 print(f"  data moved: {len(data_moves)} parquet files")
             if newly_enabled:

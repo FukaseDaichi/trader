@@ -102,6 +102,7 @@ def test_fit_calibrator_applies_and_reports_brier():
 
 def test_calibrator_is_json_serializable():
     import json
+
     cal = fit_isotonic_pava([0.1, 0.5, 0.9], [0, 1, 1])
     s = json.dumps(cal)
     back = json.loads(s)

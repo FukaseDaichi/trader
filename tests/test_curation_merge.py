@@ -53,11 +53,14 @@ def fund_report(cands, as_of=TODAY):
 def cfg_with(enabled, watchlist=None, disabled=None):
     tickers = [{"code": c, "name": c, "enabled": True} for c in enabled]
     for code, disabled_on in (disabled or {}).items():
-        tickers.append({"code": code, "name": code, "enabled": False, "disabled_on": disabled_on})
+        tickers.append(
+            {"code": code, "name": code, "enabled": False, "disabled_on": disabled_on}
+        )
     return {"tickers": tickers, "watchlist": watchlist or [], "settings": {}}
 
 
 # ---------------------------------------------------------------------------
+
 
 def test_no_fundamental_is_conservative():
     cfg = cfg_with(["A", "B"])
@@ -83,18 +86,28 @@ def test_stale_fundamental_is_conservative():
 def test_add_fills_empty_slots():
     cfg = cfg_with(["A", "B"])
     s = make_settings(max_universe=5, max_daily_adds=2, max_daily_swaps=2)
-    tech = tech_report([
-        cand("A", 55, sector="A"), cand("B", 55, sector="B"),
-        cand("C", 80, sector="C"), cand("D", 78, sector="D"), cand("E", 60, sector="E"),
-    ])
-    fund = fund_report([
-        cand("A", 55, sector="A"), cand("B", 55, sector="B"),
-        cand("C", 80, sector="C"), cand("D", 78, sector="D"), cand("E", 60, sector="E"),
-    ])
+    tech = tech_report(
+        [
+            cand("A", 55, sector="A"),
+            cand("B", 55, sector="B"),
+            cand("C", 80, sector="C"),
+            cand("D", 78, sector="D"),
+            cand("E", 60, sector="E"),
+        ]
+    )
+    fund = fund_report(
+        [
+            cand("A", 55, sector="A"),
+            cand("B", 55, sector="B"),
+            cand("C", 80, sector="C"),
+            cand("D", 78, sector="D"),
+            cand("E", 60, sector="E"),
+        ]
+    )
     d = compute_decision(tech, fund, cfg, s, TODAY)
     assert d["conservative"] is False
     assert set(d["changes"]["promoted_add"]) == {"C", "D"}
-    assert "E" in d["changes"]["watchlist"]      # 60 >= keep_floor but < min_combined
+    assert "E" in d["changes"]["watchlist"]  # 60 >= keep_floor but < min_combined
     assert set(d["universe_after"]) == {"A", "B", "C", "D"}
 
 
@@ -102,8 +115,10 @@ def test_swap_replaces_worst_below_floor():
     cfg = cfg_with(["A", "B", "C"])
     s = make_settings(max_universe=3, max_daily_swaps=2, min_gap=5, keep_floor=50)
     cands = [
-        cand("A", 30, sector="A"), cand("B", 60, sector="B"),
-        cand("C", 70, sector="C"), cand("X", 85, sector="X"),
+        cand("A", 30, sector="A"),
+        cand("B", 60, sector="B"),
+        cand("C", 70, sector="C"),
+        cand("X", 85, sector="X"),
     ]
     d = compute_decision(tech_report(cands), fund_report(cands), cfg, s, TODAY)
     assert d["changes"]["promoted_swap"] == ["X"]
@@ -114,8 +129,11 @@ def test_swap_replaces_worst_below_floor():
 def test_warmup_gate_blocks_promotion():
     cfg = cfg_with(["A", "B"])
     s = make_settings(max_universe=5, min_warmup_rows=200)
-    cands = [cand("A", 55, sector="A"), cand("B", 55, sector="B"),
-             cand("C", 95, sector="C", rows=50)]   # not enough history
+    cands = [
+        cand("A", 55, sector="A"),
+        cand("B", 55, sector="B"),
+        cand("C", 95, sector="C", rows=50),
+    ]  # not enough history
     d = compute_decision(tech_report(cands), fund_report(cands), cfg, s, TODAY)
     assert "C" not in d["changes"]["promoted"]
     watch = {w["code"]: w for w in d["new_watchlist"]}
@@ -126,7 +144,11 @@ def test_cooldown_blocks_repromotion():
     disabled_on = (TODAY - timedelta(days=2)).isoformat()
     cfg = cfg_with(["A", "B"], disabled={"C": disabled_on})
     s = make_settings(max_universe=5, cooldown_days=5)
-    cands = [cand("A", 55, sector="A"), cand("B", 55, sector="B"), cand("C", 95, sector="C")]
+    cands = [
+        cand("A", 55, sector="A"),
+        cand("B", 55, sector="B"),
+        cand("C", 95, sector="C"),
+    ]
     d = compute_decision(tech_report(cands), fund_report(cands), cfg, s, TODAY)
     assert "C" not in d["changes"]["promoted"]
 
@@ -134,18 +156,24 @@ def test_cooldown_blocks_repromotion():
 def test_daily_add_cap():
     cfg = cfg_with(["A"])
     s = make_settings(max_universe=10, max_daily_adds=1)
-    cands = [cand("A", 55, sector="A"),
-             cand("C", 90, sector="C"), cand("D", 88, sector="D")]
+    cands = [
+        cand("A", 55, sector="A"),
+        cand("C", 90, sector="C"),
+        cand("D", 88, sector="D"),
+    ]
     d = compute_decision(tech_report(cands), fund_report(cands), cfg, s, TODAY)
     assert len(d["changes"]["promoted_add"]) == 1
-    assert d["changes"]["promoted_add"] == ["C"]   # highest combined first
+    assert d["changes"]["promoted_add"] == ["C"]  # highest combined first
 
 
 def test_sector_cap_blocks_overweight():
     cfg = cfg_with(["A", "B"])  # A sector X, B sector Y
     s = make_settings(max_universe=5, sector_cap_pct=40, max_daily_adds=2)
-    cands = [cand("A", 55, sector="X"), cand("B", 55, sector="Y"),
-             cand("C", 90, sector="X")]   # adding C makes X = 2/3 > 40%
+    cands = [
+        cand("A", 55, sector="X"),
+        cand("B", 55, sector="Y"),
+        cand("C", 90, sector="X"),
+    ]  # adding C makes X = 2/3 > 40%
     d = compute_decision(tech_report(cands), fund_report(cands), cfg, s, TODAY)
     assert "C" not in d["changes"]["promoted"]
     assert "C" in d["changes"]["watchlist"]

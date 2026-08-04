@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-07-25T09:00:00+09:00",
+  "as_of": "2026-07-25",
+  "market_bias": "neutral",
+  "summary": "米連銀はタカ派据え置き（3.50-3.75%）でドットは利上げ方向、日銀は6月に31年ぶり1.0%へ利上げ済み。日米金利差残存とドル高でドル円は約39年半ぶりの163円台の円安。円安・国内金利上昇は輸出株・銀行に追い風だが、Fedタカ派・自動車関税・介入リスクが上値を抑え、JP株全体はニュートラル。来週はFOMC(7/29)と日銀会合(7/31)が集中。",
+  "regime": {
+    "fed": {
+      "policy_rate_pct": 3.75,
+      "stance": "hawkish",
+      "next_event": "2026-07-29",
+      "note": "6/17会合でFF金利誘導目標を3.50-3.75%に4会合連続据え置き。ドットプロットは年内利下げ見通しを削除し利上げ可能性を示唆（2026年末中央値3.8%）、PCE見通しを3.6%へ上方修正。7/28-29会合はSEPなしで据え置き見込み。"
+    },
+    "boj": {
+      "policy_rate_pct": 1.0,
+      "stance": "hawkish",
+      "next_event": "2026-07-31",
+      "note": "6/16会合で無担保コール翌日物を0.75%→1.0%へ利上げ（1995年以来31年ぶりの高さ）。国債買入減額は27年1-3月まで四半期2000億円続け27年4月に停止、月約2兆円ペースへ。7/30-31会合は据え置き・26年度成長率上方修正を検討。"
+    },
+    "usdjpy": {
+      "level": 163.8,
+      "trend": "円安",
+      "as_of": "2026-07-24",
+      "note": "7/21に約39年半ぶりの163円台。中東情勢緊迫化とドル高が背景で日米金利差は残存。片山財務相が円安をけん制も『通貨安容認』観測が復活。直近の実弾介入は2026/4/30（2024/7以来約1年8か月ぶり）。163円超で介入警戒が高い。"
+    }
+  },
+  "themes": [
+    {
+      "id": "boj-hike-path",
+      "title": "日銀の追加利上げ観測（政策金利1.0%到達）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {
+        "date": "2026-06-16",
+        "description": "日銀が政策金利を0.75%→1.0%へ利上げ（31年ぶり高水準）。7/30-31会合は据え置き見込みだが正常化パスは継続。"
+      },
+      "affected_sectors": ["銀行", "保険", "生命保険", "証券", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8750.JP", "8604.JP", "8591.JP"],
+      "rationale": "国内金利上昇は預貸利ざや・運用利回りの改善を通じて銀行・保険・生保・証券に構造的な追い風。1.0%到達で利ざや拡大がさらに進み、2週間以降も金融株の相対的優位を支える。一方で高PERグロースや金利敏感な建設・不動産系にはバリュエーション面の逆風。",
+      "sources": [
+        {"title": "日銀、6月利上げ1.0%へ 国債買い入れは減額停止で調整（日本経済新聞）", "url": "https://www.nikkei.com/article/DGXZQOUB018Q80R00C26A6000000/", "date": "2026-06-16", "type": "secondary"},
+        {"title": "日銀7月会合、政策金利据え置きへ 26年度成長率は上方修正を検討（日本経済新聞）", "url": "https://www.nikkei.com/article/DGXZQOUB2329U0T20C26A7000000/", "date": "2026-07-24", "type": "secondary"},
+        {"title": "2026年の金融政策決定会合等の日程（日本銀行）", "url": "https://www.boj.or.jp/mopo/mpmsche_minu/m_ref/mref250731a.pdf", "date": "2025-07-31", "type": "primary"}
+      ]
+    },
+    {
+      "id": "weak-yen-usdjpy-163",
+      "title": "ドル円163円台の円安（約39年半ぶり安値）と介入リスク",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {
+        "date": "2026-07-21",
+        "description": "ドル円が約39年半ぶりに163円台へ。日米金利差残存とドル高、中東情勢緊迫化が背景。片山財務相が円安をけん制、介入警戒が高まる。"
+      },
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器"],
+      "affected_codes": ["7203.JP", "7267.JP", "6758.JP", "6501.JP", "6503.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "7741.JP"],
+      "rationale": "円安は輸出株（自動車・電機・電子部品・商社・精密機器）の海外収益を円換算で押し上げ2週間以降も追い風。ただし小売・食品・消費財など輸入・内需株には原価高の逆風。163円超では為替介入による急激な円高スナップバックが両面リスクで、輸出株の期待効果は一部相殺されうる。",
+      "sources": [
+        {"title": "円相場163円台、見透かされた『通貨安容認』 介入に大義なし（日本経済新聞）", "url": "https://www.nikkei.com/article/DGXZQOFL220B80S6A720C2000000/", "date": "2026-07-22", "type": "secondary"},
+        {"title": "中東情勢の緊迫化でドル円は163円台へ～為替介入の有無を探る（三井住友DSアセットマネジメント）", "url": "https://www.smd-am.co.jp/market/ichikawa/2026/07/irepo260722/", "date": "2026-07-22", "type": "secondary"},
+        {"title": "Japanese Yen quote / historical data（Trading Economics）", "url": "https://tradingeconomics.com/japan/currency", "date": "2026-07-24", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold",
+      "title": "米連銀のタカ派据え置き（ドットは利上げ方向）",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {
+        "date": "2026-06-17",
+        "description": "FOMCがFF金利を3.50-3.75%に4会合連続据え置き。ドットプロットは年内利下げ見通しを削除し利上げ可能性を示唆、PCE見通しを3.6%へ上方修正。7/29会合はSEPなし。"
+      },
+      "affected_sectors": ["半導体製造装置", "半導体"],
+      "affected_codes": ["8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP"],
+      "rationale": "米金利の高止まり・タカ派バイアスは高PERグロースと金利敏感な半導体製造装置・半導体のバリュエーションに逆風。米景気減速リスクも半導体需要の下振れ要因。ただし日米金利差維持は円安を通じて同セクターの円建て収益にはプラスに働くため、逆風は一部緩和される。",
+      "sources": [
+        {"title": "FOMC Minutes, June 16-17, 2026（Federal Reserve）", "url": "https://www.federalreserve.gov/monetarypolicy/fomcminutes20260617.htm", "date": "2026-06-17", "type": "primary"},
+        {"title": "Fed interest rate decision June 2026: Fed holds rates steady（CNBC）", "url": "https://www.cnbc.com/2026/06/17/fed-interest-rate-decision-june-2026.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "us-japan-auto-tariff",
+      "title": "米国の対日15%自動車関税（自動車の構造的減益）",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {
+        "date": "2026-05-08",
+        "description": "トヨタFY2026決算で米関税影響が通期1.4兆円、北米が営業赤字（約19億ドル）に転落。営業利益は21.5%減の約3.76兆円、FY2027は3.0兆円へさらに減益見通し。"
+      },
+      "affected_sectors": ["自動車"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP"],
+      "rationale": "2025年日米枠組み合意に基づく15%関税（自動車含む）が2026年も継続し、大手6社で約2.6兆円規模の利益圧迫。自動車の収益・ガイダンスに構造的な逆風で2週間以降も重し。円安が関税負担を一部相殺するが、北米が損益分岐割れの状況では効果は限定的。直接影響は自動車中心だが世界景気減速の間接リスクも残る。",
+      "sources": [
+        {"title": "Toyota Motor FY2026 Financial Results（2026 4Q presentation, global.toyota IR）", "url": "https://global.toyota/pages/global_toyota/ir/financial-results/2026_4q_presentation_2_en.pdf", "date": "2026-05-08", "type": "primary"},
+        {"title": "U.S. Tariffs and the 2025 U.S.-Japan Framework Agreement（Congress.gov CRS）", "url": "https://www.congress.gov/crs-product/IN12608", "date": "2026-01-01", "type": "primary"},
+        {"title": "US tariffs erase all of Toyota's North America profits in FY2026（WardsAuto）", "url": "https://www.wardsauto.com/news/us-tariffs-erase-all-of-toyotas-north-america-profits-in-fy2026/819825/", "date": "2026-05-08", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["7011.JP", "6501.JP", "6701.JP", "7013.JP", "6762.JP", "6723.JP", "6758.JP", "1802.JP", "8306.JP", "8035.JP", "6981.JP", "7267.JP", "4901.JP", "8411.JP", "8316.JP", "7974.JP", "9983.JP", "7751.JP", "6146.JP", "8766.JP", "6301.JP", "6857.JP", "6920.JP", "9433.JP", "6702.JP", "8725.JP", "4661.JP", "9984.JP", "7203.JP", "6098.JP", "8058.JP", "6861.JP", "4063.JP", "6503.JP", "9432.JP", "8031.JP", "6273.JP", "8001.JP", "6367.JP", "8591.JP", "7741.JP", "2914.JP", "4502.JP", "4568.JP", "4519.JP", "9434.JP", "9020.JP", "4452.JP", "8604.JP", "8750.JP"],
+  "notes": "来週(7/28-31)にFOMC(7/29決定)と日銀会合(7/31決定)が集中し、金利・為替の変動が高まりやすい。円安の追い風（輸出株）と国内金利上昇の追い風（金融株）が構造テーマの中心で、逆風はFedタカ派（半導体・グロース）・自動車関税・介入による円高スナップバック。affected_sectorsはcuration_pool.ymlの正規表記、affected_codesはenabled/watchlist/pool内のコードに限定。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる（特にFOMC・日銀会合・為替介入の前後）。"
+}

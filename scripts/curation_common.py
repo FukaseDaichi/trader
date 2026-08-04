@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -23,6 +23,7 @@ if str(ROOT_DIR) not in sys.path:
 
 # Reuse canonical paths from src.config (also creates data/ and docs/).
 from src.config import DATA_DIR, DOCS_DIR, TICKERS_FILE  # noqa: E402
+from src.timeutil import now_jst, today_jst  # noqa: E402, F401  (re-exported)
 
 CURATION_DIR = DOCS_DIR / "curation"
 REPORTS_DIR = ROOT_DIR / "reports"
@@ -55,16 +56,13 @@ DEFAULT_CURATION_SETTINGS = {
 # Time helpers (JST)
 # ---------------------------------------------------------------------------
 
-def today_jst() -> date:
-    return (datetime.now(UTC) + timedelta(hours=9)).date()
-
 
 def today_jst_iso() -> str:
     return today_jst().strftime("%Y-%m-%d")
 
 
 def now_jst_iso() -> str:
-    return (datetime.now(UTC) + timedelta(hours=9)).strftime("%Y-%m-%dT%H:%M:%S+09:00")
+    return now_jst().strftime("%Y-%m-%dT%H:%M:%S+09:00")
 
 
 def parse_iso_date(value) -> date | None:
@@ -79,6 +77,7 @@ def parse_iso_date(value) -> date | None:
 # ---------------------------------------------------------------------------
 # JSON helpers
 # ---------------------------------------------------------------------------
+
 
 def read_json(path: Path) -> dict | None:
     path = Path(path)
@@ -102,6 +101,7 @@ def write_json(path: Path, payload) -> None:
 # ---------------------------------------------------------------------------
 # tickers.yml I/O
 # ---------------------------------------------------------------------------
+
 
 def load_tickers_config(path: Path | None = None) -> dict:
     path = Path(path or TICKERS_FILE)
@@ -162,6 +162,7 @@ def enabled_codes(cfg: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 # Candidate pool
 # ---------------------------------------------------------------------------
+
 
 def load_pool(path: Path | None = None) -> list[dict]:
     path = Path(path or POOL_FILE)

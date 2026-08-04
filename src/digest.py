@@ -29,6 +29,7 @@ _SEP = "──────────"
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _bias_label(market_bias: str | None) -> str:
     return {
         "risk_on": "リスクオン",
@@ -40,7 +41,9 @@ def _bias_label(market_bias: str | None) -> str:
 def _is_portfolio_available(portfolio_latest: dict | None) -> bool:
     if not portfolio_latest:
         return False
-    return bool(portfolio_latest.get("available") or portfolio_latest.get("status") == "ok")
+    return bool(
+        portfolio_latest.get("available") or portfolio_latest.get("status") == "ok"
+    )
 
 
 def _fmt_weight(w: Any) -> str:
@@ -64,11 +67,15 @@ def _group_line(label: str, positions: list[dict]) -> str:
     if not positions:
         return f"{label}: なし"
     # Sort by target_weight desc
-    sorted_pos = sorted(positions, key=lambda p: float(p.get("target_weight") or 0), reverse=True)
+    sorted_pos = sorted(
+        positions, key=lambda p: float(p.get("target_weight") or 0), reverse=True
+    )
     top2 = sorted_pos[:2]
     rest = sorted_pos[2:]
-    parts = [f"{p.get('name', p.get('ticker', '?'))} {_fmt_weight(p.get('target_weight'))}"
-             for p in top2]
+    parts = [
+        f"{p.get('name', p.get('ticker', '?'))} {_fmt_weight(p.get('target_weight'))}"
+        for p in top2
+    ]
     line = f"{label}: " + " / ".join(parts)
     if rest:
         line += f" ほか{len(rest)}"
@@ -115,8 +122,11 @@ def _portfolio_block(portfolio_latest: dict) -> str:
     else:
         # shadow mode: 新規 / 継続(hold+increase+decrease) / 手仕舞い
         grp_new = [p for p in positions if p.get("diff_type") == "new"]
-        grp_cont = [p for p in positions
-                    if p.get("diff_type") in ("hold", "increase", "decrease")]
+        grp_cont = [
+            p
+            for p in positions
+            if p.get("diff_type") in ("hold", "increase", "decrease")
+        ]
         grp_exit = [p for p in positions if p.get("diff_type") == "exit"]
 
         lines.append(_group_line("新規", grp_new))
@@ -152,7 +162,7 @@ def _performance_line(performance_summary: dict | None) -> str:
 
 def _signal_counts(signals: list[dict]) -> tuple[int, int, int]:
     b = mb = s = 0
-    for sig in (signals or []):
+    for sig in signals or []:
         if not sig.get("gate_passed"):
             continue
         action = sig.get("action", "")
@@ -195,9 +205,69 @@ def _signal_name_lines(signals: list[dict]) -> list[str]:
     return lines
 
 
+# Take-profit / stop-loss lines for gate-passed long entries. The exit plan
+# uses the model's own triple-barrier widths (see predictor.build_long_exit_plan),
+# so these are the OCO order levels that match how prob_up was trained. Capped to
+# keep one LINE message under the API text limit.
+_MAX_EXIT_PLAN_LINES = 5
+_EXIT_PLAN_ORDER = {"BUY": 0, "MILD_BUY": 1}
+
+
+def _exit_plan_lines(signals: list[dict]) -> list[str]:
+    """Compact '現値→利確/損切' lines for gate-passed BUY / MILD_BUY entries."""
+    longs = [
+        sig
+        for sig in (signals or [])
+        if sig.get("gate_passed")
+        and sig.get("action") in _EXIT_PLAN_ORDER
+        and isinstance(sig.get("exit_plan"), dict)
+    ]
+    if not longs:
+        return []
+
+    longs.sort(
+        key=lambda s: (
+            _EXIT_PLAN_ORDER.get(s.get("action"), 9),
+            -float(s.get("prob_up") or 0),
+        )
+    )
+
+    days = longs[0]["exit_plan"].get("time_exit_days")
+    header = "🎯 利確/損切り目安 (現値→利確/損切"
+    header += f" ・期限{days}日)" if days else ")"
+    lines = [header]
+
+    for sig in longs[:_MAX_EXIT_PLAN_LINES]:
+        plan = sig["exit_plan"]
+        name = sig.get("name") or sig.get("ticker", "?")
+        tp = plan.get("take_profit_price")
+        sl = plan.get("stop_price")
+        tp_pct = plan.get("take_profit_pct")
+        sl_pct = plan.get("stop_pct")
+
+        def _price_str(v: Any) -> str:
+            try:
+                return f"{int(float(v)):,}"
+            except (TypeError, ValueError):
+                return "—"
+
+        close_str = _price_str(sig.get("close"))
+        tp_str = _price_str(tp)
+        sl_str = _price_str(sl)
+        pct_str = ""
+        if tp_pct is not None and sl_pct is not None:
+            pct_str = f" ({float(tp_pct):+.0%}/{float(sl_pct):+.0%})"
+        lines.append(f"・{name} {close_str}→利確{tp_str}/損切{sl_str}{pct_str}")
+
+    if len(longs) > _MAX_EXIT_PLAN_LINES:
+        lines.append(f"・ほか{len(longs) - _MAX_EXIT_PLAN_LINES}件")
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def build_daily_digest(
     run_date: str,
@@ -236,6 +306,7 @@ def build_daily_digest(
     b, mb, s = _signal_counts(signals)
     signal_line = f"📨 個別シグナル: 買い{b} / やや買い{mb} / 売り{s}"
     name_lines = _signal_name_lines(signals)
+    exit_plan_lines = _exit_plan_lines(signals)
 
     # --- Performance line ---
     perf_line = _performance_line(performance_summary)
@@ -249,6 +320,7 @@ def build_daily_digest(
         _SEP,
         signal_line,
         *name_lines,
+        *([_SEP, *exit_plan_lines] if exit_plan_lines else []),
         perf_line,
         f"詳細: {dashboard_url}",
     ]

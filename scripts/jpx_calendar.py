@@ -51,7 +51,11 @@ def _load_cache(path: Path) -> Dict[str, str]:
     except json.JSONDecodeError:
         return {}
 
-    if isinstance(payload, dict) and "holidays" in payload and isinstance(payload["holidays"], dict):
+    if (
+        isinstance(payload, dict)
+        and "holidays" in payload
+        and isinstance(payload["holidays"], dict)
+    ):
         return {str(k): str(v) for k, v in payload["holidays"].items()}
     if isinstance(payload, dict):
         return {str(k): str(v) for k, v in payload.items()}
@@ -67,7 +71,9 @@ def _fetch_public_holidays(source_url: str, timeout_sec: int = 15) -> Dict[str, 
     return {str(k): str(v) for k, v in payload.items()}
 
 
-def _add_known_exchange_closures(holidays: Dict[str, str], years: list[int]) -> Dict[str, str]:
+def _add_known_exchange_closures(
+    holidays: Dict[str, str], years: list[int]
+) -> Dict[str, str]:
     enriched = dict(holidays)
     for y in years:
         enriched.setdefault(f"{y}-01-02", "Exchange New Year Holiday")
@@ -85,7 +91,9 @@ def _compute_open_day(target: date, holidays: Dict[str, str]) -> OpenDayResult:
     if not _is_weekday(target):
         return OpenDayResult(target_date=key, is_open=False, reason="weekend")
     if key in holidays:
-        return OpenDayResult(target_date=key, is_open=False, reason=f"holiday:{holidays[key]}")
+        return OpenDayResult(
+            target_date=key, is_open=False, reason=f"holiday:{holidays[key]}"
+        )
     return OpenDayResult(target_date=key, is_open=True, reason="weekday_non_holiday")
 
 
@@ -168,8 +176,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="JPX calendar helper")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    p_is_open = subparsers.add_parser("is-open", help="Check if target date is open day")
-    p_is_open.add_argument("--date", help="Target date in YYYY-MM-DD (default: today JST)")
+    p_is_open = subparsers.add_parser(
+        "is-open", help="Check if target date is open day"
+    )
+    p_is_open.add_argument(
+        "--date", help="Target date in YYYY-MM-DD (default: today JST)"
+    )
     p_is_open.add_argument("--cache-path", default=str(DEFAULT_CACHE_PATH))
     p_is_open.add_argument("--source-url", default=DEFAULT_HOLIDAY_SOURCE)
     p_is_open.add_argument("--github-output", action="store_true")

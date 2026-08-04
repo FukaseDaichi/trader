@@ -1,6 +1,6 @@
 # 週次レポート仕様（構成・文体・LINE通知）
 
-更新日: 2026-06-06 JST
+更新日: 2026-07-24 JST
 
 レポートライター agent が、週次ファンダメンタル結果とテクニカル結果、直近 decision logs を Markdown にまとめます。出力は `reports/weekly_YYYY-MM-DD.md` と `reports/weekly_latest.md` です。
 
@@ -87,7 +87,8 @@ disclaimer: 本レポートは情報提供のみを目的とし、投資助言�
 - レポート本文の最初の `###` 見出しを headline として通知文に入れる
 - 🌍 マクロ節は `##` 見出しのため `extract_headline` の最初の `###`（＝先頭の注目銘柄）に影響しない。headline は従来どおり先頭の注目銘柄名になる
 - LINE 設定がない場合は送信せず、送信予定本文を標準出力に出す
-- 送信失敗は非致命
+- 送信は`src.notifier.send_line_text()`を使い、429/5xx/接続エラーをbounded retryする
+- retry後の送信失敗も非致命
 
 通知文の形:
 
@@ -101,6 +102,5 @@ https://github.com/...
 
 ## 5. 現行制約
 
-- Markdown の front matter、免責、銘柄コード存在チェックを機械的に検証する validator は未実装
-- LINE 通知にはリトライがない
-- レポートは GitHub blob URL として通知され、ダッシュボード UI には表示されない
+- Markdownのfront matter、免責、銘柄コード存在チェックを機械的に検証するvalidatorは未実装。レポートはシグナルや売買判断に使わないため、現行方針では追加しない
+- レポート本文はGitHub blob URLとして通知され、ダッシュボード内には埋め込まない。`SiteFooter`からGitHubの`reports/`ディレクトリへリンクする

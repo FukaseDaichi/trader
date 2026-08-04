@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PerformanceSummary } from "../types";
 import { fetchJson, isAvailablePayload } from "../lib/fetchJson";
+import { hasCurrentExecutionContract } from "../lib/executionContract";
 import Term from "./Term";
 
 export default function PerformanceHeadline() {
@@ -12,7 +13,8 @@ export default function PerformanceHeadline() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
     fetchJson<PerformanceSummary>(
       `${basePath}/performance_summary.json`,
-      (v): v is PerformanceSummary => isAvailablePayload(v),
+      (v): v is PerformanceSummary =>
+        isAvailablePayload(v) && hasCurrentExecutionContract(v),
     ).then(setPerf);
   }, []);
 
@@ -27,8 +29,8 @@ export default function PerformanceHeadline() {
   return (
     <section className="mb-8">
       <p className="mb-3 text-sm leading-relaxed text-slate-400">
-        買いサインのあと実際どうだったか、の通算成績です。
-        <Term k="topix">市場平均(TOPIX)</Term>と比べて意味があったかを見ます。
+        買いサイン後の値動きと、往復コストを控除した運用試算です。
+        市場平均との比較は同じ約定条件のデータがある場合だけ表示します。
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5">
@@ -40,16 +42,21 @@ export default function PerformanceHeadline() {
           <div className="mt-1 text-xs text-slate-500">サイン {h5?.count ?? 0} 回</div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5">
-          <div className="mb-1 text-xs text-slate-500">平均リターン(5日後)</div>
+          <div className="mb-1 text-xs text-slate-500">
+            平均リターン(5日後・コスト前)
+          </div>
           <div className="text-3xl font-bold text-slate-100">{pct(h5?.avg_return)}</div>
           <div className="mt-1 text-xs text-slate-500">1回のサインあたり</div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5">
           <div className="mb-1 text-xs text-slate-500">
             <Term k="equity_curve">通算リターン</Term>
+            <span className="ml-1">(コスト後)</span>
           </div>
           <div className="text-3xl font-bold text-slate-100">{pct(cumReturn)}</div>
-          <div className="mt-1 text-xs text-slate-500">シグナル通りに売買した場合</div>
+          <div className="mt-1 text-xs text-slate-500">
+            入口・出口のコストとスリッページを控除
+          </div>
         </div>
       </div>
     </section>

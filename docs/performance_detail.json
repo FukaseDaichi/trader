@@ -1,71 +1,210 @@
 {
   "available": true,
-  "generated_at": "2026-06-17 07:58:02",
-  "as_of": "2026-06-17",
+  "generated_at": "2026-08-04 07:13:14",
+  "as_of": "2026-08-04",
   "horizon_days": 5,
   "history_days": 180,
+  "execution_contract": {
+    "contract_version": "next_session_open_to_close_v2",
+    "market_as_of_basis": "session_close",
+    "decision_timing": "next_session_preopen",
+    "entry_price_basis": "next_session_open",
+    "exit_price_basis": "horizon_session_close",
+    "benchmark_basis": "unavailable_same_basis",
+    "return_basis": "net_after_entry_exit_costs",
+    "cost_treatment": "deducted_from_performance_equity",
+    "cost_bps_per_side": 10.0,
+    "slippage_bps_per_side": 5.0
+  },
+  "contract_coverage": {
+    "required_contract_version": "next_session_open_to_close_v2",
+    "source_counts": {
+      "next_session_open_to_close_v2": 74
+    },
+    "included_rows": 74,
+    "excluded_rows": 0,
+    "fallback_assumption": null
+  },
+  "accounting_method": {
+    "name": "non_overlapping_cohorts_v1",
+    "selection": "eval_date_non_overlap",
+    "fallback_reason": null,
+    "eligible_cohorts": 29,
+    "selected_cohorts": 8,
+    "overlapping_horizon_returns_compounded": false,
+    "capital_per_cohort": 1.0,
+    "return_basis": "net_after_entry_exit_costs",
+    "gross_return_source": "signal_outcomes.realized_ret",
+    "cost_model": "full_capital_entry_and_exit",
+    "benchmark_return_basis": "net_after_same_entry_exit_costs",
+    "benchmark_cost_model": "same_round_trip_cost_as_strategy",
+    "cost_bps_per_side": 10.0,
+    "slippage_bps_per_side": 5.0,
+    "round_trip_cost_rate": 0.003
+  },
+  "benchmark_coverage": {
+    "basis": "same_execution_window_only",
+    "selected_cohorts": 8,
+    "available_cohorts": 0,
+    "coverage_ratio": 0.0,
+    "reason": "unavailable_same_basis"
+  },
+  "signal_quality": {
+    "overlapping_samples_allowed": true,
+    "compounded_into_equity": false,
+    "return_basis": "raw_market_return_before_costs",
+    "metrics": [
+      "hit_rate_20d",
+      "avg_return_20d",
+      "excess_return_20d"
+    ]
+  },
   "equity_curve": [
     {
-      "date": "2026-05-01",
-      "strategy": 0.9906152241918665,
-      "benchmark": 1.0534718848888727,
+      "date": "2026-05-13",
+      "entry_date": "2026-05-07",
+      "strategy": 0.9663877551020408,
+      "benchmark": null,
+      "gross_period_return": -0.030612244897959218,
+      "cost_return": 0.003,
+      "period_return": -0.03361224489795922,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
       "n": 1
     },
     {
-      "date": "2026-05-07",
-      "strategy": 0.9540543736495275,
-      "benchmark": 1.0638203313850214,
-      "n": 1
-    },
-    {
-      "date": "2026-05-14",
-      "strategy": 0.9369734832027664,
-      "benchmark": 1.0576112003254274,
+      "date": "2026-05-21",
+      "entry_date": "2026-05-15",
+      "strategy": 0.9374035753108441,
+      "benchmark": null,
+      "gross_period_return": -0.02699228791773778,
+      "cost_return": 0.003,
+      "period_return": -0.029992287917737778,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
       "n": 2
     },
     {
-      "date": "2026-06-08",
-      "strategy": 0.8800139135451763,
-      "benchmark": 1.0982288844037629,
+      "date": "2026-06-15",
+      "entry_date": "2026-06-09",
+      "strategy": 0.8628122622027322,
+      "benchmark": null,
+      "gross_period_return": -0.0765722515602496,
+      "cost_return": 0.003,
+      "period_return": -0.07957225156024961,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
       "n": 1
     },
     {
-      "date": "2026-06-09",
-      "strategy": 0.9030248338550146,
-      "benchmark": 1.1245417085357536,
-      "n": 4
+      "date": "2026-06-22",
+      "entry_date": "2026-06-16",
+      "strategy": 0.8639891886575067,
+      "benchmark": null,
+      "gross_period_return": 0.00436405856329621,
+      "cost_return": 0.003,
+      "period_return": 0.0013640585632962096,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
+      "n": 3
+    },
+    {
+      "date": "2026-06-29",
+      "entry_date": "2026-06-23",
+      "strategy": 0.8160440923020141,
+      "benchmark": null,
+      "gross_period_return": -0.05249270405801165,
+      "cost_return": 0.003,
+      "period_return": -0.055492704058011655,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
+      "n": 2
+    },
+    {
+      "date": "2026-07-06",
+      "entry_date": "2026-06-30",
+      "strategy": 0.8318671783695328,
+      "benchmark": null,
+      "gross_period_return": 0.022389989115517706,
+      "cost_return": 0.003,
+      "period_return": 0.019389989115517706,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
+      "n": 2
+    },
+    {
+      "date": "2026-07-13",
+      "entry_date": "2026-07-07",
+      "strategy": 0.8279050137383761,
+      "benchmark": null,
+      "gross_period_return": -0.0017629774730656411,
+      "cost_return": 0.003,
+      "period_return": -0.004762977473065641,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
+      "n": 1
+    },
+    {
+      "date": "2026-07-21",
+      "entry_date": "2026-07-14",
+      "strategy": 0.8555989851331329,
+      "benchmark": null,
+      "gross_period_return": 0.036450662739322626,
+      "cost_return": 0.003,
+      "period_return": 0.03345066273932262,
+      "gross_benchmark_return": null,
+      "benchmark_return": null,
+      "n": 1
     }
   ],
   "drawdown_curve": [
     {
-      "date": "2026-05-01",
-      "drawdown": -0.009384775808133461
+      "date": "2026-05-13",
+      "drawdown": -0.03361224489795922
     },
     {
-      "date": "2026-05-07",
-      "drawdown": -0.0459456263504725
+      "date": "2026-05-21",
+      "drawdown": -0.06259642468915594
     },
     {
-      "date": "2026-05-14",
-      "drawdown": -0.06302651679723359
+      "date": "2026-06-15",
+      "drawdown": -0.13718773779726778
     },
     {
-      "date": "2026-06-08",
-      "drawdown": -0.11998608645482367
+      "date": "2026-06-22",
+      "drawdown": -0.13601081134249327
     },
     {
-      "date": "2026-06-09",
-      "drawdown": -0.09697516614498536
+      "date": "2026-06-29",
+      "drawdown": -0.18395590769798587
+    },
+    {
+      "date": "2026-07-06",
+      "drawdown": -0.16813282163046717
+    },
+    {
+      "date": "2026-07-13",
+      "drawdown": -0.1720949862616239
+    },
+    {
+      "date": "2026-07-21",
+      "drawdown": -0.14440101486686707
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.2222222222222222,
-    "avg_return_20d": -0.004255169237287131,
-    "excess_return_20d": -0.02490674937080934,
-    "sharpe_60d": -10.832023295671913
+    "hit_rate_20d": 0.46808510638297873,
+    "avg_return_20d": -0.00712117070136447,
+    "excess_return_20d": null,
+    "sharpe_60d": -3.712990079884155,
+    "sharpe_observations": 8,
+    "sharpe_annualization_periods": 50.4,
+    "sharpe_selection": "eval_date_non_overlap",
+    "sharpe_fallback_reason": null,
+    "sharpe_return_basis": "net_after_entry_exit_costs",
+    "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.261194368439086,
+    "brier": 0.3053547566499443,
     "bins": [
       {
         "bin_low": 0.0,
@@ -77,16 +216,16 @@
       {
         "bin_low": 0.1,
         "bin_high": 0.2,
-        "mean_prob": null,
-        "frac_up": null,
-        "count": 0
+        "mean_prob": 0.1111111111111111,
+        "frac_up": 1.0,
+        "count": 1
       },
       {
         "bin_low": 0.2,
         "bin_high": 0.30000000000000004,
-        "mean_prob": null,
-        "frac_up": null,
-        "count": 0
+        "mean_prob": 0.2222222222222222,
+        "frac_up": 1.0,
+        "count": 1
       },
       {
         "bin_low": 0.30000000000000004,
@@ -105,38 +244,92 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.5728282374842906,
-        "frac_up": 0.5,
-        "count": 2
+        "mean_prob": 0.5757645163206632,
+        "frac_up": 0.6,
+        "count": 25
       },
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.6627303266567148,
-        "frac_up": 0.5,
-        "count": 2
+        "mean_prob": 0.6402806670654366,
+        "frac_up": 0.34782608695652173,
+        "count": 23
       },
       {
         "bin_low": 0.7000000000000001,
         "bin_high": 0.8,
-        "mean_prob": null,
-        "frac_up": null,
-        "count": 0
+        "mean_prob": 0.7471604938271605,
+        "frac_up": 0.3333333333333333,
+        "count": 3
       },
       {
         "bin_low": 0.8,
         "bin_high": 0.9,
-        "mean_prob": null,
-        "frac_up": null,
-        "count": 0
+        "mean_prob": 0.8566124043817968,
+        "frac_up": 0.5,
+        "count": 2
       },
       {
         "bin_low": 0.9,
         "bin_high": 1.0,
-        "mean_prob": null,
-        "frac_up": null,
-        "count": 0
+        "mean_prob": 1.0,
+        "frac_up": 0.5,
+        "count": 2
       }
-    ]
-  }
+    ],
+    "provenance": {
+      "phase": "phase1",
+      "source": "signals.prediction_id",
+      "candidate_signal_count": 74,
+      "observation_count": 57,
+      "linked_prediction_count": 57,
+      "conviction_fallback_count": 0,
+      "excluded_count": 17,
+      "exclusions": {
+        "missing_compatibility_contract": 12,
+        "prediction_horizon_mismatch": 5
+      },
+      "model_versions": [
+        {
+          "model_version": "per-ticker-v1-20260613",
+          "count": 16
+        },
+        {
+          "model_version": "per-ticker-v1-20260620",
+          "count": 16
+        },
+        {
+          "model_version": "per-ticker-v1-20260627",
+          "count": 12
+        },
+        {
+          "model_version": "per-ticker-v1-20260704",
+          "count": 3
+        },
+        {
+          "model_version": "per-ticker-v1-20260711",
+          "count": 10
+        }
+      ],
+      "first_entry_date": "2026-06-15",
+      "last_entry_date": "2026-07-17",
+      "outcome_contract_versions": [
+        "next_session_open_to_close_v2"
+      ],
+      "compatibility_contract": {
+        "horizon_days": 5,
+        "label_config": {
+          "vol_col": "volatility",
+          "tb_sl_atr": 1.0,
+          "tb_tp_atr": 1.5,
+          "label_mode": "triple_barrier",
+          "tb_max_days": 5,
+          "horizon_days": 5
+        },
+        "execution_contract_version": "next_session_open_to_close_v2"
+      },
+      "fallback_contract_assumption": null
+    }
+  },
+  "benchmark_unavailable_reason": "unavailable_same_basis"
 }

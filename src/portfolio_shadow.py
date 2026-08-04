@@ -26,6 +26,12 @@ The market ``realized_ret`` is a property of (date, ticker, horizon) — it
 applies to ANY model's prediction of that ticker on that date — so it is shared
 by the Phase 1 and Phase 2 evaluations of the same name.
 
+Comparisons use only *paired* dates and names: the same (date, ticker) must have
+a settled return, a Phase 1 score, and the Phase 2 rank / expected return, and
+the date must have a persisted Phase 2 portfolio weight.  This prevents (for
+example) comparing 20 settled Phase 1 dates with only four settled Phase 2
+dates after an operational data gap.
+
 IC / top-N / hit-rate conventions deliberately MIRROR ``src.cs_model.cs_metrics``
 (``_spearman`` = Pearson-of-ranks, NaN-safe ``None`` returns, per-date mean over
 dates) so the two modules report comparable numbers. ``cs_rank`` is ASCENDING
@@ -45,6 +51,7 @@ MIN_SHADOW_DATES = 5
 # ---------------------------------------------------------------------------
 # NaN-safe correlation / aggregation helpers (mirror src.cs_model)
 # ---------------------------------------------------------------------------
+
 
 def _pearson(a: np.ndarray, b: np.ndarray):
     mask = np.isfinite(a) & np.isfinite(b)
@@ -78,10 +85,16 @@ def _mean_or_none(values):
 def _records_to_frame(records) -> pd.DataFrame:
     """Normalize the list-of-dicts into a typed DataFrame (empty-safe)."""
     cols = [
-        "date", "ticker", "realized_ret",
-        "p1_prob_up", "p1_action",
-        "p2_cs_rank", "p2_expected_ret", "p2_prob_up",
-        "p2_weight", "p2_prev_weight",
+        "date",
+        "ticker",
+        "realized_ret",
+        "p1_prob_up",
+        "p1_action",
+        "p2_cs_rank",
+        "p2_expected_ret",
+        "p2_prob_up",
+        "p2_weight",
+        "p2_prev_weight",
     ]
     if not records:
         return pd.DataFrame(columns=cols)
@@ -90,16 +103,89 @@ def _records_to_frame(records) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = None
     # Numeric coercion (everything except date / ticker / p1_action).
-    for c in ["realized_ret", "p1_prob_up", "p2_cs_rank", "p2_expected_ret",
-              "p2_prob_up", "p2_weight", "p2_prev_weight"]:
+    for c in [
+        "realized_ret",
+        "p1_prob_up",
+        "p2_cs_rank",
+        "p2_expected_ret",
+        "p2_prob_up",
+        "p2_weight",
+        "p2_prev_weight",
+    ]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df["date"] = df["date"].astype(str)
     return df[cols]
 
 
+def _paired_records_and_coverage(records) -> tuple[list[dict], dict]:
+    """Return fair-comparison records plus auditable date coverage.
+
+    A valid comparison date requires all of the following:
+
+    - at least two names with a finite settled return and both models' scores;
+    - a finite Phase 2 rank / expected return for those paired names; and
+    - at least one persisted Phase 2 target weight on the date (evidence that
+      the daily portfolio snapshot was actually produced).
+
+    The returned records contain only the fully paired names on valid dates, so
+    both sides use the same dates *and* ticker population.  Two names are the
+    minimum because daily IC is undefined for a single pair.
+    """
+    df = _records_to_frame(records)
+    coverage = {
+        "observed_dates": [],
+        "paired_dates": [],
+        "excluded_dates": {},
+    }
+    if df.empty:
+        return [], coverage
+
+    paired_parts: list[pd.DataFrame] = []
+    for date, grp in df.groupby("date", sort=True):
+        date_str = str(date)
+        coverage["observed_dates"].append(date_str)
+
+        realized = pd.to_numeric(grp["realized_ret"], errors="coerce")
+        p1_score = pd.to_numeric(grp["p1_prob_up"], errors="coerce")
+        p2_rank = pd.to_numeric(grp["p2_cs_rank"], errors="coerce")
+        p2_expected = pd.to_numeric(grp["p2_expected_ret"], errors="coerce")
+        p2_weight = pd.to_numeric(grp["p2_weight"], errors="coerce")
+
+        p1_settled = np.isfinite(realized) & np.isfinite(p1_score)
+        p2_settled = (
+            np.isfinite(realized) & np.isfinite(p2_rank) & np.isfinite(p2_expected)
+        )
+        paired_mask = p1_settled & p2_settled
+
+        reasons: list[str] = []
+        if not bool(p1_settled.any()):
+            reasons.append("missing_phase1_settled_outcome")
+        if not bool(p2_settled.any()):
+            reasons.append("missing_phase2_settled_outcome")
+        if not bool(np.isfinite(p2_rank).any()):
+            reasons.append("missing_phase2_rank")
+        if not bool(np.isfinite(p2_weight).any()):
+            reasons.append("missing_phase2_weight")
+        if int(paired_mask.sum()) < 2:
+            reasons.append("fewer_than_two_paired_names")
+
+        if reasons:
+            coverage["excluded_dates"][date_str] = reasons
+            continue
+
+        coverage["paired_dates"].append(date_str)
+        paired_parts.append(grp.loc[paired_mask].copy())
+
+    if not paired_parts:
+        return [], coverage
+    paired = pd.concat(paired_parts, ignore_index=True)
+    return paired.to_dict(orient="records"), coverage
+
+
 # ---------------------------------------------------------------------------
 # Daily IC
 # ---------------------------------------------------------------------------
+
 
 def daily_ic(records, *, score_key, ret_key="realized_ret", method="spearman"):
     """Mean per-date rank/IC correlation between ``score_key`` and ``ret_key``.
@@ -125,8 +211,10 @@ def daily_ic(records, *, score_key, ret_key="realized_ret", method="spearman"):
 # Top-N selection helpers
 # ---------------------------------------------------------------------------
 
-def _select_topn_per_date(grp: pd.DataFrame, rank_key: str, top_n: int,
-                          ascending: bool) -> pd.DataFrame:
+
+def _select_topn_per_date(
+    grp: pd.DataFrame, rank_key: str, top_n: int, ascending: bool
+) -> pd.DataFrame:
     """Return the top-N rows of one date by ``rank_key`` (NaN ranks excluded).
 
     ``ascending=True`` -> smallest values win (e.g. cs_rank where 1 = best).
@@ -139,8 +227,9 @@ def _select_topn_per_date(grp: pd.DataFrame, rank_key: str, top_n: int,
     return sub.head(max(1, int(top_n)))
 
 
-def topn_realized_return(records, *, rank_key, ret_key="realized_ret",
-                         top_n=8, ascending):
+def topn_realized_return(
+    records, *, rank_key, ret_key="realized_ret", top_n=8, ascending
+):
     """Mean over dates of the equal-weight realized return of the top-N names.
 
     Phase 1: ``rank_key="p1_prob_up", ascending=False`` (highest prob first).
@@ -154,8 +243,9 @@ def topn_realized_return(records, *, rank_key, ret_key="realized_ret",
     return _mean_or_none(list(per_date.values()))
 
 
-def topn_per_date_returns(records, *, rank_key, ret_key="realized_ret",
-                          top_n=8, ascending) -> dict:
+def topn_per_date_returns(
+    records, *, rank_key, ret_key="realized_ret", top_n=8, ascending
+) -> dict:
     """Ordered {date -> equal-weight top-N realized return} (finite only).
 
     The per-date series that ``max_drawdown_from_period_returns`` consumes to
@@ -204,6 +294,7 @@ def hit_rate_topn(records, *, rank_key, ret_key="realized_ret", top_n=8, ascendi
 # Turnover (Phase 2 portfolio only)
 # ---------------------------------------------------------------------------
 
+
 def turnover(records):
     """Mean per-date ``0.5 * sum|p2_weight - p2_prev_weight|`` (Phase 2 weights).
 
@@ -216,8 +307,16 @@ def turnover(records):
         return None
     per_date: list[float] = []
     for _date, grp in df.groupby("date", sort=True):
-        w = pd.to_numeric(grp["p2_weight"], errors="coerce").fillna(0.0).to_numpy(dtype="float64")
-        pw = pd.to_numeric(grp["p2_prev_weight"], errors="coerce").fillna(0.0).to_numpy(dtype="float64")
+        w = (
+            pd.to_numeric(grp["p2_weight"], errors="coerce")
+            .fillna(0.0)
+            .to_numpy(dtype="float64")
+        )
+        pw = (
+            pd.to_numeric(grp["p2_prev_weight"], errors="coerce")
+            .fillna(0.0)
+            .to_numpy(dtype="float64")
+        )
         has_weight = (
             grp["p2_weight"].notna().any() or grp["p2_prev_weight"].notna().any()
         )
@@ -232,6 +331,7 @@ def turnover(records):
 # ---------------------------------------------------------------------------
 # Max drawdown from a period-return sequence
 # ---------------------------------------------------------------------------
+
 
 def max_drawdown_from_period_returns(per_date_returns):
     """Most-negative drawdown of the cumulative-product equity curve (<= 0).
@@ -255,6 +355,7 @@ def max_drawdown_from_period_returns(per_date_returns):
 # ---------------------------------------------------------------------------
 # Expected-return calibration (Phase 2)
 # ---------------------------------------------------------------------------
+
 
 def expected_ret_calibration(records, *, top_n=8):
     """Phase 2 top-N predicted vs realized return (pooled across dates).
@@ -287,7 +388,11 @@ def expected_ret_calibration(records, *, top_n=8):
         )
     mean_exp = float(np.mean(exp_vals)) if exp_vals else None
     mean_real = float(np.mean(real_vals)) if real_vals else None
-    bias = (mean_exp - mean_real) if (mean_exp is not None and mean_real is not None) else None
+    bias = (
+        (mean_exp - mean_real)
+        if (mean_exp is not None and mean_real is not None)
+        else None
+    )
     return {
         "mean_expected_ret": mean_exp,
         "mean_realized_ret": mean_real,
@@ -299,6 +404,7 @@ def expected_ret_calibration(records, *, top_n=8):
 # ---------------------------------------------------------------------------
 # Per-strategy metric bundles
 # ---------------------------------------------------------------------------
+
 
 def _phase1_metrics(records, *, top_n) -> dict:
     """Phase 1 per-ticker side: rank by prob_up (higher = better)."""
@@ -366,8 +472,15 @@ def compare_phase1_phase2(records, *, top_n=8) -> dict:
     Returns ``{"phase1": {...}, "phase2": {...}, "delta": {...},
     "verdict": {...}}``. All deltas/verdicts are NaN/None-safe: a ``None`` metric
     on either side yields ``None`` for the corresponding delta/verdict (never a
-    spurious ``True``).
+    spurious ``True``). Metrics are calculated on paired dates and names only;
+    see :func:`_paired_records_and_coverage`.
     """
+    paired_records, _coverage = _paired_records_and_coverage(records)
+    return _compare_paired_records(paired_records, top_n=top_n)
+
+
+def _compare_paired_records(records, *, top_n=8) -> dict:
+    """Compare records already restricted to valid paired dates and names."""
     p1 = _phase1_metrics(records, top_n=top_n)
     p2 = _phase2_metrics(records, top_n=top_n)
 
@@ -397,13 +510,18 @@ def compare_phase1_phase2(records, *, top_n=8) -> dict:
 # Top-level report payload
 # ---------------------------------------------------------------------------
 
-def build_shadow_report(records, *, top_n=8, window=None, generated_at=None,
-                        model_version=None) -> dict:
+
+def build_shadow_report(
+    records, *, top_n=8, window=None, generated_at=None, model_version=None
+) -> dict:
     """Assemble the shadow-validation report payload from normalized records.
 
     ``available=False`` with ``reason="insufficient_shadow_history"`` when there
-    are fewer than ``MIN_SHADOW_DATES`` distinct dates (or zero records).
-    Otherwise ``available=True`` with a full ``comparison`` block.
+    are fewer than ``MIN_SHADOW_DATES`` paired dates (or zero paired records).
+    Otherwise ``available=True`` with a full ``comparison`` block. ``n_dates``
+    remains the total observed date count for backwards compatibility;
+    ``n_paired_dates`` / ``n_paired_records`` and ``date_coverage`` expose the
+    valid comparison sample explicitly.
 
     ``generated_at`` is only stamped into the payload when supplied (so tests can
     assert a deterministic dict). ``window`` (e.g. ``{"start": ..., "end": ...,
@@ -412,11 +530,17 @@ def build_shadow_report(records, *, top_n=8, window=None, generated_at=None,
     df = _records_to_frame(records)
     n_records = int(len(df))
     n_dates = int(df["date"].nunique()) if not df.empty else 0
+    paired_records, coverage = _paired_records_and_coverage(records)
+    n_paired_records = len(paired_records)
+    n_paired_dates = len(coverage["paired_dates"])
 
     payload: dict = {
         "available": False,
         "n_dates": n_dates,
         "n_records": n_records,
+        "n_paired_dates": n_paired_dates,
+        "n_paired_records": n_paired_records,
+        "date_coverage": coverage,
         "top_n": int(top_n),
     }
     if generated_at is not None:
@@ -426,11 +550,11 @@ def build_shadow_report(records, *, top_n=8, window=None, generated_at=None,
     if model_version is not None:
         payload["model_version"] = model_version
 
-    if n_records == 0 or n_dates < MIN_SHADOW_DATES:
+    if n_paired_records == 0 or n_paired_dates < MIN_SHADOW_DATES:
         payload["reason"] = "insufficient_shadow_history"
         payload["min_dates_required"] = MIN_SHADOW_DATES
         return payload
 
     payload["available"] = True
-    payload["comparison"] = compare_phase1_phase2(records, top_n=top_n)
+    payload["comparison"] = _compare_paired_records(paired_records, top_n=top_n)
     return payload

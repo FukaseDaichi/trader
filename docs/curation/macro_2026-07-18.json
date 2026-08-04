@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-07-18T08:30:00+09:00",
+  "as_of": "2026-07-18",
+  "market_bias": "neutral",
+  "summary": "日米ともに引き締め方向。日銀は6月に31年ぶりの政策金利1.0％へ利上げし、Fedは3.50-3.75％で据え置きつつドットは利上げバイアスへ。日米金利差は依然大きくドル円は162円台の円安で、輸出企業に追い風・銀行/保険に追い風の一方、為替介入リスクと米インフレ・関税不透明感が高PER成長株の重石。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "hawkish", "next_event": "2026-07-29", "note": "6/17会合で3.50-3.75％据え置き（全会一致）。ドットプロットは利上げバイアスに転換（2026年末中央値3.8％、9名が追加利上げ想定）。2026年インフレ見通しをヘッドライン3.6％/コア3.3％へ上方修正。新議長Kevin Warsh。次回7/28-29。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-07-30", "note": "6/15-16会合で無担保コールO/Nを1.0％程度へ+0.25％利上げ（賛成7反対1）、国債買入れ減額の停止も決定。1.0％は1995年以来31年ぶりの高水準。円安根強く次回利上げは12月が有力視。次回会合7/30-31。"},
+    "usdjpy": {"level": 162.5, "trend": "円安", "as_of": "2026-07-17", "note": "7/17時点でMUFG仲値ベース約162.5円（TTS163.51/TTB161.51）。160円を明確に上抜けた円安基調。日米金利差主導だが160円台では為替介入リスクが意識される。米通商政策の不透明感が上値抑制要因。"}
+  },
+  "themes": [
+    {
+      "id": "boj-hike-path-1pct",
+      "title": "日銀の追加利上げ路線（政策金利1.0％、31年ぶり高水準）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-16", "description": "6/15-16会合で政策金利を+0.25％の1.0％へ引き上げ（賛成7反対1）、国債買入れ減額を停止。円安継続なら12月に追加利上げの可能性。"},
+      "affected_sectors": ["銀行", "保険", "証券", "生命保険", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8750.JP", "8591.JP"],
+      "rationale": "政策金利の1.0％定着と追加利上げ観測は預貸利ざや・運用利回りの改善を通じ、銀行・保険・証券・生保の収益に2週間以降も構造的な追い風。長短金利の上昇局面で金融セクターの相対優位が続きやすい。",
+      "sources": [
+        {"title": "日本銀行 金融政策決定会合の運営", "url": "https://www.boj.or.jp/mopo/mpmsche_minu/index.htm", "date": "2026-06-16", "type": "primary"},
+        {"title": "日本経済研究センター 日銀6月会合、政策金利を1％に引き上げ", "url": "https://www.jcer.or.jp/research-report/20260616-2.html", "date": "2026-06-16", "type": "secondary"},
+        {"title": "三菱総合研究所 日銀6月会合 政策金利1.0％へ引き上げ・国債買入れ減額停止", "url": "https://www.mri.co.jp/knowledge/insight/dep/2026/0617.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "weak-yen-162",
+      "title": "ドル円162円台の円安（日米金利差主導）",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-07-17", "description": "ドル円は7/17時点で約162.5円（MUFG仲値、TTS163.51/TTB161.51）。160円を上抜けた円安が定着し、米金利先高観が支え。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器", "機械"],
+      "affected_codes": ["7203.JP", "7267.JP", "6758.JP", "6501.JP", "6503.JP", "6762.JP", "6981.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP"],
+      "rationale": "162円の円安は輸出企業の円換算売上・利益を押し上げ、自動車・電機・電子部品・精密機器・機械の想定為替レート比での上振れ余地を拡大。総合商社も海外事業・資源の円換算メリット。一方で160円台では為替介入リスクが上値を意識させ、輸入依存の小売・食品（例：9983ファーストリテイリング）には原価高の逆風となる点は留意。",
+      "sources": [
+        {"title": "三菱UFJリサーチ&コンサルティング 外国為替相場（2026年7月17日）", "url": "https://www.murc-kawasesouba.jp/fx/past/index.php?id=260717", "date": "2026-07-17", "type": "secondary"},
+        {"title": "日本銀行 外国為替市況（日次）", "url": "https://www.boj.or.jp/statistics/market/forex/fxdaily/fxlist/index.htm", "date": "2026-07-17", "type": "primary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold",
+      "title": "Fedのタカ派据え置き（higher-for-longer、ドットは利上げバイアス）",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-17", "description": "6/17会合で3.50-3.75％据え置き。ドットプロットは利上げ方向へ転換（2026年末中央値3.8％）、インフレ見通しを上方修正（ヘッドライン3.6％）。次回7/28-29。"},
+      "affected_sectors": ["建設", "サービス", "情報・通信"],
+      "affected_codes": ["1802.JP", "9984.JP", "6098.JP", "4661.JP", "6861.JP"],
+      "rationale": "米金利のhigher-for-longerと上方修正されたインフレ見通しは、割引率上昇を通じて高PER成長株・金利感応度の高い建設/不動産系のバリュエーションに重石。日米金利差の維持は円安を支え輸出株には間接的な支えとなるため、影響はセクター選別的。",
+      "sources": [
+        {"title": "Federal Reserve Summary of Economic Projections (June 17, 2026)", "url": "https://www.federalreserve.gov/monetarypolicy/files/fomcprojtabl20260617.pdf", "date": "2026-06-17", "type": "primary"},
+        {"title": "CNBC Fed interest rate decision June 2026: Fed holds rates steady", "url": "https://www.cnbc.com/2026/06/17/fed-interest-rate-decision-june-2026.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8750.JP", "8591.JP", "7203.JP", "7267.JP", "6758.JP", "6501.JP", "6503.JP", "6762.JP", "6981.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP", "6273.JP", "6861.JP", "8035.JP", "6920.JP", "6857.JP", "6146.JP", "9984.JP", "6098.JP", "4661.JP", "1802.JP", "9983.JP"],
+  "notes": "日米ともに引き締めバイアスで、テーマの軸は(1)日銀利上げ→金融セクター追い風、(2)円安→輸出セクター追い風・為替介入リスク、(3)Fedタカ派据え置き→高PER/金利感応株の重石。次回イベントは7/28-29 FOMCと7/30-31 日銀会合で、いずれも据え置きが基本線ながらガイダンス次第でドル円と金融株が動く。米通商政策(関税)の不透明感は横断的リスクだが、今回は日付付き一次情報での特定アクションを確認できず個別テーマ化は見送り。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる。政策金利・為替・インフレ見通しは公表時点の値であり、次回会合や介入・地政学イベントで前提が変わりうる。"
+}

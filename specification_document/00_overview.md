@@ -1,8 +1,8 @@
 # 現行仕様概要
 
-更新日: 2026-06-11 JST
+更新日: 2026-07-24 JST
 
-このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-06-11 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.claude/skills/`、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
+このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-07-24 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.claude/skills/`、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
 
 ## 対象
 
@@ -22,13 +22,13 @@
 
 | レイヤ | 役割 | 主な実装 |
 |---|---|---|
-| 日次シグナル | OHLCV取得 → 特徴量 → KPIゲート → 予測 → 5段階シグナル → LINE通知 | `main.py`, `src/data_loader.py`, `src/model.py`, `src/backtest.py`, `src/predictor.py`, `src/notifier.py` |
-| Phase 0 計測 | 予測・シグナルを Neon Postgres へ write-through し、1/5/10営業日後の実現結果を決済 | `src/db.py`, `src/db_records.py`, `scripts/settle_outcomes.py`, `migrations/` |
-| Phase 1 品質 | 5日トリプルバリアラベル・isotonic較正・マクロ特徴量・週次学習の永続モデル・ドリフト監視 | `src/labels.py`, `src/calibration.py`, `src/macro.py`, `src/model_store.py`, `src/phase1.py`, `scripts/weekly_model_retrain.py`, `scripts/drift_check.py` |
+| 日次シグナル | OHLCV取得 → 特徴量 → exact candidate予測 + 保存済みOOSゲート証跡 → 5段階シグナル + ATR出口プラン → LINEダイジェスト | `main.py`, `src/data_loader.py`, `src/model.py`, `src/phase1.py`, `src/backtest.py`, `src/predictor.py`, `src/digest.py`, `src/notifier.py` |
+| Phase 0 計測 | 予測・シグナルを Neon Postgres へ write-through し、翌営業日寄付き→1/5/10営業日目終値の実行可能結果を契約版付きで決済 | `src/execution.py`, `src/db.py`, `src/db_records.py`, `scripts/settle_outcomes.py`, `migrations/` |
+| Phase 1 品質 | 5日トリプルバリアラベル・isotonic較正・マクロ特徴量・exact-candidate holdoutゲート・schema v3永続モデル・atomic切替・ドリフト監視 | `src/labels.py`, `src/calibration.py`, `src/macro.py`, `src/model_store.py`, `src/phase1.py`, `scripts/weekly_model_retrain.py`, `scripts/drift_check.py` |
 | Phase 2 ポートフォリオ（shadow） | 全銘柄横断のクロスセクション・ランカと、リスク制約付きロングオンリー目標建玉の毎朝提案 | `src/universe.py`, `src/cross_section.py`, `src/cs_model.py`, `src/portfolio.py`, `src/portfolio_backtest.py`, `scripts/weekly_cross_section_retrain.py` |
-| Phase 3 UX・堅牢化 | TOPIXベンチマーク決済、実績ダッシュボード（`/performance`）、日次ダイジェスト・週次サマリ通知（リトライ付き）、active配線 | `src/digest.py`, `src/performance.py`, `src/notifier.py`, `scripts/weekly_performance_notify.py`, `web/src/app/performance/` |
+| Phase 3 UX・堅牢化 | 学習バリアと整合したATR利確/損切/時間出口、約定契約・benchmark coverage付き決済、非重複cohort実績ダッシュボード（`/performance`）、日次ダイジェスト・週次サマリ通知（リトライ付き）、active配線 | `src/predictor.py`, `src/digest.py`, `src/performance.py`, `src/notifier.py`, `scripts/weekly_performance_notify.py`, `web/src/app/performance/` |
 
-Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1 のシグナル・通知を一切変更しません。`TRADER_PORTFOLIO_MODE=active` への切替は環境変数 1 行で完結する配線（`portfolio.merge_target_weights`）が実装済みですが、切替自体は `docs/portfolio_shadow_report.json` の `active_readiness` を確認したうえでの**人間の判断**です（`06_issues_and_backlog.md` の運用チェックリスト参照）。
+Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1 のシグナル・通知を一切変更しません。`TRADER_PORTFOLIO_MODE=active` への配線（`portfolio.merge_target_weights`）は実装済みですが、現行マクロデータには同一basisのTOPIX openがなく、benchmark coverageゲートがfail-closeするため現在は切替不可です。将来も、現行v2・net-vs-net・完全coverage・当日snapshotと同じCS model version・`active_readiness`をすべて確認したうえでの**人間の判断**です（`06_issues_and_backlog.md`参照）。
 
 ## 日次処理の現在地
 
@@ -37,9 +37,9 @@ Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1
 1. 04:30 — AI 銘柄キュレーション: 候補 warmup → テクニカル screen → Claude 精査 → 決定論 merge で `tickers.yml` を少数入替
 2. 06:00 — preopen core:
    1. マクロスナップショット更新（`scripts/update_macro_snapshots.py`）
-   2. `main.py`: 銘柄ごとにデータ更新 → 特徴量（34テクニカル+11マクロ）→ KPI ゲート → 保存済みモデル推論（無ければ legacy 学習）→ 5段階シグナル
-   3. ループ後: Phase 2 クロスセクション推論 + ポートフォリオ snapshot → active 時のみ `target_weight` をシグナルへマージ → LINE 通知（日次ダイジェスト 1 通に買い/売り銘柄名を集約。個別通知は既定無効）→ DB write-through → `docs/` エクスポート
-   4. 実現結果の決済（`scripts/settle_outcomes.py`、TOPIX ベンチマーク付き）→ settle 当日分の実績 JSON 再エクスポート
+   2. `main.py`: 銘柄ごとにデータ更新 → 特徴量（34テクニカル+11マクロ）→ 互換性検証済み保存モデル推論（無ければ自身のpurged OOS証跡を持つephemeral candidate）→ 同一candidateのholdoutゲートと閾値 → 5段階シグナル。証跡不一致・ゲート未達はHOLD、通過ロングには学習バリアと同じATR出口プランを付ける
+   3. ループ後: Phase 2 クロスセクション推論 + ポートフォリオ snapshot → active 時のみ `target_weight` をシグナルへマージ → LINE 通知（日次ダイジェスト 1 通に買い/売り銘柄名とロングの利確/損切/期限を集約。個別通知は既定無効）→ DB write-through → `docs/` エクスポート
+   4. 実現結果の決済（`scripts/settle_outcomes.py`、翌営業日寄付き基準。TOPIX同基準が無い場合は比較不能を明示）→ settle 当日分の実績 JSON 再エクスポート
    5. ドリフトチェック（`scripts/drift_check.py`）
 3. 06:20 / 06:40 — 当日未更新時のみのリトライ
 4. core/retry 成功後 — Next.js 静的ビルドを `docs/` へ publish
@@ -51,6 +51,6 @@ Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1
 
 フロントエンドの必須契約は `docs/dashboard_index.json` と `docs/tickers/*.json` です。`performance_summary.json` / `performance_detail.json` / `signal_outcomes_recent.json` / `model_quality.json` / `portfolio_latest.json` / `curation/macro_latest.json` は任意契約で、欠損または `available: false` のときフロントは該当カード/セクションを非表示にします。旧 `docs/history_data.json` は廃止済みの契約で、存在すれば削除されます。
 
-計測の SoR（System of Record）は Neon Postgres（`DATABASE_URL`、スキーマは `migrations/`）です。DB 不通時は `data/outbox/` の JSONL へ退避し、次回実行時にリプレイします。**DB・マクロ・保存モデル・Phase 2 のどれが落ちても日次シグナル生成は止まらない**（フォールバックまたはスキップ + ログ）ことがシステム全体の不変条件です。
+計測の SoR（System of Record）は Neon Postgres（`DATABASE_URL`、スキーマは `migrations/`）です。DB 不通時は日次signal/predictionだけでなく週次`model_registry`登録も`data/outbox/`のJSONLへ退避し、次回実行時に冪等リプレイします。**DB・マクロ・保存モデル・Phase 2 のどれが落ちても日次シグナル生成は止まらない**（フォールバックまたはスキップ + ログ）ことがシステム全体の不変条件です。
 
 AI 銘柄キュレーションの作業物は `docs/curation/*.json`、週次レポートは `reports/weekly_*.md`（GitHub Pages 同期対象外、LINE には GitHub blob URL を通知）です。

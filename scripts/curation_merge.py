@@ -42,6 +42,7 @@ NEG_INF = float("-inf")
 # Pure decision logic (unit-testable)
 # ---------------------------------------------------------------------------
 
+
 def _num(value):
     try:
         f = float(value)
@@ -60,13 +61,17 @@ def _candidates_by_code(report) -> dict:
     return out
 
 
-def _sector_increase_ok(universe: list[str], cand: str, records: dict, cap_pct: float) -> bool:
+def _sector_increase_ok(
+    universe: list[str], cand: str, records: dict, cap_pct: float
+) -> bool:
     """Allow promotion unless the candidate's own sector would exceed the cap."""
     total = len(universe)
     if total < 3:
         return True
     sector = (records.get(cand, {}).get("sector")) or "unknown"
-    count = sum(1 for c in universe if (records.get(c, {}).get("sector") or "unknown") == sector)
+    count = sum(
+        1 for c in universe if (records.get(c, {}).get("sector") or "unknown") == sector
+    )
     return (count / total) <= (cap_pct / 100.0) + 1e-9
 
 
@@ -101,16 +106,24 @@ def compute_decision(
     max_fund_age = int(settings["max_fundamental_age_days"])
 
     # --- fundamental freshness ---
-    fund_as_of = parse_iso_date((fundamental or {}).get("as_of")) if fundamental else None
+    fund_as_of = (
+        parse_iso_date((fundamental or {}).get("as_of")) if fundamental else None
+    )
     fund_age_days = (today - fund_as_of).days if fund_as_of else None
     has_technical = bool(tech_map)
-    conservative = (not has_technical) or (fund_age_days is None) or (fund_age_days > max_fund_age)
+    conservative = (
+        (not has_technical) or (fund_age_days is None) or (fund_age_days > max_fund_age)
+    )
 
     enabled = enabled_codes(cfg)
     enabled_set = set(enabled)
 
     # name/sector resolution helpers
-    cfg_meta = {t["code"]: t for t in cfg.get("tickers", []) if isinstance(t, dict) and t.get("code")}
+    cfg_meta = {
+        t["code"]: t
+        for t in cfg.get("tickers", [])
+        if isinstance(t, dict) and t.get("code")
+    }
 
     def resolve_name(code):
         for src in (fund_map.get(code), tech_map.get(code), cfg_meta.get(code)):
@@ -205,7 +218,9 @@ def compute_decision(
         # SWAP phase: replace clearly-worse enabled
         while len(promoted_swap) < max_swaps and eligible:
             cand = eligible[0]
-            swap_candidates = [c for c in universe if c not in promoted_add and c not in promoted_swap]
+            swap_candidates = [
+                c for c in universe if c not in promoted_add and c not in promoted_swap
+            ]
             if not swap_candidates:
                 break
             worst = min(swap_candidates, key=rank_score)
@@ -226,13 +241,22 @@ def compute_decision(
     # --- watchlist: strong-ish codes not enabled ---
     watchlist_floor = keep_floor
     watch_entries = []
-    prev_watch = {w.get("code"): w for w in (cfg.get("watchlist") or []) if isinstance(w, dict) and w.get("code")}
+    prev_watch = {
+        w.get("code"): w
+        for w in (cfg.get("watchlist") or [])
+        if isinstance(w, dict) and w.get("code")
+    }
     for code, r in records.items():
         if code in final_enabled:
             continue
         if r["combined"] is None or r["combined"] < watchlist_floor:
             continue
-        ready = r["both"] and r["warmup_ok"] and r["combined"] >= min_combined and not r["in_cooldown"]
+        ready = (
+            r["both"]
+            and r["warmup_ok"]
+            and r["combined"] >= min_combined
+            and not r["in_cooldown"]
+        )
         prev = prev_watch.get(code, {})
         watch_entries.append(
             {
@@ -268,7 +292,9 @@ def compute_decision(
         return "reject"
 
     ranking = []
-    for code in sorted(records, key=lambda c: (-(records[c]["combined"] or NEG_INF), c)):
+    for code in sorted(
+        records, key=lambda c: (-(records[c]["combined"] or NEG_INF), c)
+    ):
         r = records[code]
         ranking.append(
             {
@@ -370,6 +396,7 @@ def compute_decision(
 # Apply (filesystem side effects)
 # ---------------------------------------------------------------------------
 
+
 def _move_promoted_data(promoted: list[str]) -> list[dict]:
     moves = []
     for code in promoted:
@@ -418,7 +445,9 @@ def run(
 
     # Only rewrite tickers.yml when the universe or watchlist actually changes,
     # so conservative days keep the file (and its comments) byte-stable.
-    universe_changed = set(decision["universe_before"]) != set(decision["universe_after"])
+    universe_changed = set(decision["universe_before"]) != set(
+        decision["universe_after"]
+    )
     before_watch = {
         (w.get("code"), w.get("status"))
         for w in (cfg.get("watchlist") or [])
@@ -449,7 +478,9 @@ def run(
         "tickers_written": tickers_written,
         "inputs": {
             "technical": str(technical_path),
-            "fundamental": str(fundamental_path) if fundamental_path else "fundamental_latest.json",
+            "fundamental": str(fundamental_path)
+            if fundamental_path
+            else "fundamental_latest.json",
         },
         "weights": {"tech": settings["tech_weight"], "fund": settings["fund_weight"]},
         "fundamental_age_days": decision["fundamental_age_days"],
@@ -476,19 +507,29 @@ def run(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Deterministic merge for AI ticker curation")
+    p = argparse.ArgumentParser(
+        description="Deterministic merge for AI ticker curation"
+    )
     p.add_argument("--technical", default=None, help="path to technical_latest.json")
-    p.add_argument("--fundamental", default=None, help="path to fundamental_latest.json (optional)")
+    p.add_argument(
+        "--fundamental", default=None, help="path to fundamental_latest.json (optional)"
+    )
     p.add_argument("--date", default=None, help="YYYY-MM-DD JST (default: today JST)")
     g = p.add_mutually_exclusive_group()
     g.add_argument("--apply", action="store_true", help="apply changes to tickers.yml")
-    g.add_argument("--dry-run", action="store_true", help="compute decision only (default)")
+    g.add_argument(
+        "--dry-run", action="store_true", help="compute decision only (default)"
+    )
     return p
 
 
 def main() -> int:
     args = build_parser().parse_args()
-    technical_path = Path(args.technical) if args.technical else (CURATION_DIR / "technical_latest.json")
+    technical_path = (
+        Path(args.technical)
+        if args.technical
+        else (CURATION_DIR / "technical_latest.json")
+    )
     fundamental_path = Path(args.fundamental) if args.fundamental else None
     date_str = args.date or today_jst_iso()
     apply = bool(args.apply) and not args.dry_run

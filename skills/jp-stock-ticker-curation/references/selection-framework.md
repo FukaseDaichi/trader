@@ -1,6 +1,6 @@
 # Selection Framework
 
-Use this framework to score fundamentally driven JP stock candidates before editing `tickers.yml`.
+Use this framework to score fundamentally driven JP stock candidates before submitting them to the deterministic curation workflow.
 
 ## Scoring Model (100 points)
 

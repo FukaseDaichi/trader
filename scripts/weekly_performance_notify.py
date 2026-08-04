@@ -39,7 +39,9 @@ def main() -> int:
         try:
             conn = db.connect()
         except Exception as exc:  # noqa: BLE001
-            print(f"weekly-perf-notify: DB connect failed ({type(exc).__name__}); skipping.")
+            print(
+                f"weekly-perf-notify: DB connect failed ({type(exc).__name__}); skipping."
+            )
             return 0
 
         try:
@@ -51,6 +53,7 @@ def main() -> int:
         url = ""
         try:
             from scripts.curation_notify import report_url as _report_url  # noqa: E402
+
             url = _report_url(f"reports/weekly_{today}.md")
         except Exception:  # noqa: BLE001
             url = ""
@@ -65,7 +68,9 @@ def main() -> int:
         return 0
 
     except Exception as exc:  # noqa: BLE001 — last-resort guard: never fail the weekly step
-        print(f"weekly-perf-notify: unexpected error ({type(exc).__name__}: {exc}); skipping.")
+        print(
+            f"weekly-perf-notify: unexpected error ({type(exc).__name__}: {exc}); skipping."
+        )
         return 0
 
 

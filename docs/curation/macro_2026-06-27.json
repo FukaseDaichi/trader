@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-06-27T08:00:00+09:00",
+  "as_of": "2026-06-27",
+  "market_bias": "neutral",
+  "summary": "日米ともに金融政策はタカ派寄り。日銀は6/16に政策金利を1.00%へ利上げ（1995年以来の高水準）し銀行・保険に追い風、一方FedはSEPでドット中央値を3.8%へ引き上げ据え置きで米金利高止まり。日米金利差が残存しドル円は161円台と歴史的円安で輸出株に追い風だが、為替介入・円高反転リスクが極めて高く相殺要因。総じて中立レジーム。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "hawkish", "next_event": "2026-07-29", "note": "6/17に3.50-3.75%で全会一致据え置き。SEPの2026年ドット中央値を3.4%→3.8%へ引き上げ、19名中9名が年内1回以上の追加利上げを想定。インフレ見通しもヘッドライン3.6%/コア3.3%へ上方修正。新議長はKevin Warsh。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-07-31", "note": "6/16に+0.25%の利上げで政策金利を1.00%へ（1995年以来の高水準）。賛成7・反対1（浅田委員）。国債買入れ減額を停止し2027年4月以降は月間2兆円程度を維持。年内さらに1回、2027年にも1回の利上げ観測。植田総裁は入院中で氷見野副総裁が議長代行。"},
+    "usdjpy": {"level": 161.79, "trend": "円安", "as_of": "2026-06-25", "note": "日銀利上げ後も日米金利差残存でドル円は161円台と約31年ぶりの円安水準。4/30に2024年7月以来の円買い介入があり一時155円台へ下落したが既に全戻し。161-162円で介入・円高反転への警戒が極限的。"}
+  },
+  "themes": [
+    {
+      "id": "boj-hike-1pct",
+      "title": "日銀の政策金利1.00%への利上げと追加利上げ観測",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-16", "description": "日銀が政策金利を+0.25%引き上げ1.00%へ。1995年以来約31年ぶりの高水準。賛成7・反対1。年内さらに1回、2027年にも1回の利上げ観測。"},
+      "affected_sectors": ["銀行", "保険", "証券", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8591.JP", "8604.JP"],
+      "rationale": "政策金利1.0%への上昇は預貸金利ザヤ拡大・運用利回り改善を通じ銀行・保険・証券の収益に追い風。利上げサイクル継続観測が2週間以降も金融セクターのバリュエーションを下支えする。",
+      "sources": [
+        {"title": "日本銀行『当面の金融政策運営について』（2026年金融政策決定事項）", "url": "https://www.boj.or.jp/mopo/mpmdeci/mpr_2026/index.htm", "date": "2026-06-16", "type": "primary"},
+        {"title": "日本経済研究センター『日銀6月会合、政策金利を1％に引き上げ』", "url": "https://www.jcer.or.jp/research-report/20260616-2.html", "date": "2026-06-16", "type": "secondary"},
+        {"title": "東京海上アセットマネジメント『日銀金融政策決定会合（2026年6月）』", "url": "https://www.tokiomarineam.co.jp/market/market_report/2026/ddqhg00000000a4x-att/F_Market_report_BoJ_20260617.pdf", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "boj-hike-rate-sensitive-headwind",
+      "title": "金利上昇による建設・高PERグロースへの逆風",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-16", "description": "日銀の政策金利1.00%への引き上げと利上げ継続観測で長期金利・割引率が上昇方向。"},
+      "affected_sectors": ["建設", "情報・通信"],
+      "affected_codes": ["1801.JP", "1802.JP", "9984.JP"],
+      "rationale": "金利・割引率の上昇は資金調達コスト増と将来キャッシュフローの現在価値低下を通じ、金利敏感な建設・不動産系および高PERグロースのバリュエーションに逆風。2週間以降の利上げ織り込みが重し。",
+      "sources": [
+        {"title": "第一生命経済研究所『政策金利1.00%への引き上げ ～2026年6月の日銀金融政策決定会合～』", "url": "https://www.dlri.co.jp/report/macro/623090.html", "date": "2026-06-16", "type": "secondary"},
+        {"title": "三菱総合研究所『日銀金融政策決定会合（2026年6月15-16日）政策金利1.0%へ引き上げ』", "url": "https://www.mri.co.jp/knowledge/insight/dep/2026/0617.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold",
+      "title": "Fedタカ派据え置きと米金利高止まり",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-17", "description": "FOMCは3.50-3.75%で据え置き（全会一致）。SEPの2026年ドット中央値を3.4%→3.8%へ引き上げ、9名が年内追加利上げを想定。インフレ見通し上方修正。"},
+      "affected_sectors": ["半導体製造装置", "半導体"],
+      "affected_codes": ["8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP"],
+      "rationale": "米金利の高止まりとタカ派化は割引率上昇を通じ高PERのグロース・半導体製造装置のバリュエーションに逆風。次回7/28-29会合まで米金利低下期待が後退し、2週間以降の重しとなる。",
+      "sources": [
+        {"title": "Federal Reserve『FOMC statement』(June 17, 2026)", "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260617a.htm", "date": "2026-06-17", "type": "primary"},
+        {"title": "CNBC『Fed interest rate decision June 2026: Fed holds rates steady』", "url": "https://www.cnbc.com/2026/06/17/fed-interest-rate-decision-june-2026.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "weak-yen-exporters",
+      "title": "歴史的円安（ドル円161円台）による輸出株の追い風",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-06-25", "description": "ドル円161.79円と約31年ぶりの円安水準。日銀利上げ後も日米金利差残存でドル買い圧力が継続。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6762.JP", "6981.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP", "7751.JP", "7741.JP"],
+      "rationale": "円安は輸出企業の海外売上の円換算額と採算を押し上げ、自動車・電機・電子部品・商社・精密機器の業績に追い風。想定為替レートを上回る水準が続けば2週間以降も上方修正余地。",
+      "sources": [
+        {"title": "OANDA『2026年6月25日のUSD/JPY為替レート』", "url": "https://www.oanda.jp/lab-education/historical-rate/usdjpy/20260625/", "date": "2026-06-25", "type": "secondary"},
+        {"title": "みんかぶ『ドル円、161円台半ばでの推移 介入警戒で短期のボラティリティが上昇』", "url": "https://fx.minkabu.jp/news/371151", "date": "2026-06-24", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "yen-intervention-reversal-risk",
+      "title": "為替介入・円高反転リスク（輸出株の相殺要因）",
+      "category": "fx",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-06-24", "description": "ドル円161-162円で政府・日銀の円買い介入警戒が極限的。4/30には2024年7月以来の円買い介入で一時155円台へ急落した実績。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP", "6758.JP", "6762.JP", "6981.JP", "8058.JP", "8031.JP"],
+      "rationale": "歴史的円安水準では介入や日米金利差縮小による急速な円高反転リスクが高く、輸出株の円安メリットを相殺しうる。2週間以降の為替ボラティリティ上昇が輸出株の上値抑制要因。円安テーマの双方向リスクとして併記。",
+      "sources": [
+        {"title": "野村證券『米ドル円急落、一時155円台に 追加的な為替介入の可能性と介入効果の持続性が焦点』", "url": "https://www.nomura.co.jp/wealthstyle/article/0715/", "date": "2026-05-01", "type": "secondary"},
+        {"title": "みんかぶ『ドル円、161円台半ばでの推移 介入警戒で短期のボラティリティが上昇』", "url": "https://fx.minkabu.jp/news/371151", "date": "2026-06-24", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8591.JP", "8604.JP", "1801.JP", "1802.JP", "9984.JP", "8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP", "7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6762.JP", "6981.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP", "7751.JP", "7741.JP"],
+  "notes": "日米ともにタカ派寄りで金融政策レジームは引き締め方向。日銀利上げ（銀行・保険に追い風／金利敏感セクターに逆風）と歴史的円安（輸出株に追い風／介入・円高反転リスクが相殺）が併存し、市場バイアスは中立と判断。次回イベントはFOMC 7/28-29、日銀会合 7/30-31。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。為替・金利は急変しうるため数値はas_of時点の確認値。介入や政策イベントで前提が崩れる可能性がある。"
+}

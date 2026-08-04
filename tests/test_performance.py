@@ -22,17 +22,39 @@ from src.performance import (  # noqa: E402
     build_recent_outcomes,
     build_performance_detail,
 )
+from src.execution import EXECUTION_CONTRACT_VERSION  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
 
-def _row(entry_date, action, horizon, realized_ret, benchmark_ret=None,
-         excess_ret=None, hit=None, ticker="7011.JP", name="三菱重工業",
-         conviction=0.7, mae=None, mfe=None, exit_reason="time"):
+
+_DEFAULT_EVAL_DATE = object()
+
+
+def _row(
+    entry_date,
+    action,
+    horizon,
+    realized_ret,
+    benchmark_ret=None,
+    excess_ret=None,
+    hit=None,
+    ticker="7011.JP",
+    name="三菱重工業",
+    conviction=0.7,
+    mae=None,
+    mfe=None,
+    exit_reason="time",
+    eval_date=_DEFAULT_EVAL_DATE,
+    contract_version=EXECUTION_CONTRACT_VERSION,
+):
+    resolved_eval_date = entry_date if eval_date is _DEFAULT_EVAL_DATE else eval_date
     return {
+        "market_as_of_date": entry_date,
         "entry_date": entry_date,
+        "eval_date": resolved_eval_date,
         "ticker": ticker,
         "name": name,
         "action": action,
@@ -45,12 +67,25 @@ def _row(entry_date, action, horizon, realized_ret, benchmark_ret=None,
         "mae": mae,
         "mfe": mfe,
         "exit_reason": exit_reason,
+        "entry_price": 100.0,
+        "exit_price": 100.0 * (1.0 + realized_ret)
+        if realized_ret is not None
+        else None,
+        "entry_price_basis": "next_session_open",
+        "exit_price_basis": "horizon_session_close",
+        "contract_version": contract_version,
+        "benchmark_basis": (
+            "same_basis_test_fixture"
+            if benchmark_ret is not None
+            else "unavailable_same_basis"
+        ),
     }
 
 
 # ---------------------------------------------------------------------------
 # build_equity_curves
 # ---------------------------------------------------------------------------
+
 
 def test_equity_curves_basic_strategy_and_benchmark():
     """Strategy and benchmark compound from 1.0 over two dates."""
@@ -77,6 +112,26 @@ def test_equity_curves_basic_strategy_and_benchmark():
     assert curves[1]["n"] == 1
 
 
+def test_equity_curve_deducts_entry_and_exit_costs():
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+    ]
+    curves = build_equity_curves(
+        rows,
+        horizon=5,
+        cost_bps=10.0,
+        slippage_bps=5.0,
+    )
+    # 15 bps per side = 30 bps round trip: 2.00% gross -> 1.70% net.
+    assert abs(curves[0]["gross_period_return"] - 0.02) < 1e-12
+    assert abs(curves[0]["cost_return"] - 0.003) < 1e-12
+    assert abs(curves[0]["period_return"] - 0.017) < 1e-12
+    assert abs(curves[0]["strategy"] - 1.017) < 1e-12
+    assert abs(curves[0]["gross_benchmark_return"] - 0.01) < 1e-12
+    assert abs(curves[0]["benchmark_return"] - 0.007) < 1e-12
+    assert abs(curves[0]["benchmark"] - 1.007) < 1e-12
+
+
 def test_equity_curves_same_date_axis():
     """Both series share the same date axis."""
     rows = [
@@ -89,8 +144,8 @@ def test_equity_curves_same_date_axis():
     assert strategy_dates == benchmark_dates
 
 
-def test_equity_curves_benchmark_none_carry():
-    """When benchmark_ret=None for a day, benchmark carries; strategy still moves."""
+def test_equity_curves_incomplete_benchmark_is_not_flat_carry():
+    """Missing same-basis benchmark makes the whole comparison unavailable."""
     rows = [
         _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
         _row("2026-05-05", "BUY", 5, 0.04, benchmark_ret=None),  # benchmark carry
@@ -99,31 +154,54 @@ def test_equity_curves_benchmark_none_carry():
     curves = build_equity_curves(rows, horizon=5)
     assert len(curves) == 3
 
-    day1_strat = 1.0 * 1.02   # 1.02
-    day1_bench = 1.0 * 1.01   # 1.01
-
-    # Day 2: benchmark_ret=None -> carry, strategy moves
+    day1_strat = 1.0 * 1.02  # 1.02
     day2_strat = day1_strat * 1.04
-    day2_bench = day1_bench   # carry
-
     day3_strat = day2_strat * 1.06
-    day3_bench = day2_bench * 1.05
 
     assert abs(curves[0]["strategy"] - day1_strat) < 1e-9
-    assert abs(curves[0]["benchmark"] - day1_bench) < 1e-9
     assert abs(curves[1]["strategy"] - day2_strat) < 1e-9
-    assert abs(curves[1]["benchmark"] - day2_bench) < 1e-9
     assert abs(curves[2]["strategy"] - day3_strat) < 1e-9
-    assert abs(curves[2]["benchmark"] - day3_bench) < 1e-9
+    assert all(point["benchmark"] is None for point in curves)
+
+
+def test_equity_curves_never_compound_overlapping_five_day_returns():
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.10, eval_date="2026-05-08"),
+        _row("2026-05-04", "BUY", 5, 0.20, eval_date="2026-05-11"),
+        _row("2026-05-05", "BUY", 5, -0.50, eval_date="2026-05-12"),
+        _row("2026-05-11", "BUY", 5, 0.30, eval_date="2026-05-18"),
+    ]
+    curves = build_equity_curves(rows, horizon=5)
+    # Only 05-01 and 05-11 are capital-feasible; the overlapping 05-04/05-05
+    # observations remain signal-quality samples but never enter equity.
+    assert len(curves) == 2
+    assert [point["entry_date"] for point in curves] == [
+        "2026-05-01",
+        "2026-05-11",
+    ]
+    assert abs(curves[-1]["strategy"] - 1.10 * 1.30) < 1e-12
+
+
+def test_equity_curves_missing_eval_date_uses_horizon_stride():
+    rows = [
+        _row(f"2026-05-{day:02d}", "BUY", 5, 0.01, eval_date=None)
+        for day in range(1, 7)
+    ]
+    result = build_performance_detail(rows, [], 5, 180, 10)
+    assert len(result["equity_curve"]) == 2
+    assert result["accounting_method"]["selection"] == "horizon_stride_fallback"
+    assert (
+        result["accounting_method"]["fallback_reason"] == "eval_date_missing_or_invalid"
+    )
 
 
 def test_equity_curves_filters_non_long_or_wrong_horizon():
     """SELL, HOLD and wrong-horizon rows are excluded."""
     rows = [
         _row("2026-05-01", "BUY", 5, 0.02),
-        _row("2026-05-01", "SELL", 5, -0.01),   # not LONG
-        _row("2026-05-01", "HOLD", 5, 0.0),      # not LONG
-        _row("2026-05-01", "BUY", 1, 0.03),      # wrong horizon
+        _row("2026-05-01", "SELL", 5, -0.01),  # not LONG
+        _row("2026-05-01", "HOLD", 5, 0.0),  # not LONG
+        _row("2026-05-01", "BUY", 1, 0.03),  # wrong horizon
     ]
     curves = build_equity_curves(rows, horizon=5)
     assert len(curves) == 1
@@ -135,7 +213,7 @@ def test_equity_curves_excludes_none_realized_ret():
     """Rows with realized_ret=None are excluded."""
     rows = [
         _row("2026-05-01", "BUY", 5, 0.02),
-        _row("2026-05-02", "BUY", 5, None),   # excluded
+        _row("2026-05-02", "BUY", 5, None),  # excluded
     ]
     curves = build_equity_curves(rows, horizon=5)
     assert len(curves) == 1
@@ -160,6 +238,7 @@ def test_equity_curves_ascending_dates():
 # build_drawdown
 # ---------------------------------------------------------------------------
 
+
 def test_drawdown_values_nonpositive():
     """All drawdown values must be <= 0."""
     rows = [
@@ -176,9 +255,9 @@ def test_drawdown_values_nonpositive():
 def test_drawdown_recovers_to_zero_after_new_peak():
     """After a new high, drawdown returns to 0 (within tolerance)."""
     rows = [
-        _row("2026-05-01", "BUY", 5, 0.10),   # strategy = 1.10
+        _row("2026-05-01", "BUY", 5, 0.10),  # strategy = 1.10
         _row("2026-05-05", "BUY", 5, -0.09),  # strategy = 1.10 * 0.91 = ~1.001
-        _row("2026-05-10", "BUY", 5, 0.10),   # strategy = ~1.001 * 1.10 = ~1.101
+        _row("2026-05-10", "BUY", 5, 0.10),  # strategy = ~1.001 * 1.10 = ~1.101
     ]
     curves = build_equity_curves(rows, horizon=5)
     dd = build_drawdown(curves)
@@ -193,8 +272,8 @@ def test_drawdown_recovers_to_zero_after_new_peak():
 def test_drawdown_exact_values():
     """Exact drawdown calculation over three days."""
     rows = [
-        _row("2026-05-01", "BUY", 5, 0.0),   # strategy = 1.0; peak = 1.0; dd = 0
-        _row("2026-05-05", "BUY", 5, -0.20), # strategy = 0.8; peak = 1.0; dd = -0.2
+        _row("2026-05-01", "BUY", 5, 0.0),  # strategy = 1.0; peak = 1.0; dd = 0
+        _row("2026-05-05", "BUY", 5, -0.20),  # strategy = 0.8; peak = 1.0; dd = -0.2
         _row("2026-05-10", "BUY", 5, 0.50),  # strategy = 1.2; new peak; dd = 0
     ]
     curves = build_equity_curves(rows, horizon=5)
@@ -208,7 +287,7 @@ def test_drawdown_first_day_negative_from_origin():
     """A losing first day shows drawdown measured from the 1.0 origin, not zero."""
     rows = [
         _row("2026-05-01", "BUY", 5, -0.05),  # strategy 0.95; peak 1.0; dd -0.05
-        _row("2026-05-02", "BUY", 5, 0.10),   # strategy 1.045; new peak; dd 0
+        _row("2026-05-02", "BUY", 5, 0.10),  # strategy 1.045; new peak; dd 0
     ]
     dd = build_drawdown(build_equity_curves(rows, horizon=5))
     assert abs(dd[0]["drawdown"] - (-0.05)) < 1e-9
@@ -233,6 +312,7 @@ def test_drawdown_dates_match_curves():
 # ---------------------------------------------------------------------------
 # rolling_metrics
 # ---------------------------------------------------------------------------
+
 
 def test_rolling_hit_rate_and_avg_return():
     """rolling_metrics over a small window."""
@@ -291,17 +371,40 @@ def test_rolling_non_long_excluded():
 
 
 def test_rolling_sharpe_two_days():
-    """sharpe_60d with exactly 2 dates is not None (std != 0)."""
+    """Non-overlapping H-day Sharpe uses sqrt(252/H), not sqrt(252)."""
     import numpy as np
+
     rows = [
         _row("2026-05-01", "BUY", 5, 0.02),
         _row("2026-05-02", "BUY", 5, 0.04),
     ]
     m = rolling_metrics(rows, window=60)
     rets = [0.02, 0.04]
-    expected = np.mean(rets) / np.std(rets) * (252 ** 0.5)
+    expected = np.mean(rets) / np.std(rets) * ((252 / 5) ** 0.5)
     assert m["sharpe_60d"] is not None
     assert abs(m["sharpe_60d"] - expected) < 1e-9
+
+
+def test_rolling_sharpe_deducts_same_round_trip_cost_as_equity():
+    import numpy as np
+
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02),
+        _row("2026-05-02", "BUY", 5, 0.04),
+    ]
+    m = rolling_metrics(
+        rows,
+        window=60,
+        horizon=5,
+        cost_bps=10.0,
+        slippage_bps=5.0,
+    )
+    net_rets = [0.017, 0.037]
+    expected = np.mean(net_rets) / np.std(net_rets) * ((252 / 5) ** 0.5)
+    assert m["sharpe_60d"] is not None
+    assert abs(m["sharpe_60d"] - expected) < 1e-9
+    assert m["sharpe_return_basis"] == "net_after_entry_exit_costs"
+    assert abs(m["sharpe_round_trip_cost_rate"] - 0.003) < 1e-12
 
 
 def test_rolling_sharpe_single_day_is_none():
@@ -324,6 +427,7 @@ def test_rolling_sharpe_zero_std_is_none():
 # ---------------------------------------------------------------------------
 # build_reliability
 # ---------------------------------------------------------------------------
+
 
 def _pred_row(prob_up, realized_ret):
     return {"prob_up": prob_up, "realized_ret": realized_ret}
@@ -391,6 +495,7 @@ def test_reliability_bin_boundaries():
 # build_recent_outcomes
 # ---------------------------------------------------------------------------
 
+
 def test_recent_outcomes_sorted_desc_and_limited():
     """Sorted by entry_date DESC, limited to 'limit'."""
     rows = [_row(f"2026-05-{i:02d}", "BUY", 5, 0.01) for i in range(1, 11)]
@@ -402,13 +507,43 @@ def test_recent_outcomes_sorted_desc_and_limited():
 
 def test_recent_outcomes_key_set():
     """Each row has the required keys."""
-    rows = [_row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01, excess_ret=0.01,
-                  hit=True, mae=-0.005, mfe=0.025)]
+    rows = [
+        _row(
+            "2026-05-01",
+            "BUY",
+            5,
+            0.02,
+            benchmark_ret=0.01,
+            excess_ret=0.01,
+            hit=True,
+            mae=-0.005,
+            mfe=0.025,
+        )
+    ]
     recent = build_recent_outcomes(rows, limit=10)
     assert len(recent) == 1
     expected_keys = {
-        "entry_date", "ticker", "name", "action", "conviction", "horizon_days",
-        "realized_ret", "benchmark_ret", "excess_ret", "hit", "mae", "mfe", "exit_reason",
+        "market_as_of_date",
+        "entry_date",
+        "eval_date",
+        "ticker",
+        "name",
+        "action",
+        "conviction",
+        "horizon_days",
+        "realized_ret",
+        "benchmark_ret",
+        "excess_ret",
+        "hit",
+        "mae",
+        "mfe",
+        "exit_reason",
+        "entry_price",
+        "exit_price",
+        "entry_price_basis",
+        "exit_price_basis",
+        "contract_version",
+        "benchmark_basis",
     }
     assert expected_keys == set(recent[0].keys())
 
@@ -445,6 +580,7 @@ def test_recent_outcomes_empty():
 # build_performance_detail
 # ---------------------------------------------------------------------------
 
+
 def test_build_performance_detail_structure_on_empty():
     """Empty rows and pred_rows -> empty curves, rolling all-None, reliability brier None."""
     result = build_performance_detail([], [], horizon=5, history_days=180, n_bins=10)
@@ -465,8 +601,19 @@ def test_build_performance_detail_structure_on_empty():
 def test_build_performance_detail_keys_present():
     """All expected top-level keys are present."""
     result = build_performance_detail([], [], horizon=5, history_days=180, n_bins=10)
-    for k in ("horizon_days", "history_days", "equity_curve", "drawdown_curve",
-              "rolling", "reliability"):
+    for k in (
+        "horizon_days",
+        "history_days",
+        "execution_contract",
+        "contract_coverage",
+        "accounting_method",
+        "benchmark_coverage",
+        "signal_quality",
+        "equity_curve",
+        "drawdown_curve",
+        "rolling",
+        "reliability",
+    ):
         assert k in result
 
 
@@ -482,17 +629,39 @@ def test_build_performance_detail_with_data():
         _pred_row(0.3, -0.01),
         _pred_row(0.8, 0.03),
     ]
-    result = build_performance_detail(rows, pred_rows, horizon=5, history_days=180, n_bins=5)
+    result = build_performance_detail(
+        rows, pred_rows, horizon=5, history_days=180, n_bins=5
+    )
     assert len(result["equity_curve"]) == 3
     assert len(result["drawdown_curve"]) == 3
+    assert (
+        result["execution_contract"]["contract_version"] == EXECUTION_CONTRACT_VERSION
+    )
+    assert (
+        result["accounting_method"]["overlapping_horizon_returns_compounded"] is False
+    )
+    assert result["accounting_method"]["return_basis"] == ("net_after_entry_exit_costs")
+    assert abs(result["accounting_method"]["round_trip_cost_rate"] - 0.003) < 1e-12
+    assert result["execution_contract"]["cost_treatment"] == (
+        "deducted_from_performance_equity"
+    )
+    assert result["execution_contract"]["return_basis"] == (
+        "net_after_entry_exit_costs"
+    )
+    assert abs(result["equity_curve"][0]["period_return"] - 0.017) < 1e-12
+    assert abs(result["equity_curve"][0]["gross_period_return"] - 0.02) < 1e-12
+    assert result["benchmark_coverage"]["reason"] == "unavailable_same_basis"
     assert result["rolling"]["hit_rate_20d"] is not None
     assert result["reliability"]["brier"] is not None
 
 
 ALL_TESTS = [
     test_equity_curves_basic_strategy_and_benchmark,
+    test_equity_curve_deducts_entry_and_exit_costs,
     test_equity_curves_same_date_axis,
-    test_equity_curves_benchmark_none_carry,
+    test_equity_curves_incomplete_benchmark_is_not_flat_carry,
+    test_equity_curves_never_compound_overlapping_five_day_returns,
+    test_equity_curves_missing_eval_date_uses_horizon_stride,
     test_equity_curves_filters_non_long_or_wrong_horizon,
     test_equity_curves_excludes_none_realized_ret,
     test_equity_curves_empty_input,
@@ -509,6 +678,7 @@ ALL_TESTS = [
     test_rolling_keys_always_present,
     test_rolling_non_long_excluded,
     test_rolling_sharpe_two_days,
+    test_rolling_sharpe_deducts_same_round_trip_cost_as_equity,
     test_rolling_sharpe_single_day_is_none,
     test_rolling_sharpe_zero_std_is_none,
     test_reliability_keys_present,

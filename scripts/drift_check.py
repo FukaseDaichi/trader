@@ -34,7 +34,13 @@ import numpy as np  # noqa: E402
 
 from src import db, model_store, phase1  # noqa: E402
 from src.calibration import brier_score, ic_score  # noqa: E402
-from src.config import DOCS_DIR, TICKERS, get_label_config, get_model_runtime_config  # noqa: E402
+from src.config import (  # noqa: E402
+    BACKTEST_GATE_CONFIG,
+    DOCS_DIR,
+    TICKERS,
+    get_label_config,
+    get_model_runtime_config,
+)
 from src.data_loader import load_data  # noqa: E402
 from src.labels import effective_horizon  # noqa: E402
 from src.macro import load_macro_panel  # noqa: E402
@@ -64,7 +70,9 @@ def _env_int(name: str, default: int) -> int:
 
 def _write(payload: dict) -> None:
     DRIFT_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    DRIFT_REPORT_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    DRIFT_REPORT_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Drift report written to {DRIFT_REPORT_FILE}")
 
 
@@ -90,7 +98,9 @@ def _db_outcomes_by_ticker(model_version: str, horizon: int) -> dict[str, list[d
     return by_ticker
 
 
-def _drift_reasons(metric_status: str, ic, brier, psi_max, thresholds: dict) -> tuple[list[str], list[str]]:
+def _drift_reasons(
+    metric_status: str, ic, brier, psi_max, thresholds: dict
+) -> tuple[list[str], list[str]]:
     """
     Return (dashboard warning reasons, CI-breach reasons).
 
@@ -136,19 +146,40 @@ def main() -> int:
         "psi_window": _env_int("TRADER_DRIFT_PSI_WINDOW", 250),
     }
 
+    label_cfg = get_label_config()
+    model_cfg = get_model_runtime_config()
     active = model_store.read_active_model()
     if not active:
         _write({"available": False, "reason": "no_active_model", "generated_at": now})
         print("drift: no active model; nothing to check.")
         return 0
 
+    compatibility = model_store.validate_runtime_active_phase1(
+        active,
+        model_config=model_cfg,
+        label_config=label_cfg,
+        gate_config=BACKTEST_GATE_CONFIG,
+    )
+    if not compatibility["compatible"]:
+        _write(
+            {
+                "available": False,
+                "reason": "active_model_incompatible",
+                "generated_at": now,
+                "model_version": active.get("version"),
+                "incompatibilities": compatibility["reasons"],
+            }
+        )
+        print("drift: active model contract/integrity check failed; skipped.")
+        return 0
+
     version = active.get("version")
-    label_cfg = get_label_config()
-    model_cfg = get_model_runtime_config()
-    macro_enabled = bool(active.get(
-        "macro_features_enabled",
-        model_cfg.get("macro_features_enabled", True),
-    ))
+    macro_enabled = bool(
+        active.get(
+            "macro_features_enabled",
+            model_cfg.get("macro_features_enabled", True),
+        )
+    )
     horizon = active.get("horizon_days") or effective_horizon(label_cfg)
     outcomes_by_ticker = _db_outcomes_by_ticker(version, horizon)
     macro_panel = load_macro_panel()
@@ -198,7 +229,9 @@ def main() -> int:
         else:
             insufficient += 1
 
-        reasons, breach_reasons = _drift_reasons(metric_status, ic, brier, psi_max, thresholds)
+        reasons, breach_reasons = _drift_reasons(
+            metric_status, ic, brier, psi_max, thresholds
+        )
 
         warning = len(reasons) > 0
         breached_ticker = len(breach_reasons) > 0
@@ -221,7 +254,9 @@ def main() -> int:
 
     breached_tickers = [code for code, row in by_ticker.items() if row.get("breached")]
     breached = len(breached_tickers) > 0
-    status = "warning" if breached else ("insufficient_sample" if insufficient else "ok")
+    status = (
+        "warning" if breached else ("insufficient_sample" if insufficient else "ok")
+    )
     payload = {
         "available": True,
         "generated_at": now,
@@ -244,11 +279,15 @@ def main() -> int:
         try:
             conn = db.connect()
             try:
-                db.insert_drift_report(conn, now, version, "global", status, breached, payload["summary"])
+                db.insert_drift_report(
+                    conn, now, version, "global", status, breached, payload["summary"]
+                )
             finally:
                 conn.close()
         except Exception as exc:  # noqa: BLE001
-            print(f"drift: report persist skipped (ignored): {type(exc).__name__}: {exc}")
+            print(
+                f"drift: report persist skipped (ignored): {type(exc).__name__}: {exc}"
+            )
 
     if breached:
         print(f"DRIFT_BREACH: model {version} breached for {warned}")

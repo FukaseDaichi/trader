@@ -40,8 +40,14 @@ def _snapshot_ok():
         "sector_exposure": {"Industrials": 0.4},
         "diff_summary": {"add": 2, "trim": 1, "exit": 0, "hold": 5},
         "positions": [
-            {"ticker": "7011.JP", "name": "三菱重工業", "sector": "Industrials",
-             "target_weight": 0.2, "prev_weight": 0.15, "diff_type": "increase"},
+            {
+                "ticker": "7011.JP",
+                "name": "三菱重工業",
+                "sector": "Industrials",
+                "target_weight": 0.2,
+                "prev_weight": 0.15,
+                "diff_type": "increase",
+            },
         ],
         "constraints": {"target_vol": 0.12, "top_n": 8},
         "warnings": [],
@@ -52,8 +58,10 @@ def test_export_portfolio_latest_available():
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "portfolio_latest.json"
         ret = export_portfolio_latest(
-            _snapshot_ok(), run_date="2026-06-09",
-            generated_at="2026-06-09 06:00:00", output_path=out,
+            _snapshot_ok(),
+            run_date="2026-06-09",
+            generated_at="2026-06-09 06:00:00",
+            output_path=out,
         )
         assert ret == str(out)
         data = json.loads(out.read_text(encoding="utf-8"))
@@ -71,8 +79,11 @@ def test_export_portfolio_latest_unavailable_with_reason():
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "portfolio_latest.json"
         export_portfolio_latest(
-            None, reason="insufficient_universe", run_date="2026-06-09",
-            generated_at="2026-06-09 06:00:00", output_path=out,
+            None,
+            reason="insufficient_universe",
+            run_date="2026-06-09",
+            generated_at="2026-06-09 06:00:00",
+            output_path=out,
         )
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["available"] is False
@@ -109,8 +120,11 @@ def test_export_portfolio_backtest_insufficient_is_unavailable():
         out = Path(tmp) / "portfolio_backtest.json"
         result = {"status": "insufficient", "metrics": {}, "equity": []}
         ret = export_portfolio_backtest(
-            result, model_version="cs-v1-20260609", run_date="2026-06-10",
-            generated_at="2026-06-10 06:00:00", output_path=out,
+            result,
+            model_version="cs-v1-20260609",
+            run_date="2026-06-10",
+            generated_at="2026-06-10 06:00:00",
+            output_path=out,
         )
         assert ret == str(out)
         data = json.loads(out.read_text(encoding="utf-8"))

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-07-11T09:00:00+09:00",
+  "as_of": "2026-07-11",
+  "market_bias": "neutral",
+  "summary": "日米ともにタカ派レジーム継続。日銀は6/16に政策金利1.00%へ利上げ済みで、円安加速と原油再騰による物価上振れを背景に追加利上げ観測が前倒し(市場は10月会合までの利上げ確率約60%、次回7/30-31は展望レポート公表)。Fedは3.50-3.75%据え置きだが7/8公表の6月議事要旨で物価警戒が強まり19人中9人が年内追加利上げを想定。金利差と原油高でドル円は約162円半ばと約40年ぶり円安、GSは介入でも基調反転せずと。先週急落した原油はUS-Iranの再衝突(7/8米軍がイラン攻撃)でBrent約$78へ反発しホルムズ再開が遅延、交易条件悪化で内需・輸入株の重石かつBOJ利上げ材料。円安が輸出株、利上げが金融株の追い風、原油高と国内外の高金利が内需・高PERの重石で両面。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "hawkish", "next_event": "2026-07-29", "note": "6/16-17に3.50-3.75%で全会一致据え置き。7/8公表の議事要旨では『数名』が6月利上げの根拠を主張、物価上振れ警戒が強まり労働市場懸念は後退。SEPは19人中9人が年内少なくとも1回の追加利上げを想定。Warsh議長は7/1に『インフレは依然高すぎる』(エネルギー・関税・AI投資需要が主因)と発言。次回7/28-29会合はSEPなし。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-07-31", "note": "6/15-16会合で+0.25%利上げ、政策金利1.00%(1995年以来31年ぶり高水準)。円安加速と堅調な国内経済、原油高による物価上振れで早期追加利上げ観測が強まり、市場が織り込む10月会合までの利上げ確率は約60%(従来メインは12月)。7/30-31会合は展望レポート公表で2026年度CPIは2%台後半予想、物価は上振れ・成長は下振れリスク。"},
+    "usdjpy": {"level": 162.5, "trend": "円安", "as_of": "2026-07-09", "note": "7/9-10に約162.5円と1986年以来約40年ぶりの円安・ドル高圏。日米金利差と原油高(石油輸入国・日本の交易条件悪化)が主因。4-5月に過去最大11.7兆円の円買い介入も約6週間で効果消失。162円接近でも当局対応は口先介入にとどまり、GSは7/6に『介入はUSD/JPYの上昇を鈍らせても基調を反転させない』として予想を上方修正。"}
+  },
+  "themes": [
+    {
+      "id": "boj-early-hike-path",
+      "title": "日銀の追加利上げ前倒し観測（円安・原油高で物価上振れ）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-07-02", "description": "円安加速と堅調な経済、原油高による物価上振れで早期利上げを促す材料が増加(Bloomberg 7/2)。市場が織り込む10月会合までの追加利上げ確率は約60%と従来の12月メインから前倒し。7/30-31会合は展望レポートで2026年度CPIを2%台後半へ。"},
+      "affected_sectors": ["銀行", "保険", "証券", "金融", "生命保険"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8591.JP", "8750.JP"],
+      "rationale": "政策金利1.0%到達に続く追加利上げ観測の前倒しは、円建て金利上昇を通じて銀行の預貸金利ざや(NIM)拡大、保険・証券・生保の運用利回り改善に直結。7/30-31展望レポートでの物価上方修正が観測を後押しし、2週間以降も金融株にtailwind。",
+      "sources": [
+        {"title": "日銀の早期利上げを促す材料が増加、円安進行と堅調な日本経済で（Bloomberg）", "url": "https://www.bloomberg.com/jp/news/articles/2026-07-02/THJ6GGT96OSG00", "date": "2026-07-02", "type": "secondary"},
+        {"title": "経済・物価情勢の展望（展望レポート）（日本銀行）", "url": "https://www.boj.or.jp/mopo/outlook/index.htm", "date": "2026-07-11", "type": "primary"},
+        {"title": "政策金利1.00％への引き上げ 〜2026年6月の日銀金融政策決定会合〜（第一生命経済研究所）", "url": "https://www.dlri.co.jp/report/macro/623090.html", "date": "2026-06-17", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "weak-yen-40yr-low",
+      "title": "40年ぶり円安（ドル円162円台半ば）",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-07-09", "description": "ドル円が約162.5円と1986年以来約40年ぶりの円安・ドル高圏。日米金利差と原油高による交易条件悪化が主因。GSは7/6に介入では基調反転しないとして予想を上方修正。日銀利上げ後も円安基調が根強い。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器", "機械", "機械・重工", "FA・ロボット"],
+      "affected_codes": ["7203.JP", "7267.JP", "6758.JP", "6501.JP", "6503.JP", "6861.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP", "6273.JP", "6954.JP", "7011.JP", "7013.JP"],
+      "rationale": "円安は輸出企業の海外売上の円換算額と価格競争力を押し上げ、自動車・電機・電子部品・精密・機械・FA・重工・商社の想定為替レート比の増益要因。2週間以降も金利差主導の円安基調が続く見込みで輸出株にtailwind。",
+      "sources": [
+        {"title": "Goldman Sachs Says Yen Intervention Won't Stop USD/JPY, Revises Forecast Higher（Exchange Rates UK）", "url": "https://www.exchangerates.org.uk/news/46411/2026-07-06-goldman-sachs-says-yen-intervention-won-t-stop-usd-jpy-revises-forecast-higher.html", "date": "2026-07-06", "type": "secondary"},
+        {"title": "Japanese Yen - Quote - Chart - Historical Data（Trading Economics）", "url": "https://tradingeconomics.com/japan/currency", "date": "2026-07-09", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "oil-iran-spike",
+      "title": "原油再騰（US-Iran再衝突でホルムズ再開遅延）",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-08", "description": "米軍が7/8にイランの防空網・司令系統など80超の標的を攻撃し、ホルムズ海峡の輸送正常化が遅延。Brentは約$78・WTIは約$73.5へ反発し週間約6%高と先週の急落($71前後)から反転。ホルムズは世界の石油輸送の約20%を占める。"},
+      "affected_sectors": ["運輸", "化学", "小売", "食品", "消費財"],
+      "affected_codes": ["9020.JP", "4063.JP", "4901.JP", "4452.JP", "9983.JP", "2914.JP"],
+      "rationale": "原油反発は石油輸入国・日本の交易条件を悪化させ、燃料・原材料コスト上昇で運輸・化学・小売・食品など内需/コスト敏感セクターにheadwind。物価上振れを通じて日銀の追加利上げ材料にもなり金融株には逆に追い風。再エスカレーション/沈静化の両方向に振れやすく確度は中。",
+      "sources": [
+        {"title": "Oil surges as US strikes Iran, reversing return to pre-war prices（Al Jazeera）", "url": "https://www.aljazeera.com/news/2026/7/8/oil-prices-surge-as-us-strikes-iran-reversing-fall-to-pre-war-levels", "date": "2026-07-08", "type": "secondary"},
+        {"title": "Oil prices today: Brent, WTI rise as U.S. targets Iran（CNBC）", "url": "https://www.cnbc.com/2026/07/08/oil-prices-brent-wti-iran-us-hormuz.html", "date": "2026-07-08", "type": "secondary"},
+        {"title": "Brent crude oil - Price - Chart - Historical Data（Trading Economics）", "url": "https://tradingeconomics.com/commodity/brent-crude-oil", "date": "2026-07-10", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "fed-hawkish-hold",
+      "title": "Fedタカ派据え置き（6月議事要旨で物価警戒・利上げ論）",
+      "category": "monetary",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-08", "description": "7/8公表の6/16-17会合議事要旨で『数名』が利上げの根拠を主張、物価警戒が強まり労働市場懸念は後退。SEPは19人中9人が年内追加利上げを想定。Warsh議長は7/1に『インフレは依然高すぎる』(エネルギー・関税・AI投資需要)と発言。次回7/28-29(SEPなし)。"},
+      "affected_sectors": ["半導体製造装置", "半導体", "電機", "情報・通信"],
+      "affected_codes": ["8035.JP", "6920.JP", "6857.JP", "6146.JP", "6723.JP", "9984.JP"],
+      "rationale": "米金利が高止まり/利上げ方向に傾き緩和期待が後退すると、割引率上昇でグローバル半導体・SPE・高PER/金利敏感グロースにheadwind。一方で日米金利差拡大は円安を通じ輸出株を下支えする両面性がある。",
+      "sources": [
+        {"title": "Federal Reserve issues FOMC statement (June 17, 2026)", "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260617a.htm", "date": "2026-06-17", "type": "primary"},
+        {"title": "Fed minutes June 2026: officials split on rates（CNBC）", "url": "https://www.cnbc.com/2026/07/08/fed-minutes-june-2026-.html", "date": "2026-07-08", "type": "secondary"},
+        {"title": "Fed Chief Kevin Warsh declines to hint at July rate decision, but says inflation 'too high'（CNBC）", "url": "https://www.cnbc.com/2026/07/01/kevin-warsh-ecb-forum-live-updates.html", "date": "2026-07-01", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "fx-intervention-risk",
+      "title": "為替介入リスク（急な円高反転）",
+      "category": "fx",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-06", "description": "ドル円162円台でも当局対応は口先介入にとどまるが、4-5月の過去最大11.7兆円介入の前例があり追加介入警戒は残る。GSは7/6に介入は上昇を鈍らせても基調を反転させないと指摘。月内公表の介入実績で当局の関与有無が判明予定。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器"],
+      "affected_codes": ["7203.JP", "7267.JP", "6758.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP"],
+      "rationale": "介入や円安巡航の巻き戻しで急な円高が起きると、円安を織り込んだ輸出株の想定為替レート改善期待が剥落しheadwind（円安テーマの逆リスク）。介入効果は持続性に乏しく方向は不確実なため確度は中。",
+      "sources": [
+        {"title": "Goldman Sachs Says Yen Intervention Won't Stop USD/JPY（Exchange Rates UK）", "url": "https://www.exchangerates.org.uk/news/46411/2026-07-06-goldman-sachs-says-yen-intervention-won-t-stop-usd-jpy-revises-forecast-higher.html", "date": "2026-07-06", "type": "secondary"},
+        {"title": "外国為替平衡操作の実施状況（財務省）", "url": "https://www.mof.go.jp/policy/international_policy/reference/feio/index.html", "date": "2026-07-09", "type": "primary"}
+      ]
+    }
+  ],
+  "universe_considered": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8591.JP", "8750.JP", "8035.JP", "6920.JP", "6857.JP", "6146.JP", "6723.JP", "9984.JP", "7203.JP", "7267.JP", "6758.JP", "6501.JP", "6503.JP", "6861.JP", "6981.JP", "6762.JP", "8058.JP", "8031.JP", "8001.JP", "7751.JP", "7741.JP", "6301.JP", "6367.JP", "6273.JP", "6954.JP", "7011.JP", "7013.JP", "9020.JP", "4063.JP", "4901.JP", "4452.JP", "9983.JP", "2914.JP"],
+  "notes": "先週との主な変化は原油の反転。ホルムズ正常化で$71前後まで急落していた原油が、7/8のUS-Iran再衝突(米軍のイラン攻撃)でBrent約$78へ反発し、内需・輸入株の追い風→重石へ、かつBOJ物価上振れ→追加利上げ材料へ転じた。円安(約162.5円)は輸出株、日銀の早期利上げ観測は金融株の追い風で相場は建設的な面がある一方、原油高による交易条件悪化・国内外の高金利による高PER/金利敏感の重石、介入による円高反転リスクが両面のため市場バイアスはneutral。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる（特に為替介入・原油・地政学は短期で大きく振れる）。政策金利/為替/CPIの数値は公表時点のもので、確認できない値は一次・二次情報に基づき記載した。"
+}

@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.macro import (  # noqa: E402
     DEFAULT_MARKET_SERIES,
+    MACRO_AUX_LEVEL_COLS,
     MACRO_FEATURE_COLS,
     MACRO_LEVEL_COLS,
     add_macro_features,
@@ -33,7 +34,9 @@ from src.model import FEATURE_COLS, build_feature_frame, phase1_feature_cols  # 
 
 def _series(start, n, step, key):
     dates = pd.date_range(start, periods=n, freq="D")
-    return pd.DataFrame({"date": dates, "close": [100.0 + i * step for i in range(n)]}), key
+    return pd.DataFrame(
+        {"date": dates, "close": [100.0 + i * step for i in range(n)]}
+    ), key
 
 
 def test_encode_market_bias():
@@ -45,10 +48,12 @@ def test_encode_market_bias():
 
 
 def test_add_macro_features_none_panel_emits_nan_schema():
-    stock = pd.DataFrame({
-        "date": pd.date_range("2026-01-01", periods=3, freq="D"),
-        "close": [10.0, 11.0, 12.0],
-    })
+    stock = pd.DataFrame(
+        {
+            "date": pd.date_range("2026-01-01", periods=3, freq="D"),
+            "close": [10.0, 11.0, 12.0],
+        }
+    )
     out = add_macro_features(stock, None)
     assert len(out) == 3  # stock rows preserved
     for col in MACRO_FEATURE_COLS:
@@ -57,14 +62,20 @@ def test_add_macro_features_none_panel_emits_nan_schema():
 
 
 def test_add_macro_features_backward_join_no_future_leak():
-    macro_panel = pd.DataFrame({
-        "date": pd.to_datetime(["2026-01-05", "2026-01-10"]),
-        "macro_topix_ret_20": [0.1, 0.2],
-    })
-    stock = pd.DataFrame({
-        "date": pd.to_datetime(["2026-01-03", "2026-01-05", "2026-01-07", "2026-01-12"]),
-        "close": [1.0, 2.0, 3.0, 4.0],
-    })
+    macro_panel = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-10"]),
+            "macro_topix_ret_20": [0.1, 0.2],
+        }
+    )
+    stock = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2026-01-03", "2026-01-05", "2026-01-07", "2026-01-12"]
+            ),
+            "close": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
     out = add_macro_features(stock, macro_panel).set_index("date")
     # before first macro date -> NaN (no backfill from the future)
     assert np.isnan(out.loc["2026-01-03", "macro_topix_ret_20"])
@@ -116,10 +127,78 @@ def test_latest_snapshot_row():
     assert latest_snapshot_row(pd.DataFrame()) is None
 
 
+def test_topix_open_is_not_forward_filled_off_session():
+    """USD/JPY trades on JP holidays, so the outer join creates dates on which
+    TOPIX did not trade. Forward-filling the open there would pair yesterday's
+    open with yesterday's close and invent a benchmark return that every
+    downstream check accepts: exact date match, positive levels, no NaN."""
+    usd = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-07"]),
+            "close": [150.0, 150.5, 151.0],
+        }
+    )
+    top = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-07"]),
+            "close": [2800.0, 2820.0],
+            "open": [2790.0, 2810.0],
+        }
+    )
+    panel = build_macro_panel({"usdjpy": usd, "topix": top}).set_index("date")
+    # the off-session date still carries a forward-filled close (unchanged) ...
+    assert panel.loc["2026-01-06", "topix"] == 2800.0
+    # ... but no open, so exact-date consumers exclude that date
+    assert np.isnan(panel.loc["2026-01-06", "topix_open"])
+    # real sessions keep their own open
+    assert panel.loc["2026-01-05", "topix_open"] == 2790.0
+    assert panel.loc["2026-01-07", "topix_open"] == 2810.0
+
+
+def test_build_macro_panel_always_emits_topix_open_column():
+    """The panel's column set must not depend on whether the open was
+    available, so downstream readers never branch on schema shape."""
+    usd, _ = _series("2026-01-01", 30, 0.1, "usdjpy")
+    top, _ = _series("2026-01-01", 30, 1.0, "topix")  # close-only series
+    panel = build_macro_panel({"usdjpy": usd, "topix": top})
+    expected = ["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS
+    for col in expected:
+        assert col in panel.columns, col
+    assert panel["topix_open"].isna().all()
+    assert MACRO_AUX_LEVEL_COLS == ["topix_open"]
+    # and on the empty-input path
+    assert "topix_open" in build_macro_panel({}).columns
+
+
+def test_latest_snapshot_row_ignores_topix_open():
+    """topix_open is benchmark-only. macro_snapshots must not gain a column,
+    so no DB migration is implied by this panel change."""
+    top = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-05", "2026-01-06"]),
+            "close": [2800.0, 2820.0],
+            "open": [2790.0, 2810.0],
+        }
+    )
+    panel = build_macro_panel({"topix": top})
+    row = latest_snapshot_row(panel)
+    assert set(row.keys()) == {
+        "date",
+        "usdjpy",
+        "topix",
+        "nikkei",
+        "nikkei_vi",
+        "jgb10y",
+        "market_bias",
+        "regime",
+    }
+    assert row["topix"] == 2820.0
+
+
 def test_phase1_feature_cols_respects_macro_flag():
     assert phase1_feature_cols(False) == FEATURE_COLS
     enabled = phase1_feature_cols(True)
-    assert enabled[:len(FEATURE_COLS)] == FEATURE_COLS
+    assert enabled[: len(FEATURE_COLS)] == FEATURE_COLS
     for col in MACRO_FEATURE_COLS:
         assert col in enabled
 
@@ -136,10 +215,11 @@ def test_default_series_symbols_are_fetchable_or_disabled():
                 f"{key}: enabled series needs a yfinance fallback "
                 "(Stooq alone is dead as of 2026-06-11)"
             )
-    # TOPIX itself is unavailable (Yahoo ^TPX is an empty stub); the largest
-    # TOPIX ETF (1306) is the documented benchmark proxy on both sources.
-    assert DEFAULT_MARKET_SERIES["topix"]["yfinance"] == "1306.T"
-    assert DEFAULT_MARKET_SERIES["topix"]["stooq"] == "1306.jp"
+    # TOPIX itself is unavailable (Yahoo ^TPX is an empty stub). TOPIX ETF
+    # 1305 is the proxy because Yahoo's 1306 history retains split-scale
+    # discontinuities even when adjusted prices are requested.
+    assert DEFAULT_MARKET_SERIES["topix"]["yfinance"] == "1305.T"
+    assert DEFAULT_MARKET_SERIES["topix"]["stooq"] == "1305.jp"
     # No working source exists for these (Yahoo: not listed; Stooq: endpoint
     # dead, symbols unverifiable) -> disabled, levels/features stay NaN.
     for key in ("nikkei_vi", "jgb10y"):
@@ -153,9 +233,11 @@ class _FakeYFinance:
     def __init__(self, by_period):
         self.by_period = by_period
         self.calls = []
+        self.call_kwargs = []
 
     def download(self, symbol, period=None, **kwargs):
         self.calls.append(period)
+        self.call_kwargs.append(kwargs)
         out = self.by_period.get(period)
         if isinstance(out, Exception):
             raise out
@@ -185,6 +267,26 @@ def _with_fake_yf(by_period, spec):
             sys.modules.pop("yfinance", None)
 
 
+def _with_fake_sources(stooq_result, by_period, spec):
+    """Run fetch_market_series with deterministic Stooq and yfinance data."""
+    import src.data_loader as dl
+
+    fake = _FakeYFinance(by_period)
+    orig_yf = sys.modules.get("yfinance")
+    orig_stooq = dl.download_stooq_data
+
+    sys.modules["yfinance"] = fake
+    dl.download_stooq_data = lambda _symbol: stooq_result.copy()
+    try:
+        return fetch_market_series(spec), fake
+    finally:
+        dl.download_stooq_data = orig_stooq
+        if orig_yf is not None:
+            sys.modules["yfinance"] = orig_yf
+        else:
+            sys.modules.pop("yfinance", None)
+
+
 def test_fetch_market_series_disabled_spec_touches_no_source():
     result, fake = _with_fake_yf({}, {"stooq": None, "yfinance": None})
     assert result is None
@@ -192,46 +294,234 @@ def test_fetch_market_series_disabled_spec_touches_no_source():
 
 
 def test_fetch_market_series_retries_bounded_period_when_max_empty():
-    """yfinance period='max' breaks for some symbols (e.g. 1306.T returns
-    empty / TypeError); the fetch must retry with a bounded period."""
+    """yfinance period='max' can fail range resolution for some symbols;
+    the fetch must retry with a bounded period."""
     idx = pd.date_range("2026-01-01", periods=5, freq="D", name="Date")
-    ok = pd.DataFrame({"Close": [1.0, 2.0, 3.0, 4.0, 5.0]}, index=idx)
+    ok = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 105.0]}, index=idx)
     result, fake = _with_fake_yf(
         {"max": pd.DataFrame(), "10y": ok},
-        {"stooq": None, "yfinance": "1306.T"},
+        {"stooq": None, "yfinance": "1305.T"},
     )
     assert fake.calls == ["max", "10y"]
     assert result is not None and len(result) == 5
     assert list(result.columns) == ["date", "close"]
-    assert float(result["close"].iloc[-1]) == 5.0
+    assert float(result["close"].iloc[-1]) == 105.0
+    assert all(call["auto_adjust"] is True for call in fake.call_kwargs)
 
 
 def test_fetch_market_series_retries_bounded_period_when_max_raises():
     idx = pd.date_range("2026-01-01", periods=3, freq="D", name="Date")
-    ok = pd.DataFrame({"Close": [1.0, 2.0, 3.0]}, index=idx)
+    ok = pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=idx)
     result, fake = _with_fake_yf(
         {"max": TypeError("'NoneType' object is not subscriptable"), "10y": ok},
-        {"stooq": None, "yfinance": "1306.T"},
+        {"stooq": None, "yfinance": "1305.T"},
     )
     assert fake.calls == ["max", "10y"]
     assert result is not None and len(result) == 3
 
 
+def test_fetch_market_series_prefers_adjusted_close_fixture():
+    """A raw ETF split must not win over an available adjusted close."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Close": [400.0, 40.0, 41.0, 42.0],
+            "Adj Close": [40.0, 40.5, 41.0, 42.0],
+        },
+        index=idx,
+    )
+    result, fake = _with_fake_yf({"max": raw}, {"stooq": None, "yfinance": "1305.T"})
+    assert result is not None
+    assert result["close"].tolist() == [40.0, 40.5, 41.0, 42.0]
+    assert fake.call_kwargs[0]["auto_adjust"] is True
+
+
+def test_fetch_market_series_extreme_stooq_move_falls_back_to_yfinance():
+    dates = pd.date_range("2026-03-27", periods=4, freq="D")
+    stooq = pd.DataFrame({"date": dates, "close": [400.0, 40.0, 41.0, 42.0]})
+    yf_ok = pd.DataFrame(
+        {"Close": [40.0, 40.5, 41.0, 42.0]},
+        index=dates.rename("Date"),
+    )
+    result, fake = _with_fake_sources(
+        stooq,
+        {"max": yf_ok},
+        {"stooq": "1305.jp", "yfinance": "1305.T"},
+    )
+    assert result is not None
+    assert result["close"].tolist() == [40.0, 40.5, 41.0, 42.0]
+    assert fake.calls == ["max"]
+
+
+def test_fetch_market_series_extreme_yfinance_move_is_unavailable():
+    dates = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    yf_bad = pd.DataFrame({"Close": [400.0, 40.0, 41.0, 420.0]}, index=dates)
+    result, fake = _with_fake_yf({"max": yf_bad}, {"stooq": None, "yfinance": "1305.T"})
+    assert result is None
+    # Invalid data is not the empty/exception range-resolution bug; do not
+    # silently hide the discontinuity by slicing it away with the 10y retry.
+    assert fake.calls == ["max"]
+
+
+def test_only_topix_opts_into_open_levels():
+    """Open levels exist for the same-basis benchmark only. Every other series
+    stays close-only so its fetch path is byte-for-byte unchanged."""
+    assert DEFAULT_MARKET_SERIES["topix"].get("open") is True
+    for key, spec in DEFAULT_MARKET_SERIES.items():
+        if key != "topix":
+            assert not spec.get("open"), key
+
+
+def test_fetch_market_series_open_opt_in_carries_open_column():
+    idx = pd.date_range("2026-01-01", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [100.0, 101.0, 102.0, 103.0],
+            "Close": [101.0, 102.0, 103.0, 104.0],
+        },
+        index=idx,
+    )
+    with_open, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert with_open is not None
+    assert list(with_open.columns) == ["date", "close", "open"]
+    assert with_open["open"].tolist() == [100.0, 101.0, 102.0, 103.0]
+
+    without_open, _ = _with_fake_yf({"max": raw}, {"stooq": None, "yfinance": "1305.T"})
+    assert without_open is not None
+    assert list(without_open.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_open_opt_in_tolerates_missing_open():
+    """A provider that returns no open at all must still yield the close."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="D", name="Date")
+    raw = pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=idx)
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_partial_missing_open_is_retained_as_nan():
+    """A gap on one date is not a reason to discard the whole open series;
+    exact-date consumers drop that date and report incomplete coverage."""
+    idx = pd.date_range("2026-01-01", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [100.0, np.nan, 102.0, 103.0],
+            "Close": [101.0, 102.0, 103.0, 104.0],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert "open" in result.columns
+    assert bool(result["open"].isna().iloc[1])
+    assert result["close"].tolist() == [101.0, 102.0, 103.0, 104.0]
+
+
+def test_stale_isolated_non_positive_open_becomes_gap_not_full_rejection():
+    """Regression: real 1305.T history (fetched 2026-07-26) has 3 zero-valued
+    open rows in 2009, the ETF's earliest thinly-traded sessions -- every date
+    since is clean. A blanket 'any bad value kills the whole series' rule
+    would silently disable the benchmark forever. Only the bad date should
+    become a gap; the rest of a long, otherwise-clean history must survive."""
+    idx = pd.date_range("2026-01-01", periods=5, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [0.0, 101.0, 102.0, 103.0, 104.0],
+            "Close": [100.5, 101.5, 102.5, 103.5, 104.5],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert "open" in result.columns
+    assert bool(result["open"].isna().iloc[0])
+    assert result["open"].iloc[1:].tolist() == [101.0, 102.0, 103.0, 104.0]
+
+
+def test_fetch_market_series_extreme_open_move_drops_open_keeps_close():
+    """A split-scale jump inside the open series poisons benchmark returns.
+    Drop the open only — the close still feeds every macro feature."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [400.0, 40.0, 40.5, 41.0],
+            "Close": [40.2, 40.4, 40.6, 41.2],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+    assert result["close"].tolist() == [40.2, 40.4, 40.6, 41.2]
+
+
+def test_fetch_market_series_open_close_basis_mismatch_drops_open():
+    """Close adjusted for a 10:1 split, open left raw. Both series are
+    internally continuous, so only the intraday open-to-close ratio exposes
+    the basis mismatch."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [400.0, 402.0, 404.0, 406.0],
+            "Close": [40.1, 40.3, 40.5, 40.7],
+        },
+        index=idx,
+    )
+    result, _ = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is not None
+    assert list(result.columns) == ["date", "close"]
+
+
+def test_fetch_market_series_extreme_close_move_still_rejects_whole_series():
+    """Close-side failure keeps its existing meaning: the whole series is
+    unusable, regardless of how sound the open looks."""
+    idx = pd.date_range("2026-03-27", periods=4, freq="D", name="Date")
+    raw = pd.DataFrame(
+        {
+            "Open": [40.0, 40.5, 41.0, 41.5],
+            "Close": [400.0, 40.0, 41.0, 420.0],
+        },
+        index=idx,
+    )
+    result, fake = _with_fake_yf(
+        {"max": raw}, {"stooq": None, "yfinance": "1305.T", "open": True}
+    )
+    assert result is None
+    assert fake.calls == ["max"]
+
+
 def test_build_feature_frame_macro_disabled_omits_macro_columns():
     dates = pd.date_range("2026-01-01", periods=90, freq="D")
     close = pd.Series([100.0 + i * 0.5 for i in range(90)])
-    stock = pd.DataFrame({
-        "date": dates,
-        "open": close - 0.2,
-        "high": close + 1.0,
-        "low": close - 1.0,
-        "close": close,
-        "volume": [1_000_000 + i * 1000 for i in range(90)],
-    })
-    macro_panel = pd.DataFrame({
-        "date": dates,
-        "macro_topix_ret_20": [0.1] * 90,
-    })
+    stock = pd.DataFrame(
+        {
+            "date": dates,
+            "open": close - 0.2,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": [1_000_000 + i * 1000 for i in range(90)],
+        }
+    )
+    macro_panel = pd.DataFrame(
+        {
+            "date": dates,
+            "macro_topix_ret_20": [0.1] * 90,
+        }
+    )
 
     out = build_feature_frame(stock, macro_panel=macro_panel, macro_enabled=False)
     assert not out.empty
@@ -248,11 +538,25 @@ ALL_TESTS = [
     test_build_macro_panel_columns_and_returns,
     test_build_macro_panel_empty_input,
     test_latest_snapshot_row,
+    test_topix_open_is_not_forward_filled_off_session,
+    test_build_macro_panel_always_emits_topix_open_column,
+    test_latest_snapshot_row_ignores_topix_open,
     test_phase1_feature_cols_respects_macro_flag,
     test_default_series_symbols_are_fetchable_or_disabled,
     test_fetch_market_series_disabled_spec_touches_no_source,
     test_fetch_market_series_retries_bounded_period_when_max_empty,
     test_fetch_market_series_retries_bounded_period_when_max_raises,
+    test_fetch_market_series_prefers_adjusted_close_fixture,
+    test_fetch_market_series_extreme_stooq_move_falls_back_to_yfinance,
+    test_fetch_market_series_extreme_yfinance_move_is_unavailable,
+    test_only_topix_opts_into_open_levels,
+    test_fetch_market_series_open_opt_in_carries_open_column,
+    test_fetch_market_series_open_opt_in_tolerates_missing_open,
+    test_fetch_market_series_partial_missing_open_is_retained_as_nan,
+    test_stale_isolated_non_positive_open_becomes_gap_not_full_rejection,
+    test_fetch_market_series_extreme_open_move_drops_open_keeps_close,
+    test_fetch_market_series_open_close_basis_mismatch_drops_open,
+    test_fetch_market_series_extreme_close_move_still_rejects_whole_series,
     test_build_feature_frame_macro_disabled_omits_macro_columns,
 ]
 

@@ -30,6 +30,7 @@ def _approx(a, b, tol=1e-9):
 # Synthetic record builders
 # ---------------------------------------------------------------------------
 
+
 def _planted_records(n_dates=12, n_tickers=10, seed=7):
     """Phase 2 cs_rank strongly aligned with realized_ret; Phase 1 prob_up noise.
 
@@ -54,24 +55,27 @@ def _planted_records(n_dates=12, n_tickers=10, seed=7):
         p1_prob = rng.uniform(0.3, 0.7, size=n_tickers)  # pure noise vs realized
         for i, tk in enumerate(tickers):
             in_top = cs_rank[i] <= top_n
-            records.append({
-                "date": date_str,
-                "ticker": tk,
-                "realized_ret": float(realized[i]),
-                "p1_prob_up": float(p1_prob[i]),
-                "p1_action": "HOLD",
-                "p2_cs_rank": int(cs_rank[i]),
-                "p2_expected_ret": float(0.02 * alpha[i]),
-                "p2_prob_up": float(0.5 + 0.1 * alpha[i]),
-                "p2_weight": 0.25 if in_top else 0.0,
-                "p2_prev_weight": 0.25 if in_top else 0.0,
-            })
+            records.append(
+                {
+                    "date": date_str,
+                    "ticker": tk,
+                    "realized_ret": float(realized[i]),
+                    "p1_prob_up": float(p1_prob[i]),
+                    "p1_action": "HOLD",
+                    "p2_cs_rank": int(cs_rank[i]),
+                    "p2_expected_ret": float(0.02 * alpha[i]),
+                    "p2_prob_up": float(0.5 + 0.1 * alpha[i]),
+                    "p2_weight": 0.25 if in_top else 0.0,
+                    "p2_prev_weight": 0.25 if in_top else 0.0,
+                }
+            )
     return records, top_n
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_planted_signal_phase2_beats_phase1():
     records, top_n = _planted_records()
@@ -109,7 +113,9 @@ def test_topn_realized_return_handcomputed():
     # Phase 1 by prob_up desc: give B the highest prob -> top-1 = B = 0.02
     for rec, p in zip(records, [0.4, 0.9, 0.5, 0.1]):
         rec["p1_prob_up"] = p
-    r1 = ps.topn_realized_return(records, rank_key="p1_prob_up", top_n=1, ascending=False)
+    r1 = ps.topn_realized_return(
+        records, rank_key="p1_prob_up", top_n=1, ascending=False
+    )
     assert _approx(r1, 0.02), r1
 
 
@@ -164,12 +170,27 @@ def test_max_drawdown_known_sequence():
 def test_expected_ret_calibration_bias_sign():
     # Phase 2 top-2 over-predicts: expected >> realized -> positive bias.
     records = [
-        {"date": "2026-04-01", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": 0.05, "realized_ret": 0.01},
-        {"date": "2026-04-01", "ticker": "B", "p2_cs_rank": 2,
-         "p2_expected_ret": 0.04, "realized_ret": 0.00},
-        {"date": "2026-04-01", "ticker": "C", "p2_cs_rank": 3,
-         "p2_expected_ret": -0.01, "realized_ret": -0.02},
+        {
+            "date": "2026-04-01",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": 0.05,
+            "realized_ret": 0.01,
+        },
+        {
+            "date": "2026-04-01",
+            "ticker": "B",
+            "p2_cs_rank": 2,
+            "p2_expected_ret": 0.04,
+            "realized_ret": 0.00,
+        },
+        {
+            "date": "2026-04-01",
+            "ticker": "C",
+            "p2_cs_rank": 3,
+            "p2_expected_ret": -0.01,
+            "realized_ret": -0.02,
+        },
     ]
     cal = ps.expected_ret_calibration(records, top_n=2)
     # top-2 expected mean = 0.045, realized mean = 0.005, bias = +0.04
@@ -181,14 +202,25 @@ def test_expected_ret_calibration_bias_sign():
 def test_build_report_insufficient_history():
     # 3 distinct dates < MIN_SHADOW_DATES (5) -> available false.
     records = [
-        {"date": f"2026-05-0{d}", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": 0.01, "realized_ret": 0.01, "p1_prob_up": 0.6}
+        {
+            "date": f"2026-05-0{d}",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": 0.01,
+            "realized_ret": 0.01,
+            "p1_prob_up": 0.6,
+        }
         for d in range(1, 4)
     ]
     rep = ps.build_shadow_report(records, top_n=4)
     assert rep["available"] is False
     assert rep["reason"] == "insufficient_shadow_history"
     assert rep["n_dates"] == 3
+    # A Phase 2 rank without a persisted portfolio weight is not an auditable
+    # shadow comparison date.
+    assert rep["n_paired_dates"] == 0
+    for reasons in rep["date_coverage"]["excluded_dates"].values():
+        assert "missing_phase2_weight" in reasons
     # No generated_at unless supplied (deterministic).
     assert "generated_at" not in rep
 
@@ -196,13 +228,22 @@ def test_build_report_insufficient_history():
 def test_build_report_available_with_comparison():
     records, top_n = _planted_records(n_dates=8)
     rep = ps.build_shadow_report(
-        records, top_n=top_n, generated_at="2026-06-10T06:00:00+09:00",
+        records,
+        top_n=top_n,
+        generated_at="2026-06-10T06:00:00+09:00",
         model_version="cs-v1-20260606",
         window={"start": "2026-01-01", "end": "2026-01-08", "lookback_days": 8},
     )
     assert rep["available"] is True
     assert rep["generated_at"] == "2026-06-10T06:00:00+09:00"
     assert rep["model_version"] == "cs-v1-20260606"
+    assert rep["n_dates"] == 8
+    assert rep["n_paired_dates"] == 8
+    assert rep["n_paired_records"] == len(records)
+    assert rep["date_coverage"]["paired_dates"] == [
+        f"2026-01-{d:02d}" for d in range(1, 9)
+    ]
+    assert rep["date_coverage"]["excluded_dates"] == {}
     assert "comparison" in rep
     cmp = rep["comparison"]
     for side in ("phase1", "phase2"):
@@ -215,22 +256,86 @@ def test_build_report_available_with_comparison():
     assert cmp["phase1"]["turnover"] is None
 
 
+def test_report_excludes_one_sided_and_unweighted_dates():
+    records, top_n = _planted_records(n_dates=6, n_tickers=4)
+
+    # Raw Phase 1-only date: settled returns exist but Phase 2 does not.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-01",
+                "ticker": f"P1-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p1_prob_up": 0.51 + i * 0.01,
+                "p2_weight": 0.25 if i == 0 else None,
+            }
+        )
+
+    # Raw Phase 2-only date: settled returns/ranks/weights exist but Phase 1
+    # predictions do not.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-02",
+                "ticker": f"P2-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p2_cs_rank": i + 1,
+                "p2_expected_ret": 0.02 - i * 0.001,
+                "p2_weight": 0.25 if i == 0 else None,
+            }
+        )
+
+    # Both predictions/outcomes exist, but the portfolio snapshot carries no
+    # position weight, so the daily Phase 2 portfolio run is not evidenced.
+    for i in range(4):
+        records.append(
+            {
+                "date": "2026-02-03",
+                "ticker": f"NW-{i}",
+                "realized_ret": 0.01 * (i + 1),
+                "p1_prob_up": 0.51 + i * 0.01,
+                "p2_cs_rank": i + 1,
+                "p2_expected_ret": 0.02 - i * 0.001,
+            }
+        )
+
+    rep = ps.build_shadow_report(records, top_n=top_n)
+    assert rep["available"] is True
+    assert rep["n_dates"] == 9
+    assert rep["n_paired_dates"] == 6
+    assert rep["comparison"]["phase1"]["n_dates_with_topn"] == 6
+    assert rep["comparison"]["phase2"]["n_dates_with_topn"] == 6
+
+    excluded = rep["date_coverage"]["excluded_dates"]
+    assert "missing_phase2_settled_outcome" in excluded["2026-02-01"]
+    assert "missing_phase1_settled_outcome" in excluded["2026-02-02"]
+    assert "missing_phase2_weight" in excluded["2026-02-03"]
+
+
 def test_none_safety_missing_keys_and_none_returns():
     # Records with None realized_ret and missing keys must not raise.
     records = [
         {"date": "2026-07-01", "ticker": "A", "p2_cs_rank": 1, "realized_ret": None},
         {"date": "2026-07-01", "ticker": "B"},  # missing nearly everything
-        {"date": "2026-07-02", "ticker": "A", "p2_cs_rank": 1,
-         "p2_expected_ret": None, "realized_ret": None, "p1_prob_up": None},
+        {
+            "date": "2026-07-02",
+            "ticker": "A",
+            "p2_cs_rank": 1,
+            "p2_expected_ret": None,
+            "realized_ret": None,
+            "p1_prob_up": None,
+        },
     ]
     # None of these should throw; metrics should be None (nothing finite).
     assert ps.daily_ic(records, score_key="p2_expected_ret") is None
-    assert ps.topn_realized_return(
-        records, rank_key="p2_cs_rank", top_n=2, ascending=True
-    ) is None
-    assert ps.hit_rate_topn(
-        records, rank_key="p2_cs_rank", top_n=2, ascending=True
-    ) is None
+    assert (
+        ps.topn_realized_return(records, rank_key="p2_cs_rank", top_n=2, ascending=True)
+        is None
+    )
+    assert (
+        ps.hit_rate_topn(records, rank_key="p2_cs_rank", top_n=2, ascending=True)
+        is None
+    )
     cmp = ps.compare_phase1_phase2(records, top_n=2)
     # Deltas/verdicts must be None (never spurious True) when sides undefined.
     assert cmp["delta"]["topn_realized_return"] is None
@@ -245,6 +350,7 @@ def test_empty_records():
     assert rep["available"] is False
     assert rep["reason"] == "insufficient_shadow_history"
     assert rep["n_records"] == 0
+    assert rep["n_paired_dates"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +359,11 @@ def test_empty_records():
 
 import importlib  # noqa: E402
 
+
 def _load_psr():
     """Import scripts/portfolio_shadow_report as a module."""
     import sys
+
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     return importlib.import_module("scripts.portfolio_shadow_report")
@@ -263,16 +371,24 @@ def _load_psr():
 
 def test_active_readiness_short_window():
     psr = _load_psr()
-    report = {"n_dates": 4}
+    report = {
+        "available": True,
+        "n_dates": 20,
+        "n_paired_dates": 9,
+        "comparison": {"delta": {"daily_ic": 0.012}},
+    }
     result = psr._active_readiness(report, gate_passed=True)
     assert result["active_ready"] is False
+    assert result["shadow_days"] == 9
     assert any("shadow_days" in r for r in result["reasons"])
 
 
 def test_active_readiness_ready_case():
     psr = _load_psr()
     report = {
-        "n_dates": 12,
+        "available": True,
+        "n_dates": 20,
+        "n_paired_dates": 10,
         "comparison": {"delta": {"daily_ic": 0.012}},
     }
     result = psr._active_readiness(report, gate_passed=True)
@@ -283,12 +399,156 @@ def test_active_readiness_ready_case():
 def test_active_readiness_gate_false():
     psr = _load_psr()
     report = {
+        "available": True,
         "n_dates": 12,
+        "n_paired_dates": 12,
         "comparison": {"delta": {"daily_ic": 0.012}},
     }
     result = psr._active_readiness(report, gate_passed=False)
     assert result["active_ready"] is False
     assert any("portfolio_gate" in r for r in result["reasons"])
+
+
+def test_active_readiness_unavailable_report():
+    psr = _load_psr()
+    report = {"available": False, "n_dates": 28, "n_paired_dates": 0}
+    result = psr._active_readiness(report, gate_passed=True)
+    assert result["active_ready"] is False
+    assert result["shadow_days"] == 0
+    assert "shadow_report unavailable" in result["reasons"]
+
+
+def test_active_readiness_ic_unavailable_or_below_floor():
+    psr = _load_psr()
+    base = {"available": True, "n_dates": 12, "n_paired_dates": 12}
+
+    unavailable = psr._active_readiness(base, gate_passed=True)
+    assert unavailable["active_ready"] is False
+    assert "cs_ic_vs_phase1 unavailable" in unavailable["reasons"]
+
+    below = dict(base)
+    below["comparison"] = {"delta": {"daily_ic": -0.0051}}
+    below_result = psr._active_readiness(below, gate_passed=True)
+    assert below_result["active_ready"] is False
+    assert any("cs_ic_vs_phase1" in r for r in below_result["reasons"])
+
+    # The documented -0.005 floor is inclusive.
+    boundary = dict(base)
+    boundary["comparison"] = {"delta": {"daily_ic": -0.005}}
+    boundary_result = psr._active_readiness(boundary, gate_passed=True)
+    assert boundary_result["active_ready"] is True
+
+
+class _SqlCursor:
+    def __init__(self, rows=None):
+        self.rows = rows or []
+        self.executed = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def execute(self, sql, params=None):
+        self.executed.append((sql, params))
+
+    def fetchall(self):
+        return self.rows
+
+
+class _SqlConn:
+    def __init__(self, cursor):
+        self.fake_cursor = cursor
+
+    def cursor(self, **_kwargs):
+        return self.fake_cursor
+
+
+def test_shadow_sql_uses_linked_phase1_current_outcome_and_snapshot_cs_version():
+    psr = _load_psr()
+    cursor = _SqlCursor([])
+    rows = psr._fetch_pred_outcome_rows(_SqlConn(cursor), "2026-06-01", "2026-06-30", 5)
+
+    assert rows == []
+    sql, params = cursor.executed[0]
+    normalized = " ".join(sql.split()).lower()
+    assert "join predictions p on p.id = s.prediction_id" in normalized
+    assert "join model_registry mr on mr.version = p.model_version" in normalized
+    assert "o.contract_version = %(contract)s" in normalized
+    assert "model_version not like" not in normalized
+    assert "model_version like 'cs-" not in normalized
+    assert "from portfolio_snapshots ps join predictions p" in normalized
+    assert "p.model_version = ps.model_version" in normalized
+    assert "row_number() over" in normalized
+    assert "partition by p.run_date, p.ticker order by p.id desc" in normalized
+    assert params["contract"] == psr.EXECUTION_CONTRACT_VERSION
+    assert params["phase1_kind"] == psr.db.PHASE1_MODEL_KIND
+    assert params["ephemeral_phase1_prefix"] == (
+        f"{psr.db.EPHEMERAL_PHASE1_MODEL_VERSION_PREFIX}%"
+    )
+    assert params["horizon"] == 5
+
+
+def test_snapshot_weights_and_records_retain_model_provenance():
+    psr = _load_psr()
+    cursor = _SqlCursor(
+        [
+            {
+                "run_date": "2026-06-10",
+                "model_version": "cs-v1-snapshot",
+                "positions": [
+                    {
+                        "ticker": "7011.JP",
+                        "target_weight": 0.2,
+                        "prev_weight": 0.1,
+                    }
+                ],
+            }
+        ]
+    )
+    weights = psr._fetch_snapshot_weights(_SqlConn(cursor), "2026-06-01", "2026-06-30")
+    sql, _ = cursor.executed[0]
+    assert "model_version" in sql
+    assert weights["2026-06-10"]["model_version"] == "cs-v1-snapshot"
+
+    records = psr._assemble_records(
+        [
+            {
+                "run_date": "2026-06-10",
+                "ticker": "7011.JP",
+                "p1_model_version": "per-ticker-v1-linked",
+                "p2_model_version": "cs-v1-snapshot",
+            }
+        ],
+        weights,
+    )
+    assert records == [
+        {
+            "date": "2026-06-10",
+            "ticker": "7011.JP",
+            "realized_ret": None,
+            "p1_model_version": "per-ticker-v1-linked",
+            "p1_prob_up": None,
+            "p1_action": None,
+            "p2_model_version": "cs-v1-snapshot",
+            "p2_snapshot_model_version": "cs-v1-snapshot",
+            "p2_provenance_matches_snapshot": True,
+            "p2_cs_rank": None,
+            "p2_expected_ret": None,
+            "p2_prob_up": None,
+            "p2_weight": 0.2,
+            "p2_prev_weight": 0.1,
+        }
+    ]
+
+    mismatched = psr._assemble_records(
+        [{**records[0], "run_date": "2026-06-10", "p2_model_version": "cs-v1-other"}],
+        weights,
+    )[0]
+    assert mismatched["p2_provenance_matches_snapshot"] is False
+    assert mismatched["p2_weight"] is None
+    assert mismatched["p2_prev_weight"] is None
 
 
 ALL_TESTS = [
@@ -301,11 +561,16 @@ ALL_TESTS = [
     test_expected_ret_calibration_bias_sign,
     test_build_report_insufficient_history,
     test_build_report_available_with_comparison,
+    test_report_excludes_one_sided_and_unweighted_dates,
     test_none_safety_missing_keys_and_none_returns,
     test_empty_records,
     test_active_readiness_short_window,
     test_active_readiness_ready_case,
     test_active_readiness_gate_false,
+    test_active_readiness_unavailable_report,
+    test_active_readiness_ic_unavailable_or_below_floor,
+    test_shadow_sql_uses_linked_phase1_current_outcome_and_snapshot_cs_version,
+    test_snapshot_weights_and_records_retain_model_provenance,
 ]
 
 

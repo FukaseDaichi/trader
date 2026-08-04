@@ -1,14 +1,16 @@
 import io
 import json
-import os
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
 
 from .config import DATA_DIR
+from .env import get_env_bool, get_env_float, get_env_int
+from .timeutil import today_jst
 
 REQUIRED_COLS = ["date", "open", "high", "low", "close", "volume"]
 DEFAULT_HTTP_TIMEOUT_SEC = 20
@@ -18,43 +20,13 @@ DEFAULT_MAX_DAILY_MOVE = 0.50
 JPX_HOLIDAY_CACHE = DATA_DIR / "jpx_holidays.json"
 
 
-def _get_env_int(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return int(default)
-    try:
-        return int(raw)
-    except ValueError:
-        print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-        return int(default)
-
-
-def _get_env_bool(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return bool(default)
-    value = raw.strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-    return bool(default)
-
-
-def _get_env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name)
-    if raw in (None, ""):
-        return float(default)
-    try:
-        return float(raw)
-    except ValueError:
-        print(f"Invalid {name}={raw!r}. Falling back to {default}.")
-        return float(default)
+_get_env_int = get_env_int
+_get_env_bool = get_env_bool
+_get_env_float = get_env_float
 
 
 def _today_jst() -> date:
-    return (datetime.now(UTC) + timedelta(hours=9)).date()
+    return today_jst()
 
 
 def _load_jpx_holiday_set(cache_path=JPX_HOLIDAY_CACHE) -> set[date]:
@@ -134,7 +106,9 @@ def _normalize_ohlcv(df):
         return None
 
     normalized = df.copy()
-    normalized.columns = [str(col).lower().replace(" ", "_") for col in normalized.columns]
+    normalized.columns = [
+        str(col).lower().replace(" ", "_") for col in normalized.columns
+    ]
 
     if "datetime" in normalized.columns and "date" not in normalized.columns:
         normalized = normalized.rename(columns={"datetime": "date"})
@@ -154,7 +128,11 @@ def _normalize_ohlcv(df):
     normalized = normalized.dropna(subset=["open", "high", "low", "close", "volume"])
 
     normalized["date"] = normalized["date"].dt.tz_localize(None)
-    normalized = normalized.sort_values("date").drop_duplicates(subset=["date"], keep="last").reset_index(drop=True)
+    normalized = (
+        normalized.sort_values("date")
+        .drop_duplicates(subset=["date"], keep="last")
+        .reset_index(drop=True)
+    )
     return normalized
 
 
@@ -170,6 +148,12 @@ def _validate_ohlcv(df, ticker_code=None, source=None):
     warnings = []
 
     price_cols = ["open", "high", "low", "close"]
+    finite_mask = np.isfinite(validated[price_cols + ["volume"]]).all(axis=1)
+    invalid_finite = int((~finite_mask).sum())
+    if invalid_finite:
+        warnings.append(f"invalid_non_finite_ohlcv:{invalid_finite}")
+        validated = validated.loc[finite_mask].copy()
+
     positive_mask = (validated[price_cols] > 0).all(axis=1) & (validated["volume"] >= 0)
     invalid_positive = int((~positive_mask).sum())
     if invalid_positive:
@@ -191,13 +175,17 @@ def _validate_ohlcv(df, ticker_code=None, source=None):
             validated = validated.loc[relation_mask].copy()
 
     if not validated.empty:
-        max_daily_move = max(0.0, _get_env_float("TRADER_DATA_MAX_DAILY_MOVE", DEFAULT_MAX_DAILY_MOVE))
+        max_daily_move = max(
+            0.0, _get_env_float("TRADER_DATA_MAX_DAILY_MOVE", DEFAULT_MAX_DAILY_MOVE)
+        )
         if max_daily_move > 0:
             daily_moves = validated["close"].pct_change().abs()
             extreme_moves = daily_moves[daily_moves > max_daily_move]
             if not extreme_moves.empty:
                 max_move = float(extreme_moves.max())
-                warnings.append(f"extreme_close_move:{len(extreme_moves)} max={max_move:.1%}")
+                warnings.append(
+                    f"extreme_close_move:{len(extreme_moves)} max={max_move:.1%}"
+                )
 
     if warnings:
         print(f"OHLCV validation warnings for {label}: {', '.join(warnings)}")
@@ -222,33 +210,37 @@ def download_stooq_data(ticker_code):
     url = f"https://stooq.com/q/d/l/?s={ticker_code}&i=d"
     headers = {"User-Agent": "Mozilla/5.0"}
     timeout_sec = _get_env_int("TRADER_DATA_HTTP_TIMEOUT_SEC", DEFAULT_HTTP_TIMEOUT_SEC)
-    
+
     try:
         response = requests.get(url, headers=headers, timeout=timeout_sec)
         response.raise_for_status()
-        
+
         # Check if content is valid CSV (sometimes Stooq returns an HTML page on error)
         text = response.text.strip()
         if text.startswith("No data"):
             print(f"Error fetching data for {ticker_code}: No data from Stooq.")
             return None
-        if "Preceded by" in text: # Typical Stooq error message start
-             print(f"Error fetching data for {ticker_code}: Invalid ticker or data not found.")
-             return None
-             
+        if "Preceded by" in text:  # Typical Stooq error message start
+            print(
+                f"Error fetching data for {ticker_code}: Invalid ticker or data not found."
+            )
+            return None
+
         df = pd.read_csv(io.StringIO(text))
         normalized = _normalize_ohlcv(df)
         if normalized is None:
             print(f"Error: Missing columns in Stooq data for {ticker_code}")
             return None
 
-        normalized = _validate_ohlcv(normalized, ticker_code=ticker_code, source="stooq")
+        normalized = _validate_ohlcv(
+            normalized, ticker_code=ticker_code, source="stooq"
+        )
         if normalized is None or normalized.empty:
             print(f"Error: No valid OHLCV rows in Stooq data for {ticker_code}")
             return None
 
         return normalized
-    
+
     except Exception as e:
         print(f"Failed to download data for {ticker_code}: {e}")
         return None
@@ -277,16 +269,24 @@ def download_yfinance_data(ticker_code):
 
         # yfinance may return MultiIndex columns depending on version/settings.
         if isinstance(df.columns, pd.MultiIndex):
-            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
+            df.columns = [
+                col[0] if isinstance(col, tuple) else col for col in df.columns
+            ]
 
         normalized = _normalize_ohlcv(df.reset_index())
         if normalized is None:
-            print(f"Error: Missing columns in yfinance data for {ticker_code} ({symbol})")
+            print(
+                f"Error: Missing columns in yfinance data for {ticker_code} ({symbol})"
+            )
             return None
 
-        normalized = _validate_ohlcv(normalized, ticker_code=ticker_code, source="yfinance")
+        normalized = _validate_ohlcv(
+            normalized, ticker_code=ticker_code, source="yfinance"
+        )
         if normalized is None or normalized.empty:
-            print(f"Error: No valid OHLCV rows in yfinance data for {ticker_code} ({symbol})")
+            print(
+                f"Error: No valid OHLCV rows in yfinance data for {ticker_code} ({symbol})"
+            )
             return None
 
         return normalized
@@ -296,8 +296,12 @@ def download_yfinance_data(ticker_code):
 
 
 def _download_with_fallback(ticker_code):
-    stale_open_days = max(0, _get_env_int("TRADER_DATA_STALE_OPEN_DAYS", DEFAULT_STALE_OPEN_DAYS))
-    use_yf_fallback = _get_env_bool("TRADER_YF_FALLBACK_ENABLED", DEFAULT_YF_FALLBACK_ENABLED)
+    stale_open_days = max(
+        0, _get_env_int("TRADER_DATA_STALE_OPEN_DAYS", DEFAULT_STALE_OPEN_DAYS)
+    )
+    use_yf_fallback = _get_env_bool(
+        "TRADER_YF_FALLBACK_ENABLED", DEFAULT_YF_FALLBACK_ENABLED
+    )
 
     stooq_df = download_stooq_data(ticker_code)
     stooq_freshness = _assess_freshness(stooq_df, stale_open_days=stale_open_days)
@@ -372,12 +376,14 @@ def update_data(ticker_code, dest_dir=None):
     target_dir = Path(dest_dir) if dest_dir is not None else DATA_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
     file_path = target_dir / f"{ticker_code}.parquet"
-    
+
     if file_path.exists():
         old_df = pd.read_parquet(file_path)
         # Combine and drop duplicates based on Date
-        combined_df = pd.concat([old_df, new_df]).drop_duplicates(subset=['date'], keep='last')
-        combined_df = combined_df.sort_values('date').reset_index(drop=True)
+        combined_df = pd.concat([old_df, new_df]).drop_duplicates(
+            subset=["date"], keep="last"
+        )
+        combined_df = combined_df.sort_values("date").reset_index(drop=True)
     else:
         combined_df = new_df
 
@@ -395,7 +401,7 @@ def update_data(ticker_code, dest_dir=None):
     validation_warnings.extend(new_df.attrs.get("validation_warnings", []))
     validation_warnings.extend(combined_df.attrs.get("validation_warnings", []))
     combined_df.attrs["validation_warnings"] = list(dict.fromkeys(validation_warnings))
-        
+
     # Save to parquet
     combined_df.to_parquet(file_path)
     latest = combined_df["date"].max().strftime("%Y-%m-%d")
@@ -406,9 +412,12 @@ def update_data(ticker_code, dest_dir=None):
             f"required>={freshness.get('required_latest_date')}, "
             f"open-day gap={freshness.get('open_day_gap')}]"
         )
-    print(f"Data saved to {file_path}. Latest date: {latest} (source={source}){stale_note}")
-    
+    print(
+        f"Data saved to {file_path}. Latest date: {latest} (source={source}){stale_note}"
+    )
+
     return combined_df
+
 
 def load_data(ticker_code):
     file_path = DATA_DIR / f"{ticker_code}.parquet"
@@ -419,6 +428,30 @@ def load_data(ticker_code):
             print(f"Local data for {ticker_code} is missing required OHLCV columns.")
             return None
         return _validate_ohlcv(normalized, ticker_code=ticker_code, source="local")
+    return None
+
+
+def load_archived_data(ticker_code):
+    """Load the newest archived OHLCV history for an inactive ticker."""
+    archive_dir = DATA_DIR / "archive"
+    candidates = sorted(
+        archive_dir.glob(f"{ticker_code}*.parquet"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for file_path in candidates:
+        df = pd.read_parquet(file_path)
+        normalized = _normalize_ohlcv(df)
+        if normalized is None:
+            print(
+                f"Archived data for {ticker_code} is missing required OHLCV columns."
+            )
+            continue
+        validated = _validate_ohlcv(
+            normalized, ticker_code=ticker_code, source="archive"
+        )
+        if validated is not None:
+            return validated
     return None
 
 
@@ -438,7 +471,9 @@ def sync_data_files(active_ticker_codes):
     """
     Move parquet files that are not in the active ticker list to data/archive/.
     """
-    active_codes = {code for code in active_ticker_codes if isinstance(code, str) and code}
+    active_codes = {
+        code for code in active_ticker_codes if isinstance(code, str) and code
+    }
     archived_codes = []
 
     for file_path in DATA_DIR.glob("*.parquet"):

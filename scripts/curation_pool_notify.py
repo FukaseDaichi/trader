@@ -90,7 +90,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=CURATION_DIR / "pool_decision_latest.json",
         help="Path to pool decision JSON",
     )
-    p.add_argument("--date", default=None, help="YYYY-MM-DD JST (accepted for workflow symmetry)")
+    p.add_argument(
+        "--date", default=None, help="YYYY-MM-DD JST (accepted for workflow symmetry)"
+    )
     return p
 
 

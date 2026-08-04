@@ -112,14 +112,16 @@ def reliability_bins(prob, labels, n_bins: int = 10) -> list[dict]:
         else:
             sel = (p >= lo) & (p < hi)
         cnt = int(sel.sum())
-        bins.append({
-            "bin": i,
-            "lo": lo,
-            "hi": hi,
-            "count": cnt,
-            "mean_pred": float(np.mean(p[sel])) if cnt else None,
-            "mean_obs": float(np.mean(y[sel])) if cnt else None,
-        })
+        bins.append(
+            {
+                "bin": i,
+                "lo": lo,
+                "hi": hi,
+                "count": cnt,
+                "mean_pred": float(np.mean(p[sel])) if cnt else None,
+                "mean_obs": float(np.mean(y[sel])) if cnt else None,
+            }
+        )
     return bins
 
 
@@ -134,7 +136,7 @@ def _rankdata(values: np.ndarray) -> np.ndarray:
         while j + 1 < n and sorted_v[j + 1] == sorted_v[i]:
             j += 1
         avg_rank = (i + j) / 2.0 + 1.0
-        ranks[order[i:j + 1]] = avg_rank
+        ranks[order[i : j + 1]] = avg_rank
         i = j + 1
     return ranks
 
@@ -187,19 +189,39 @@ def fit_calibrator(scores, labels, mode: str = "isotonic", min_rows: int = 60):
     brier_raw = brier_score(s, y)
 
     if mode != "isotonic":
-        return None, {"applied": False, "reason": "mode_none", "rows": n,
-                      "brier_raw": brier_raw, "brier_cal": brier_raw}
+        return None, {
+            "applied": False,
+            "reason": "mode_none",
+            "rows": n,
+            "brier_raw": brier_raw,
+            "brier_cal": brier_raw,
+        }
     if n < int(min_rows):
-        return None, {"applied": False, "reason": "insufficient_rows", "rows": n,
-                      "brier_raw": brier_raw, "brier_cal": brier_raw}
+        return None, {
+            "applied": False,
+            "reason": "insufficient_rows",
+            "rows": n,
+            "brier_raw": brier_raw,
+            "brier_cal": brier_raw,
+        }
 
     calibrator = fit_isotonic_pava(s, y)
     cal_prob = apply_isotonic(calibrator, s)
     brier_cal = brier_score(cal_prob, y)
 
     if brier_cal is None or (brier_raw is not None and brier_cal > brier_raw + 1e-12):
-        return None, {"applied": False, "reason": "worsened_fallback_none", "rows": n,
-                      "brier_raw": brier_raw, "brier_cal": brier_cal}
+        return None, {
+            "applied": False,
+            "reason": "worsened_fallback_none",
+            "rows": n,
+            "brier_raw": brier_raw,
+            "brier_cal": brier_cal,
+        }
 
-    return calibrator, {"applied": True, "reason": "ok", "rows": n,
-                        "brier_raw": brier_raw, "brier_cal": brier_cal}
+    return calibrator, {
+        "applied": True,
+        "reason": "ok",
+        "rows": n,
+        "brier_raw": brier_raw,
+        "brier_cal": brier_cal,
+    }

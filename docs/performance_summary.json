@@ -1,81 +1,350 @@
 {
   "available": true,
-  "generated_at": "2026-06-17 07:58:02",
-  "as_of": "2026-06-17",
-  "n_long_signals": 38,
+  "generated_at": "2026-08-04 07:13:14",
+  "as_of": "2026-08-04",
+  "execution_contract": {
+    "contract_version": "next_session_open_to_close_v2",
+    "market_as_of_basis": "session_close",
+    "decision_timing": "next_session_preopen",
+    "entry_price_basis": "next_session_open",
+    "exit_price_basis": "horizon_session_close",
+    "benchmark_basis": "unavailable_same_basis",
+    "return_basis": "net_after_entry_exit_costs",
+    "cost_treatment": "deducted_from_performance_equity",
+    "cost_bps_per_side": 10.0,
+    "slippage_bps_per_side": 5.0
+  },
+  "accounting_method": {
+    "name": "non_overlapping_cohorts_v1",
+    "selection": "daily_horizon_1_cohorts",
+    "horizon_days": 1,
+    "overlapping_horizon_returns_compounded": false,
+    "return_basis": "net_after_entry_exit_costs",
+    "gross_return_source": "signal_outcomes.realized_ret",
+    "cost_model": "full_capital_entry_and_exit",
+    "benchmark_return_basis": "net_after_same_entry_exit_costs",
+    "benchmark_cost_model": "same_round_trip_cost_as_strategy",
+    "cost_bps_per_side": 10.0,
+    "slippage_bps_per_side": 5.0,
+    "round_trip_cost_rate": 0.003
+  },
+  "n_long_signals": 235,
   "horizons": {
     "1": {
-      "count": 25,
-      "hit_rate": 0.48,
-      "avg_return": 0.0009136928902826247
+      "count": 91,
+      "hit_rate": 0.4835164835164835,
+      "avg_return": -0.003949342558211108
     },
     "5": {
-      "count": 9,
-      "hit_rate": 0.2222222222222222,
-      "avg_return": -0.004255169237287131
+      "count": 72,
+      "hit_rate": 0.5,
+      "avg_return": 0.001735155465383712
     },
     "10": {
-      "count": 4,
-      "hit_rate": 1.0,
-      "avg_return": 0.07860409228800525
+      "count": 72,
+      "hit_rate": 0.5416666666666666,
+      "avg_return": 0.008433949880997443
     }
   },
   "equity_curve": [
     {
-      "date": "2026-05-01",
-      "equity": 1.0114702815432743,
-      "daily_return": 0.011470281543274341,
-      "n": 1
-    },
-    {
       "date": "2026-05-07",
-      "equity": 1.0298227320125133,
-      "daily_return": 0.018144329896907285,
+      "equity": 0.9867959183673469,
+      "gross_daily_return": -0.010204081632653073,
+      "cost_return": 0.003,
+      "net_daily_return": -0.013204081632653072,
+      "daily_return": -0.013204081632653072,
       "n": 1
     },
     {
-      "date": "2026-05-14",
-      "equity": 0.9745105095095059,
-      "daily_return": -0.05371043072132853,
+      "date": "2026-05-08",
+      "equity": 1.0029847495070696,
+      "gross_daily_return": 0.01940545004128813,
+      "cost_return": 0.003,
+      "net_daily_return": 0.01640545004128813,
+      "daily_return": 0.01640545004128813,
+      "n": 1
+    },
+    {
+      "date": "2026-05-15",
+      "equity": 0.937321478001423,
+      "gross_daily_return": -0.06246786632390744,
+      "cost_return": 0.003,
+      "net_daily_return": -0.06546786632390744,
+      "daily_return": -0.06546786632390744,
       "n": 2
     },
     {
-      "date": "2026-06-08",
-      "equity": 0.9671350637588236,
-      "daily_return": -0.007568359375,
+      "date": "2026-06-09",
+      "equity": 0.9117852050513017,
+      "gross_daily_return": -0.02424387902064329,
+      "cost_return": 0.003,
+      "net_daily_return": -0.027243879020643288,
+      "daily_return": -0.027243879020643288,
       "n": 1
     },
     {
-      "date": "2026-06-09",
-      "equity": 0.9466672880539373,
-      "daily_return": -0.021163306421067174,
+      "date": "2026-06-10",
+      "equity": 0.9014543988684135,
+      "gross_daily_return": -0.008330306881111249,
+      "cost_return": 0.003,
+      "net_daily_return": -0.011330306881111248,
+      "daily_return": -0.011330306881111248,
       "n": 4
     },
     {
-      "date": "2026-06-10",
-      "equity": 0.9408031084562796,
-      "daily_return": -0.006194551846945817,
-      "n": 5
-    },
-    {
       "date": "2026-06-11",
-      "equity": 0.9560408386891573,
-      "daily_return": 0.016196513485038033,
-      "n": 3
+      "equity": 0.9120507845157352,
+      "gross_daily_return": 0.014754766143049602,
+      "cost_return": 0.003,
+      "net_daily_return": 0.011754766143049603,
+      "daily_return": 0.011754766143049603,
+      "n": 5
     },
     {
       "date": "2026-06-12",
-      "equity": 0.9929027039649746,
-      "daily_return": 0.03855678940071119,
-      "n": 5
+      "equity": 0.9090907006049053,
+      "gross_daily_return": -0.0002455253162263841,
+      "cost_return": 0.003,
+      "net_daily_return": -0.003245525316226384,
+      "daily_return": -0.003245525316226384,
+      "n": 3
     },
     {
       "date": "2026-06-15",
-      "equity": 0.9871006535470565,
-      "daily_return": -0.005843523635043739,
+      "equity": 0.9197299673991308,
+      "gross_daily_return": 0.014703196157595855,
+      "cost_return": 0.003,
+      "net_daily_return": 0.011703196157595856,
+      "daily_return": 0.011703196157595856,
+      "n": 5
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 0.9201538281792107,
+      "gross_daily_return": 0.0034608535060332013,
+      "cost_return": 0.003,
+      "net_daily_return": 0.00046085350603320124,
+      "daily_return": 0.00046085350603320124,
       "n": 3
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 0.919931248467822,
+      "gross_daily_return": 0.0027581059768788663,
+      "cost_return": 0.003,
+      "net_daily_return": -0.0002418940231211338,
+      "daily_return": -0.0002418940231211338,
+      "n": 2
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 0.91815140200178,
+      "gross_daily_return": 0.0010652396915460012,
+      "cost_return": 0.003,
+      "net_daily_return": -0.0019347603084539989,
+      "daily_return": -0.0019347603084539989,
+      "n": 3
+    },
+    {
+      "date": "2026-06-19",
+      "equity": 0.8957321409478194,
+      "gross_daily_return": -0.02141782586736951,
+      "cost_return": 0.003,
+      "net_daily_return": -0.02441782586736951,
+      "daily_return": -0.02441782586736951,
+      "n": 3
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 0.9076783901498783,
+      "gross_daily_return": 0.016336854463453843,
+      "cost_return": 0.003,
+      "net_daily_return": 0.013336854463453843,
+      "daily_return": 0.013336854463453843,
+      "n": 6
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 0.8971161836234717,
+      "gross_daily_return": -0.008636507645249314,
+      "cost_return": 0.003,
+      "net_daily_return": -0.011636507645249313,
+      "daily_return": -0.011636507645249313,
+      "n": 2
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 0.8935875135067213,
+      "gross_daily_return": -0.0009333479667015809,
+      "cost_return": 0.003,
+      "net_daily_return": -0.003933347966701581,
+      "daily_return": -0.003933347966701581,
+      "n": 2
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 0.8785520721896921,
+      "gross_daily_return": -0.013825930409463005,
+      "cost_return": 0.003,
+      "net_daily_return": -0.016825930409463005,
+      "daily_return": -0.016825930409463005,
+      "n": 3
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 0.8723570965182432,
+      "gross_daily_return": -0.004051347174002536,
+      "cost_return": 0.003,
+      "net_daily_return": -0.007051347174002536,
+      "daily_return": -0.007051347174002536,
+      "n": 3
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 0.8624554671164806,
+      "gross_daily_return": -0.008350431424564653,
+      "cost_return": 0.003,
+      "net_daily_return": -0.011350431424564652,
+      "daily_return": -0.011350431424564652,
+      "n": 2
+    },
+    {
+      "date": "2026-06-30",
+      "equity": 0.8539137268050855,
+      "gross_daily_return": -0.006903978393172472,
+      "cost_return": 0.003,
+      "net_daily_return": -0.009903978393172471,
+      "daily_return": -0.009903978393172471,
+      "n": 2
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 0.858611841062141,
+      "gross_daily_return": 0.00850186056222968,
+      "cost_return": 0.003,
+      "net_daily_return": 0.005501860562229679,
+      "daily_return": 0.005501860562229679,
+      "n": 2
+    },
+    {
+      "date": "2026-07-02",
+      "equity": 0.8445544736878582,
+      "gross_daily_return": -0.013372203016549547,
+      "cost_return": 0.003,
+      "net_daily_return": -0.01637220301654955,
+      "daily_return": -0.01637220301654955,
+      "n": 3
+    },
+    {
+      "date": "2026-07-03",
+      "equity": 0.8380403250723191,
+      "gross_daily_return": -0.004713118358244173,
+      "cost_return": 0.003,
+      "net_daily_return": -0.007713118358244173,
+      "daily_return": -0.007713118358244173,
+      "n": 2
+    },
+    {
+      "date": "2026-07-07",
+      "equity": 0.8394660606694305,
+      "gross_daily_return": 0.004701273261508376,
+      "cost_return": 0.003,
+      "net_daily_return": 0.0017012732615083763,
+      "daily_return": 0.0017012732615083763,
+      "n": 1
+    },
+    {
+      "date": "2026-07-09",
+      "equity": 0.8406522788187085,
+      "gross_daily_return": 0.0044130626654899086,
+      "cost_return": 0.003,
+      "net_daily_return": 0.0014130626654899085,
+      "daily_return": 0.0014130626654899085,
+      "n": 1
+    },
+    {
+      "date": "2026-07-13",
+      "equity": 0.8271319783001959,
+      "gross_daily_return": -0.01308310696250233,
+      "cost_return": 0.003,
+      "net_daily_return": -0.01608310696250233,
+      "daily_return": -0.01608310696250233,
+      "n": 3
+    },
+    {
+      "date": "2026-07-14",
+      "equity": 0.8135348543800387,
+      "gross_daily_return": -0.013438880706921896,
+      "cost_return": 0.003,
+      "net_daily_return": -0.016438880706921895,
+      "daily_return": -0.016438880706921895,
+      "n": 1
+    },
+    {
+      "date": "2026-07-15",
+      "equity": 0.8269692993120904,
+      "gross_daily_return": 0.01951366854133063,
+      "cost_return": 0.003,
+      "net_daily_return": 0.016513668541330632,
+      "daily_return": 0.016513668541330632,
+      "n": 2
+    },
+    {
+      "date": "2026-07-16",
+      "equity": 0.8283611792660686,
+      "gross_daily_return": 0.004683109584764367,
+      "cost_return": 0.003,
+      "net_daily_return": 0.0016831095847643666,
+      "daily_return": 0.0016831095847643666,
+      "n": 1
+    },
+    {
+      "date": "2026-07-17",
+      "equity": 0.8076409437345862,
+      "gross_daily_return": -0.022013527975611624,
+      "cost_return": 0.003,
+      "net_daily_return": -0.025013527975611623,
+      "daily_return": -0.025013527975611623,
+      "n": 3
+    },
+    {
+      "date": "2026-07-29",
+      "equity": 0.7829573793476806,
+      "gross_daily_return": -0.027562547105112235,
+      "cost_return": 0.003,
+      "net_daily_return": -0.030562547105112234,
+      "daily_return": -0.030562547105112234,
+      "n": 5
+    },
+    {
+      "date": "2026-07-30",
+      "equity": 0.7885073602714348,
+      "gross_daily_return": 0.010088484086296238,
+      "cost_return": 0.003,
+      "net_daily_return": 0.0070884840862962374,
+      "daily_return": 0.0070884840862962374,
+      "n": 6
+    },
+    {
+      "date": "2026-07-31",
+      "equity": 0.7672274739707704,
+      "gross_daily_return": -0.023987555694266416,
+      "cost_return": 0.003,
+      "net_daily_return": -0.026987555694266415,
+      "daily_return": -0.026987555694266415,
+      "n": 6
+    },
+    {
+      "date": "2026-08-03",
+      "equity": 0.7792823737931998,
+      "gross_daily_return": 0.01871228902953581,
+      "cost_return": 0.003,
+      "net_daily_return": 0.015712289029535812,
+      "daily_return": 0.015712289029535812,
+      "n": 2
     }
   ],
-  "db_size_mb": 8.73,
+  "db_size_mb": 11.98,
   "storage_warning": false
 }

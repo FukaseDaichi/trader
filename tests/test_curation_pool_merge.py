@@ -32,15 +32,14 @@ def make_settings(**overrides):
 
 
 def pool(codes):
-    return [
-        {"code": code, "name": code, "sector": sector}
-        for code, sector in codes
-    ]
+    return [{"code": code, "name": code, "sector": sector} for code, sector in codes]
 
 
 def cfg(enabled=None, watchlist=None):
     return {
-        "tickers": [{"code": code, "name": code, "enabled": True} for code in (enabled or [])],
+        "tickers": [
+            {"code": code, "name": code, "enabled": True} for code in (enabled or [])
+        ],
         "watchlist": [{"code": code, "name": code} for code in (watchlist or [])],
         "settings": {},
     }
@@ -65,7 +64,9 @@ def cand(code, action="add", score=80, sector="S", liquidity=10_000):
     }
 
 
-def decision(prop, current_pool, settings=None, enabled=None, liquidity=None, cooldown=None):
+def decision(
+    prop, current_pool, settings=None, enabled=None, liquidity=None, cooldown=None
+):
     return compute_pool_decision(
         prop,
         current_pool,
@@ -79,12 +80,16 @@ def decision(prop, current_pool, settings=None, enabled=None, liquidity=None, co
 
 def test_grow_adds_up_to_cap_and_target():
     current = pool([("A", "X"), ("B", "Y")])
-    prop = proposal([
-        cand("C", score=90, sector="Z"),
-        cand("D", score=88, sector="W"),
-        cand("E", score=86, sector="V"),
-    ])
-    s = make_settings(pool_target_size=4, pool_max_size=10, max_adds_per_run=3, liquidity_floor_jpy=1)
+    prop = proposal(
+        [
+            cand("C", score=90, sector="Z"),
+            cand("D", score=88, sector="W"),
+            cand("E", score=86, sector="V"),
+        ]
+    )
+    s = make_settings(
+        pool_target_size=4, pool_max_size=10, max_adds_per_run=3, liquidity_floor_jpy=1
+    )
     d = decision(prop, current, s, liquidity={"C": 100, "D": 100, "E": 100})
     assert d["mode"] == "grow"
     assert d["changes"]["added"] == ["C", "D"]
@@ -93,8 +98,18 @@ def test_grow_adds_up_to_cap_and_target():
 
 def test_replace_mode_drops_disabled_never_changes_pool():
     current = pool([("A", "X"), ("B", "Y")])
-    prop = proposal([cand("C", score=90, sector="Z"), cand("B", action="drop", score=20, sector="Y")])
-    s = make_settings(pool_target_size=2, max_adds_per_run=1, max_drops_per_run=0, liquidity_floor_jpy=1)
+    prop = proposal(
+        [
+            cand("C", score=90, sector="Z"),
+            cand("B", action="drop", score=20, sector="Y"),
+        ]
+    )
+    s = make_settings(
+        pool_target_size=2,
+        max_adds_per_run=1,
+        max_drops_per_run=0,
+        liquidity_floor_jpy=1,
+    )
     d = decision(prop, current, s, liquidity={"C": 100})
     assert d["mode"] == "replace"
     assert d["changes"]["added"] == []
@@ -106,8 +121,18 @@ def test_replace_mode_drops_disabled_never_changes_pool():
 
 def test_replace_mode_pairs_add_with_drop_hint():
     current = pool([("A", "X"), ("B", "Y")])
-    prop = proposal([cand("C", score=90, sector="Z"), cand("B", action="drop", score=20, sector="Y")])
-    s = make_settings(pool_target_size=2, max_adds_per_run=1, max_drops_per_run=1, liquidity_floor_jpy=1)
+    prop = proposal(
+        [
+            cand("C", score=90, sector="Z"),
+            cand("B", action="drop", score=20, sector="Y"),
+        ]
+    )
+    s = make_settings(
+        pool_target_size=2,
+        max_adds_per_run=1,
+        max_drops_per_run=1,
+        liquidity_floor_jpy=1,
+    )
     d = decision(prop, current, s, liquidity={"C": 100, "B": 100})
     assert d["changes"]["added"] == ["C"]
     assert d["changes"]["dropped"] == ["B"]
@@ -116,8 +141,18 @@ def test_replace_mode_pairs_add_with_drop_hint():
 
 def test_enabled_names_are_never_dropped():
     current = pool([("A", "X"), ("B", "Y")])
-    prop = proposal([cand("C", score=90, sector="Z"), cand("B", action="drop", score=20, sector="Y")])
-    s = make_settings(pool_target_size=2, max_adds_per_run=1, max_drops_per_run=1, liquidity_floor_jpy=1)
+    prop = proposal(
+        [
+            cand("C", score=90, sector="Z"),
+            cand("B", action="drop", score=20, sector="Y"),
+        ]
+    )
+    s = make_settings(
+        pool_target_size=2,
+        max_adds_per_run=1,
+        max_drops_per_run=1,
+        liquidity_floor_jpy=1,
+    )
     d = decision(prop, current, s, enabled=["B"], liquidity={"C": 100, "B": 100})
     assert d["changes"]["added"] == []
     assert d["changes"]["dropped"] == []
@@ -164,7 +199,9 @@ def test_cooldown_rejects_reentry():
 
 def test_malformed_proposal_is_noop():
     current = pool([("A", "X"), ("B", "Y")])
-    d = decision({"bad": True}, current, make_settings(pool_target_size=4), liquidity={})
+    d = decision(
+        {"bad": True}, current, make_settings(pool_target_size=4), liquidity={}
+    )
     assert d["changes"] == {"added": [], "dropped": []}
     assert d["pool_after"] == ["A", "B"]
 
@@ -177,7 +214,9 @@ def test_cleanup_removes_only_out_of_scope_warmup_files():
             for code in ["A", "B", "C", "D"]:
                 (pool_merge.WATCHLIST_DIR / f"{code}.parquet").write_bytes(b"x" * 3)
             result = pool_merge._cleanup_warmup_files({"A", "C"}, apply=True)
-            remaining = sorted(p.stem for p in pool_merge.WATCHLIST_DIR.glob("*.parquet"))
+            remaining = sorted(
+                p.stem for p in pool_merge.WATCHLIST_DIR.glob("*.parquet")
+            )
             removed = sorted(item["code"] for item in result["warmup_files_removed"])
             assert remaining == ["A", "C"]
             assert removed == ["B", "D"]
@@ -198,10 +237,16 @@ def test_cadence_guard_respects_days_and_force():
                 {"date": (TODAY - timedelta(days=7)).isoformat()},
             )
             assert pool_merge.should_run_pool_refresh(settings, TODAY)["due"] is False
-            assert pool_merge.should_run_pool_refresh(settings, TODAY, force=True)["due"] is True
+            assert (
+                pool_merge.should_run_pool_refresh(settings, TODAY, force=True)["due"]
+                is True
+            )
             write_json(
                 pool_merge.CURATION_DIR / "pool_decision_latest.json",
-                {"date": (TODAY - timedelta(days=1)).isoformat(), "proposal_valid": False},
+                {
+                    "date": (TODAY - timedelta(days=1)).isoformat(),
+                    "proposal_valid": False,
+                },
             )
             invalid = pool_merge.should_run_pool_refresh(settings, TODAY)
             assert invalid["due"] is True

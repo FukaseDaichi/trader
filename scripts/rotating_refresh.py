@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import sys
 
@@ -17,11 +16,12 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.config import TICKERS
 from src.data_loader import update_data
+from src.timeutil import now_jst_iso, today_jst
 
 
 def _today_jst_weekday() -> int:
     # Monday=0 .. Sunday=6
-    return (datetime.now(UTC) + timedelta(hours=9)).weekday()
+    return today_jst().weekday()
 
 
 def run_rotating_refresh(output_path: Path, buckets: int) -> int:
@@ -38,16 +38,18 @@ def run_rotating_refresh(output_path: Path, buckets: int) -> int:
         name = item["name"]
         try:
             df = update_data(code)
-            refreshed.append({
-                "ticker": code,
-                "name": name,
-                "status": "ok" if df is not None else "no_data",
-            })
+            refreshed.append(
+                {
+                    "ticker": code,
+                    "name": name,
+                    "status": "ok" if df is not None else "no_data",
+                }
+            )
         except Exception as e:
             failed.append({"ticker": code, "name": name, "error": str(e)})
 
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "bucket_count": buckets,
         "weekday_jst": weekday,
         "selected_count": len(selected),
@@ -55,7 +57,9 @@ def run_rotating_refresh(output_path: Path, buckets: int) -> int:
         "failed": failed,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Rotating refresh report exported to {output_path}")
     return 0 if not failed else 1
 

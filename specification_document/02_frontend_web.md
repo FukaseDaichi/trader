@@ -1,6 +1,6 @@
 # フロントエンド仕様
 
-更新日: 2026-06-16 JST
+更新日: 2026-07-24 JST
 
 ## 技術スタック
 
@@ -18,7 +18,7 @@
 
 ## データ取得
 
-静的 JSON をクライアント側で fetch します。`src/lib/fetchJson.ts` の `fetchJson<T>(path, isValid)` が共通入口で、**ランタイム型ガードに通らない JSON は null 扱い**（=カード非表示）になります。HTTP エラー・parse 失敗・検証失敗のどれでも UI 全体は壊れません。
+静的 JSON をクライアント側で fetch します。`src/lib/fetchJson.ts` の `fetchJson<T>(path, isValid)` が共通入口で、ランタイム型ガードに通らないJSONは`null`扱いになります。HTTPエラー・parse失敗・ガード不合格は各画面のエラー表示またはカード単位の非表示へ縮退します。必須2契約のガードは画面が無条件参照する最小フィールド、任意契約の共通ガードはトップレベル`available`だけを検査します。
 
 | 画面/部品 | 読み込み先 | 契約 |
 |---|---|---|
@@ -49,7 +49,7 @@
 ### 成績ページ（`/performance`）
 
 1. `PerformanceHeadline`: ヘッドライン3枚（的中率(5日後)・平均リターン(5日後)・通算リターン）
-2. `PerformanceDetail`: 資産の伸び vs 市場平均（AI=赤 / 市場平均=slate）、一時的な落ち込み（ドローダウン、青）、確率の正直さ（較正、予測のズレ点数=Brier）、最近のサインの結果テーブル（判断は日本語ラベル、○当たり/×はずれバッジ、最大逆行/最大順行）
+2. `PerformanceDetail`: 往復コスト控除後・非重複cohortの資産の伸び（同一basisが完全な場合だけ市場平均を併記）、一時的な落ち込み（ドローダウン、青）、確率の正直さ（較正、予測のズレ点数=Brier）、最近のサインの結果テーブル（同一basis benchmarkが利用不能なら「市場平均との差」列を隠して理由を表示）
 3. `ModelQualityCard`: モデルの健康診断（良好/注意ピル、予測のズレ点数・順位の当たり具合・チェック対象数）
 
 ### 銘柄詳細（`/stocks/[ticker]`）
@@ -85,6 +85,8 @@
 | `lib/indicators.ts` | やさしい指標ラベル（RSI→過熱感 等） |
 | `types/index.ts` | ダッシュボード JSON の TypeScript 型（`PerformanceDetail` / `SignalOutcomeRow` / `prev_close` / `change_pct` 含む） |
 
+`PerformanceCard` / `PerformanceHeadline` / `PerformanceDetail` / 最近結果は、JSONの `execution_contract.contract_version` が現行 `next_session_open_to_close_v2` と一致する場合だけ表示します。deploy直後に残る旧v1静的JSONを新集計と混在させません。
+
 ## ビルド
 
 ```bash
@@ -92,13 +94,15 @@ npm run dev --prefix web          # 開発
 npm run build --prefix web        # 通常ビルド
 npm run build:prod --prefix web   # GitHub Pages 向け（NEXT_PUBLIC_BASE_PATH=/trader）
 npm run lint --prefix web
+npm --prefix web exec -- tsc --noEmit --project web/tsconfig.json
 ```
 
-ユニットテストランナーは導入しない（リポジトリ慣習）。品質ゲートは `npm run lint && npx tsc --noEmit`。
+ユニットテストランナーは導入しない（リポジトリ慣習）。品質ゲートはlint、TypeScript型検査、本番静的ビルドです。
 
 ## 現行制約
 
 - エラーバウンダリ、専用 404、専用 loading ページは未実装
+- ランタイム型ガードは最小限で、任意JSONのネストした全フィールドまでは検証しない
 - チャートのアクセシビリティ対応は限定的
 - `tailwind-merge` は依存にあるが未使用
 - 検索状態の URL クエリ保存、ライト/ダーク切替はスコープ外

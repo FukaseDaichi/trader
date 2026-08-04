@@ -75,6 +75,7 @@ _PRED_COLS = ["ticker", "raw_score", "cs_rank", "score_pct", "prob_up", "expecte
 # LightGBM params (mirror src.model._LGB_PARAMS regularisation, per-objective)
 # ---------------------------------------------------------------------------
 
+
 def _lgb_params(objective: str, seed: int) -> dict:
     """Deterministic, regularised params for the resolved objective."""
     params = {
@@ -101,7 +102,7 @@ def _lgb_params(objective: str, seed: int) -> dict:
         params["objective"] = "lambdarank"
         params["metric"] = "ndcg"
         # Cap the +ve relevance grades at the bucket maximum (0..4).
-        params["label_gain"] = [float(2 ** i - 1) for i in range(5)]
+        params["label_gain"] = [float(2**i - 1) for i in range(5)]
     else:
         params["objective"] = "regression_l2"
         params["metric"] = "l2"
@@ -121,6 +122,7 @@ def _group_sizes(df: pd.DataFrame) -> list[int]:
 # train_cs_model
 # ---------------------------------------------------------------------------
 
+
 def train_cs_model(panel, config=None, *, macro_enabled: bool = True, seed: int = 42):
     """Train a cross-sectional LightGBM model with a walk-forward OOS evaluation.
 
@@ -137,7 +139,9 @@ def train_cs_model(panel, config=None, *, macro_enabled: bool = True, seed: int 
     if panel is None or len(panel) == 0:
         return None, {"reason": "empty_panel"}
 
-    feature_cols = [c for c in cross_sectional_feature_cols(macro_enabled) if c in panel.columns]
+    feature_cols = [
+        c for c in cross_sectional_feature_cols(macro_enabled) if c in panel.columns
+    ]
     if not feature_cols:
         return None, {"reason": "no_feature_cols"}
 
@@ -161,9 +165,7 @@ def train_cs_model(panel, config=None, *, macro_enabled: bool = True, seed: int 
     objective = requested_objective
     if requested_objective == "ranker" and median_group_size < _RANKER_MIN_GROUP:
         objective = "regression"
-        fallback_reason = (
-            f"ranker_groups_too_small(median={median_group_size:.1f}<{_RANKER_MIN_GROUP})"
-        )
+        fallback_reason = f"ranker_groups_too_small(median={median_group_size:.1f}<{_RANKER_MIN_GROUP})"
 
     # --- Label per objective ---
     label_col = "target_rank_bucket" if objective == "ranker" else "target_vol_norm"
@@ -222,19 +224,33 @@ def train_cs_model(panel, config=None, *, macro_enabled: bool = True, seed: int 
         val_X = val_rows[feature_cols]
         preds = booster.predict(val_X)
 
-        part = pd.DataFrame({
-            "date": val_rows["date"].values,
-            "ticker": val_rows["ticker"].values,
-            "raw_score": np.asarray(preds, dtype="float64"),
-            "fwd_return": pd.to_numeric(val_rows.get("fwd_return"), errors="coerce").values
-            if "fwd_return" in val_rows.columns else np.nan,
-            "target_up": pd.to_numeric(val_rows.get("target_up"), errors="coerce").values
-            if "target_up" in val_rows.columns else np.nan,
-            "target_vol_norm": pd.to_numeric(val_rows.get("target_vol_norm"), errors="coerce").values
-            if "target_vol_norm" in val_rows.columns else np.nan,
-            "target_rank_bucket": pd.to_numeric(val_rows.get("target_rank_bucket"), errors="coerce").values
-            if "target_rank_bucket" in val_rows.columns else np.nan,
-        })
+        part = pd.DataFrame(
+            {
+                "date": val_rows["date"].values,
+                "ticker": val_rows["ticker"].values,
+                "raw_score": np.asarray(preds, dtype="float64"),
+                "fwd_return": pd.to_numeric(
+                    val_rows.get("fwd_return"), errors="coerce"
+                ).values
+                if "fwd_return" in val_rows.columns
+                else np.nan,
+                "target_up": pd.to_numeric(
+                    val_rows.get("target_up"), errors="coerce"
+                ).values
+                if "target_up" in val_rows.columns
+                else np.nan,
+                "target_vol_norm": pd.to_numeric(
+                    val_rows.get("target_vol_norm"), errors="coerce"
+                ).values
+                if "target_vol_norm" in val_rows.columns
+                else np.nan,
+                "target_rank_bucket": pd.to_numeric(
+                    val_rows.get("target_rank_bucket"), errors="coerce"
+                ).values
+                if "target_rank_bucket" in val_rows.columns
+                else np.nan,
+            }
+        )
         oos_parts.append(part)
 
     if oos_parts:
@@ -260,8 +276,12 @@ def train_cs_model(panel, config=None, *, macro_enabled: bool = True, seed: int 
     if not oos_df.empty and "target_up" in oos_df.columns:
         pct = oos_df.groupby("date")["raw_score"].rank(pct=True)
         cal_prob = np.array(
-            [apply_score_calibration(calibration, float(p))[0] if np.isfinite(p) else np.nan
-             for p in pct.to_numpy()],
+            [
+                apply_score_calibration(calibration, float(p))[0]
+                if np.isfinite(p)
+                else np.nan
+                for p in pct.to_numpy()
+            ],
             dtype="float64",
         )
         brier = brier_score(cal_prob, oos_df["target_up"].to_numpy())
@@ -334,9 +354,15 @@ def _fit_booster(rows, feature_cols, label_col, objective, seed):
 # infer_cross_section  (Task 5 inference orchestrator)
 # ---------------------------------------------------------------------------
 
-def infer_cross_section(tickers_data, macro_panel, bundle, *,
-                        macro_enabled: bool = True,
-                        label_horizon_days: int = 5):
+
+def infer_cross_section(
+    tickers_data,
+    macro_panel,
+    bundle,
+    *,
+    macro_enabled: bool = True,
+    label_horizon_days: int = 5,
+):
     """
     Build the latest cross-section for the universe and score it with ``bundle``.
 
@@ -398,6 +424,7 @@ def infer_cross_section(tickers_data, macro_panel, bundle, *,
 # predict_cs_model
 # ---------------------------------------------------------------------------
 
+
 def predict_cs_model(bundle, latest_panel) -> pd.DataFrame:
     """Score the latest cross-section. One row per ticker, sorted by cs_rank asc."""
     empty = pd.DataFrame(columns=_PRED_COLS)
@@ -419,10 +446,12 @@ def predict_cs_model(bundle, latest_panel) -> pd.DataFrame:
     X = rows.reindex(columns=feature_cols)  # missing cols -> NaN (LightGBM tolerates)
 
     raw_score = np.asarray(bundle["booster"].predict(X), dtype="float64")
-    out = pd.DataFrame({
-        "ticker": rows["ticker"].values,
-        "raw_score": raw_score,
-    })
+    out = pd.DataFrame(
+        {
+            "ticker": rows["ticker"].values,
+            "raw_score": raw_score,
+        }
+    )
 
     # cs_rank: 1 = highest raw_score (descending), ordinal via method="first".
     out["cs_rank"] = out["raw_score"].rank(method="first", ascending=False).astype(int)
@@ -433,7 +462,9 @@ def predict_cs_model(bundle, latest_panel) -> pd.DataFrame:
     rets = np.empty(len(out), dtype="float64")
     calibration = bundle.get("calibration")
     for i, sp in enumerate(out["score_pct"].to_numpy()):
-        p, r = apply_score_calibration(calibration, float(sp) if np.isfinite(sp) else 0.5)
+        p, r = apply_score_calibration(
+            calibration, float(sp) if np.isfinite(sp) else 0.5
+        )
         probs[i] = p
         rets[i] = r
     out["prob_up"] = probs
@@ -468,12 +499,14 @@ def _latest_scorable_date(panel: pd.DataFrame):
 # fit_score_calibration / apply_score_calibration
 # ---------------------------------------------------------------------------
 
+
 def fit_score_calibration(oos_predictions, n_buckets: int = 10) -> dict:
     """Map within-date score percentile -> empirical P(up) / expected return.
 
     Buckets the per-date percentile rank of ``raw_score`` into ``n_buckets``
     equal-width bins and stores the mean ``target_up`` / ``fwd_return`` per bin.
     """
+
     def _global(df):
         gp = 0.5
         gr = 0.0
@@ -491,8 +524,12 @@ def fit_score_calibration(oos_predictions, n_buckets: int = 10) -> dict:
     n_buckets = max(1, int(n_buckets))
     if oos_predictions is None or len(oos_predictions) < 2 * n_buckets:
         gp, gr = _global(oos_predictions)
-        return {"applied": False, "n_buckets": 0,
-                "global_prob_up": gp, "global_expected_ret": gr}
+        return {
+            "applied": False,
+            "n_buckets": 0,
+            "global_prob_up": gp,
+            "global_expected_ret": gr,
+        }
 
     df = oos_predictions.copy()
     gp, gr = _global(df)
@@ -502,10 +539,16 @@ def fit_score_calibration(oos_predictions, n_buckets: int = 10) -> dict:
     # Bucket index in [0, n_buckets-1]; right edge inclusive in last bin.
     idx = np.clip(np.searchsorted(edges, pct, side="right") - 1, 0, n_buckets - 1)
 
-    target_up = pd.to_numeric(df.get("target_up"), errors="coerce").to_numpy() \
-        if "target_up" in df.columns else np.full(len(df), np.nan)
-    fwd_return = pd.to_numeric(df.get("fwd_return"), errors="coerce").to_numpy() \
-        if "fwd_return" in df.columns else np.full(len(df), np.nan)
+    target_up = (
+        pd.to_numeric(df.get("target_up"), errors="coerce").to_numpy()
+        if "target_up" in df.columns
+        else np.full(len(df), np.nan)
+    )
+    fwd_return = (
+        pd.to_numeric(df.get("fwd_return"), errors="coerce").to_numpy()
+        if "fwd_return" in df.columns
+        else np.full(len(df), np.nan)
+    )
 
     prob_up = []
     expected_ret = []
@@ -561,7 +604,9 @@ def apply_score_calibration(calibration, score_pct):
         return gp, gr
     sp = min(max(sp, 0.0), 1.0)
     edges_arr = np.asarray(edges, dtype="float64")
-    idx = int(np.clip(np.searchsorted(edges_arr, sp, side="right") - 1, 0, n_buckets - 1))
+    idx = int(
+        np.clip(np.searchsorted(edges_arr, sp, side="right") - 1, 0, n_buckets - 1)
+    )
 
     p = prob_up[idx] if idx < len(prob_up) else None
     r = expected_ret[idx] if idx < len(expected_ret) else None
@@ -573,6 +618,7 @@ def apply_score_calibration(calibration, score_pct):
 # ---------------------------------------------------------------------------
 # cs_metrics
 # ---------------------------------------------------------------------------
+
 
 def _pearson(a: np.ndarray, b: np.ndarray):
     mask = np.isfinite(a) & np.isfinite(b)

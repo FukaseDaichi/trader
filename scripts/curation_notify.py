@@ -106,7 +106,9 @@ def run(report_path: str, date_str: str) -> int:
             report_file = REPORTS_DIR / Path(report_path).name
 
     headline = extract_headline(report_file)
-    url = report_url(report_path if "/" in report_path else f"reports/{Path(report_path).name}")
+    url = report_url(
+        report_path if "/" in report_path else f"reports/{Path(report_path).name}"
+    )
     text = build_message(persona, headline, url)
     send_line(text)
     return 0
@@ -114,7 +116,9 @@ def run(report_path: str, date_str: str) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Notify weekly report URL via LINE")
-    p.add_argument("--report", required=True, help="report path, e.g. reports/weekly_2026-06-06.md")
+    p.add_argument(
+        "--report", required=True, help="report path, e.g. reports/weekly_2026-06-06.md"
+    )
     p.add_argument("--date", default=None, help="YYYY-MM-DD JST")
     return p
 

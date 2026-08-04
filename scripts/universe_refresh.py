@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -19,6 +18,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.config import TICKERS
 from src.data_loader import load_data
+from src.timeutil import now_jst_iso
 
 
 def run_universe_refresh(output_path: Path) -> int:
@@ -27,20 +27,22 @@ def run_universe_refresh(output_path: Path) -> int:
         code = item["code"]
         name = item["name"]
         df = load_data(code)
-        entries.append({
-            "ticker": code,
-            "name": name,
-            "has_data": bool(df is not None and not df.empty),
-            "rows": int(len(df)) if df is not None else 0,
-            "latest_date": (
-                df["date"].max().strftime("%Y-%m-%d")
-                if df is not None and not df.empty and "date" in df.columns
-                else None
-            ),
-        })
+        entries.append(
+            {
+                "ticker": code,
+                "name": name,
+                "has_data": bool(df is not None and not df.empty),
+                "rows": int(len(df)) if df is not None else 0,
+                "latest_date": (
+                    df["date"].max().strftime("%Y-%m-%d")
+                    if df is not None and not df.empty and "date" in df.columns
+                    else None
+                ),
+            }
+        )
 
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_jst_iso(),
         "universe_size": len(entries),
         "active_tickers": [e["ticker"] for e in entries],
         "entries": entries,
@@ -48,13 +50,17 @@ def run_universe_refresh(output_path: Path) -> int:
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Universe refresh report exported to {output_path}")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Weekly universe refresh report generator")
+    parser = argparse.ArgumentParser(
+        description="Weekly universe refresh report generator"
+    )
     parser.add_argument("--output", default="docs/universe_refresh_report.json")
     return parser
 

@@ -30,6 +30,8 @@ import json
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -46,8 +48,17 @@ from src.config import (  # noqa: E402
 from src.cross_section import build_cs_panel  # noqa: E402
 from src.cs_model import train_cs_model  # noqa: E402
 from src.data_loader import load_data, update_data  # noqa: E402
+from src.execution import (  # noqa: E402
+    ENTRY_PRICE_BASIS,
+    EXECUTION_CONTRACT_VERSION,
+    EXIT_PRICE_BASIS,
+    execution_contract_metadata,
+)
 from src.macro import load_macro_panel  # noqa: E402
-from src.portfolio_backtest import run_portfolio_backtest, write_portfolio_backtest_report  # noqa: E402
+from src.portfolio_backtest import (
+    run_portfolio_backtest,
+    write_portfolio_backtest_report,
+)  # noqa: E402
 from scripts.curation_common import now_jst_iso, today_jst_iso  # noqa: E402
 
 
@@ -55,17 +66,143 @@ def _default_version() -> str:
     return f"cs-v1-{today_jst_iso().replace('-', '')}"
 
 
+_OOS_EXECUTION_PROVENANCE = (
+    "market_row_number",
+    "market_as_of_date",
+    "entry_date",
+    "execution_exit_date",
+    "entry_price",
+    "execution_exit_price",
+    "execution_contract_version",
+    "entry_price_basis",
+    "exit_price_basis",
+)
+
+
+def _attach_oos_execution_provenance(bundle: dict, panel) -> None:
+    """Merge auditable v2 execution columns into the persisted OOS frame.
+
+    ``train_cs_model`` deliberately emits a compact prediction frame. The
+    weekly orchestrator owns artifact metadata, so it reattaches the execution
+    window from the labelled panel before saving or portfolio evaluation.
+    """
+    oos = bundle.get("oos_predictions")
+    if oos is None or getattr(oos, "empty", True) or getattr(panel, "empty", True):
+        return
+
+    keys = ["date", "ticker"]
+    if not set(keys).issubset(oos.columns) or not set(keys).issubset(panel.columns):
+        return
+    provenance_cols = [c for c in _OOS_EXECUTION_PROVENANCE if c in panel.columns]
+    if not provenance_cols:
+        return
+
+    provenance = panel[keys + provenance_cols].drop_duplicates(
+        subset=keys,
+        keep="last",
+    )
+    compact_oos = oos.drop(
+        columns=[c for c in provenance_cols if c in oos.columns],
+        errors="ignore",
+    )
+    bundle["oos_predictions"] = compact_oos.merge(
+        provenance,
+        on=keys,
+        how="left",
+        validate="many_to_one",
+    )
+
+
+def _oos_benchmark_coverage(oos, macro_panel) -> dict:
+    """Measure exact-basis TOPIX coverage across OOS decision dates."""
+    required_basis = f"{ENTRY_PRICE_BASIS}_to_{EXIT_PRICE_BASIS}"
+    total = 0
+    if oos is not None and not getattr(oos, "empty", True) and "date" in oos.columns:
+        total = int(pd.to_datetime(oos["date"], errors="coerce").nunique())
+
+    base = {
+        "available": False,
+        "scope": "all_oos_decision_dates",
+        "required_basis": required_basis,
+        "required_open_column": "topix_open",
+        "total_periods": total,
+        "available_periods": 0,
+        "coverage_ratio": float(0.0) if total else None,
+    }
+    if macro_panel is None or not isinstance(macro_panel, pd.DataFrame):
+        return {**base, "reason": "topix_open_unavailable_same_basis"}
+    if not {"date", "topix_open", "topix"}.issubset(macro_panel.columns):
+        return {**base, "reason": "topix_open_unavailable_same_basis"}
+    required_oos = {
+        "date",
+        "market_as_of_date",
+        "entry_date",
+        "execution_exit_date",
+        "execution_contract_version",
+    }
+    if oos is None or not required_oos.issubset(oos.columns):
+        return {**base, "reason": "execution_dates_unavailable"}
+
+    topix = macro_panel[["date", "topix_open", "topix"]].copy()
+    topix["date"] = pd.to_datetime(topix["date"], errors="coerce")
+    topix["topix_open"] = pd.to_numeric(topix["topix_open"], errors="coerce")
+    topix["topix"] = pd.to_numeric(topix["topix"], errors="coerce")
+    topix = topix.dropna(subset=["date"])
+    valid_open_dates = set(topix.loc[topix["topix_open"] > 0, "date"].dropna())
+    valid_close_dates = set(topix.loc[topix["topix"] > 0, "date"].dropna())
+
+    available = 0
+    for decision_date, cross in oos.groupby("date"):
+        if (
+            not cross["execution_contract_version"]
+            .astype(str)
+            .eq(EXECUTION_CONTRACT_VERSION)
+            .all()
+        ):
+            continue
+        market_as_of = pd.to_datetime(cross["market_as_of_date"], errors="coerce")
+        if market_as_of.isna().any() or len(market_as_of.unique()) != 1:
+            continue
+        if pd.Timestamp(market_as_of.iloc[0]) != pd.Timestamp(decision_date):
+            continue
+        entry = pd.to_datetime(cross["entry_date"], errors="coerce")
+        exit_ = pd.to_datetime(cross["execution_exit_date"], errors="coerce")
+        if entry.isna().any() or exit_.isna().any():
+            continue
+        entry_values = entry.unique()
+        exit_values = exit_.unique()
+        if len(entry_values) != 1 or len(exit_values) != 1:
+            continue
+        if (
+            pd.Timestamp(entry_values[0]) in valid_open_dates
+            and pd.Timestamp(exit_values[0]) in valid_close_dates
+        ):
+            available += 1
+
+    complete = total > 0 and available == total
+    return {
+        **base,
+        "available": complete,
+        "available_periods": available,
+        "coverage_ratio": float(available / total) if total else None,
+        "reason": None if complete else "incomplete_same_basis_coverage",
+    }
+
+
 def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
     cs_cfg = get_cross_section_config()
     model_cfg = get_model_runtime_config()
     macro_enabled: bool = bool(model_cfg.get("macro_features_enabled", True))
     label_horizon_days: int = int(cs_cfg["label_horizon_days"])
+    execution_contract = execution_contract_metadata()
 
     # --- Load macro panel (best-effort; None is tolerated by build_cs_panel) ---
     macro_panel = load_macro_panel()
     if macro_panel is None:
-        print("cs-retrain: no macro panel found; building panel on technical features only "
-              "(macro columns will be NaN).")
+        print(
+            "cs-retrain: no macro panel found; building panel on technical features only "
+            "(macro columns will be NaN)."
+        )
 
     # --- Build tickers_data: update + load each enabled ticker ---
     tickers_data = []
@@ -75,12 +212,16 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         try:
             update_data(code)
         except Exception as e:  # noqa: BLE001 — fetch failure must not abort
-            print(f"cs-retrain: update_data({code}) failed (ignored): {type(e).__name__}: {e}")
+            print(
+                f"cs-retrain: update_data({code}) failed (ignored): {type(e).__name__}: {e}"
+            )
 
         try:
             df = load_data(code)
         except Exception as e:  # noqa: BLE001
-            print(f"cs-retrain: load_data({code}) failed (ignored): {type(e).__name__}: {e}")
+            print(
+                f"cs-retrain: load_data({code}) failed (ignored): {type(e).__name__}: {e}"
+            )
             skipped += 1
             continue
 
@@ -90,8 +231,10 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
 
         tickers_data.append((ticker, df))
 
-    print(f"cs-retrain: {len(tickers_data)} tickers with usable data "
-          f"({skipped} skipped / insufficient).")
+    print(
+        f"cs-retrain: {len(tickers_data)} tickers with usable data "
+        f"({skipped} skipped / insufficient)."
+    )
 
     # --- Build labelled cross-sectional panel ---
     panel = build_cs_panel(
@@ -120,9 +263,11 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
     # --- Insufficient panel path: write available:false report, exit 0 ---
     if bundle is None:
         reason = info.get("reason", "training_failed")
-        print(f"cs-retrain: training returned no bundle — reason={reason} "
-              f"(rows={info.get('rows')}, dates={info.get('dates')}). "
-              f"Leaving existing artifacts untouched.")
+        print(
+            f"cs-retrain: training returned no bundle — reason={reason} "
+            f"(rows={info.get('rows')}, dates={info.get('dates')}). "
+            f"Leaving existing artifacts untouched."
+        )
         payload = {
             "available": False,
             "generated_at": now_jst_iso(),
@@ -130,6 +275,11 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
             "reason": reason,
             "info": info,
             "dry_run": dry_run,
+            "execution_contract": execution_contract,
+            "benchmark_coverage": {
+                "available": False,
+                "reason": "portfolio_backtest_not_run",
+            },
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
@@ -137,6 +287,14 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         )
         print(f"cs-retrain: quality report (available=false) written to {output_path}")
         return 0
+
+    _attach_oos_execution_provenance(bundle, panel)
+    bundle["execution_contract"] = execution_contract
+    artifact_benchmark_coverage = _oos_benchmark_coverage(
+        bundle.get("oos_predictions"),
+        macro_panel,
+    )
+    bundle["benchmark_coverage"] = artifact_benchmark_coverage
 
     # --- Resolve kind and build metadata ---
     objective: str = bundle["objective"]
@@ -156,6 +314,8 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         "objective": objective,
         "macro_enabled": bundle["macro_enabled"],
         "label_horizon_days": label_horizon_days,
+        "execution_contract": execution_contract,
+        "benchmark_coverage": artifact_benchmark_coverage,
     }
 
     generated_at = now_jst_iso()
@@ -172,6 +332,8 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         "feature_set": feature_cols,
         "metrics": bundle["metrics"],
         "fallback_reason": fallback_reason,
+        "execution_contract": execution_contract,
+        "benchmark_coverage": artifact_benchmark_coverage,
     }
 
     # --- Persist (skipped in dry-run) ---
@@ -203,6 +365,8 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                 "universe_size": universe_size,
                 "portfolio_enabled": True,
                 "generated_at": generated_at,
+                "execution_contract": execution_contract,
+                "benchmark_coverage": artifact_benchmark_coverage,
             },
         )
         print(f"cs-retrain: active CS model pointer updated to {version}.")
@@ -222,6 +386,8 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                             "lgb": "see src.cs_model._lgb_params",
                             "cs_config": cs_cfg,
                             "train_config": train_config,
+                            "execution_contract": execution_contract,
+                            "benchmark_coverage": artifact_benchmark_coverage,
                         },
                         cv_metrics=bundle["metrics"],
                         calibration=bundle["calibration"],
@@ -229,7 +395,9 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                         make_active=True,
                     )
                     db_registered = True
-                    print(f"cs-retrain: registered {version} in model_registry (active).")
+                    print(
+                        f"cs-retrain: registered {version} in model_registry (active)."
+                    )
                 finally:
                     conn.close()
             except Exception as e:  # noqa: BLE001 — never abort on DB error
@@ -247,6 +415,10 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
     # Build price_frames keyed by ticker code (= ticker_info["code"]) to match
     # the ticker column in bundle["oos_predictions"].
     portfolio_summary: dict | None = None
+    benchmark_coverage: dict = {
+        "available": False,
+        "reason": "portfolio_backtest_not_run",
+    }
     try:
         portfolio_cfg = get_portfolio_config()
         portfolio_cfg["top_n"] = cs_cfg.get("top_n", 8)
@@ -275,6 +447,7 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
             slippage_bps=float(portfolio_cfg.get("slippage_bps", 5.0)),
         )
         gate = evaluate_portfolio_kpi_gate(bt_result, portfolio_cfg)
+        benchmark_coverage = dict(bt_result.get("benchmark_coverage") or {})
         gate_summary = format_portfolio_gate_summary(gate)
         print(f"cs-retrain: portfolio backtest {gate_summary}")
 
@@ -301,7 +474,9 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
                 scope="portfolio",
             )
             if db_res.get("ok"):
-                print(f"cs-retrain: backtest_runs row inserted (id={db_res.get('run_id')}).")
+                print(
+                    f"cs-retrain: backtest_runs row inserted (id={db_res.get('run_id')})."
+                )
             else:
                 print(
                     f"cs-retrain: backtest DB persist skipped (ignored): "
@@ -320,12 +495,17 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
             "max_drawdown": m.get("max_drawdown"),
             "information_ratio": m.get("information_ratio"),
             "turnover": m.get("turnover"),
+            "execution_contract": bt_result.get("execution_contract"),
+            "benchmark_coverage": benchmark_coverage,
         }
 
     except Exception as e:  # noqa: BLE001 — backtest failure must never abort retrain
+        benchmark_coverage = {
+            "available": False,
+            "reason": "portfolio_backtest_failed",
+        }
         print(
-            f"cs-retrain: portfolio backtest failed (ignored): "
-            f"{type(e).__name__}: {e}"
+            f"cs-retrain: portfolio backtest failed (ignored): {type(e).__name__}: {e}"
         )
 
     # --- Write quality report ---
@@ -340,6 +520,8 @@ def run_retrain(output_path: Path, version: str, *, dry_run: bool) -> int:
         "db_registered": db_registered,
         "metrics": bundle["metrics"],
         "fallback_reason": fallback_reason,
+        "execution_contract": execution_contract,
+        "benchmark_coverage": benchmark_coverage,
         "portfolio_backtest": portfolio_summary,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
