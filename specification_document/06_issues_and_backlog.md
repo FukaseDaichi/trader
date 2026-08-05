@@ -19,7 +19,7 @@
 | execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
 | Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
 | Phase 1個別KPI gate | independent cohort gate（metrics schema v3）をremoteへ反映済み。2026-08-01の週次再学習が`per-ticker-v1-20260801T090258-76bcfb375e42-9b960e8b`を生成。`data/outbox/`はディレクトリ自体が無く、registry eventの滞留なし。本番2026-07-31時点で50銘柄中7銘柄がgate通過、actionable 7件（MILD_BUY 6・MILD_SELL 1） | コード・artifact・観測は本番稼働。残るのは5営業日観測の完了（2026-08-03、08-04）のみ |
-| drift | 50銘柄すべて`warning`（実績サンプル不足）。`breached=false` | 初期状態として正常だが、4週間後も増えなければ品質調査が必要 |
+| drift | 50銘柄すべて`warning`（実績サンプル不足）。`breached=false` | 調査完了（2026-08-05）: 旧実装はactive `model_version`完全一致でoutcomeを数えており、週次バージョン更新×非HOLDのみ決済×5営業日ラグの掛け算で`n_outcomes`が構造的に常時0（全履歴で0を確認）。model lineage（`model_registry.kind`）でプールする方式へ修正済み（`db.fetch_prediction_outcomes_for_kind`、`drift_report.outcome_scope`で判別可）。修正後は46 outcomes/16銘柄を観測。ただし非HOLDシグナルが少ないため`min_outcomes=30`/銘柄への到達はなお時間を要する。今後サンプルは単調増加するので、増えない場合のみ再調査 |
 | Phase 2レポート | 公式`docs/portfolio_backtest.json`が2026-08-01に`cs-v1-20260801`で再生成され、`benchmark_coverage.coverage_ratio=1.0`（35/35期間）。`information_ratio=-0.3905`、`alpha=0.0364`、`beta=0.3846`、`tracking_error=0.1210`、`turnover=0.9205`、`gate.failures=["ir<0.00","turnover>0.40"]` | `ir_unavailable_same_basis`は解消。公式artifactで初めてIRが測れた結果、**IRは負**。Phase 2を育てるか畳むかの判断材料が揃った（下記「Phase 2の継続判断」） |
 | Phase 2 shadow report | 2026-08-01時点で`shadow_days=19`、`n_paired_dates=19`、`n_paired_records=54`、`cs_ic_vs_phase1=-0.2404`、`active_ready=false` | 維持する |
 | TOPIX benchmark | `topix_open`をマクロパネルに実装済み・本番反映済み | active化のP0制約から除外。以後は評価対象の指標として扱う |

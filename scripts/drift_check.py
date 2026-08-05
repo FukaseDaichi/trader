@@ -76,7 +76,16 @@ def _write(payload: dict) -> None:
     print(f"Drift report written to {DRIFT_REPORT_FILE}")
 
 
-def _db_outcomes_by_ticker(model_version: str, horizon: int) -> dict[str, list[dict]]:
+def _db_outcomes_by_ticker(
+    model_version: str, model_kind: str | None, horizon: int
+) -> dict[str, list[dict]]:
+    """
+    Pool settled outcomes across the whole model lineage (registry kind) when
+    the active model declares one. Weekly retrains rotate model_version faster
+    than 5-session outcomes settle, so an exact-version filter never reaches
+    min_outcomes; versions of one kind share the training recipe, keeping the
+    pooled metrics comparable. Without a kind, fall back to the exact version.
+    """
     if not db.db_enabled():
         return {}
     try:
@@ -85,7 +94,10 @@ def _db_outcomes_by_ticker(model_version: str, horizon: int) -> dict[str, list[d
         print(f"drift: DB unreachable ({type(exc).__name__}); IC/Brier skipped.")
         return {}
     try:
-        rows = db.fetch_prediction_outcomes(conn, model_version, horizon)
+        if model_kind:
+            rows = db.fetch_prediction_outcomes_for_kind(conn, model_kind, horizon)
+        else:
+            rows = db.fetch_prediction_outcomes(conn, model_version, horizon)
     except Exception as exc:  # noqa: BLE001
         print(f"drift: outcome fetch failed (ignored): {type(exc).__name__}: {exc}")
         rows = []
@@ -181,7 +193,8 @@ def main() -> int:
         )
     )
     horizon = active.get("horizon_days") or effective_horizon(label_cfg)
-    outcomes_by_ticker = _db_outcomes_by_ticker(version, horizon)
+    model_kind = active.get("kind")
+    outcomes_by_ticker = _db_outcomes_by_ticker(version, model_kind, horizon)
     macro_panel = load_macro_panel()
 
     by_ticker: dict[str, dict] = {}
@@ -263,6 +276,11 @@ def main() -> int:
         "as_of": args.as_of,
         "model_version": version,
         "horizon_days": horizon,
+        "outcome_scope": (
+            {"pooled_by": "model_kind", "model_kind": model_kind}
+            if model_kind
+            else {"pooled_by": "model_version", "model_version": version}
+        ),
         "thresholds": thresholds,
         "summary": {
             "tickers": len(by_ticker),
