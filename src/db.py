@@ -1193,6 +1193,43 @@ def fetch_prediction_outcomes(
         return cur.fetchall()
 
 
+def fetch_prediction_outcomes_for_kind(
+    conn, model_kind: str, horizon_days: int
+) -> list[dict]:
+    """
+    Outcomes pooled across every model version of one lineage (registry kind).
+
+    Weekly retrains rotate ``model_version`` faster than 5-session outcomes can
+    settle, so a per-version filter never accumulates a drift sample. Versions
+    of the same kind share the training recipe and feature semantics, which
+    keeps pooled IC/hit-rate comparable; the registry join also excludes the
+    legacy version (never registered under this kind) and ``cs_rank IS NULL``
+    keeps cross-sectional predictions out even if a kind ever collided.
+    """
+    from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
+            " FROM signals s"
+            " JOIN predictions p ON p.id = s.prediction_id"
+            " JOIN model_registry mr ON mr.version = p.model_version"
+            " JOIN signal_outcomes o ON o.signal_id = s.id"
+            "  AND o.horizon_days = %(horizon)s"
+            "  AND o.contract_version = %(contract)s"
+            " WHERE mr.kind = %(kind)s"
+            "  AND p.cs_rank IS NULL"
+            "  AND p.horizon_days = %(horizon)s",
+            {
+                "horizon": horizon_days,
+                "kind": model_kind,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
+        )
+        return cur.fetchall()
+
+
 def _is_phase1_prediction_row(row: dict) -> bool:
     """Return True only for per-ticker predictions used by Phase 1 signals."""
     if row.get("cs_rank") is not None:

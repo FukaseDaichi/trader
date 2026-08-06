@@ -58,6 +58,65 @@ def test_metric_threshold_breach_requires_sufficient_outcomes():
     assert breach_reasons == []
 
 
+def test_outcomes_pool_across_lineage_when_kind_available():
+    calls = []
+
+    class FakeConn:
+        def close(self):
+            return None
+
+    def fake_fetch_for_kind(conn, model_kind, horizon):
+        calls.append((model_kind, horizon))
+        return [
+            {"ticker": "7011.JP", "prob_up": 0.7, "realized_ret": 0.02, "hit": True},
+            {"ticker": "7011.JP", "prob_up": 0.4, "realized_ret": -0.01, "hit": False},
+            {"ticker": "6501.JP", "prob_up": 0.6, "realized_ret": 0.01, "hit": True},
+        ]
+
+    with (
+        mock.patch.object(drift_check.db, "db_enabled", return_value=True),
+        mock.patch.object(drift_check.db, "connect", return_value=FakeConn()),
+        mock.patch.object(
+            drift_check.db,
+            "fetch_prediction_outcomes_for_kind",
+            side_effect=fake_fetch_for_kind,
+        ),
+    ):
+        by_ticker = drift_check._db_outcomes_by_ticker(
+            "per-ticker-v1-20260801T090258-x-y", "per_ticker_horizon_v1", 5
+        )
+
+    assert calls == [("per_ticker_horizon_v1", 5)]
+    assert sorted(by_ticker) == ["6501.JP", "7011.JP"]
+    assert len(by_ticker["7011.JP"]) == 2
+
+
+def test_outcomes_fall_back_to_exact_version_without_kind():
+    calls = []
+
+    class FakeConn:
+        def close(self):
+            return None
+
+    def fake_fetch_by_version(conn, model_version, horizon):
+        calls.append((model_version, horizon))
+        return []
+
+    with (
+        mock.patch.object(drift_check.db, "db_enabled", return_value=True),
+        mock.patch.object(drift_check.db, "connect", return_value=FakeConn()),
+        mock.patch.object(
+            drift_check.db,
+            "fetch_prediction_outcomes",
+            side_effect=fake_fetch_by_version,
+        ),
+    ):
+        by_ticker = drift_check._db_outcomes_by_ticker("some-version", None, 5)
+
+    assert calls == [("some-version", 5)]
+    assert by_ticker == {}
+
+
 def test_incompatible_active_model_is_reported_unavailable():
     payloads = []
     incompatibilities = [{"code": "active_manifest_integrity_failed"}]
@@ -96,6 +155,8 @@ ALL_TESTS = [
     test_psi_warning_is_not_breach_when_outcomes_insufficient,
     test_psi_warning_becomes_breach_when_outcomes_sufficient,
     test_metric_threshold_breach_requires_sufficient_outcomes,
+    test_outcomes_pool_across_lineage_when_kind_available,
+    test_outcomes_fall_back_to_exact_version_without_kind,
     test_incompatible_active_model_is_reported_unavailable,
 ]
 

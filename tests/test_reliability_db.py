@@ -287,6 +287,41 @@ def test_drift_outcomes_use_signal_prediction_and_current_execution_contract():
     assert rows[0]["ticker"] == "7011.JP"
 
 
+def test_drift_outcomes_pool_across_model_lineage_by_kind():
+    # Weekly retrains rotate model_version, so pooling must key on the
+    # registry kind (lineage) — not the exact active version — while still
+    # excluding cross-sectional predictions and legacy versions.
+    cursor = FakeCursor(
+        [
+            {
+                "ticker": "7011.JP",
+                "prob_up": 0.7,
+                "raw_score": 0.4,
+                "realized_ret": 0.02,
+                "hit": True,
+            }
+        ]
+    )
+    rows = db.fetch_prediction_outcomes_for_kind(
+        FakeConn(cursor), db.PHASE1_MODEL_KIND, 5
+    )
+
+    sql, params = cursor.executed[0]
+    normalized = " ".join(sql.split()).lower()
+    assert "join predictions p on p.id = s.prediction_id" in normalized
+    assert "join model_registry mr on mr.version = p.model_version" in normalized
+    assert "mr.kind = %(kind)s" in normalized
+    assert "p.cs_rank is null" in normalized
+    assert "o.contract_version = %(contract)s" in normalized
+    assert "model_version = %(version)s" not in normalized
+    assert params == {
+        "horizon": 5,
+        "kind": db.PHASE1_MODEL_KIND,
+        "contract": EXECUTION_CONTRACT_VERSION,
+    }
+    assert rows[0]["ticker"] == "7011.JP"
+
+
 def test_link_prediction_ids_rejects_later_inserted_cs_prediction():
     # Reproduces the dangerous ordering: Phase 1 id=10, then CS id=11.
     inserted = [
@@ -512,6 +547,7 @@ ALL_TESTS = [
     test_missing_contract_fails_closed_to_one_model_version,
     test_fetch_query_uses_direct_prediction_link_not_active_model,
     test_drift_outcomes_use_signal_prediction_and_current_execution_contract,
+    test_drift_outcomes_pool_across_model_lineage_by_kind,
     test_link_prediction_ids_rejects_later_inserted_cs_prediction,
     test_outcome_detail_includes_and_normalizes_eval_date,
     test_upsert_outcome_persists_execution_contract_columns,
