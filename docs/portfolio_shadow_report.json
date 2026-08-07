@@ -1,9 +1,9 @@
 {
   "available": true,
-  "n_dates": 37,
-  "n_records": 1850,
-  "n_paired_dates": 19,
-  "n_paired_records": 54,
+  "n_dates": 42,
+  "n_records": 2100,
+  "n_paired_dates": 24,
+  "n_paired_records": 82,
   "date_coverage": {
     "observed_dates": [
       "2026-06-10",
@@ -42,7 +42,12 @@
       "2026-07-28",
       "2026-07-29",
       "2026-07-30",
-      "2026-07-31"
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07"
     ],
     "paired_dates": [
       "2026-06-15",
@@ -63,7 +68,12 @@
       "2026-07-07",
       "2026-07-13",
       "2026-07-15",
-      "2026-07-17"
+      "2026-07-17",
+      "2026-07-29",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-04"
     ],
     "excluded_dates": {
       "2026-06-10": [
@@ -138,17 +148,17 @@
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-07-29": [
+      "2026-08-05": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-07-30": [
+      "2026-08-06": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-07-31": [
+      "2026-08-07": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
@@ -156,42 +166,42 @@
     }
   },
   "top_n": 8,
-  "generated_at": "2026-08-01T09:23:04+09:00",
+  "generated_at": "2026-08-08T08:54:58+09:00",
   "window": {
-    "start": "2026-06-02",
-    "end": "2026-08-01",
+    "start": "2026-06-09",
+    "end": "2026-08-08",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20260801",
+  "model_version": "cs-v1-20260808",
   "comparison": {
     "phase1": {
-      "daily_ic": -0.07377928550760213,
-      "rank_ic": -0.1323308270676692,
-      "topn_realized_return": -0.006413914384310095,
-      "hit_rate": 0.46296296296296297,
+      "daily_ic": 0.015749046145049073,
+      "rank_ic": -0.09077380952380958,
+      "topn_realized_return": 0.003008094189238424,
+      "hit_rate": 0.5365853658536586,
       "max_drawdown": -0.2015863192143682,
       "turnover": null,
-      "n_dates_with_topn": 19
+      "n_dates_with_topn": 24
     },
     "phase2": {
-      "daily_ic": -0.31413004647832105,
-      "rank_ic": -0.32875319707443834,
-      "topn_realized_return": -0.006413914384310095,
-      "hit_rate": 0.46296296296296297,
+      "daily_ic": -0.17013519851940748,
+      "rank_ic": -0.17667771729025064,
+      "topn_realized_return": 0.003008094189238424,
+      "hit_rate": 0.5365853658536586,
       "max_drawdown": -0.2015863192143682,
       "turnover": 0.0,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.00802403864080077,
-        "mean_realized_ret": -0.0065053705436130165,
-        "bias": 0.014529409184413786,
-        "n": 54
+        "mean_expected_ret": 0.007268002335656554,
+        "mean_realized_ret": 0.010559125107446951,
+        "bias": -0.0032911227717903977,
+        "n": 82
       },
-      "n_dates_with_topn": 19
+      "n_dates_with_topn": 24
     },
     "delta": {
-      "daily_ic": -0.24035076097071892,
-      "rank_ic": -0.19642237000676915,
+      "daily_ic": -0.18588424466445655,
+      "rank_ic": -0.08590390776644106,
       "topn_realized_return": 0.0,
       "hit_rate": 0.0,
       "max_drawdown": 0.0
@@ -215,7 +225,8 @@
       "cs-v1-20260704",
       "cs-v1-20260711",
       "cs-v1-20260718",
-      "cs-v1-20260725"
+      "cs-v1-20260725",
+      "cs-v1-20260801"
     ],
     "snapshot_model_version_by_date": {
       "2026-06-15": "cs-v1-20260613",
@@ -251,18 +262,23 @@
       "2026-07-28": "cs-v1-20260725",
       "2026-07-29": "cs-v1-20260725",
       "2026-07-30": "cs-v1-20260725",
-      "2026-07-31": "cs-v1-20260725"
+      "2026-07-31": "cs-v1-20260725",
+      "2026-08-03": "cs-v1-20260801",
+      "2026-08-04": "cs-v1-20260801",
+      "2026-08-05": "cs-v1-20260801",
+      "2026-08-06": "cs-v1-20260801",
+      "2026-08-07": "cs-v1-20260801"
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 19,
+    "shadow_days": 24,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": -0.24035076097071892,
+    "cs_ic_vs_phase1": -0.18588424466445655,
     "reasons": [
       "portfolio_gate not passed",
-      "cs_ic_vs_phase1 -0.2404 < -0.005"
+      "cs_ic_vs_phase1 -0.1859 < -0.005"
     ]
   }
 }
