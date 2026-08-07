@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-08-06 07:17:23",
-  "as_of": "2026-08-06",
+  "generated_at": "2026-08-07 10:02:55",
+  "as_of": "2026-08-07",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 87
+      "next_session_open_to_close_v2": 102
     },
-    "included_rows": 87,
+    "included_rows": 102,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,7 +29,7 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 31,
+    "eligible_cohorts": 33,
     "selected_cohorts": 9,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
@@ -208,8 +208,8 @@
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.5471698113207547,
-    "avg_return_20d": 0.01640570247293623,
+    "hit_rate_20d": 0.6551724137931034,
+    "avg_return_20d": 0.022904934142416324,
     "excess_return_20d": null,
     "sharpe_60d": -2.4504789192963194,
     "sharpe_observations": 9,
@@ -220,7 +220,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.2977610923742934,
+    "brier": 0.28768932915512985,
     "bins": [
       {
         "bin_low": 0.0,
@@ -232,9 +232,9 @@
       {
         "bin_low": 0.1,
         "bin_high": 0.2,
-        "mean_prob": 0.12399355877616747,
-        "frac_up": 0.6666666666666666,
-        "count": 3
+        "mean_prob": 0.1398701690821256,
+        "frac_up": 0.75,
+        "count": 4
       },
       {
         "bin_low": 0.2,
@@ -260,16 +260,16 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.5760964511613635,
-        "frac_up": 0.6176470588235294,
-        "count": 34
+        "mean_prob": 0.5759624611090264,
+        "frac_up": 0.627906976744186,
+        "count": 43
       },
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.6380134375807988,
-        "frac_up": 0.36,
-        "count": 25
+        "mean_prob": 0.633839140260134,
+        "frac_up": 0.41379310344827586,
+        "count": 29
       },
       {
         "bin_low": 0.7000000000000001,
@@ -281,9 +281,9 @@
       {
         "bin_low": 0.8,
         "bin_high": 0.9,
-        "mean_prob": 0.8566124043817968,
-        "frac_up": 0.5,
-        "count": 2
+        "mean_prob": 0.8377416029211978,
+        "frac_up": 0.6666666666666666,
+        "count": 3
       },
       {
         "bin_low": 0.9,
@@ -296,9 +296,9 @@
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 87,
-      "observation_count": 70,
-      "linked_prediction_count": 70,
+      "candidate_signal_count": 102,
+      "observation_count": 85,
+      "linked_prediction_count": 85,
       "conviction_fallback_count": 0,
       "excluded_count": 17,
       "exclusions": {
@@ -328,11 +328,15 @@
         },
         {
           "model_version": "per-ticker-v1-20260729T053212-48f737a8b19b-79c270de",
-          "count": 13
+          "count": 20
+        },
+        {
+          "model_version": "per-ticker-v1-20260801T090258-76bcfb375e42-9b960e8b",
+          "count": 8
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-07-30",
+      "last_entry_date": "2026-08-03",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
