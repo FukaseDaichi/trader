@@ -28,6 +28,13 @@ ENTRY_PRICE_BASIS = "next_session_open"
 EXIT_PRICE_BASIS = "horizon_session_close"
 BENCHMARK_BASIS = "unavailable_same_basis"
 
+# The basis actually achieved when a same-basis benchmark IS computable.
+# Deliberately NOT the default in execution_contract_metadata(): that dict is
+# hashed into the Phase 1 gate contract, so changing it invalidates every saved
+# model bundle.  Consumers that hold a real benchmark override the exported
+# "benchmark_basis" with this value (see src/portfolio_backtest.py).
+SAME_BASIS_BENCHMARK = f"{ENTRY_PRICE_BASIS}_to_{EXIT_PRICE_BASIS}"
+
 
 def execution_contract_metadata(
     *, cost_bps: float | None = None, slippage_bps: float | None = None

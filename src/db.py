@@ -967,18 +967,17 @@ def fetch_outcome_rows(conn) -> list[dict]:
 
 
 def fetch_outcomes_missing_benchmark(conn) -> list[dict]:
-    """Legacy settled rows that still need a comparable benchmark return."""
+    """Contract-v2 settled rows whose same-basis benchmark is still NULL."""
     from psycopg.rows import dict_row
-    from .execution import LEGACY_EXECUTION_CONTRACT_VERSION
+    from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret,"
-            " contract_version"
+            "SELECT signal_id, horizon_days, entry_date, eval_date, realized_ret"
             " FROM signal_outcomes"
             " WHERE benchmark_ret IS NULL AND realized_ret IS NOT NULL"
             "   AND contract_version = %s",
-            (LEGACY_EXECUTION_CONTRACT_VERSION,),
+            (EXECUTION_CONTRACT_VERSION,),
         )
         rows = cur.fetchall()
     for r in rows:
@@ -995,13 +994,15 @@ def update_outcome_benchmark(
     horizon_days: int,
     benchmark_ret: float | None,
     excess_ret: float | None,
+    benchmark_basis: str,
 ) -> None:
-    """Idempotently write benchmark_ret/excess_ret for one settled outcome row."""
+    """Idempotently write benchmark_ret/excess_ret/basis for one settled row."""
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE signal_outcomes SET benchmark_ret=%s, excess_ret=%s"
+            "UPDATE signal_outcomes"
+            " SET benchmark_ret=%s, excess_ret=%s, benchmark_basis=%s"
             " WHERE signal_id=%s AND horizon_days=%s",
-            (benchmark_ret, excess_ret, signal_id, horizon_days),
+            (benchmark_ret, excess_ret, benchmark_basis, signal_id, horizon_days),
         )
     conn.commit()
 
