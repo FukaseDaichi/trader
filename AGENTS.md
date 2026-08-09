@@ -182,8 +182,10 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   (`active_readiness` in `docs/portfolio_shadow_report.json`). Shadow behavior
   must remain byte-for-byte unchanged. Active also requires current v2,
   net-vs-net accounting, complete same-basis benchmark coverage, and an exact
-  CS model-version match between the backtest and today's snapshot. Current
-  macro data has no TOPIX open, so active intentionally remains fail-closed.
+  CS model-version match between the backtest and today's snapshot. Same-basis
+  benchmark coverage is already complete; the portfolio KPI gate currently
+  fails on `ir<0.00` and `turnover>0.40`, and `cs_ic_vs_phase1` is negative, so
+  active intentionally remains fail-closed for now.
 - `daily-publish-dashboard.yml` rsyncs `web/out/` over `docs/` with
   `--delete`. **Any new data file under `docs/` must be added to that
   workflow's `--exclude` list**, or the next publish deletes it
