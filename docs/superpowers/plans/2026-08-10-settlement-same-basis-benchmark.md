@@ -14,6 +14,7 @@
 - The daily settlement run must never break: macro panel missing/corrupt → benchmark stays NULL, settlement continues (existing degradation pattern with a printed reason).
 - Benchmark contract: `benchmark_ret = topix_close[eval_date] / topix_open[entry_date] − 1`, gross (costs are deducted export-side for both strategy and benchmark). `excess_ret = realized_ret − benchmark_ret`.
 - Dates match exactly; never forward-fill `topix_open` (contract in `specification_document/05_cross_cutting.md`).
+- **Both benchmark dicts are built only from panel rows where `topix_open` AND `topix` are present and positive.** `src/macro.py:353` forward-fills close columns but deliberately never fills opens, so a date carrying a genuine `topix_open` is provably a date the instrument actually traded — and its close from the same source row is genuine too. Keying both dicts off that rule is what stops a stale forward-filled close from becoming an exit price. This mirrors `src/portfolio_backtest.py::_topix_panel` (line 182) exactly, so settlement and the Phase 2 backtest cannot drift apart. Do NOT build the close dict from the `topix` column alone.
 - New basis label: `"next_session_open_to_horizon_session_close"` (identical string to the Phase 2 backtest's `required_basis`). Degraded label stays `"unavailable_same_basis"`.
 - Per-row `benchmark_basis` carries the same-basis label ONLY when a value was computed; otherwise `"unavailable_same_basis"` (the frontend blocks the whole comparison table if any row has an `unavailable*` basis, so this is deliberate fail-closed behavior).
 - Tests are plain Python scripts run with `uv run python tests/test_<name>.py` — keep the existing `ALL_TESTS` + `main()` pattern.
@@ -174,6 +175,33 @@ Replace the three trailing benchmark assertions with:
     assert captured[0][2]["benchmark_basis"] == BENCHMARK_BASIS_UNAVAILABLE
 ```
 
+4. Add a loader test locking the forward-fill guard (register it in `ALL_TESTS`). `src/macro.py` forward-fills `topix` but never `topix_open`, so a date whose open is NaN carries a stale carried-forward close that must never become an exit price:
+
+```python
+def test_loader_excludes_dates_whose_open_is_missing():
+    # 2026-01-14 has a forward-filled close but no genuine open -> excluded
+    # from BOTH dicts, so it can never supply an entry or an exit price.
+    panel = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-01-13", "2026-01-14", "2026-01-15"]),
+            "topix_open": [2000.0, float("nan"), 2050.0],
+            "topix": [2010.0, 2010.0, 2070.0],
+        }
+    )
+    original_read = settle_outcomes.pd.read_parquet
+    try:
+        settle_outcomes.pd.read_parquet = lambda path: panel.copy()
+        opens, closes = settle_outcomes._load_topix_by_date()
+    finally:
+        settle_outcomes.pd.read_parquet = original_read
+
+    assert sorted(opens) == ["2026-01-13", "2026-01-15"]
+    assert sorted(closes) == ["2026-01-13", "2026-01-15"]
+    assert "2026-01-14" not in closes
+    assert opens["2026-01-13"] == 2000.0
+    assert closes["2026-01-15"] == 2070.0
+```
+
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `uv run python tests/test_settle_outcomes.py`
@@ -212,9 +240,15 @@ and benchmark_basis=unavailable_same_basis when either level is missing.
 def _load_topix_by_date() -> tuple[dict[str, float], dict[str, float]]:
     """Return ({date: topix_open}, {date: topix_close}) from the macro panel.
 
-    Degrades to empty dicts (benchmark stays NULL) on any read problem; the
-    topix_open column is never forward-filled upstream, so exact-date lookups
-    are the contract here too.
+    Both dicts are keyed only on dates where topix_open AND topix are present
+    and positive.  src/macro.py forward-fills close columns but never opens, so
+    a genuine open proves the instrument traded that date and its close from the
+    same source row is genuine too; keying both sides off that rule keeps a
+    stale forward-filled close from becoming an exit price.  Same rule as
+    src/portfolio_backtest.py::_topix_panel, so settlement and the Phase 2
+    backtest measure the identical basis.
+
+    Degrades to empty dicts (benchmark stays NULL) on any read problem.
     """
     macro_path = ROOT / "data" / "macro" / "macro_panel.parquet"
     try:
@@ -226,22 +260,28 @@ def _load_topix_by_date() -> tuple[dict[str, float], dict[str, float]]:
         print(f"macro_panel.parquet read error (benchmark stays NULL): {exc}")
         return {}, {}
 
-    def _column_by_date(col: str) -> dict[str, float]:
-        if col not in df.columns:
-            print(f"macro_panel.parquet has no {col} column; benchmark stays NULL")
-            return {}
-        sub = df[["date", col]].dropna(subset=[col])
-        return {
-            d[:10]: float(v)
-            for d, v in zip(
-                pd.to_datetime(sub["date"]).dt.strftime("%Y-%m-%d"), sub[col]
-            )
-        }
+    required = {"date", "topix_open", "topix"}
+    if not required.issubset(df.columns):
+        print(
+            "macro_panel.parquet lacks same-basis benchmark columns "
+            f"{sorted(required.difference(df.columns))}; benchmark stays NULL"
+        )
+        return {}, {}
 
-    opens = _column_by_date("topix_open")
-    closes = _column_by_date("topix")
-    if not opens or not closes:
-        print("macro_panel.parquet benchmark columns incomplete; coverage degraded")
+    tp = df[["date", "topix_open", "topix"]].copy()
+    tp["date"] = pd.to_datetime(tp["date"], errors="coerce")
+    tp["topix_open"] = pd.to_numeric(tp["topix_open"], errors="coerce")
+    tp["topix"] = pd.to_numeric(tp["topix"], errors="coerce")
+    tp = tp.dropna(subset=["date", "topix_open", "topix"])
+    tp = tp[(tp["topix_open"] > 0) & (tp["topix"] > 0)]
+    tp = tp.drop_duplicates(subset="date", keep="last")
+    if tp.empty:
+        print("macro_panel.parquet has no same-basis TOPIX rows; benchmark stays NULL")
+        return {}, {}
+
+    keys = pd.to_datetime(tp["date"]).dt.strftime("%Y-%m-%d")
+    opens = {d: float(v) for d, v in zip(keys, tp["topix_open"])}
+    closes = {d: float(v) for d, v in zip(keys, tp["topix"])}
     return opens, closes
 ```
 
