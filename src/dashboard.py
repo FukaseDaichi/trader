@@ -685,7 +685,9 @@ def export_signal_outcomes_recent():
             payload = {
                 "available": True,
                 "generated_at": now_str,
-                "execution_contract": execution_contract_metadata(),
+                "execution_contract": performance.recent_outcomes_execution_contract(
+                    recent
+                ),
                 "contract_coverage": _outcome_contract_coverage(rows),
                 "rows": recent,
             }

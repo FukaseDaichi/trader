@@ -21,8 +21,13 @@ from src.performance import (  # noqa: E402
     build_reliability,
     build_recent_outcomes,
     build_performance_detail,
+    recent_outcomes_execution_contract,
 )
-from src.execution import EXECUTION_CONTRACT_VERSION  # noqa: E402
+from src.execution import (  # noqa: E402
+    BENCHMARK_BASIS,
+    EXECUTION_CONTRACT_VERSION,
+    SAME_BASIS_BENCHMARK,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +660,66 @@ def test_build_performance_detail_with_data():
     assert result["reliability"]["brier"] is not None
 
 
+# ---------------------------------------------------------------------------
+# execution_contract benchmark_basis override (declared only on real coverage)
+# ---------------------------------------------------------------------------
+
+
+def test_performance_detail_declares_same_basis_when_coverage_complete():
+    """Every selected cohort has a benchmark -> the detail export declares the
+    achieved basis instead of the fail-closed default."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "BUY", 5, -0.01, benchmark_ret=0.00),
+        _row("2026-05-03", "BUY", 5, 0.03, benchmark_ret=0.02),
+    ]
+    result = build_performance_detail(rows, [], horizon=5, history_days=180, n_bins=5)
+    assert result["benchmark_coverage"]["available"] is True
+    assert result["execution_contract"]["benchmark_basis"] == SAME_BASIS_BENCHMARK
+
+
+def test_performance_detail_stays_fail_closed_when_one_cohort_missing_benchmark():
+    """A single cohort without a same-basis benchmark keeps the whole detail
+    export fail-closed, never a partial declaration."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "BUY", 5, -0.01, benchmark_ret=None),
+        _row("2026-05-03", "BUY", 5, 0.03, benchmark_ret=0.02),
+    ]
+    result = build_performance_detail(rows, [], horizon=5, history_days=180, n_bins=5)
+    assert result["benchmark_coverage"]["available"] is False
+    assert result["execution_contract"]["benchmark_basis"] == BENCHMARK_BASIS
+
+
+def test_recent_outcomes_contract_declares_same_basis_when_all_rows_covered():
+    """Every exported row carries a benchmark -> declare the achieved basis."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "SELL", 5, -0.01, benchmark_ret=0.00),
+    ]
+    recent = build_recent_outcomes(rows, limit=10)
+    contract = recent_outcomes_execution_contract(recent)
+    assert contract["benchmark_basis"] == SAME_BASIS_BENCHMARK
+
+
+def test_recent_outcomes_contract_fail_closed_when_one_row_missing_benchmark():
+    """One exported row without a benchmark keeps the fail-closed basis."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "SELL", 5, -0.01, benchmark_ret=None),
+    ]
+    recent = build_recent_outcomes(rows, limit=10)
+    contract = recent_outcomes_execution_contract(recent)
+    assert contract["benchmark_basis"] == BENCHMARK_BASIS
+
+
+def test_recent_outcomes_contract_empty_rows_is_not_complete():
+    """An empty row list means nothing was measured, not that coverage is
+    complete -- it must never be treated as a bare-row-count pass."""
+    contract = recent_outcomes_execution_contract([])
+    assert contract["benchmark_basis"] == BENCHMARK_BASIS
+
+
 ALL_TESTS = [
     test_equity_curves_basic_strategy_and_benchmark,
     test_equity_curve_deducts_entry_and_exit_costs,
@@ -695,6 +760,11 @@ ALL_TESTS = [
     test_build_performance_detail_structure_on_empty,
     test_build_performance_detail_keys_present,
     test_build_performance_detail_with_data,
+    test_performance_detail_declares_same_basis_when_coverage_complete,
+    test_performance_detail_stays_fail_closed_when_one_cohort_missing_benchmark,
+    test_recent_outcomes_contract_declares_same_basis_when_all_rows_covered,
+    test_recent_outcomes_contract_fail_closed_when_one_row_missing_benchmark,
+    test_recent_outcomes_contract_empty_rows_is_not_complete,
 ]
 
 
