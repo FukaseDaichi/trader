@@ -71,7 +71,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 | `universe_snapshots` | ユニバース選定履歴 |
 | `schema_migrations` | migration 適用履歴 |
 
-日付契約: `run_date`はworkflow実行日、`as_of_date` / `market_as_of_date`は予測に使った最後の市場日、`entry_date`はその次に実在する市場行（最初に売買可能な営業日）、`eval_date`はentryを1日目としたH営業日目。`next_session_open_to_close_v2`の価格基準はentry日のopen→eval日のcloseである。migration 0004は既存行を`close_to_close_v1`と明示し、再決済でv2へ置換する。v2のTOPIXは同じentry openがないためbenchmarkをNULLとし、欠損を0や1倍として補完しない。書き込みはwrite-through + outboxフォールバックで、**DBの状態が日次シグナル生成に影響することはありません**。
+日付契約: `run_date`はworkflow実行日、`as_of_date` / `market_as_of_date`は予測に使った最後の市場日、`entry_date`はその次に実在する市場行（最初に売買可能な営業日）、`eval_date`はentryを1日目としたH営業日目。`next_session_open_to_close_v2`の価格基準はentry日のopen→eval日のcloseである。migration 0004は既存行を`close_to_close_v1`と明示し、再決済でv2へ置換する。v2のTOPIX benchmarkはentry日の`topix_open`→eval日の`topix`終値という同一basis・日付完全一致のみを対象とし、前日埋めはしない。欠損時はbenchmarkをNULLのまま保持し、0や1倍として補完しない。書き込みはwrite-through + outboxフォールバックで、**DBの状態が日次シグナル生成に影響することはありません**。
 
 ## `docs/` 配下の JSON 契約
 
@@ -156,7 +156,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 }
 ```
 
-`equity_curve` はentry/eval期間が重ならないcohortだけを全資本で逐次運用した系列で、毎日の重複H日リターンを直接複利しない。戦略と比較可能なTOPIXの両方から、KPIバックテストと同じ片道cost+slippageをentry/exitの両側で控除する（raw値は `gross_period_return` / `gross_benchmark_return` に保持）。`eval_date` が無い、またはentryより前で不正な互換入力はH個ごとのstrideへ縮退し、`fallback_reason`を出す。hit rate・平均H日return等は重複サンプルを許すコスト前シグナル品質指標であり、資産曲線とは分離する。60日Sharpeだけは資産曲線と同じ非重複・コスト後cohort系列を使う。v2のTOPIX同基準benchmarkは現在取得不能なため `benchmark: null` とcoverage理由を出し、欠損を1.0で持ち回らない。reliabilityは`signals.prediction_id`へ直接紐付くPhase 1確率を優先し、IDがないlegacy行だけconvictionへfallbackする。互換契約内でversion横断し、provenanceにsource別件数・model versions・fallback・除外理由を持つ。DB不通・サンプル不足の`available: false`成果物にも、現行`execution_contract`・`accounting_method`・benchmark coverageを残す。
+`equity_curve` はentry/eval期間が重ならないcohortだけを全資本で逐次運用した系列で、毎日の重複H日リターンを直接複利しない。戦略と比較可能なTOPIXの両方から、KPIバックテストと同じ片道cost+slippageをentry/exitの両側で控除する（raw値は `gross_period_return` / `gross_benchmark_return` に保持）。`eval_date` が無い、またはentryより前で不正な互換入力はH個ごとのstrideへ縮退し、`fallback_reason`を出す。hit rate・平均H日return等は重複サンプルを許すコスト前シグナル品質指標であり、資産曲線とは分離する。60日Sharpeだけは資産曲線と同じ非重複・コスト後cohort系列を使う。v2のTOPIX同基準benchmarkは実データが欠損しているcohort（同一basisの`topix_open`/`topix`が両方揃わない日）だけ `benchmark: null` とcoverage理由を出し、欠損を1.0で持ち回らない。reliabilityは`signals.prediction_id`へ直接紐付くPhase 1確率を優先し、IDがないlegacy行だけconvictionへfallbackする。互換契約内でversion横断し、provenanceにsource別件数・model versions・fallback・除外理由を持つ。DB不通・サンプル不足の`available: false`成果物にも、現行`execution_contract`・`accounting_method`・benchmark coverageを残す。
 
 ## `reports/weekly_YYYY-MM-DD.md`
 

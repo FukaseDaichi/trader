@@ -29,11 +29,11 @@
 
 1. `scripts/update_macro_snapshots.py --as-of <today>`: マクロ系列取得 → `data/macro/macro_panel.parquet` 更新 + `macro_snapshots` upsert（失敗しても続行）
 2. `main.py`: 日次シグナル + Phase 2 snapshot + 通知 + DB write-through + ダッシュボード出力。`DATABASE_URL` / LINE secrets / `TRADER_PORTFOLIO_*` などの env はこのステップに集約
-3. `scripts/settle_outcomes.py --as-of <today> --refill-benchmark`: 翌営業日寄付き→1/5/10営業日目終値の実現結果 + settle当日分の実績JSON再エクスポート（失敗はwarningで続行）。v2は同基準TOPIX寄付きが無いため比較不能を明示し、`--refill-benchmark` は旧 `close_to_close_v1` 行だけを冪等補填する
+3. `scripts/settle_outcomes.py --as-of <today> --refill-benchmark`: 翌営業日寄付き→1/5/10営業日目終値の実現結果 + settle当日分の実績JSON再エクスポート（失敗はwarningで続行）。決済時にマクロパネルの`topix_open`→`topix`で同一basis TOPIX benchmarkをインライン計算し、`--refill-benchmark` はv2の`benchmark_ret`未設定行を冪等補填する
 4. `scripts/drift_check.py --as-of <today> || true`: `main.py`と同じlabel/horizon/calibration/macro envでactive schema v3のruntime契約・manifestを検証してから`docs/drift_report.json`を出力。不整合は旧モデルを評価せずunavailableへfail-closeする
 5. `.github/scripts/commit-and-push.sh` で commit/push
 
-`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。当日分がなければ、マクロ更新 → core と同じ Phase 0/1/2/3 env で `main.py` → `settle_outcomes.py --refill-benchmark` を実行し、DB台帳・Phase 2 snapshot・実現結果まで同日中に回復させます。マクロ更新と決済は core と同様に best-effort で、失敗しても日次シグナル公開を止めません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
+`daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。当日分がなければ、マクロ更新 → core と同じ Phase 0/1/2/3 env で `main.py` → `settle_outcomes.py --refill-benchmark`（同一basis TOPIX benchmarkの冪等補填を含む）を実行し、DB台帳・Phase 2 snapshot・実現結果まで同日中に回復させます。マクロ更新と決済は core と同様に best-effort で、失敗しても日次シグナル公開を止めません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
 
 `daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加え、日次ループ内でHOLDへ縮退した銘柄処理失敗・outbox滞留/dead letter・ドリフトを検知し、失敗時に GitHub Issue を起票します。
 

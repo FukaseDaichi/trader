@@ -26,9 +26,12 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   with risk caps → `docs/portfolio_latest.json`. Shadow mode never alters
   Phase 1 signals or notifications.
 - **Phase 3 — manual-trading UX + hardening**: execution-contract-versioned
-  settlement and benchmark coverage (`benchmark_ret`/`excess_ret` stay NULL
-  since this settlement path does not yet consume the macro panel's
-  same-basis TOPIX open), a settle-day performance
+  settlement that computes a same-basis TOPIX benchmark inline from the macro
+  panel's `topix_open`/`topix` levels (entry-session open to eval-session
+  close), writing `benchmark_ret`/`excess_ret` on success and failing closed
+  to NULL + `benchmark_basis=unavailable_same_basis` only when a level is
+  missing (`--refill-benchmark` idempotently backfills such rows later), a
+  settle-day performance
   export (`docs/performance_detail.json` + `docs/signal_outcomes_recent.json`),
   a daily LINE digest and weekly performance summary (with bounded push retry),
   a `/performance` dashboard page (TOPIX shown only with complete same-basis

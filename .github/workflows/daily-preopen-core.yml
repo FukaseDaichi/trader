@@ -90,9 +90,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
-        # --refill-benchmark is idempotent for legacy v1 rows only. Contract-v2
-        # benchmark fields stay NULL until TOPIX open prices support the exact
-        # same entry/exit basis; active portfolio gating therefore fails closed.
+        # Settlement computes the same-basis TOPIX benchmark inline (entry-open
+        # to eval-close, from the macro panel's topix_open/topix levels).
+        # --refill-benchmark idempotently backfills any v2 rows whose
+        # benchmark_ret is still NULL because the panel lagged on settle day.
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Publish model drift report

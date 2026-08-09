@@ -134,7 +134,6 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 | --- | --- | --- |
 | `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.9205`。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | 2026-08-22の総合判定の必須項目。数値合わせのために緩めない |
 | `cs_ic_vs_phase1`の改善 | Phase 2のCS ICがPhase 1を下回る（`-0.2404`）。特徴量・ラベル・学習設計の見直しが必要 | 改善見込みが立たない場合はPhase 2縮小の判断材料 |
-| 決済側の同一basis benchmark | `scripts/settle_outcomes.py` / `db_records.compute_benchmark_ret()`は今もclose-to-closeのみで、v2の`benchmark_ret`/`excess_ret`はNULL・`benchmark_basis=unavailable_same_basis`。マクロパネルに`topix_open`が入ったので、翌営業日寄付き→H営業日目終値の同一basis benchmarkを決済側でも計算できる | データ側のブロッカーは解消済み。着手すれば`performance_summary.json`の`benchmark`もnullでなくなる |
 
 ### 観察中（条件が揃ったら判断）
 
