@@ -24,13 +24,16 @@ Phase 2バックテストと同じ「翌営業日寄付き→H営業日目終値
 - 仕様書（`01_backend_python.md` / `03_cicd_workflows.md` / `04_scripts.md` /
   `05_cross_cutting.md` / `06_issues_and_backlog.md`）
 
+- `src/performance.py` — coverage完全時だけ、出力する`execution_contract`の
+  `benchmark_basis`を`SAME_BASIS_BENCHMARK`で上書きする。これをしないと
+  フロントが宣言値を見て比較列を隠し続けるため、数値がDBに入っても表示されない。
+
 無変更（確認済み）:
 
-- `src/performance.py` — v2契約行のみ集計するため、`benchmark_ret`が埋まれば
-  自動でcoverage/equity比較が有効化される。
-- フロントエンド `web/src/components/PerformanceDetail.tsx` — 行の
-  `benchmark_basis`が`unavailable`系でなく`close_to_close_v1`でもない行が
-  揃ったときだけTOPIX列を表示する実装済みロジックをそのまま使う。
+- `src/portfolio_backtest.py` — Phase 2 shadowはbyte-for-byte不変。
+- フロントエンド `web/src/components/PerformanceDetail.tsx` — 宣言basisと全行の
+  `benchmark_basis`が揃ったときだけTOPIX列を表示する実装済みロジックをそのまま使う
+  （揃うまではfail-closedで非表示、という穏当な挙動）。
 - 旧v1（`close_to_close_v1`）のclose-to-close補填は**削除**する（ユーザー了承）。
   v1行は通常運転がv2未決済として段階的に再決済する既存経路で置換される。
 
@@ -48,10 +51,15 @@ Phase 2バックテストと同じ「翌営業日寄付き→H営業日目終値
 
 ### `src/execution.py`
 
-- `BENCHMARK_BASIS = "next_session_open_to_horizon_session_close"` へ変更
-  （Phase 2バックテストの`required_basis`と同一文字列）。
-- 縮退用に `BENCHMARK_BASIS_UNAVAILABLE = "unavailable_same_basis"` を追加。
-- `execution_contract_metadata()`の`benchmark_basis`は新しい`BENCHMARK_BASIS`を返す。
+- **`BENCHMARK_BASIS`は変更しない**（`"unavailable_same_basis"`のまま）。この定数は
+  `execution_contract_metadata()`経由で`model_store.build_phase1_gate_contract()`の
+  `gate_contract_sha256`に入っており、変更すると保存済み`active_model.json`との
+  厳密一致比較が落ちて全銘柄がephemeral fallbackへ縮退する（実測確認済み:
+  `0f5300ca…e2f0` → `bbb3f965…c218ac`）。
+- 追加のみ: `SAME_BASIS_BENCHMARK = f"{ENTRY_PRICE_BASIS}_to_{EXIT_PRICE_BASIS}"`。
+  実際にbenchmarkを計算できた消費側が、自分の出力dictの`benchmark_basis`を
+  この値で上書きする。これは`src/portfolio_backtest.py:358-361`が既に採っている
+  確立済みパターンで、ハッシュ対象は不変のまま。
 
 ### `src/db_records.py`
 
