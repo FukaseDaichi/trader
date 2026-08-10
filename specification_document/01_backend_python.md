@@ -161,7 +161,8 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 - `record_run()`: signals → `predictions` + `signals` テーブルへ upsert（event_id `run_date:ticker:event_type` で冪等）。接続不可時は時刻名の `data/outbox/*.jsonl` へキューし、次回成功時に `flush_outbox()` でリプレイ
 - 週次Phase 1の`model_registry`登録もDB障害時はactive file pointerのprovenanceを含む安定event IDでoutboxへキューする。リプレイ時のactive更新は`kind`単位で、Phase 1登録がCS activeフラグを消さない
 - `DATABASE_URL` 未設定または `TRADER_DB_ENABLED=false` ならDB接続は行わず、日次prediction/signal、Phase 2 prediction、週次model registryなど再送可能なイベントはoutboxへ保存する。参照・集計や毎回再生成できるsnapshot書き込みはno-op
-- 決済は `scripts/settle_outcomes.py`（`04_scripts.md`）。`signal_outcomes` は `market_as_of_date`、実際の `entry_date`、価格基準、`contract_version` を保持する。TOPIXパネルは終値しかなくv2と同基準の翌日寄付きが作れないため、v2の `benchmark_ret` / `excess_ret` は NULL、`benchmark_basis=unavailable_same_basis` とする。旧v1だけが close-to-close TOPIX補填対象
+- 決済は `scripts/settle_outcomes.py`（`04_scripts.md`）。`signal_outcomes` は `market_as_of_date`、実際の `entry_date`、価格基準、`contract_version` を保持する。決済はマクロパネルの `topix_open`（entry日寄付き）→ `topix`（eval日終値）で同一basisの `benchmark_ret` / `excess_ret` をグロス計算し、成功行だけ `benchmark_basis=next_session_open_to_horizon_session_close` を持つ。欠損時はNULL＋`unavailable_same_basis` で縮退し、`--refill-benchmark` がv2のNULL行を冪等補填する。旧v1のclose-to-close補填経路は削除された
+- `execution.py` の `execution_contract_metadata()` が返す `benchmark_basis` は意図的に fail-closed 値（`unavailable_same_basis`）のまま据え置く：この dict は Phase 1 ゲート契約へハッシュされるため、値を変えると全保存済みモデルバンドルが無効化される。実際に同一basis benchmarkを算出できた利用側（`src/performance.py` など）は `SAME_BASIS_BENCHMARK` でこの値を上書きする
 - `db_size_mb()` による容量監視（`TRADER_DB_STORAGE_WARN_MB=400` 超で performance_summary に警告）
 
 reliabilityは`signals.prediction_id`から実際にaction生成へ使ったPhase 1予測を直接参照する。IDがないlegacy行だけ`signals.conviction`へfallbackし、現行v2・互換ホライズン内でモデルversionを横断集計する。Phase 2予測や今日のactive registry rowを推測で選ばず、source別件数・fallback数・除外理由を成果物へ残す。

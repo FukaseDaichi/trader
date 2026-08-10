@@ -28,7 +28,7 @@
 | Phase 2 ポートフォリオ（shadow） | 全銘柄横断のクロスセクション・ランカと、リスク制約付きロングオンリー目標建玉の毎朝提案 | `src/universe.py`, `src/cross_section.py`, `src/cs_model.py`, `src/portfolio.py`, `src/portfolio_backtest.py`, `scripts/weekly_cross_section_retrain.py` |
 | Phase 3 UX・堅牢化 | 学習バリアと整合したATR利確/損切/時間出口、約定契約・benchmark coverage付き決済、非重複cohort実績ダッシュボード（`/performance`）、日次ダイジェスト・週次サマリ通知（リトライ付き）、active配線 | `src/predictor.py`, `src/digest.py`, `src/performance.py`, `src/notifier.py`, `scripts/weekly_performance_notify.py`, `web/src/app/performance/` |
 
-Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1 のシグナル・通知を一切変更しません。`TRADER_PORTFOLIO_MODE=active` への配線（`portfolio.merge_target_weights`）は実装済みですが、現行マクロデータには同一basisのTOPIX openがなく、benchmark coverageゲートがfail-closeするため現在は切替不可です。将来も、現行v2・net-vs-net・完全coverage・当日snapshotと同じCS model version・`active_readiness`をすべて確認したうえでの**人間の判断**です（`06_issues_and_backlog.md`参照）。
+Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1 のシグナル・通知を一切変更しません。`TRADER_PORTFOLIO_MODE=active` への配線（`portfolio.merge_target_weights`）は実装済みですが、同一basisのTOPIX open実装によりbenchmark coverageは完全（`coverage_ratio=1.0`）になった一方、portfolio KPIゲートが`ir<0.00`・`turnover>0.40`で不合格、`cs_ic_vs_phase1`も負であるため現在は切替不可です。将来も、現行v2・net-vs-net・完全coverage・当日snapshotと同じCS model version・`active_readiness`をすべて確認したうえでの**人間の判断**です（`06_issues_and_backlog.md`参照）。
 
 ## 日次処理の現在地
 

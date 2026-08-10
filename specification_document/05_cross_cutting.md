@@ -44,6 +44,7 @@ AI キュレーションの候補プール（`pool[].code/name/sector`）。`tec
 | `data/watchlist/{code}.parquet` | キュレーション候補の warmup データ。gitignore 対象、昇格時に `data/` へ移動 |
 | `data/macro/macro_panel.parquet` | マクロ系列パネル（usdjpy/topix/nikkei/nikkei_vi/jgb10y + 補助level列 `topix_open` + 派生特徴量）。列順は `["date"] + MACRO_LEVEL_COLS + MACRO_AUX_LEVEL_COLS + MACRO_FEATURE_COLS`。`update_macro_snapshots.py` が更新。`topix` は TOPIX 連動 ETF（1305）のプロキシ値（1306 は調整後系列にも分割級の不連続が残るため不採用）、`nikkei_vi`/`jgb10y` は取得元がなく無効化（全行 NaN） |
 | ↑ `topix_open` の契約 | 同一basis benchmark専用の始値列（`1305.T`、`topix` 終値と同一銘柄・同一応答）。`DEFAULT_MARKET_SERIES` の系列別opt-in（TOPIXのみ）で取得する。**Phase 1 特徴量ではない**（`MACRO_LEVEL_COLS`/`MACRO_FEATURE_COLS` は不変、`latest_snapshot_row()` の出力キーと `macro_snapshots` も不変）。**前日埋めしない**（埋めると非取引日に実在しないbenchmark期間が生まれ、消費側の検査を通過してしまう）。非有限・非正の値は当該日付だけ NaN 化。前日比、または同一日の `close/open-1` が `_MAX_MARKET_DAILY_MOVE`（0.50）を超えたら始値列のみ破棄し理由をログ、終値とマクロ特徴量は無傷。列が無い・全欠損でも benchmark unavailable へ縮退するだけで日次処理は止まらない |
+| ↑ 消費側の必須ルール | **始値と終値の両方を、`topix_open` が実在する日付だけで引く**。`topix` 終値列は前日埋めされるが `topix_open` はされないため、始値が NaN の日の終値は前日から持ち回られた古い値でありうる。終値を `topix` 列単独で引くと、マクロ取得がその営業日を取りこぼした際に古い終値が exit 価格になり、下流の検査をすべて通過してしまう。始値が実在する日は同一ソース行から取得された日なので、その終値も実測値であることが保証される。`src/portfolio_backtest.py::_prepare_topix` と `scripts/settle_outcomes.py::_load_topix_by_date` はこの規則を共有する |
 | `data/models/.staging/<run>/<version>/` | Phase 1候補の一時領域。active参照されず、候補合否をレポートへ残した後に削除 |
 | `data/models/<version>/` | immutableなPhase 1 schema v3。`manifest.json`、version metadata、全対象銘柄のexact final booster、較正器、feature reference、gate evidenceとchecksum |
 | `data/models/active_model.json` | atomic replaceされるPhase 1 active pointer。version、artifact/gate契約、manifest/config hash、git commit、activation provenanceを保持 |
@@ -71,7 +72,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 | `universe_snapshots` | ユニバース選定履歴 |
 | `schema_migrations` | migration 適用履歴 |
 
-日付契約: `run_date`はworkflow実行日、`as_of_date` / `market_as_of_date`は予測に使った最後の市場日、`entry_date`はその次に実在する市場行（最初に売買可能な営業日）、`eval_date`はentryを1日目としたH営業日目。`next_session_open_to_close_v2`の価格基準はentry日のopen→eval日のcloseである。migration 0004は既存行を`close_to_close_v1`と明示し、再決済でv2へ置換する。v2のTOPIXは同じentry openがないためbenchmarkをNULLとし、欠損を0や1倍として補完しない。書き込みはwrite-through + outboxフォールバックで、**DBの状態が日次シグナル生成に影響することはありません**。
+日付契約: `run_date`はworkflow実行日、`as_of_date` / `market_as_of_date`は予測に使った最後の市場日、`entry_date`はその次に実在する市場行（最初に売買可能な営業日）、`eval_date`はentryを1日目としたH営業日目。`next_session_open_to_close_v2`の価格基準はentry日のopen→eval日のcloseである。migration 0004は既存行を`close_to_close_v1`と明示し、再決済でv2へ置換する。v2のTOPIX benchmarkはentry日の`topix_open`→eval日の`topix`終値という同一basis・日付完全一致のみを対象とし、前日埋めはしない。欠損時はbenchmarkをNULLのまま保持し、0や1倍として補完しない。書き込みはwrite-through + outboxフォールバックで、**DBの状態が日次シグナル生成に影響することはありません**。
 
 ## `docs/` 配下の JSON 契約
 
@@ -156,7 +157,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 }
 ```
 
-`equity_curve` はentry/eval期間が重ならないcohortだけを全資本で逐次運用した系列で、毎日の重複H日リターンを直接複利しない。戦略と比較可能なTOPIXの両方から、KPIバックテストと同じ片道cost+slippageをentry/exitの両側で控除する（raw値は `gross_period_return` / `gross_benchmark_return` に保持）。`eval_date` が無い、またはentryより前で不正な互換入力はH個ごとのstrideへ縮退し、`fallback_reason`を出す。hit rate・平均H日return等は重複サンプルを許すコスト前シグナル品質指標であり、資産曲線とは分離する。60日Sharpeだけは資産曲線と同じ非重複・コスト後cohort系列を使う。v2のTOPIX同基準benchmarkは現在取得不能なため `benchmark: null` とcoverage理由を出し、欠損を1.0で持ち回らない。reliabilityは`signals.prediction_id`へ直接紐付くPhase 1確率を優先し、IDがないlegacy行だけconvictionへfallbackする。互換契約内でversion横断し、provenanceにsource別件数・model versions・fallback・除外理由を持つ。DB不通・サンプル不足の`available: false`成果物にも、現行`execution_contract`・`accounting_method`・benchmark coverageを残す。
+`equity_curve` はentry/eval期間が重ならないcohortだけを全資本で逐次運用した系列で、毎日の重複H日リターンを直接複利しない。戦略と比較可能なTOPIXの両方から、KPIバックテストと同じ片道cost+slippageをentry/exitの両側で控除する（raw値は `gross_period_return` / `gross_benchmark_return` に保持）。`eval_date` が無い、またはentryより前で不正な互換入力はH個ごとのstrideへ縮退し、`fallback_reason`を出す。hit rate・平均H日return等は重複サンプルを許すコスト前シグナル品質指標であり、資産曲線とは分離する。60日Sharpeだけは資産曲線と同じ非重複・コスト後cohort系列を使う。v2のTOPIX同基準benchmarkはcohort単位ではなく資産曲線全体を一つのゲートで判定する：選択した全cohortに同一basisのbenchmarkが揃っている場合だけ`benchmark`へ実測値を通し、1cohortでも欠損（`topix_open`/`topix`が両方揃わない日）があれば曲線の全期間が`benchmark: null`になる。ここでの「揃っている」は`benchmark_ret`・`excess_ret`・`benchmark_basis=next_session_open_to_horizon_session_close`の**三つ組が行として揃っている**ことを指す（決済はこの3列を同時に書くため、`benchmark_ret`の非NULLは三つ組の代理でしかない）。部分書き込み行や別basisの行は、平均へ混ぜることもcoverage完全の宣言に数えることもしない。coverage理由は`benchmark_coverage.reason`へ一部欠損なら`partial_same_basis_coverage`、全欠損なら`unavailable_same_basis`として出し、欠損を1.0で持ち回らない。`signal_outcomes_recent.json`のトップレベル`execution_contract.benchmark_basis`も同じ三つ組判定で、全行が満たすときだけ達成basisを宣言する。reliabilityは`signals.prediction_id`へ直接紐付くPhase 1確率を優先し、IDがないlegacy行だけconvictionへfallbackする。互換契約内でversion横断し、provenanceにsource別件数・model versions・fallback・除外理由を持つ。DB不通・サンプル不足の`available: false`成果物にも、現行`execution_contract`・`accounting_method`・benchmark coverageを残す。
 
 ## `reports/weekly_YYYY-MM-DD.md`
 

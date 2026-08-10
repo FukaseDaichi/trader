@@ -529,22 +529,26 @@ def test_portfolio_snapshot_row_persists_failed_status():
     json.dumps(row)
 
 
-def test_benchmark_ret_basic():
-    topix = {"2026-06-09": 2900.0, "2026-06-16": 2958.0}
-    r = compute_benchmark_ret(topix, "2026-06-09", "2026-06-16")
-    assert abs(r - 0.02) < 1e-9
+def test_compute_benchmark_ret_same_basis_open_to_close():
+    opens = {"2026-06-09": 2900.0, "2026-06-16": 2910.0}
+    closes = {"2026-06-09": 2905.0, "2026-06-16": 2958.0}
 
+    r = compute_benchmark_ret(opens, closes, "2026-06-09", "2026-06-16")
+    assert r is not None
+    assert abs(r - (2958.0 / 2900.0 - 1.0)) < 1e-12
 
-def test_benchmark_ret_missing_date_is_none():
+    # eval close missing -> None
     assert (
-        compute_benchmark_ret({"2026-06-09": 2900.0}, "2026-06-09", "2026-06-16")
+        compute_benchmark_ret(opens, {"2026-06-09": 2905.0}, "2026-06-09", "2026-06-16")
         is None
     )
-    assert compute_benchmark_ret({}, "2026-06-09", "2026-06-16") is None
-
-
-def test_benchmark_ret_zero_entry_is_none():
-    assert compute_benchmark_ret({"a": 0.0, "b": 2958.0}, "a", "b") is None
+    # entry open missing -> None
+    assert compute_benchmark_ret({}, closes, "2026-06-09", "2026-06-16") is None
+    # zero / non-positive levels -> None (data error, not a 0% return)
+    assert compute_benchmark_ret({"a": 0.0}, {"b": 2958.0}, "a", "b") is None
+    assert compute_benchmark_ret({"a": 2900.0}, {"b": -1.0}, "a", "b") is None
+    # non-finite levels -> None
+    assert compute_benchmark_ret({"a": float("nan")}, {"b": 2958.0}, "a", "b") is None
 
 
 def test_outbox_queue_and_dedup():
@@ -601,9 +605,7 @@ def test_signal_row_target_weight_passthrough():
 
 
 ALL_TESTS = [
-    test_benchmark_ret_basic,
-    test_benchmark_ret_missing_date_is_none,
-    test_benchmark_ret_zero_entry_is_none,
+    test_compute_benchmark_ret_same_basis_open_to_close,
     test_event_id_is_stable_and_namespaced,
     test_prediction_row_for_ok_signal,
     test_prediction_row_is_none_when_prob_missing,

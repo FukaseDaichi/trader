@@ -19,7 +19,11 @@ import numpy as np
 
 from .db_records import LONG_ACTIONS
 from . import calibration
-from .execution import EXECUTION_CONTRACT_VERSION, execution_contract_metadata
+from .execution import (
+    EXECUTION_CONTRACT_VERSION,
+    SAME_BASIS_BENCHMARK,
+    execution_contract_metadata,
+)
 
 
 ACCOUNTING_METHOD = "non_overlapping_cohorts_v1"
@@ -94,6 +98,23 @@ def _contract_rows(rows: list[dict]) -> tuple[list[dict], dict]:
         "excluded_rows": len(rows) - len(compatible),
         "fallback_assumption": fallback,
     }
+
+
+def _has_same_basis_benchmark(row: dict) -> bool:
+    """True only when a row carries a complete, self-consistent same-basis benchmark.
+
+    Settlement writes ``benchmark_ret``, ``excess_ret`` and ``benchmark_basis``
+    together, so a non-null ``benchmark_ret`` alone is a proxy for the triple
+    rather than proof of it. Checking all three keeps every same-basis claim
+    verifiable from the row itself: a partially written row, or one carrying a
+    different basis, can neither be averaged into the benchmark nor counted
+    toward a completeness declaration.
+    """
+    return (
+        row.get("benchmark_ret") is not None
+        and row.get("excess_ret") is not None
+        and row.get("benchmark_basis") == SAME_BASIS_BENCHMARK
+    )
 
 
 def _eligible_long_rows(rows: list[dict], horizon: int) -> list[dict]:
@@ -190,6 +211,7 @@ def _equity_curve_with_metadata(
     if not selected:
         coverage = {
             "basis": "same_execution_window_only",
+            "available": False,
             "selected_cohorts": 0,
             "available_cohorts": 0,
             "coverage_ratio": None,
@@ -207,7 +229,7 @@ def _equity_curve_with_metadata(
         benchmark_values = [
             row["benchmark_ret"]
             for row in cohort_rows
-            if row.get("benchmark_ret") is not None
+            if _has_same_basis_benchmark(row)
         ]
         gross_benchmark_ret = (
             float(np.mean(benchmark_values))
@@ -267,6 +289,7 @@ def _equity_curve_with_metadata(
 
     coverage = {
         "basis": "same_execution_window_only",
+        "available": benchmark_reason is None,
         "selected_cohorts": len(periods),
         "available_cohorts": available_benchmark,
         "coverage_ratio": available_benchmark / len(periods),
@@ -503,6 +526,32 @@ def build_recent_outcomes(rows: list[dict], limit: int = 200) -> list[dict]:
     ]
 
 
+def recent_outcomes_execution_contract(
+    recent_rows: list[dict],
+    *,
+    cost_bps: float | None = None,
+    slippage_bps: float | None = None,
+) -> dict:
+    """Execution-contract metadata for the ``signal_outcomes_recent.json`` rows.
+
+    ``recent_rows`` is the exact list being exported (the output of
+    ``build_recent_outcomes``, already limited/sorted). Declares
+    ``SAME_BASIS_BENCHMARK`` only when that list is non-empty and every row in
+    it carries a complete same-basis benchmark triple (``benchmark_ret``,
+    ``excess_ret`` and a matching ``benchmark_basis`` -- see
+    ``_has_same_basis_benchmark``); an empty list means nothing was measured,
+    not that coverage is complete, so it keeps the fail-closed
+    ``BENCHMARK_BASIS`` from ``execution_contract_metadata()``.
+    """
+    contract = execution_contract_metadata(cost_bps=cost_bps, slippage_bps=slippage_bps)
+    complete = bool(recent_rows) and all(
+        _has_same_basis_benchmark(row) for row in recent_rows
+    )
+    if complete:
+        contract["benchmark_basis"] = SAME_BASIS_BENCHMARK
+    return contract
+
+
 def build_performance_detail(
     rows: list[dict],
     pred_rows: list[dict],
@@ -544,6 +593,8 @@ def build_performance_detail(
     )
     execution_contract["return_basis"] = "net_after_entry_exit_costs"
     execution_contract["cost_treatment"] = "deducted_from_performance_equity"
+    if benchmark_coverage.get("available"):
+        execution_contract["benchmark_basis"] = SAME_BASIS_BENCHMARK
 
     return {
         "horizon_days": horizon,

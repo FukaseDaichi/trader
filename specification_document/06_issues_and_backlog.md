@@ -110,9 +110,19 @@
 - **不採用: TOPIX OHLCを別ソースから取得** — TOPIXの定義が2つになり、マクロ特徴量との整合も別途必要になる。
 - **不採用: ベンチマーク専用parquetを別に持つ** — 同一銘柄のデータが2箇所に分かれ、取得タイミング差で始値と終値の日付が食い違いうる。回避したい基準ズレを自ら作り込む。
 - **不採用: TOPIX終値同士のリターンで代用** — 戦略と比較条件が変わり、IRの意味が壊れる。
-- **スコープ外として意図的に据え置いた**: Phase 1特徴量（`topix_open`はモデルが読まない生データ列。artifact schema上げと再学習を回避）、DBスキーマ（`macro_snapshots`と`latest_snapshot_row()`は無変更）、既存`topix`終値の前日埋め挙動、`scripts/settle_outcomes.py`の`benchmark_ret`。
+- **スコープ外として意図的に据え置いた**: Phase 1特徴量（`topix_open`はモデルが読まない生データ列。artifact schema上げと再学習を回避）、DBスキーマ（`macro_snapshots`と`latest_snapshot_row()`は無変更）、既存`topix`終値の前日埋め挙動。決済側の`benchmark_ret`はここで据え置いた項目だったが、2026-08-10に実装済み（下記）。
 
 列の契約（前日埋めしない、非有限・非正は当該日付のみNaN、不連続や始値終値の基準ズレは始値列のみ破棄）は`05_cross_cutting.md`が正典。
+
+### 決済側同一basis benchmarkの決定記録（2026-08-10 実装）
+
+上の決定記録で据え置いた`scripts/settle_outcomes.py`の`benchmark_ret`を実装した際の判断。再検討時に同じ議論と同じ事故を繰り返さないための記録。
+
+- **`execution.BENCHMARK_BASIS`（`unavailable_same_basis`）は変更しない**。この定数は`execution_contract_metadata()`経由で`model_store.build_phase1_gate_contract()`の`gate_contract_sha256`に入る。実測で、値を変えると現行active modelのハッシュが`0f5300ca…e2f0`から`bbb3f965…c218ac`へ動き、`compare_phase1_gate_contract`の厳密一致比較が落ちることを確認した。その結果は**翌営業日から全50銘柄がephemeral candidate（特徴量もしきい値も異なる別モデル）へ縮退**し、次の週次再学習まで最大6営業日continueする。さらに`drift_check.py`は`available:false / active_model_incompatible`になるがexit 0のため、watchdogのIssueも出ずに監視が静かに止まる。
+- **代わりに`SAME_BASIS_BENCHMARK`を追加し、実際にbenchmarkを算出できた利用側が自分の出力dictの`benchmark_basis`だけ上書きする**。`src/portfolio_backtest.py`が既に採用していたパターンで、ハッシュ対象は不変のまま。現在の利用側は`src/performance.py`と`scripts/settle_outcomes.py`。
+- **不採用: ゲート契約のハッシュ対象から`benchmark_basis`を除外する** — フィールドを除いてもハッシュは同じく変わるため、縮退の問題は解決しない。
+- **不採用: 定数変更と同時に週次再学習を強制実行する** — 再学習の成否に日次シグナルの正常性が依存し、失敗時は同じ全銘柄縮退に落ちる。運用手順で守る種類のリスクではない。
+- 回帰の検出方法: `model_store.build_phase1_gate_contract()`を`data/models/active_model.json`の保存値と突き合わせ、`gate_contract_sha256`の一致を確認する。`execution_contract_metadata()`が返す内容を変更する変更では必ず実行する。
 
 ### Phase 2の継続判断
 
@@ -134,7 +144,6 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 | --- | --- | --- |
 | `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.9205`。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | 2026-08-22の総合判定の必須項目。数値合わせのために緩めない |
 | `cs_ic_vs_phase1`の改善 | Phase 2のCS ICがPhase 1を下回る（`-0.2404`）。特徴量・ラベル・学習設計の見直しが必要 | 改善見込みが立たない場合はPhase 2縮小の判断材料 |
-| 決済側の同一basis benchmark | `scripts/settle_outcomes.py` / `db_records.compute_benchmark_ret()`は今もclose-to-closeのみで、v2の`benchmark_ret`/`excess_ret`はNULL・`benchmark_basis=unavailable_same_basis`。マクロパネルに`topix_open`が入ったので、翌営業日寄付き→H営業日目終値の同一basis benchmarkを決済側でも計算できる | データ側のブロッカーは解消済み。着手すれば`performance_summary.json`の`benchmark`もnullでなくなる |
 
 ### 観察中（条件が揃ったら判断）
 

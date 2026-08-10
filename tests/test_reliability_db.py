@@ -469,13 +469,14 @@ def test_fetch_signals_for_restatement_returns_all_actionable():
     assert rows[0]["as_of_date"] == "2026-07-17"
 
 
-def test_benchmark_refill_query_excludes_current_contract():
+def test_benchmark_refill_query_targets_current_contract():
     cursor = FakeCursor([])
     rows = db.fetch_outcomes_missing_benchmark(FakeConn(cursor))
     sql, params = cursor.executed[0]
     assert rows == []
     assert "contract_version = %s" in sql
-    assert params == (LEGACY_EXECUTION_CONTRACT_VERSION,)
+    assert params == (EXECUTION_CONTRACT_VERSION,)
+    assert params != (LEGACY_EXECUTION_CONTRACT_VERSION,)
 
 
 def test_dashboard_exports_reliability_provenance_without_active_lookup():
@@ -553,7 +554,7 @@ ALL_TESTS = [
     test_upsert_outcome_persists_execution_contract_columns,
     test_fetch_unsettled_counts_only_current_contract_rows,
     test_fetch_signals_for_restatement_returns_all_actionable,
-    test_benchmark_refill_query_excludes_current_contract,
+    test_benchmark_refill_query_targets_current_contract,
     test_dashboard_exports_reliability_provenance_without_active_lookup,
 ]
 

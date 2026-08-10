@@ -26,9 +26,12 @@ Next.js dashboard from `docs/` to GitHub Pages. Four layers:
   with risk caps → `docs/portfolio_latest.json`. Shadow mode never alters
   Phase 1 signals or notifications.
 - **Phase 3 — manual-trading UX + hardening**: execution-contract-versioned
-  settlement and benchmark coverage (`benchmark_ret`/`excess_ret` stay NULL
-  since this settlement path does not yet consume the macro panel's
-  same-basis TOPIX open), a settle-day performance
+  settlement that computes a same-basis TOPIX benchmark inline from the macro
+  panel's `topix_open`/`topix` levels (entry-session open to eval-session
+  close), writing `benchmark_ret`/`excess_ret` on success and failing closed
+  to NULL + `benchmark_basis=unavailable_same_basis` only when a level is
+  missing (`--refill-benchmark` idempotently backfills such rows later), a
+  settle-day performance
   export (`docs/performance_detail.json` + `docs/signal_outcomes_recent.json`),
   a daily LINE digest and weekly performance summary (with bounded push retry),
   a `/performance` dashboard page (TOPIX shown only with complete same-basis
@@ -41,7 +44,8 @@ Full as-built specs, known issues, and backlog: `specification_document/`
 history; everything still open — remaining operational rollout, decision
 records worth not re-litigating, and future work — is consolidated in
 `specification_document/06_issues_and_backlog.md`. `plans/` is created only
-while an implementation plan is in flight, and does not currently exist.
+while an implementation plan is in flight; once the implementation is done its
+content is merged into `specification_document/` and the plan is deleted.
 
 ## Commands
 
@@ -113,8 +117,9 @@ schema-v3 candidate → full-coverage/checksum/evidence gate → atomic pointer 
 `scripts/weekly_cross_section_retrain.py` (CS model →
 `docs/cs_model_quality.json`), `scripts/portfolio_shadow_report.py` (Phase 1
 vs Phase 2 + `active_readiness`), `scripts/settle_outcomes.py` (next-open
-realized returns, legacy-only TOPIX refill, settle-day performance export;
-`--restate-execution-contract`),
+realized returns, inline same-basis TOPIX benchmark with idempotent
+`--refill-benchmark` backfill of v2 rows still missing one, settle-day
+performance export; `--restate-execution-contract`),
 `scripts/weekly_performance_notify.py` (weekly LINE performance summary),
 `scripts/drift_check.py` (→ `docs/drift_report.json`),
 `scripts/universe_select.py` (deterministic universe, report-only).
@@ -179,8 +184,10 @@ commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
   (`active_readiness` in `docs/portfolio_shadow_report.json`). Shadow behavior
   must remain byte-for-byte unchanged. Active also requires current v2,
   net-vs-net accounting, complete same-basis benchmark coverage, and an exact
-  CS model-version match between the backtest and today's snapshot. Current
-  macro data has no TOPIX open, so active intentionally remains fail-closed.
+  CS model-version match between the backtest and today's snapshot. Same-basis
+  benchmark coverage is already complete; the portfolio KPI gate currently
+  fails on `ir<0.00` and `turnover>0.40`, and `cs_ic_vs_phase1` is negative, so
+  active intentionally remains fail-closed for now.
 - `daily-publish-dashboard.yml` rsyncs `web/out/` over `docs/` with
   `--delete`. **Any new data file under `docs/` must be added to that
   workflow's `--exclude` list**, or the next publish deletes it
