@@ -56,6 +56,10 @@ def _row(
     contract_version=EXECUTION_CONTRACT_VERSION,
 ):
     resolved_eval_date = entry_date if eval_date is _DEFAULT_EVAL_DATE else eval_date
+    # Settlement writes benchmark_ret, excess_ret and benchmark_basis together;
+    # the fixture models that triple so tests exercise the real shape.
+    if benchmark_ret is not None and excess_ret is None and realized_ret is not None:
+        excess_ret = realized_ret - benchmark_ret
     return {
         "market_as_of_date": entry_date,
         "entry_date": entry_date,
@@ -80,9 +84,7 @@ def _row(
         "exit_price_basis": "horizon_session_close",
         "contract_version": contract_version,
         "benchmark_basis": (
-            "same_basis_test_fixture"
-            if benchmark_ret is not None
-            else "unavailable_same_basis"
+            SAME_BASIS_BENCHMARK if benchmark_ret is not None else BENCHMARK_BASIS
         ),
     }
 
@@ -720,6 +722,51 @@ def test_recent_outcomes_contract_empty_rows_is_not_complete():
     assert contract["benchmark_basis"] == BENCHMARK_BASIS
 
 
+def test_recent_outcomes_contract_rejects_row_with_foreign_benchmark_basis():
+    """A non-null benchmark_ret is not proof of a same-basis benchmark. A row
+    carrying a different basis must not be declared same-basis, or the exported
+    top-level contract claims a coverage the rows do not support."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "SELL", 5, -0.01, benchmark_ret=0.00),
+    ]
+    recent = build_recent_outcomes(rows, limit=10)
+    recent[1]["benchmark_basis"] = "close_to_close_v1"
+    contract = recent_outcomes_execution_contract(recent)
+    assert contract["benchmark_basis"] == BENCHMARK_BASIS
+
+
+def test_recent_outcomes_contract_rejects_row_missing_excess_ret():
+    """benchmark_ret without excess_ret is a partially written row. The three
+    benchmark fields are written together; an incomplete triple must not count
+    toward a completeness declaration."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "SELL", 5, -0.01, benchmark_ret=0.00),
+    ]
+    recent = build_recent_outcomes(rows, limit=10)
+    recent[1]["excess_ret"] = None
+    contract = recent_outcomes_execution_contract(recent)
+    assert contract["benchmark_basis"] == BENCHMARK_BASIS
+
+
+def test_equity_curve_excludes_cohort_row_with_foreign_benchmark_basis():
+    """The equity curve must not average a differently-based return into the
+    same-basis benchmark. One foreign-basis row blanks the whole curve's
+    benchmark, exactly as a missing one does."""
+    rows = [
+        _row("2026-05-01", "BUY", 5, 0.02, benchmark_ret=0.01),
+        _row("2026-05-02", "BUY", 5, -0.01, benchmark_ret=0.00),
+        _row("2026-05-03", "BUY", 5, 0.03, benchmark_ret=0.02),
+    ]
+    rows[1]["benchmark_basis"] = "close_to_close_v1"
+    result = build_performance_detail(rows, [], horizon=5, history_days=180, n_bins=5)
+    assert result["benchmark_coverage"]["available"] is False
+    assert result["benchmark_coverage"]["reason"] == "partial_same_basis_coverage"
+    assert all(point["benchmark"] is None for point in result["equity_curve"])
+    assert result["execution_contract"]["benchmark_basis"] == BENCHMARK_BASIS
+
+
 ALL_TESTS = [
     test_equity_curves_basic_strategy_and_benchmark,
     test_equity_curve_deducts_entry_and_exit_costs,
@@ -765,6 +812,9 @@ ALL_TESTS = [
     test_recent_outcomes_contract_declares_same_basis_when_all_rows_covered,
     test_recent_outcomes_contract_fail_closed_when_one_row_missing_benchmark,
     test_recent_outcomes_contract_empty_rows_is_not_complete,
+    test_recent_outcomes_contract_rejects_row_with_foreign_benchmark_basis,
+    test_recent_outcomes_contract_rejects_row_missing_excess_ret,
+    test_equity_curve_excludes_cohort_row_with_foreign_benchmark_basis,
 ]
 
 
