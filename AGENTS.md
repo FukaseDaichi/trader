@@ -44,7 +44,8 @@ Full as-built specs, known issues, and backlog: `specification_document/`
 history; everything still open — remaining operational rollout, decision
 records worth not re-litigating, and future work — is consolidated in
 `specification_document/06_issues_and_backlog.md`. `plans/` is created only
-while an implementation plan is in flight, and does not currently exist.
+while an implementation plan is in flight; once the implementation is done its
+content is merged into `specification_document/` and the plan is deleted.
 
 ## Commands
 
@@ -116,8 +117,9 @@ schema-v3 candidate → full-coverage/checksum/evidence gate → atomic pointer 
 `scripts/weekly_cross_section_retrain.py` (CS model →
 `docs/cs_model_quality.json`), `scripts/portfolio_shadow_report.py` (Phase 1
 vs Phase 2 + `active_readiness`), `scripts/settle_outcomes.py` (next-open
-realized returns, legacy-only TOPIX refill, settle-day performance export;
-`--restate-execution-contract`),
+realized returns, inline same-basis TOPIX benchmark with idempotent
+`--refill-benchmark` backfill of v2 rows still missing one, settle-day
+performance export; `--restate-execution-contract`),
 `scripts/weekly_performance_notify.py` (weekly LINE performance summary),
 `scripts/drift_check.py` (→ `docs/drift_report.json`),
 `scripts/universe_select.py` (deterministic universe, report-only).
