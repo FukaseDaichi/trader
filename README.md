@@ -336,7 +336,7 @@ workflowが直接使うJavaScript ActionはNode 24対応版（`actions/checkout@
 Claudeをサブスク（`CLAUDE_CODE_OAUTH_TOKEN`）でGitHub Actions上で実行し、トレンド分析から`tickers.yml`の有効ユニバースを自動更新します。詳細仕様は`specification_document/ai_ticker_curation/`にあります。
 
 - **日次**（平日 04:30 JST / `Daily Ticker Curation`）: 候補データのwarmup → `technical_screen.py`の決定論スコア → テクニカルagent（任意精査）→ `curation_merge.py`が「当日テクニカル＋直近週ファンダ（キャッシュ）」を合成し、ガード通過時のみ`tickers.yml`を少数入替。06:00の`Daily Preopen Core`が更新後ユニバースで予測します。
-- **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: マクロagent（金利・為替・世界情勢／Web一次情報・Opus）が`macro_latest.json`を生成 → ファンダagent（Web一次情報・Opus）がそれを織り込み`fundamental_latest.json`を更新 → レポートagentが女の子ナビ文体で「今後2週間以降に伸びそうな銘柄」を中心とした週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
+- **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: マクロagent（金利・為替・世界情勢／Web一次情報・Opus）が`macro_latest.json`を生成 → ファンダagent（Web一次情報・Opus）がそれを織り込み`fundamental_latest.json`を更新 → レポートagentがギャル投資家文体（口調はギャル・分析はガチ）で「今後2週間以降に伸びそうな銘柄」を中心とした週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
 - **隔週**（14日ごと / `Weekly Fundamental & Report`内のステップ）: プールagent（ファンダ＋流動性・Sonnet）が`pool_candidates_latest.json`を提案 → 決定論`curation_pool_merge.py`が候補母集団`curation_pool.yml`を更新（rollout phase 1はadd-onlyで`pool_target_size:60`までgrow、到達後はreplace-onlyへ自動切替）→ 変更を`curation_pool_notify.py`でLINE通知。詳細は`specification_document/ai_ticker_curation/07_pool_refresh.md`。
 
 ### 安全設計

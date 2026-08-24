@@ -72,12 +72,12 @@ def extract_headline(report_file: Path) -> str | None:
 
 
 def build_message(persona: str, headline: str | None, url: str) -> str:
-    lines = [f"{persona}だよ！今週の日本株レポートができたよ〜！📈✨"]
+    lines = [f"{persona}だわ〜！今週の日本株レポートできたっしょ📈✨"]
     if headline:
-        lines.append(f"今週の注目は {headline} だね！")
-    lines.append("続きはこちら👇")
+        lines.append(f"今週いちばん気になったの、{headline} なんだよね。")
+    lines.append("続きはこっち👇")
     lines.append(url)
-    lines.append("（投資は自己責任だよ！最後は自分で決めてね🙆‍♀️）")
+    lines.append("（投資は自己責任だからね！最後は自分で決めよ🙆‍♀️）")
     return "\n".join(lines)
 
 
