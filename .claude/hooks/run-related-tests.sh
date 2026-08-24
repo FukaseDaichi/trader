@@ -4,7 +4,7 @@
 # On failure it surfaces the output to Claude via exit 2 so the regression gets
 # fixed immediately; it is silent on pass or when no matching test exists.
 #
-# This is the dev-time guard for the AGENTS.md invariant "the daily signal run
+# This is the dev-time guard for the invariant "the daily signal run
 # must never break": the 23 tests under tests/ otherwise run nowhere automatically.
 set -uo pipefail
 
@@ -21,7 +21,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 base=$(basename "$path")
 stem="${base%.py}"
 
-# Resolve which test files to run (name convention from AGENTS.md).
+# Resolve which test files to run (name convention from 07_agent_conventions.md).
 tests=()
 if [[ "$base" == test_*.py ]]; then
   # An edited test runs only itself.

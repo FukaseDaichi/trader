@@ -1,233 +1,38 @@
-# AGENTS.md instructions for this repository
+# AGENTS.md — このリポジトリのエージェント向け指示
 
-This file is the canonical guidance for agents working in this repository.
-`CLAUDE.md` intentionally delegates here with `@AGENTS.md`.
+`CLAUDE.md` は `@AGENTS.md` でこのファイルに委譲しています。ここに置くのは**索引**と
+**絶対に外せないルール**だけです。担当する領域のリンク先を、作業を始める前に読んでください。
 
-## Project Overview
+## 作業前に読むもの
 
-Automated stock prediction and trading-signal system for Japanese equities.
-It runs autonomously via GitHub Actions on JPX trading days and publishes a
-Next.js dashboard from `docs/` to GitHub Pages. Four layers:
+| 場面                                         | 読むファイル                                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 毎セッション、何よりも先に                   | [07_agent_conventions.md](specification_document/07_agent_conventions.md) — 作業規約（セッション開始、報告の作法、コマンド、編集前の注意）     |
+| `main.py` / `src/` / `scripts/` を編集する前 | [08_invariants.md](specification_document/08_invariants.md) — 不変条件。`pipeline-safety-reviewer` サブエージェントがこのリストで審査する      |
+| 実装済みの挙動を変える前                     | [specification_document/README.md](specification_document/README.md) — 領域別の as-built 正典（バックエンド、web、CI/CD、scripts、データ契約） |
+| 状況や範囲を判断する前                       | [06_issues_and_backlog.md](specification_document/06_issues_and_backlog.md) — 未解決課題、決定記録、現在のゲート状況                           |
+| キュレーションに触れる前                     | [ai_ticker_curation/00_overview.md](specification_document/ai_ticker_curation/00_overview.md) — 日次・週次・隔週キュレーションの設計           |
+| システムの全体像を知りたいとき               | [README.md](README.md) — 日本株の自動予測・売買シグナルシステム（Phase 0〜3、`docs/` から GitHub Pages へ公開）                                |
 
-- **Daily signals**: fetch OHLCV from Stooq (yfinance fallback), build 34
-  technical + 11 macro features, gate each ticker through a walk-forward OOS
-  backtest (KPI gate), predict `prob_up` with LightGBM, emit 5-level signals
-  (`BUY`/`MILD_BUY`/`HOLD`/`MILD_SELL`/`SELL`), and summarize gate-passed
-  non-HOLD signals in the daily LINE digest.
-- **Phase 0 — measurement**: write predictions/signals through to Neon
-  Postgres (`DATABASE_URL`, schema in `migrations/`) and settle executable
-  1/5/10-session outcomes (next-session open to horizon-session close). DB
-  failures queue to `data/outbox/` JSONL and replay.
-- **Phase 1 — signal quality**: 5-day triple-barrier labels, isotonic
-  calibration, macro/regime features, exact-candidate holdout gates,
-  schema-v3 persisted models with atomic activation, IC/Brier/PSI drift checks.
-- **Phase 2 — cross-sectional portfolio (shadow)**: weekly cross-sectional
-  LightGBM ranker over the whole universe, daily long-only target portfolio
-  with risk caps → `docs/portfolio_latest.json`. Shadow mode never alters
-  Phase 1 signals or notifications.
-- **Phase 3 — manual-trading UX + hardening**: execution-contract-versioned
-  settlement that computes a same-basis TOPIX benchmark inline from the macro
-  panel's `topix_open`/`topix` levels (entry-session open to eval-session
-  close), writing `benchmark_ret`/`excess_ret` on success and failing closed
-  to NULL + `benchmark_basis=unavailable_same_basis` only when a level is
-  missing (`--refill-benchmark` idempotently backfills such rows later), a
-  settle-day performance
-  export (`docs/performance_detail.json` + `docs/signal_outcomes_recent.json`),
-  a daily LINE digest and weekly performance summary (with bounded push retry),
-  a `/performance` dashboard page (TOPIX shown only with complete same-basis
-  coverage, plus drawdown, calibration, recent outcomes), and active-mode wiring so `TRADER_PORTFOLIO_MODE=active`
-  reflects `target_weight` into signals with no further code change (the flip
-  itself stays a deliberate manual step gated on the shadow report).
+## 絶対に外せない9項目
 
-Full as-built specs, known issues, and backlog: `specification_document/`
-(start at its `README.md`). Completed plans are deleted and live in git
-history; everything still open — remaining operational rollout, decision
-records worth not re-litigating, and future work — is consolidated in
-`specification_document/06_issues_and_backlog.md`. `plans/` is created only
-while an implementation plan is in flight; once the implementation is done its
-content is merged into `specification_document/` and the plan is deleted.
+1. **まず `git pull --rebase`。** Actions が毎日 `main` にコミットするため、ローカルは
+   ほぼ常に古い。
+2. **日次シグナル生成は絶対に止めない。** DB・マクロ・保存モデル・Phase 2 のどれが落ちても、
+   フォールバックまたはスキップ＋ログで縮退する。
+3. **実行可能シグナルの前に必ず KPI ゲート。** 未達なら `HOLD`。
+4. **Phase 2 は shadow のまま、出力はバイト単位で不変。** active への切替は、人間が意図的に
+   行うゲート付きの手動 env 変更。
+5. **`docs/` 配下にファイルやディレクトリを追加したら、`daily-publish-dashboard.yml` の
+   `--exclude` に必ず追加する。** 漏れると次回 publish で削除される。
+6. **エージェントは `tickers.yml` / `curation_pool.yml` を直接編集しない。** 書き手は
+   `scripts/curation_merge.py` と `scripts/curation_pool_merge.py` だけ。
+7. **銘柄の parquet は削除しない。** 無効化した銘柄は `data/archive/` へ退避する。
+8. **報告はかみくだいた日本語で。** たとえ＋「直さないとどうなる」＋おすすめアクション1つ。
+   専門用語・ハッシュ・パス・生の数値は末尾へ。
+9. **実装計画はリポジトリルートの `plans/` へ。`docs/` の下には置かない**（日次 publish が
+   `docs/` を `rsync --delete` するため）。
 
-## Commands
-
-```bash
-uv sync                                   # install Python deps (Python 3.13)
-uv run python main.py                     # run the full daily pipeline
-uv run python scripts/db_migrate.py       # apply DB schema (needs DATABASE_URL)
-uv run python tests/test_<name>.py        # tests are plain scripts, no pytest
-
-cd web && npm install
-cd web && npm run dev                     # dev server at http://localhost:3000
-cd web && npm run build:prod              # static export with /trader base path
-cd web && npm run lint
-```
-
-`main.py` works without `.env`: LINE notification and DB connections are
-skipped when unconfigured; replayable prediction/signal events are retained in
-`data/outbox/`. `.env.example` is the authoritative, commented list of all
-environment variables (data source, KPI gate, Phase 0/1/2 knobs); defaults
-live in `src/config.py`.
-
-## Architecture
-
-### Daily pipeline (`main.py`)
-
-Per enabled ticker in `tickers.yml`:
-
-1. **Data sync** (`src/data_loader.py`): Stooq CSV with yfinance fallback when
-   stale, non-finite OHLCV row removal and price/OHLC validation, merge into
-   `data/*.parquet`. Parquet files of disabled tickers are archived to
-   `data/archive/`, never deleted.
-2. **Features** (`src/model.py`, `src/macro.py`): 34 technical + 11 macro
-   features (USD/JPY, TOPIX, Nikkei, Nikkei VI, JGB10y from `data/macro/`).
-3. **Predict + exact gate** (`src/phase1.py`, `src/model_store.py`,
-   `src/backtest.py`): `TRADER_MODEL_MODE=auto` uses a runtime/manifest-verified
-   weekly bundle and its own purged-OOS gate evidence; otherwise it trains an
-   ephemeral candidate whose own tuning/embargo/holdout evidence supplies the
-   thresholds and gate. Its stable version includes the artifact and gate
-   contract hashes; the exact booster is bound separately by its bundle hash.
-   No separately trained surrogate gate is reused.
-   Evidence mismatch or gate failure forces `HOLD`; `legacy` is the binary-1d
-   rollback path but still uses the v2 execution contract.
-4. **Signal** (`src/predictor.py`): `prob_up` → 5-level action with a
-   volatility guard. (Notification moved post-loop — see step 7.)
-
-Run-level steps after the ticker loop (Phase 3 reordered these so notifications
-fire once, after the portfolio snapshot, and target weights persist):
-
-5. **Phase 2 inference** (`src/cross_section.py`, `src/cs_model.py`,
-   `src/portfolio.py`): cross-sectional prediction + portfolio snapshot →
-   `docs/portfolio_latest.json` + DB (only when `TRADER_PORTFOLIO_ENABLED`).
-6. **Active-mode merge** (`portfolio.merge_target_weights`): reflect
-   `target_weight` into signals — no-op in shadow / gate-fail / no-snapshot.
-7. **Notify** (`src/notifier.py` `send_line_text`, retry-bounded): the daily
-   digest (`src/digest.py`, `TRADER_NOTIFY_DIGEST_ENABLED`) is the primary
-   channel and lists gate-passed buy/sell ticker names per action; per-ticker
-   pushes are OFF by default (`TRADER_NOTIFY_PER_TICKER_ENABLED=false` since
-   2026-06-11, LINE free-tier quota) and remain available as an opt-in.
-8. **Phase 0 write-through** (`src/db.py`, `src/db_records.py`) — after the
-   merge so `signals.target_weight` lands.
-9. **Dashboard export** (`src/dashboard.py`): `docs/state.json`,
-   `docs/dashboard_index.json`, `docs/tickers/*.json`, plus best-effort
-   `performance_summary.json` / `performance_detail.json` /
-   `signal_outcomes_recent.json` (Phase 0/3) and `model_quality.json` (Phase 1).
-
-Weekly/auxiliary: `scripts/weekly_model_retrain.py` (unique staged Phase 1
-schema-v3 candidate → full-coverage/checksum/evidence gate → atomic pointer +
-`model_registry`, with registry outbox fallback),
-`scripts/weekly_cross_section_retrain.py` (CS model →
-`docs/cs_model_quality.json`), `scripts/portfolio_shadow_report.py` (Phase 1
-vs Phase 2 + `active_readiness`), `scripts/settle_outcomes.py` (next-open
-realized returns, inline same-basis TOPIX benchmark with idempotent
-`--refill-benchmark` backfill of v2 rows still missing one, settle-day
-performance export; `--restate-execution-contract`),
-`scripts/weekly_performance_notify.py` (weekly LINE performance summary),
-`scripts/drift_check.py` (→ `docs/drift_report.json`),
-`scripts/universe_select.py` (deterministic universe, report-only).
-
-### Frontend (`web/`)
-
-Next.js 16 + React 19 + Recharts 3 + TailwindCSS 4, static export served from
-`docs/` via GitHub Pages. Japanese UI, dark theme.
-
-- Data contract: `/dashboard_index.json` and `/tickers/{code}.json` are
-  required; `performance_summary.json`, `model_quality.json`,
-  `portfolio_latest.json`, `performance_detail.json`,
-  `signal_outcomes_recent.json` and `curation/macro_latest.json` power optional
-  cards/sections that hide when absent or `available: false`. (`history_data.json`
-  is a removed legacy contract — the frontend does NOT read it.) All card fetches
-  go through `src/lib/fetchJson.ts`; HTTP/JSON parse failures and payloads rejected
-  by each call's runtime guard become `null`. Required-contract guards validate
-  the fields pages unconditionally dereference; optional guards are shallow.
-- `src/app/page.tsx` (home: `SiteHeader`, `TodayHero`, `StockExplorer`,
-  performance/portfolio cards, glossary, footer),
-  `src/app/performance/page.tsx` (net non-overlapping equity, TOPIX only when
-  same-basis coverage is complete, drawdown / calibration / recent outcomes
-  via `PerformanceDetail`), and `src/app/stocks/[ticker]/` (detail with
-  `StockChart`, `SignalNarrative`, and `ThresholdGauge`). `SiteHeader` owns the
-  optional market-mood pill; `SiteFooter` links the weekly reports and latest
-  curation decision. Types live in `src/types/index.ts`.
-
-### CI/CD (`.github/workflows/`)
-
-All times JST. Guards: `scripts/jpx_calendar.py` (trading day),
-`scripts/run_guard.py` / `scripts/curation_guard.py` (idempotency). All
-commits go through `.github/scripts/commit-and-push.sh` (rebase + 3 retries).
-
-- **Daily**: ticker curation 04:30 → preopen core 06:00 (macro update →
-  `main.py` → settle outcomes → drift check) → retries 06:20/06:40 →
-  publish dashboard (on success) → watchdog 12:30 (freshness + drift;
-  opens GitHub Issues on failure).
-- **Weekly**: model retrain Sat 08:00 (Phase 1 + Phase 2 CS + shadow report),
-  fundamental & report Sat 07:00 (also runs the **biweekly** pool refresh,
-  every 14 days), universe refresh Sun 07:00.
-- **Nightly**: rotating refresh 19:30.
-- **Monthly/Quarterly**: calendar sync, full audit, stress test.
-
-## Key Conventions
-
-- Python 3.13 managed with `uv`; tests are plain Python scripts under `tests/`.
-- **The daily signal run must never break**: DB, macro, saved-model, and
-  Phase 2 failures all degrade gracefully (fallback or skip + log). Preserve
-  this property in any change to `main.py` or its dependencies.
-- The KPI gate must pass before any actionable signal; failures → `HOLD`.
-- Saved-model, drift, and model-quality readers must share the same runtime
-  artifact/gate/manifest compatibility validation. Old or corrupt artifacts
-  fail closed; they are never presented as current quality evidence.
-- If Phase 1 feature semantics change without changing column names, bump the
-  Phase 1 artifact schema version and retrain; the ordered feature hash alone
-  cannot identify a same-name semantic change.
-- Phase 2 is shadow: in shadow mode portfolio code must not modify Phase 1
-  signals or notifications. Active wiring exists (Phase 3
-  `portfolio.merge_target_weights`) so `TRADER_PORTFOLIO_MODE=active` reflects
-  `target_weight` into signals **only** when the portfolio KPI gate passes; the
-  flip to active stays a deliberate manual env change gated on the shadow report
-  (`active_readiness` in `docs/portfolio_shadow_report.json`). Shadow behavior
-  must remain byte-for-byte unchanged. Active also requires current v2,
-  net-vs-net accounting, complete same-basis benchmark coverage, and an exact
-  CS model-version match between the backtest and today's snapshot. Same-basis
-  benchmark coverage is already complete; the portfolio KPI gate currently
-  fails on `ir<0.00` and `turnover>0.40`, and `cs_ic_vs_phase1` is negative, so
-  active intentionally remains fail-closed for now.
-- `daily-publish-dashboard.yml` rsyncs `web/out/` over `docs/` with
-  `--delete`. **Any new data file under `docs/` must be added to that
-  workflow's `--exclude` list**, or the next publish deletes it
-  (`tests/test_publish_workflow.py` checks this).
-- Never let an agent edit `tickers.yml` directly. Automated curation must use
-  `scripts/curation_merge.py`; an explicitly requested universe selection may
-  use deterministic `scripts/universe_select.py --apply`.
-- `docs/history_data.json` is a legacy contract; `src/dashboard.py` removes it.
-- Japanese UI convention: red (`赤`) means up and blue (`青`) means down.
-
-## Skills
-
-Local instruction sets stored in `SKILL.md` files. For this repository:
-
-- `jp-stock-ticker-curation` (`skills/jp-stock-ticker-curation/SKILL.md`):
-  interactive research of fundamentally strong Japanese stocks from primary
-  sources (IR, filings), then source-backed proposal and deterministic
-  application through `scripts/curation_merge.py` when guardrails permit.
-  Trigger: the user names the skill or asks to research JP stocks and update
-  `tickers.yml`. Read `SKILL.md` first, load `references/` only as needed.
-  Prefer primary sources with concrete dates; afterwards report changed
-  files, selected tickers, rationale, and source links.
-
-## AI Ticker Curation (automated)
-
-`tickers.yml` and `curation_pool.yml` are curated automatically by Claude
-running in GitHub Actions (`claude-code-action@v1`). Cadence: technical screen
-**daily**, fundamental + global-macro + weekly report **weekly** (Sat), pool
-refresh **biweekly** (inside the Saturday workflow).
-
-**Critical invariant**: curation agents emit JSON/Markdown only and never edit
-those two files directly. In automated curation, the deterministic
-`scripts/curation_merge.py` (→ `tickers.yml`) and
-`scripts/curation_pool_merge.py` (→ `curation_pool.yml`) are the writers, under
-guardrails (churn/sector cap, warmup, cooldown, freshness, pool liquidity floor
-+ add-only/replace). A PreToolUse hook
-(`.claude/hooks/protect-deterministic-files.sh`) enforces the no-direct-edit
-rule. CI skills live in `.claude/skills/`; tuning knobs in `tickers.yml`
-`settings.curation` (pool knobs under `.pool`).
-
-Full design, data contracts, cadence, guardrails, scripts, and rollout:
-`specification_document/ai_ticker_curation/` (start at `00_overview.md`;
-`07_pool_refresh.md` covers the candidate pool / 母集団).
+残りの不変条件（artifact/gate/manifest の互換検証、Phase 1 スキーマ版の bump、廃止済み
+`docs/history_data.json` 契約、赤=上昇／青=下落）と、上記それぞれの詳細はリンク先2ファイルに
+あります。

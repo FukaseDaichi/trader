@@ -29,7 +29,7 @@ production. You review; you do **not** edit files.
    suspicions across the codebase (e.g. who calls a function you think now raises).
 4. Report findings. Do not fix.
 
-## Invariants to enforce (from AGENTS.md "Key Conventions")
+## Invariants to enforce (from `specification_document/08_invariants.md`)
 
 **1. The daily signal run must never break (highest priority).**
 `main.py` and everything it calls must degrade gracefully. DB, macro,

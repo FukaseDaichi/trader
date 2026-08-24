@@ -18,8 +18,8 @@ name into the enabled universe.
 ## Workflow
 
 1. Confirm local schema and constraints.
-- Read `AGENTS.md`, `tickers.yml`, `curation_pool.yml`, `README.md`, and
-  `src/config.py`.
+- Read `AGENTS.md`, `specification_document/08_invariants.md`, `tickers.yml`,
+  `curation_pool.yml`, `README.md`, and `src/config.py`.
 - Read the `fundamental_latest.json` contract in
   `../../specification_document/ai_ticker_curation/04_data_contracts.md` before
   creating a proposal.

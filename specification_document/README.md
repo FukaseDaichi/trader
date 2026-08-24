@@ -1,6 +1,6 @@
 # specification_document の構成
 
-更新日: 2026-08-04 JST
+更新日: 2026-08-24 JST
 
 このディレクトリは、**ソースコードを正とする現行仕様（as-built）**と、**未解決の課題・バックログ**を管理します。通常の実装計画は完了後に削除しますが、ユーザー指定の優先度一覧や運用移行を伴う計画は、判断記録として明示的に保持できます。
 
@@ -15,8 +15,9 @@
 | [04_scripts.md](04_scripts.md) | 補助スクリプト（`scripts/`）仕様 |
 | [05_cross_cutting.md](05_cross_cutting.md) | データ契約（docs/ JSON・DB・parquet）と横断仕様 |
 | [06_issues_and_backlog.md](06_issues_and_backlog.md) | 既知の課題・運用チェックリスト・決定記録・**今後の実装予定（統合バックログ）** |
+| [07_agent_conventions.md](07_agent_conventions.md) | エージェント作業規約（セッション開始・報告の作法・コマンド・編集前の注意）。ルート `AGENTS.md` の詳細版 |
+| [08_invariants.md](08_invariants.md) | 不変条件の全リスト（`pipeline-safety-reviewer` と `.claude/hooks/` が参照する正典） |
 | [ai_ticker_curation/](ai_ticker_curation/) | AI銘柄キュレーションの設計・契約（スクリプトのコードコメントから参照される正典） |
-| [diagrams/](diagrams/) | 対外発表向けアーキテクチャ図（Excalidraw、4枚構成） |
 
 `plans/` ディレクトリは現在存在しません（進行中の実装計画があるときだけ作成します）。未実装の予定はすべて `06_issues_and_backlog.md` の「今後の実装予定（統合バックログ）」に集約しています。
 

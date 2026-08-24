@@ -3,7 +3,7 @@
 # merge scripts (scripts/curation_merge.py / scripts/curation_pool_merge.py),
 # never by direct agent edits. This blocks Edit/Write/MultiEdit on those files
 # while leaving Bash (the scripts) and Read (the curation skills) untouched.
-# See AGENTS.md "Key Conventions".
+# See specification_document/08_invariants.md.
 path=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // ""')
 case "$(basename "$path")" in
   tickers.yml|curation_pool.yml)

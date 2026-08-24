@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PostToolUse: guard the fragile "docs/-root JSON must be excluded from the
-# publish rsync --delete" invariant (AGENTS.md; a real 2026-06-10 data-loss
-# incident). run-related-tests.sh only runs name-matching tests, so adding a
+# publish rsync --delete" invariant (specification_document/08_invariants.md;
+# a real 2026-06-10 data-loss incident). run-related-tests.sh only runs
+# name-matching tests, so adding a
 # new docs export in src/dashboard.py (or writing a docs/*.json directly) can
 # slip past — tests/test_publish_workflow.py would otherwise run nowhere.
 #
