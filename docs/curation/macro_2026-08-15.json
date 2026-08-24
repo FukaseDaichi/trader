@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-08-15T09:00:00+09:00",
+  "as_of": "2026-08-15",
+  "market_bias": "neutral",
+  "summary": "Fedは3.50-3.75%で5会合連続据え置き（higher-for-longer）、日銀は6月利上げ後7月に1.0%で据え置き（反対1名は1.25%主張）と日米金利差は依然大きく、ドル円は7/23に約40年ぶりの164円手前まで円安が進行。7/31の15年ぶり日米協調介入で157円台まで急反落した後、8/13時点で159.5円付近に戻しており、円安基調と介入警戒が併存する。輸出株には追い風だが上値は介入で抑制され、日銀追加利上げ観測と原油高がクロスカレントを生むため全体はneutral。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "neutral", "next_event": "2026-09-16", "note": "7/29 FOMCで9-3の賛成多数で3.50-3.75%を5会合連続据え置き。6月SEPのドットは2026年末3.6-4.1%とhigher-for-longerを示唆。7月は四半期会合ではないためドット更新なし。次回9/15-16はSEP/ドット更新回。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-09-18", "note": "6月会合で中東緊迫・原油高を背景に利上げ、7/30-31会合は賛成8・反対1（高田委員が1.25%主張）で1.0%据え置き。植田総裁続投。協調介入後の円安圧力で追加利上げ観測が残存。次回9/17-18。"},
+    "usdjpy": {"level": 159.5, "trend": "円安", "as_of": "2026-08-13", "note": "7/23に一時163.988円と1986年以来約40年ぶりの円安。7/31に15年ぶり（円買いでは28年ぶり）の日米協調介入（NY連銀がユーロ売り円買いを含む、6-7兆円規模観測）で157円台まで急反落。8月入り後1%超再下落し8/13は159.5円付近。164-165円は当局介入警戒ゾーン。日米金利差（Fed3.5-3.75% vs 日銀1.0%）が主因。"}
+  },
+  "themes": [
+    {
+      "id": "weak-yen-intervention-risk",
+      "title": "円安基調と日米協調介入による上値抑制",
+      "category": "fx",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-08-13", "description": "ドル円8/13時点159.5円付近。7/23に163.988円（約40年ぶり円安）→7/31の15年ぶり日米協調介入で157円台へ急反落後、再び159円台へ戻す。164-165円が介入警戒ゾーン。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "商社", "精密機器"],
+      "affected_codes": ["7203.JP", "7267.JP", "6758.JP", "6762.JP", "6981.JP", "7751.JP", "7741.JP", "6503.JP", "5108.JP", "8058.JP", "8031.JP", "8001.JP"],
+      "rationale": "150円台後半〜160円の円安水準は輸出企業（自動車・電機・電子部品・精密・商社）の想定為替レート（多くが145-155円前提）を上回り、2週間以降も円建て採算・上期業績上振れに寄与しtailwind。ただし7/31の実弾を伴う日米協調介入と164-165円の介入警戒ゾーンにより円安のさらなる進行余地は限定的で、円高への急反転リスクも残るため上値は抑制される。過度な円安進行時は輸入コスト増で小売・食品にはheadwind。",
+      "sources": [
+        {"title": "ドル円、米ＣＰＩを通過も方向感が出ず＝ＮＹ為替（みんかぶFX）", "url": "https://fx.minkabu.jp/news/375944", "date": "2026-08-13", "type": "secondary"},
+        {"title": "ドル円 為替介入・日米協調介入 2026年8月 内容まとめ（株帳）", "url": "https://kabucho.com/articles/japan-us-coordinated-yen-intervention-2026-07-31", "date": "2026-08-03", "type": "secondary"},
+        {"title": "円安阻止に向けた日米協調の新たな局面（野村総合研究所・木内登英）", "url": "https://www.nri.com/jp/media/column/kiuchi/20260803.html", "date": "2026-08-03", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "boj-hike-path",
+      "title": "日銀の追加利上げ観測（金利上昇）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-31", "description": "日銀は7/30-31会合で政策金利1.0%を賛成8・反対1で据え置き。高田委員は1.25%への利上げを主張。6月に利上げ済みで影響見極めの据え置き。"},
+      "affected_sectors": ["銀行", "保険", "証券", "生命保険", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8750.JP", "8591.JP"],
+      "rationale": "政策金利1.0%到達と反対票（1.25%主張）、協調介入後の円安是正圧力から追加利上げ観測が残存。金利上昇局面は銀行の貸出利ざや・保険/生保の運用利回り改善に直結し、2週間以降のイールドカーブ上方シフトで金融セクターにtailwind。一方、金利上昇は高PERグロースや金利感応度の高い建設・不動産系にはheadwindとなり得る（大林組8割enabled）。",
+      "sources": [
+        {"title": "日本銀行が政策金利1%を据え置き｜日銀金融政策決定会合", "url": "https://smart-moneylife.jp/news/boj-policy-rate-hold-20260731", "date": "2026-07-31", "type": "secondary"},
+        {"title": "日米協調為替介入で円安是正は新局面入り 日銀利上げ圧力が高まる可能性（野村證券・後藤祐二朗）", "url": "https://www.nomura.co.jp/wealthstyle/article/0821/", "date": "2026-08-03", "type": "secondary"},
+        {"title": "2026年の金融政策決定会合等の日程（日本銀行）", "url": "https://www.boj.or.jp/mopo/mpmsche_minu/m_ref/mref250731a.pdf", "date": "2025-07-31", "type": "primary"}
+      ]
+    },
+    {
+      "id": "fed-higher-for-longer",
+      "title": "Fedのhigher-for-longer（米金利高止まり）",
+      "category": "monetary",
+      "stance": "neutral",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-29", "description": "7/29 FOMCで9-3の賛成多数で3.50-3.75%を5会合連続据え置き。6月ドットは2026年末3.6-4.1%を示唆しhigher-for-longer。"},
+      "affected_sectors": ["半導体製造装置", "半導体", "電機"],
+      "affected_codes": ["8035.JP", "6857.JP", "6723.JP", "6758.JP"],
+      "rationale": "米金利高止まりは日米金利差を高水準で維持し円安を下支え（輸出株にはプラス）する一方、高PER・長デュレーションのグロース／半導体製造装置には割引率上昇でバリュエーション面のheadwind。9/16はSEP/ドット更新回で利下げ再開時期の織り込みが焦点となり、方向感が出るまでは相殺的でneutral。",
+      "sources": [
+        {"title": "Fed's Interest Rate Decision: July 29, 2026 (Advisor Perspectives)", "url": "https://www.advisorperspectives.com/dshort/updates/2026/07/29/feds-interest-rate-decision-july-29-2026", "date": "2026-07-29", "type": "secondary"},
+        {"title": "June 2026 Fed Dot Plot (BondSavvy)", "url": "https://www.bondsavvy.com/fixed-income-investments-blog/fed-dot-plot", "date": "2026-06-18", "type": "secondary"},
+        {"title": "FOMC Meeting Schedule September 2026 (FedRateCalc)", "url": "https://fedratecalc.com/fomc-meeting-schedule/september-2026/", "date": "2026-08-01", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "oil-mideast-inflation",
+      "title": "原油高・中東情勢による輸入コスト/インフレ圧力",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-22", "description": "ホルムズ海峡封鎖リスク再燃でブレント原油が7/22に一時100ドル突破、WTIは7/31終値86.80ドル・年初来+51%。日本の原油輸入の94%が中東産。"},
+      "affected_sectors": ["商社", "小売", "食品", "化学"],
+      "affected_codes": ["8058.JP", "8031.JP", "8001.JP", "8053.JP", "9983.JP", "2914.JP", "4063.JP"],
+      "rationale": "原油高は日本のエネルギー輸入コスト増・国内インフレ再加速を通じて2週間以降も小売・食品などコスト転嫁が難しい内需・素材（化学）セクターにheadwind。日銀の追加利上げ観測を強める側面もある。一方、資源権益を持つ総合商社には資源価格上昇が採算改善でプラスに働き得る（stanceは日本株全体では原油高=headwind寄りと判断）。",
+      "sources": [
+        {"title": "原油価格はなぜ上がっているのか（第一生命経済研究所）", "url": "https://www.dlri.co.jp/report/macro/598456.html", "date": "2026-07-23", "type": "secondary"},
+        {"title": "国際的な原油価格指標の動向について（内閣府）", "url": "https://www5.cao.go.jp/keizai3/shihyo/2026/0605/1415.pdf", "date": "2026-06-05", "type": "primary"},
+        {"title": "原油価格の推移（WTI/ブレント/ドバイ/OPECバスケット）", "url": "https://pps-net.org/statistics/crude-oil", "date": "2026-08-01", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["7203.JP", "7267.JP", "6758.JP", "6762.JP", "6981.JP", "7751.JP", "7741.JP", "6503.JP", "5108.JP", "8035.JP", "6857.JP", "6723.JP", "8058.JP", "8031.JP", "8001.JP", "8053.JP", "8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8604.JP", "8750.JP", "8591.JP", "1802.JP", "9983.JP", "2914.JP", "4063.JP", "9020.JP"],
+  "notes": "金利・為替を主軸に、6月日銀利上げの背景でもある原油高を『other』テーマとして1件追加。市況の中心は日米金利差起点の円安と、7/31の実弾協調介入・164-165円の介入警戒ゾーンによる上値抑制の綱引き。affected_sectorsはcuration_pool.ymlの語彙、affected_codesはenabled/watchlist/poolの実在コードのみを使用。",
+  "limitations": "マクロ予測は不確実で将来の値動きを保証しない。データは急変しうる（特に介入・原油・地政学）。政策金利の数値はFedを3.50-3.75%の中点3.625として記載。"
+}

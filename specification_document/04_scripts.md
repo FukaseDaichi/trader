@@ -30,7 +30,7 @@ JPX 営業日判定と休日キャッシュ同期。`is-open`（指定日また�
 
 未決済シグナルの 1/5/10 営業日実現結果（realized_ret / hit / MAE / MFE / exit_reason）を銘柄 parquet から計算し `signal_outcomes` へ upsert。約定契約 `next_session_open_to_close_v2` は、判断に使った `market_as_of_date` の次の市場行の寄付きで入り、H営業日目の終値で決済する。休日はカレンダー日加算せず、実在する次のOHLCV行で解決する。
 
-TOPIXパネルは終値のみで同じ翌日寄付き基準を作れないため、v2の `benchmark_ret` / `excess_ret` は NULL とし比較不能理由を保存する。`--refill-benchmark` は旧 `close_to_close_v1` 行だけが対象。migration 0004適用後の既存結果は `--restate-execution-contract` でv2へ再計算・置換でき、通常実行もlegacy行をv2未決済として段階的に置換する。決済完了後に成績JSONを再エクスポートし、settle当日の実績を同日commitへ反映する。
+決済はマクロパネルの `topix_open`（entry日寄付き）→ `topix`（eval日終値）で同一basisの `benchmark_ret` / `excess_ret` をグロス計算し、成功行だけ `benchmark_basis=next_session_open_to_horizon_session_close` を持つ。欠損時はNULL＋`unavailable_same_basis` で縮退して保存する。`--refill-benchmark` はv2で `benchmark_ret` が未設定の行を冪等補填する（旧v1のclose-to-close補填経路は削除済み）。migration 0004適用後の既存結果は `--restate-execution-contract` でv2へ再計算・置換でき、通常実行もlegacy行をv2未決済として段階的に置換する。`--restate-execution-contract` 自体の挙動は本件で変更していない。決済完了後に成績JSONを再エクスポートし、settle当日の実績を同日commitへ反映する。
 
 ### `scripts/backfill_state_signals.py`
 

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "agent": "macro",
+  "model": "claude-opus-4-8",
+  "cadence": "weekly",
+  "generated_at": "2026-08-08T08:00:00+09:00",
+  "as_of": "2026-08-08",
+  "market_bias": "neutral",
+  "summary": "今週の最大の変化は15年ぶり（円買いでは28年ぶり）の日米協調介入。7/23に一時163.99円と約40年ぶり円安を付けた後、7/30-31の協調介入で155-157円台へ急反発し、8/3に日米共同声明。ベッセント米財務長官は再介入も辞さずと表明し、円安の上値に強い天井が形成された。加えて8/7発表の米雇用統計が-2.3万人・5-6月分を計10.3万人下方修正の弱さで、9月Fed利上げ観測が後退（CMEで据え置き56%）。円高バイアスは輸出株に向かい風、国内金利高止まりは銀行・保険に追い風で、業種ローテーション色の濃いニュートラル。",
+  "regime": {
+    "fed": {"policy_rate_pct": 3.625, "stance": "neutral", "next_event": "2026-09-16", "note": "7/28-29会合で3.50-3.75%据え置き（9-3、3名は利上げ主張）のタカ派据え置きを維持。ただし8/7発表の7月雇用統計が-2.3万人の減少・5-6月分を計10.3万人下方修正と弱く、市場が織り込んでいた9月利上げ観測は後退（CME FedWatchで据え置き56%）。Warsh議長は物価目標2%を堅持と発言。8/12に7月CPI（予想+3.4%）。9/16会合はSEP更新。"},
+    "boj": {"policy_rate_pct": 1.0, "stance": "hawkish", "next_event": "2026-09-18", "note": "7/31会合で政策金利1.0%据え置き（6月に7-1で1.00%へ利上げ済み）。植田総裁は基調物価の2%上振れリスクに言及し『利上げペース加速もありうる』と発言、追加利上げ観測が残存。"},
+    "usdjpy": {"level": 157.5, "trend": "円高", "as_of": "2026-08-06", "note": "7/23に一時163.99円（1986年以来約40年ぶり円安）を付けた後、7/30の単独介入（推定6兆円超）と7/31NY時間の日米協調介入（米はユーロ売り・円買い）で155.2円台まで急反発。8/3に日米共同声明。8/6時点は157.50前後で横ばい。ベッセント財務長官が再介入の用意を表明し、円安の上値に強い天井。"}
+  },
+  "themes": [
+    {
+      "id": "yen-coordinated-intervention",
+      "title": "日米協調介入による円高転換（164→157円台）",
+      "category": "fx",
+      "stance": "headwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-08-03", "description": "7/23に一時163.99円と約40年ぶり円安を付けた後、7/30の日本単独介入（推定6兆円超）と7/31NY時間の日米協調介入で155.2円台まで約8円の円高。8/3に日米共同声明を公表。円買い協調は1998年以来28年ぶり、協調介入自体は2011年以来15年ぶり。ベッセント米財務長官は無秩序な円安には再介入も辞さずと表明。"},
+      "affected_sectors": ["自動車", "電機", "電子部品", "精密機器", "商社"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6702.JP", "6861.JP", "6981.JP", "6762.JP", "7751.JP", "7741.JP", "8058.JP", "8031.JP", "8001.JP"],
+      "rationale": "協調介入とベッセント長官の再介入示唆により円安の上値に明確な天井ができ、ドル円は164→157円台へ約8円の円高に転換。円高は輸出企業の外貨建て売上の円換算額と想定為替レート比の為替差益を圧縮し、自動車・電機・電子部品・精密機器・商社の増益期待に2週間以降も向かい風。米当局が円買い側に回った以上、円安方向のリバウンドは介入警戒で抑制されやすく、円高バイアスの確度は高い。",
+      "sources": [
+        {"title": "外国為替平衡操作の実施状況（財務省）", "url": "https://www.mof.go.jp/policy/international_policy/reference/feio/index.html", "date": "2026-08-03", "type": "primary"},
+        {"title": "日米、円買い協調介入か ２８年ぶり、円安阻止へ異例の連携（時事通信）", "url": "https://www.jiji.com/jc/article?k=2026080100340&g=eco", "date": "2026-08-01", "type": "secondary"},
+        {"title": "ドル円 為替介入・日米協調介入 2026年8月 内容まとめ（株帳）", "url": "https://kabucho.com/articles/japan-us-coordinated-yen-intervention-2026-07-31", "date": "2026-08-03", "type": "secondary"},
+        {"title": "2026年8月3日のUSD/JPY為替レート（OANDA）", "url": "https://www.oanda.jp/lab-education/historical-rate/usdjpy/20260803/", "date": "2026-08-03", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "fed-dovish-tilt-jobs",
+      "title": "米雇用悪化でFed9月利上げ観測が後退",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-08-07", "description": "8/7発表の7月雇用統計が-2.3万人の雇用減少、5-6月分を計10.3万人下方修正と労働市場の弱さを示し、市場が織り込んでいた9月Fed利上げ観測が後退。CME FedWatchで9月据え置き確率は前日45%から56%へ上昇。6月CPIは前年比3.5%（5月4.2%から低下）、7月CPIは8/12発表（予想+3.4%）。"},
+      "affected_sectors": ["半導体製造装置", "半導体", "電機"],
+      "affected_codes": ["8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP", "6758.JP"],
+      "rationale": "米金利の追加上昇観測が後退すると、高PER・長デュレーションのグロースや半導体製造装置の割引率に追い風。もっとも半導体製造装置はAI投資サイクルが主因で金利感応度は限定的。加えて米金利低下は日米金利差の縮小を通じて円高を助長するため輸出セクター全般には向かい風となり、米労働市場の減速自体も外需の下振れ要因。ネットでは割引率の追い風と円高・外需鈍化の逆風が交錯するため確度はmedium。",
+      "sources": [
+        {"title": "The Employment Situation（U.S. Bureau of Labor Statistics）", "url": "https://www.bls.gov/news.release/empsit.nr0.htm", "date": "2026-08-07", "type": "primary"},
+        {"title": "July 28-29, 2026 FOMC Meeting（Federal Reserve）", "url": "https://www.federalreserve.gov/monetarypolicy/fomcpresconf20260729.htm", "date": "2026-07-29", "type": "primary"},
+        {"title": "Fed was expected to hike rates in September. Don't bet on that now, economists say（CBS News）", "url": "https://www.cbsnews.com/news/federal-reserve-september-rate-decision-jobs-report-kevin-warsh/", "date": "2026-08-07", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "boj-hike-path",
+      "title": "日銀の追加利上げ観測（国内金利高止まり）",
+      "category": "monetary",
+      "stance": "tailwind",
+      "confidence": "high",
+      "latest_event": {"date": "2026-07-31", "description": "7/31会合で政策金利1.0%据え置き。植田総裁が基調物価の2%上振れリスクに言及し『利上げペース加速もありうる』と発言。6月会合では7-1の賛成多数で1.00%へ利上げ済み。次回会合は9/18。"},
+      "affected_sectors": ["銀行", "保険", "証券", "生命保険", "金融"],
+      "affected_codes": ["8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8750.JP", "8604.JP", "8591.JP"],
+      "rationale": "国内金利の高止まりは銀行の貸出・運用利ざや（NIM）と保険・生保の予定利率・運用利回りを改善させ、2週間以降も金融株の追い風。植田総裁の加速示唆で追加利上げ観測が残存し、円高（介入）と組み合わさると金利差縮小→円高→金融株シフトのローテーションが続きやすい。一方で高PERグロースや金利感応度の高い建設・不動産系には向かい風。ただし米金利低下が世界的な長期金利を押し下げれば長期ゾーンの追い風は一部相殺される。",
+      "sources": [
+        {"title": "金融政策決定会合の運営・議事要旨・スケジュール（日本銀行）", "url": "https://www.boj.or.jp/mopo/mpmsche_minu/index.htm", "date": "2026-07-31", "type": "primary"},
+        {"title": "日銀・植田総裁、利上げペース「加速もありうる」 物価上振れ警戒（日本経済新聞）", "url": "https://www.nikkei.com/article/DGXZQOUB3081L0Q6A730C2000000/", "date": "2026-07-31", "type": "secondary"}
+      ]
+    },
+    {
+      "id": "us-japan-tariffs",
+      "title": "米の対日追加関税（Section 301 12.5%）",
+      "category": "other",
+      "stance": "headwind",
+      "confidence": "medium",
+      "latest_event": {"date": "2026-07-24", "description": "7/23発表・7/24発効の通商法301条に基づく対日12.5%追加関税（従来の相互関税10%を継承）。自動車関税は27.5%→15%へ引き下げ済みも従来の2.5%を大幅に上回る。FY2025は大手6社の関税コストが2.4兆円超。今週は新たな追加措置なし。"},
+      "affected_sectors": ["自動車"],
+      "affected_codes": ["7203.JP", "7267.JP", "7201.JP"],
+      "rationale": "対米輸出比率の高い自動車は追加関税でコスト増・値上げ転嫁の難度が上がり、2週間以降も収益・株価の重石。今週の円高進行と重なると輸出採算がさらに悪化するため自動車には二重の向かい風。救済措置で上限が画されている点はダウンサイドを一部限定。",
+      "sources": [
+        {"title": "One year on, Trump tariffs continue battering Japan automakers（The Japan Times）", "url": "https://www.japantimes.co.jp/business/2026/07/20/trump-tariffs-japan-automakers/", "date": "2026-07-20", "type": "secondary"},
+        {"title": "U.S. to Impose New 12.5% Tariff on Japan Starting July 24 (Section 301)", "url": "https://finance.biggo.com/news/3b719c74-c32b-47cb-9dfd-d3555ddfed15", "date": "2026-07-23", "type": "secondary"}
+      ]
+    }
+  ],
+  "universe_considered": ["7203.JP", "7267.JP", "7201.JP", "6758.JP", "6501.JP", "6503.JP", "6702.JP", "6861.JP", "6981.JP", "6762.JP", "7751.JP", "7741.JP", "8058.JP", "8031.JP", "8001.JP", "8035.JP", "6857.JP", "6920.JP", "6146.JP", "6723.JP", "8306.JP", "8316.JP", "8411.JP", "8766.JP", "8725.JP", "8750.JP", "8604.JP", "8591.JP"],
+  "notes": "前週(8/1)はドル円159円台で『日銀タカ派＋円高＋関税』のローテーションを描いたが、今週は7/30-31の日米協調介入（円買い28年ぶり・協調15年ぶり）が最大の材料。ドル円は40年ぶり円安の164円手前から157円台へ急反発し、ベッセント長官の再介入示唆で円安に明確な天井。さらに8/7の弱い米雇用統計でFed9月利上げ観測が後退し、円高バイアスが一段と強まった。テーマの重心は『輸出株への円高向かい風』と『銀行・保険への国内金利追い風』のローテーション継続で、Fedの利上げ後退はグロース／半導体の割引率には追い風だが円高を助長する点に留意。",
+  "limitations": "マクロ予測は不確実。将来の値動きを保証しない。データは急変しうる。為替は介入・要人発言で短期に大きく振れる可能性がある。介入の実額は財務省の月次公表を待つ必要があり推定値を含む。"
+}

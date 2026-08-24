@@ -112,8 +112,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TRADER_DB_ENABLED: "true"
           RUN_DATE_JST: ${{ steps.market.outputs.today_jst }}
-        # Legacy-v1 refill only; contract-v2 benchmark remains fail-closed until
-        # matching TOPIX open prices are available.
+        # Settlement computes the same-basis TOPIX benchmark inline (entry-open
+        # to eval-close, from the macro panel's topix_open/topix levels).
+        # --refill-benchmark idempotently backfills any v2 rows whose
+        # benchmark_ret is still NULL because the panel lagged on settle day.
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
       - name: Commit and push retry updates

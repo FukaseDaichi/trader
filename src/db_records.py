@@ -266,15 +266,26 @@ def portfolio_snapshot_row(snapshot: dict, *, run_date=None) -> dict | None:
 
 
 def compute_benchmark_ret(
-    benchmark_by_date: dict, entry_date: str, eval_date: str
+    open_by_date: dict, close_by_date: dict, entry_date: str, eval_date: str
 ) -> float | None:
-    """TOPIX close-to-close return over the holding window; None when either
-    date is missing from the series (settlement keeps going with NULL)."""
-    entry = benchmark_by_date.get(str(entry_date))
-    exit_ = benchmark_by_date.get(str(eval_date))
-    if not entry or not exit_:  # missing date or a zero/None level (data error)
+    """Same-basis TOPIX return: entry-session open to eval-session close.
+
+    Mirrors contract v2 using the macro panel's ``topix_open`` / ``topix``
+    levels.  Returns None when either level is missing, non-finite, or
+    non-positive — settlement keeps going with NULL and a later
+    --refill-benchmark run self-heals.
+    """
+    entry = open_by_date.get(str(entry_date))
+    exit_ = close_by_date.get(str(eval_date))
+    if entry is None or exit_ is None:
         return None
-    return float(exit_) / float(entry) - 1.0
+    entry = float(entry)
+    exit_ = float(exit_)
+    if not (math.isfinite(entry) and math.isfinite(exit_)):
+        return None
+    if entry <= 0 or exit_ <= 0:
+        return None
+    return exit_ / entry - 1.0
 
 
 def compute_outcome(

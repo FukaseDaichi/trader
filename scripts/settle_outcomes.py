@@ -14,13 +14,13 @@ Usage:
   uv run python scripts/settle_outcomes.py --refill-benchmark
   uv run python scripts/settle_outcomes.py --restate-execution-contract
 
-The macro panel now carries a same-basis TOPIX-proxy open (topix_open, added
-2026-07-26 for the Phase 2 portfolio backtest), but this per-signal
-settlement path does not consume it yet -- that wiring is separate,
-untracked-as-started work (see specification_document/06_issues_and_backlog.md).
-Contract v2 therefore still leaves benchmark_ret NULL instead of mixing a
-close-to-close proxy with the stock's open-to-close return. Legacy v1 rows
-can still be refilled.
+The macro panel carries a same-basis TOPIX-proxy open (topix_open, same
+instrument and adjustment basis as the topix close column). Settlement
+computes the contract-v2 same-basis benchmark inline
+(topix_open[entry_date] -> topix[eval_date] close, gross), and
+--refill-benchmark idempotently backfills v2 rows whose benchmark is still
+NULL (e.g. the panel lagged on settle day). Rows settle with NULL benchmark
+and benchmark_basis=unavailable_same_basis when either level is missing.
 Exits 0 (no-op) when DB is disabled / unreachable.
 """
 
@@ -48,39 +48,65 @@ from src.execution import (  # noqa: E402
     ENTRY_PRICE_BASIS,
     EXECUTION_CONTRACT_VERSION,
     EXIT_PRICE_BASIS,
-    LEGACY_EXECUTION_CONTRACT_VERSION,
+    SAME_BASIS_BENCHMARK,
     resolve_execution_window,
 )
 from scripts.curation_common import today_jst_iso  # noqa: E402
 
 
-def _load_topix_by_date() -> dict[str, float]:
+def _load_topix_by_date() -> tuple[dict[str, float], dict[str, float]]:
+    """Return ({date: topix_open}, {date: topix_close}) from the macro panel.
+
+    Both dicts are keyed only on dates where topix_open AND topix are present
+    and positive.  src/macro.py forward-fills close columns but never opens, so
+    a genuine open proves the instrument traded that date and its close from the
+    same source row is genuine too; keying both sides off that rule keeps a
+    stale forward-filled close from becoming an exit price.  Same rule as
+    src/portfolio_backtest.py::_prepare_topix, so settlement and the Phase 2
+    backtest measure the identical basis.
+
+    Never raises: any problem degrades to empty dicts (benchmark stays NULL).
+    """
     macro_path = ROOT / "data" / "macro" / "macro_panel.parquet"
     try:
         df = pd.read_parquet(macro_path)
+        required = {"date", "topix_open", "topix"}
+        if not required.issubset(df.columns):
+            print(
+                "macro_panel.parquet lacks same-basis benchmark columns "
+                f"{sorted(required.difference(df.columns))}; benchmark stays NULL"
+            )
+            return {}, {}
+        tp = df[["date", "topix_open", "topix"]].copy()
+        tp["date"] = pd.to_datetime(tp["date"], errors="coerce")
+        tp["topix_open"] = pd.to_numeric(tp["topix_open"], errors="coerce")
+        tp["topix"] = pd.to_numeric(tp["topix"], errors="coerce")
+        tp = tp.dropna(subset=["date", "topix_open", "topix"])
+        tp = tp[(tp["topix_open"] > 0) & (tp["topix"] > 0)]
+        tp = tp.sort_values("date").drop_duplicates(subset="date", keep="last")
+        if tp.empty:
+            print(
+                "macro_panel.parquet has no same-basis TOPIX rows; benchmark stays NULL"
+            )
+            return {}, {}
+        keys = tp["date"].dt.strftime("%Y-%m-%d")
+        opens = {d: float(v) for d, v in zip(keys, tp["topix_open"])}
+        closes = {d: float(v) for d, v in zip(keys, tp["topix"])}
+        return opens, closes
     except FileNotFoundError:
         print("macro_panel.parquet not found; TOPIX benchmark will stay NULL")
-        return {}
+        return {}, {}
     except Exception as exc:  # noqa: BLE001
-        print(f"macro_panel.parquet read error (benchmark stays NULL): {exc}")
-        return {}
-    if "topix" not in df.columns:
-        print("macro_panel.parquet has no topix column; benchmark stays NULL")
-        return {}
-    sub = df[["date", "topix"]].dropna(subset=["topix"])
-    result = {
-        d[:10]: float(v)
-        for d, v in zip(
-            pd.to_datetime(sub["date"]).dt.strftime("%Y-%m-%d"), sub["topix"]
-        )
-    }
-    if not result:
-        print("macro_panel.parquet topix column is all-NaN; benchmark stays NULL")
-    return result
+        print(f"macro_panel benchmark load error (benchmark stays NULL): {exc}")
+        return {}, {}
 
 
 def _settle_for_ticker(
-    conn, ticker: str, signals: list[dict], _topix_by_date: dict
+    conn,
+    ticker: str,
+    signals: list[dict],
+    topix_open_by_date: dict,
+    topix_close_by_date: dict,
 ) -> int:
     df = load_data(ticker)
     if df is None:
@@ -116,14 +142,20 @@ def _settle_for_ticker(
                 path_highs=path["high"].astype(float).tolist(),
                 path_lows=path["low"].astype(float).tolist(),
             )
-            # A same-basis TOPIX open now exists in the macro panel (see
-            # src/macro.py's topix_open), but this per-signal settlement path
-            # does not consume it yet -- that wiring is separate work. A
-            # prior-close benchmark would include an overnight move
-            # unavailable to the stock strategy, so v2 fails closed here
-            # rather than publishing a mismatched excess return.
-            benchmark_ret = None
-            excess_ret = None
+            benchmark_ret = compute_benchmark_ret(
+                topix_open_by_date,
+                topix_close_by_date,
+                window.entry_date,
+                window.exit_date,
+            )
+            excess_ret = (
+                payload["realized_ret"] - benchmark_ret
+                if benchmark_ret is not None
+                else None
+            )
+            benchmark_basis = (
+                SAME_BASIS_BENCHMARK if benchmark_ret is not None else BENCHMARK_BASIS
+            )
             db.upsert_outcome(
                 conn,
                 sig["signal_id"],
@@ -140,7 +172,7 @@ def _settle_for_ticker(
                     "entry_price_basis": ENTRY_PRICE_BASIS,
                     "exit_price_basis": EXIT_PRICE_BASIS,
                     "contract_version": EXECUTION_CONTRACT_VERSION,
-                    "benchmark_basis": BENCHMARK_BASIS,
+                    "benchmark_basis": benchmark_basis,
                     "realized_ret": payload["realized_ret"],
                     "benchmark_ret": benchmark_ret,
                     "excess_ret": excess_ret,
@@ -154,6 +186,37 @@ def _settle_for_ticker(
     return settled
 
 
+def _refill_v2_benchmarks(
+    conn, topix_open_by_date: dict, topix_close_by_date: dict
+) -> tuple[int, int]:
+    """Backfill same-basis benchmark for v2 rows settled while data lagged.
+
+    Idempotent: only rows with benchmark_ret still NULL are scanned, and the
+    computation is deterministic.  Returns (refilled, scanned).
+    """
+    missing = db.fetch_outcomes_missing_benchmark(conn)
+    refilled = 0
+    for row in missing:
+        benchmark_ret = compute_benchmark_ret(
+            topix_open_by_date,
+            topix_close_by_date,
+            row["entry_date"],
+            row["eval_date"],
+        )
+        if benchmark_ret is None:
+            continue
+        db.update_outcome_benchmark(
+            conn,
+            row["signal_id"],
+            row["horizon_days"],
+            benchmark_ret,
+            row["realized_ret"] - benchmark_ret,
+            SAME_BASIS_BENCHMARK,
+        )
+        refilled += 1
+    return refilled, len(missing)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -164,7 +227,7 @@ def main() -> int:
     parser.add_argument(
         "--refill-benchmark",
         action="store_true",
-        help="Backfill benchmark_ret/excess_ret for legacy v1 rows only.",
+        help="Backfill same-basis benchmark_ret/excess_ret for v2 rows still NULL.",
     )
     parser.add_argument(
         "--restate-execution-contract",
@@ -180,7 +243,7 @@ def main() -> int:
         print("DB disabled or DATABASE_URL unset; skipping settlement.")
         return 0
 
-    topix_by_date = _load_topix_by_date() if args.refill_benchmark else {}
+    topix_open_by_date, topix_close_by_date = _load_topix_by_date()
 
     try:
         conn = db.connect()
@@ -207,44 +270,22 @@ def main() -> int:
 
         total = 0
         for ticker, sigs in by_ticker.items():
-            total += _settle_for_ticker(conn, ticker, sigs, topix_by_date)
+            total += _settle_for_ticker(
+                conn, ticker, sigs, topix_open_by_date, topix_close_by_date
+            )
         print(
             f"Settlement as-of {args.as_of}: filled {total} outcome rows "
             f"across {len(by_ticker)} tickers ({len(unsettled)} unsettled signals scanned)."
         )
 
-        if args.refill_benchmark and not topix_by_date:
-            print("Refill benchmark: no TOPIX data available; skipping.")
-        elif args.refill_benchmark:
-            missing = db.fetch_outcomes_missing_benchmark(conn)
-            refilled = 0
-            skipped_contract = 0
-            for row in missing:
-                contract_version = row.get("contract_version")
-                if contract_version not in (
-                    None,
-                    LEGACY_EXECUTION_CONTRACT_VERSION,
-                ):
-                    skipped_contract += 1
-                    continue
-                benchmark_ret = compute_benchmark_ret(
-                    topix_by_date, row["entry_date"], row["eval_date"]
+        if args.refill_benchmark:
+            if not topix_open_by_date or not topix_close_by_date:
+                print("Refill benchmark: no same-basis TOPIX data; skipping.")
+            else:
+                refilled, scanned = _refill_v2_benchmarks(
+                    conn, topix_open_by_date, topix_close_by_date
                 )
-                if benchmark_ret is None:
-                    continue
-                excess_ret = row["realized_ret"] - benchmark_ret
-                db.update_outcome_benchmark(
-                    conn,
-                    row["signal_id"],
-                    row["horizon_days"],
-                    benchmark_ret,
-                    excess_ret,
-                )
-                refilled += 1
-            print(
-                f"Refill benchmark: updated {refilled}/{len(missing)} rows "
-                f"(skipped {skipped_contract} non-legacy rows)."
-            )
+                print(f"Refill benchmark: updated {refilled}/{scanned} v2 rows.")
 
         try:
             from src import dashboard
