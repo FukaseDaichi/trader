@@ -26,3 +26,9 @@
 9. **Skill の正本は `.agents/skills/<name>/SKILL.md` のみ。** `.claude/skills/` は参照スタブ。symlink とファイル一式コピーは禁止。手順は 07 の Skills 節。
 
 残りの不変条件（artifact/gate/manifest の互換検証、Phase 1 スキーマ版の bump、廃止済み `docs/history_data.json` 契約、赤=上昇／青=下落）と各項目の詳細はリンク先2ファイルにある。
+
+## LEARNINGS.md ループ
+
+各セッションの開始時に、リポジトリ直下の LEARNINGS.md を読め。
+読んだ内容を1〜3行で要約して提示し、読み込みが行われたことを可視化せよ。
+実質的なリポジトリ作業を完了して最終回答を返す前に、 `update-learnings` スキルを1回だけ実行せよ。 雑談、単純な質問、変更や再利用可能な学びがない作業では実行不要とする。
