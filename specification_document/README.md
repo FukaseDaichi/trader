@@ -1,6 +1,6 @@
 # specification_document の構成
 
-更新日: 2026-08-24 JST
+更新日: 2026-08-27 JST
 
 このディレクトリは、**ソースコードを正とする現行仕様（as-built）**と、**未解決の課題・バックログ**を管理します。通常の実装計画は完了後に削除しますが、ユーザー指定の優先度一覧や運用移行を伴う計画は、判断記録として明示的に保持できます。
 
@@ -17,6 +17,8 @@
 | [06_issues_and_backlog.md](06_issues_and_backlog.md) | 既知の課題・運用チェックリスト・決定記録・**今後の実装予定（統合バックログ）** |
 | [07_agent_conventions.md](07_agent_conventions.md) | エージェント作業規約（セッション開始・報告の作法・コマンド・編集前の注意）。ルート `AGENTS.md` の詳細版 |
 | [08_invariants.md](08_invariants.md) | 不変条件の全リスト（`pipeline-safety-reviewer` と `.claude/hooks/` が参照する正典） |
+| [09_persona_aoi.md](09_persona_aoi.md) | ペルソナ「あおい」の正本（チャット回答と週次レポートが共通参照するキャラ設定） |
+| [archive/06_issues_archive.md](archive/06_issues_archive.md) | 06 から移した完了済み計画・過去の観測地点・決定記録の全文（読み込みは再検討時のみ） |
 | [ai_ticker_curation/](ai_ticker_curation/) | AI銘柄キュレーションの設計・契約（スクリプトのコードコメントから参照される正典） |
 
 `plans/` ディレクトリは現在存在しません（進行中の実装計画があるときだけ作成します）。未実装の予定はすべて `06_issues_and_backlog.md` の「今後の実装予定（統合バックログ）」に集約しています。

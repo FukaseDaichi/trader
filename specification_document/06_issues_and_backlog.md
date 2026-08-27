@@ -1,8 +1,8 @@
 # 既知の課題・運用計画・バックログ
 
-更新日: 2026-08-24 JST
+更新日: 2026-08-27 JST
 
-この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」「今後実装する予定のもの」を扱う唯一の一覧です。解決済みの修正履歴はgit logを参照してください。日付は最短の目安であり、条件未達なら延期します。
+この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」「今後実装する予定のもの」を扱う唯一の一覧です。解決済みの修正履歴はgit log、完了した計画・過去の観測地点・決定記録の全文（採用理由と不採用案）は[archive/06_issues_archive.md](archive/06_issues_archive.md)を参照してください。日付は最短の目安であり、条件未達なら延期します。
 
 ## 結論
 
@@ -23,47 +23,9 @@
 | 8766.JP旧履歴異常 | 2026-08-24確認: model_qualityに正常掲載（IC 0.3438、Brier 0.2256、calibration 120行）、drift `breached=false`（PSI warningはmacro `usdjpy_ret_60`由来で全銘柄共通傾向） | 即時対応条件（学習失敗・drift breach）に非該当。観察継続 |
 | 日次運用 | 2026-08-24のcore daily・curation・publishまで正常コミット | 正常 |
 
-## 前回地点（2026-08-02、参考）
+## 週次レビュー（継続中）
 
-| 項目 | 状態 | 判断 |
-| --- | --- | --- |
-| execution contract v2 | 本番DB移行・再集計・監査完了 | 完了 |
-| Phase 1 schema v3 | 50/50銘柄を学習し、manifest・checksum・runtime契約・DB registryを検証してactive化済み | 完了 |
-| Phase 1個別KPI gate | independent cohort gate（metrics schema v3）をremoteへ反映済み。2026-08-01の週次再学習が`per-ticker-v1-20260801T090258-76bcfb375e42-9b960e8b`を生成。`data/outbox/`はディレクトリ自体が無く、registry eventの滞留なし。本番2026-07-31時点で50銘柄中7銘柄がgate通過、actionable 7件（MILD_BUY 6・MILD_SELL 1） | コード・artifact・観測は本番稼働。残るのは5営業日観測の完了（2026-08-03、08-04）のみ |
-| drift | 50銘柄すべて`warning`（実績サンプル不足）。`breached=false` | 調査完了（2026-08-05）: 旧実装はactive `model_version`完全一致でoutcomeを数えており、週次バージョン更新×非HOLDのみ決済×5営業日ラグの掛け算で`n_outcomes`が構造的に常時0（全履歴で0を確認）。model lineage（`model_registry.kind`）でプールする方式へ修正済み（`db.fetch_prediction_outcomes_for_kind`、`drift_report.outcome_scope`で判別可）。修正後は46 outcomes/16銘柄を観測。ただし非HOLDシグナルが少ないため`min_outcomes=30`/銘柄への到達はなお時間を要する。今後サンプルは単調増加するので、増えない場合のみ再調査 |
-| Phase 2レポート | 公式`docs/portfolio_backtest.json`が2026-08-01に`cs-v1-20260801`で再生成され、`benchmark_coverage.coverage_ratio=1.0`（35/35期間）。`information_ratio=-0.3905`、`alpha=0.0364`、`beta=0.3846`、`tracking_error=0.1210`、`turnover=0.9205`、`gate.failures=["ir<0.00","turnover>0.40"]` | `ir_unavailable_same_basis`は解消。公式artifactで初めてIRが測れた結果、**IRは負**。Phase 2を育てるか畳むかの判断材料が揃った（下記「Phase 2の継続判断」） |
-| Phase 2 shadow report | 2026-08-01時点で`shadow_days=19`、`n_paired_dates=19`、`n_paired_records=54`、`cs_ic_vs_phase1=-0.2404`、`active_ready=false` | 維持する |
-| TOPIX benchmark | `topix_open`をマクロパネルに実装済み・本番反映済み | active化のP0制約から除外。以後は評価対象の指標として扱う |
-| 実行モード | core/retry workflowとも`TRADER_PORTFOLIO_MODE=shadow`を明示 | 維持する |
-
-## 実施計画
-
-### 1. Phase 1 independent cohort gateの本番観測（2026-07-29〜08-04）
-
-2026-07-29に本番反映した。残作業は最初の5営業日（07-29、07-30、07-31、08-03、08-04）の観測完了のみで、07-31までの3営業日は正常である。
-
-毎営業日、次を確認する。
-
-- 銘柄別KPI gate通過数、actionable signal数、HOLD縮退理由
-- independent cohorts、round trips、CAGR、平均日次net return、Sharpe、threshold選択、calibration
-- 保存済みschema v3モデルの利用率とephemeral fallback率（fallbackは0が正常）
-- v2の1/5/10日決済件数と`realized_ret`欠損
-- driftの`n_outcomes`と`insufficient_sample_tickers`
-
-**ロールバック条件**（1つでも該当したら、旧コードと旧artifact pointerを同じ単位で戻す。新gate evidenceを旧設定で再利用せず、旧contractに一致するartifactへ戻す）:
-
-- artifact、manifest、gate contract、registryの不一致
-- 日次処理の停止
-- actionable signalが10件超の日が2営業日連続
-- gate通過が再び0/50で2営業日連続
-- settlement、DB write-through、LINE digestの契約不整合
-- 事前評価を大きく超えるdrawdownまたはturnover異常
-
-シグナル数を作るためだけにKPI閾値を緩めない。モデル・特徴量・ラベル・サンプル設計の根拠が先である。
-
-### 2. 4週間shadow監視（2026-07-27〜08-21）
-
-週次確認日は2026-08-01、08-08、08-15、08-22とする。毎週、同じ観点で記録する。
+4週間shadow監視（2026-07-27〜08-21、完了・詳細はarchive）から継続する週次確認。次回は2026-08-29（土）の週次再学習後。毎週、同じ観点で記録する。
 
 | 観点 | 合格方向 | 即時停止条件 |
 | --- | --- | --- |
@@ -74,13 +36,13 @@
 | portfolio KPI | gate合格、IR・DD・Sharpe・turnoverが有限で再現可能 | benchmark coverage不足、必須指標NULL、gate不合格 |
 | 運用健全性 | DB/outbox/dead letter、ダイジェスト、dashboardが整合 | 書き込み停止、鮮度低下、通知とDBの不一致 |
 
-4週間という期間は必要条件であって十分条件ではない。休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
+休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
 
-### 3. 最初の総合判定（2026-08-22予定 → 2026-08-24実施）
+### active化の総合判定チェックリスト
 
-**判定結果（2026-08-24）: shadow継続。** 下記チェックリストのうちgate合格・turnover再校正・`active_ready=true`が未達（portfolio gate failures=`["ir<0.00","turnover>0.40"]`、`cs_ic_vs_phase1=-0.2825`）。次回判定は週次レビューの一環として継続する。
+**最初の総合判定（2026-08-22予定 → 2026-08-24実施）: shadow継続。** gate合格・turnover再校正・`active_ready=true`が未達（portfolio gate failures=`["ir<0.00","turnover>0.40"]`、`cs_ic_vs_phase1=-0.2825`）。次回判定は週次レビューの一環として継続する。
 
-以下を**すべて**満たした場合だけ、active化を人間が検討できる。
+以下を**すべて**満たした場合だけ、active化を人間が検討できる。1項目でも未達なら`shadow`を継続する。
 
 - [ ] 4週間の週次記録があり、観測数とpaired coverageが実際に増加
 - [ ] Phase 1 schema v3のruntime/manifest/registryが継続して整合
@@ -92,50 +54,25 @@
 - [ ] backtestと当日snapshotのCS `model_version`が完全一致
 - [ ] 最終的なactive化を人間が明示承認
 
-1項目でも未達なら`shadow`を継続する。
-
-### 4. 条件合格後のみ — controlled active化（日付制約は消化済み。以後は条件合格のみが要件）
+### 条件合格後のみ — controlled active化
 
 - coreとretryの`TRADER_PORTFOLIO_MODE`を同時に`active`へ変更する。片方だけ変更しない。
 - 最初の1週間は毎朝、ダイジェストの建玉、`docs/portfolio_latest.json`、DB `signals.target_weight`を照合する。
 - gate fail、snapshot欠損、CS version不一致時にtarget weightが反映されず、安全に縮退することを確認する。
-- 最初の週次レビューは2026-08-29を目安とする。異常時は`shadow`へ戻す。
+- 異常時は`shadow`へ戻す。
 
 ## 継続中のP0制約
 
 ### Phase 2 active化を禁止する
 
-同一basisのTOPIX open系列は`topix_open`として実装・本番反映済みであり、`ir_unavailable_same_basis`はもはやactive化を禁止する理由ではない。代わりに公式artifactで測れるようになった実数値が、次の2件でgate不合格を出している。
+公式`docs/portfolio_backtest.json`のportfolio KPI gateが不合格（`ir<0.00`、`turnover>0.40`。最新の実測値は「現在地」を参照）。`portfolio_backtest.json`が現行v2、strategy net対benchmark net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。解消するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 
-- `information_ratio=-0.3905` → gate `ir<0.00`（同一basis benchmark比でマイナス）
-- `turnover=0.9205` → gate `turnover>0.40`
-- 併せて`cs_ic_vs_phase1=-0.2404`（Phase 2のCS ICがPhase 1を下回る）
+### `execution.BENCHMARK_BASIS`を変更しない（2026-08-10 決定の要点）
 
-`portfolio_backtest.json`が現行v2、net-vs-net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。上記が解消するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
-
-### TOPIX同一basis benchmarkの決定記録（2026-07-26 決定、2026-08-01 本番反映）
-
-将来の再検討時に同じ議論を繰り返さないための記録。
-
-- **採用**: ベンチマークの原資産は既存の`topix`終値列と同一のTOPIX連動ETF `1305.T`。始値と終値が同一銘柄・同一調整係数・同一応答から得られ、基準が原理的にズレない。1305は寄付きで実際に買えるため、コスト控除後の比較対象として妥当。
-- **不採用: TOPIX指数`^TPX`** — Yahooで空（2026-07-26再確認）。
-- **不採用: `1306.T`** — Yahooが未調整の10:1不連続を残す既知問題。
-- **不採用: TOPIX OHLCを別ソースから取得** — TOPIXの定義が2つになり、マクロ特徴量との整合も別途必要になる。
-- **不採用: ベンチマーク専用parquetを別に持つ** — 同一銘柄のデータが2箇所に分かれ、取得タイミング差で始値と終値の日付が食い違いうる。回避したい基準ズレを自ら作り込む。
-- **不採用: TOPIX終値同士のリターンで代用** — 戦略と比較条件が変わり、IRの意味が壊れる。
-- **スコープ外として意図的に据え置いた**: Phase 1特徴量（`topix_open`はモデルが読まない生データ列。artifact schema上げと再学習を回避）、DBスキーマ（`macro_snapshots`と`latest_snapshot_row()`は無変更）、既存`topix`終値の前日埋め挙動。決済側の`benchmark_ret`はここで据え置いた項目だったが、2026-08-10に実装済み（下記）。
-
-列の契約（前日埋めしない、非有限・非正は当該日付のみNaN、不連続や始値終値の基準ズレは始値列のみ破棄）は`05_cross_cutting.md`が正典。
-
-### 決済側同一basis benchmarkの決定記録（2026-08-10 実装）
-
-上の決定記録で据え置いた`scripts/settle_outcomes.py`の`benchmark_ret`を実装した際の判断。再検討時に同じ議論と同じ事故を繰り返さないための記録。
-
-- **`execution.BENCHMARK_BASIS`（`unavailable_same_basis`）は変更しない**。この定数は`execution_contract_metadata()`経由で`model_store.build_phase1_gate_contract()`の`gate_contract_sha256`に入る。実測で、値を変えると現行active modelのハッシュが`0f5300ca…e2f0`から`bbb3f965…c218ac`へ動き、`compare_phase1_gate_contract`の厳密一致比較が落ちることを確認した。その結果は**翌営業日から全50銘柄がephemeral candidate（特徴量もしきい値も異なる別モデル）へ縮退**し、次の週次再学習まで最大6営業日continueする。さらに`drift_check.py`は`available:false / active_model_incompatible`になるがexit 0のため、watchdogのIssueも出ずに監視が静かに止まる。
-- **代わりに`SAME_BASIS_BENCHMARK`を追加し、実際にbenchmarkを算出できた利用側が自分の出力dictの`benchmark_basis`だけ上書きする**。`src/portfolio_backtest.py`が既に採用していたパターンで、ハッシュ対象は不変のまま。現在の利用側は`src/performance.py`と`scripts/settle_outcomes.py`。
-- **不採用: ゲート契約のハッシュ対象から`benchmark_basis`を除外する** — フィールドを除いてもハッシュは同じく変わるため、縮退の問題は解決しない。
-- **不採用: 定数変更と同時に週次再学習を強制実行する** — 再学習の成否に日次シグナルの正常性が依存し、失敗時は同じ全銘柄縮退に落ちる。運用手順で守る種類のリスクではない。
-- 回帰の検出方法: `model_store.build_phase1_gate_contract()`を`data/models/active_model.json`の保存値と突き合わせ、`gate_contract_sha256`の一致を確認する。`execution_contract_metadata()`が返す内容を変更する変更では必ず実行する。
+- この定数（`unavailable_same_basis`）は`execution_contract_metadata()`経由で`gate_contract_sha256`に入る。値を変えると現行active modelの契約ハッシュが動き、**翌営業日から全50銘柄がephemeral candidateへ縮退**する。しかも`drift_check.py`はexit 0のまま監視が静かに止まる。
+- 同一basis benchmarkを実際に算出できた利用側は、`SAME_BASIS_BENCHMARK`で自分の出力dictの`benchmark_basis`だけを上書きする（採用済み: `src/portfolio_backtest.py`・`src/performance.py`・`scripts/settle_outcomes.py`）。
+- `execution_contract_metadata()`が返す内容を変える変更では、`model_store.build_phase1_gate_contract()`を`data/models/active_model.json`の保存値と突き合わせ、`gate_contract_sha256`の一致を必ず確認する。
+- ベンチマーク原資産の採用判断（`1305.T`）と不採用案の全記録は[archive/06_issues_archive.md](archive/06_issues_archive.md)。列の契約は`05_cross_cutting.md`が正典。
 
 ### Phase 2の継続判断
 

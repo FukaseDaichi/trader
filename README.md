@@ -91,7 +91,7 @@ GitHub Actions上では`Manual DB Migrate`ワークフロー（`workflow_dispatc
 uv run python scripts/settle_outcomes.py --restate-execution-contract
 ```
 
-また、旧Phase 1 artifactはschema v3互換性検証で使用不可になるため、`scripts/weekly_model_retrain.py`で新候補を学習・検証してください。詳細な移行順は`specification_document/06_issues_and_backlog.md`にあります。
+また、旧Phase 1 artifactはschema v3互換性検証で使用不可になるため、`scripts/weekly_model_retrain.py`で新候補を学習・検証してください。詳細な移行順の記録は`specification_document/archive/06_issues_archive.md`にあります。
 
 `DATABASE_URL`未設定でもシステムは動作します（DB書き込みはスキップされ、イベントは`data/outbox/`へ退避されます）。
 
