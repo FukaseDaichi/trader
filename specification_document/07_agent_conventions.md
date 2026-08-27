@@ -1,40 +1,25 @@
 # エージェント作業規約
 
-更新日: 2026-08-24 JST
-
-リポジトリルートの `AGENTS.md` が常に読み込まれる索引で、このファイルはその詳細版です。
+ルートの `AGENTS.md`（常時読み込みの索引）の詳細版。
 
 ## セッション開始
 
-GitHub Actions が毎日 `main` にコミットします（キュレーション、publish、夜間リフレッシュ、
-週次再学習）。そのためローカルのチェックアウトはほぼ常に古い状態です。**状態を読む前・作業を
-始める前に `git pull --rebase` を実行してください。指示を待たないこと。**
+Actions が毎日 `main` にコミットするため、**状態を読む前・作業を始める前に** `git pull --rebase` **を実行する。指示を待たない。**
 
 ## ユーザーへの報告
 
-fukase はこのシステムを1人で運用しており、クオンツ／インフラの専門家ではありません。
+fukase は1人運用で、クオンツ／インフラの専門家ではない。
 
-- かみくだいた日本語の要約とたとえから始め、「直さないとどうなる」を述べ、おすすめアクションを
-  **1つだけ**示す。専門用語・ハッシュ・パス・生の数値は末尾の `<details>技術メモ</details>`
-  に押し込む。
-- **専門用語（drift warning、IR、PSI、basis、トリプルバリア など）を、1行の定義なしに
-  おすすめアクションの中で使わない。**
-- **go/no-go の判断を変える発見は、報告の先頭に、平易な言葉で、推奨とセットで置く。**
-  「補足」や「注意しておきたい発見」の下に埋めない。
-- 長い選択肢の羅列ではなく、項目ごとの決定を提示する。
-- メモ・ノート・要約ファイルの作成を提案しない。頼まれたものを届ける。
+- かみくだいた日本語の要約とたとえ → 「直さないとどうなる」 → おすすめアクションを**1つだけ**。
+- 専門用語（drift warning、IR、PSI、basis、トリプルバリア など）を1行の定義なしにおすすめアクションで使わない。
+- **go/no-go を変える発見は報告の先頭に**、平易な言葉で推奨とセットで置く。「補足」に埋めない。
+- メモ・要約ファイルの作成を提案しない。頼まれたものを届ける。
+- 専門用語・ハッシュ・パス・生の数値は末尾へ。
 
 ## 作業の進め方
 
-- 依頼に含まれる範囲は一度の作業で完了させる。1つの依頼の途中で確認を挟まない。確認は最初に
-  一度だけ、かつ本当に危険なとき・未マージのときに限る。
-- PR をマージした後の「後片付け」は4つまとめて: worktree 削除、ローカルブランチ削除、
-  リモートブランチ削除、`main` を pull。
-- 2分以上かかりそうな処理の前に、何を実行していてどれくらいかかるかを伝える。黙り込まない。
-- 自分が挙げたレビュー指摘は自分の担当: 直すか、「保留にした・どこに記録した」を明言する。
-- 実装計画はリポジトリルートの `plans/` に置く。**`docs/` の下には絶対に置かない**
-  （日次 publish が `docs/` を `rsync --delete` するため消える）。調査・作業用の中間物は、
-  依頼がない限りリポジトリに残さない。
+- PR マージ後の後片付けは4つまとめて: worktree 削除、ローカル・リモートブランチ削除、`main` を pull。
+- 実装計画は `plans/` へ（`docs/` 配下は日次 publish の `rsync --delete` で消える）。調査・作業用の中間物は依頼がない限りリポジトリに残さない。
 
 ## コマンド
 
@@ -50,43 +35,24 @@ cd web && npm run build:prod              # /trader ベースパスで静的エ�
 cd web && npm run lint
 ```
 
-`main.py` は `.env` なしでも動きます（LINE と DB は未設定ならスキップ）。全環境変数の正典は
-コメント付きの `.env.example`、既定値は `src/config.py` です。
+`main.py` は `.env` なしでも動く（LINE と DB は未設定ならスキップ）。環境変数の正典は `.env.example`、既定値は `src/config.py`。
 
 ## 編集前に知っておくこと
 
-概略のみです。as-built の詳細は各番号ファイルにあります。
+概略のみ。as-built の詳細は各番号ファイルへ。
 
-- **`main.py` の処理順は load-bearing（順番そのものが仕様）。** 銘柄ごと: データ同期 →
-  特徴量 → 推論＋exact KPI ゲート（証跡不一致・ゲート未達は `HOLD` へ強制）→ 5段階シグナル。
-  そのあと run 単位で: Phase 2 推論 → active モードのマージ → 通知 → Phase 0 の DB
-  write-through（失敗は `data/outbox/` へ退避して再送）→ ダッシュボード出力。この順序なので、
-  通知は1回だけ・ポートフォリオ snapshot の後・目標ウェイトが永続化されます
-  （[01_backend_python.md](01_backend_python.md)）。
-- **フロントエンドの契約**（Next.js 静的エクスポート、日本語 UI、ダークテーマ）: 必須は
-  `dashboard_index.json` と `tickers/{code}.json` だけ。その他の `docs/` JSON は任意カードで、
-  欠損または `available: false` なら非表示になります。取得はすべて `web/src/lib/fetchJson.ts`
-  経由で、HTTP・パース・ランタイムガードのいずれかが失敗すると `null` になります
-  （[02_frontend_web.md](02_frontend_web.md)）。
-- **CI/CD**: 時刻はすべて JST。`jpx_calendar.py` が営業日、`run_guard.py` /
-  `curation_guard.py` が冪等性をガードし、全 workflow は
-  `.github/scripts/commit-and-push.sh`（rebase＋最大3回リトライ）経由でコミットします。
-  スケジュールと各 workflow の手順は [03_cicd_workflows.md](03_cicd_workflows.md)。
+- `main.py` **の処理順は仕様そのもの**（順序が「通知1回・snapshot 後・目標ウェイト永続化」を保証）。詳細は [01_backend_python.md](01_backend_python.md)。
+- **フロントエンド契約**: 必須 JSON は `dashboard_index.json` と `tickers/{code}.json` のみ、他は任意カード（欠損なら非表示）。取得は全て `web/src/lib/fetchJson.ts` 経由（[02_frontend_web.md](02_frontend_web.md)）。
+- **CI/CD**: 時刻は全て JST。営業日・冪等性はガードスクリプト、コミットは `.github/scripts/commit-and-push.sh` 経由（[03_cicd_workflows.md](03_cicd_workflows.md)）。
 
 ## Skills（Claude Code / Codex 共有）
 
-`SKILL.md` 形式の手順書です。使う前にその skill の `SKILL.md` を読み、`references/` は
-必要な分だけ読み込みます（例: ユーザーが名前を挙げたとき、または JP 株を調査して
-`tickers.yml` を更新したいときの `jp-stock-ticker-curation`）。
+`SKILL.md` 形式の手順書。使う前にその `SKILL.md` を読み、`references/` は必要な分だけ読む。
 
 ### 配置（唯一の編集元は `.agents/skills/`）
 
-- **正本は `.agents/skills/<name>/SKILL.md`。** 補助ファイル（`references/`、`scripts/`、
-  `agents/openai.yaml` など）もすべて正本ディレクトリに置く。Codex は `.agents/skills/` を
-  直接探索し、`$<name>` で呼び出せる。
-- **Claude Code への公開は `.claude/skills/<name>/SKILL.md` の参照スタブで行う。**
-  スタブは通常ファイルで、frontmatter（`name` / `description` を正本と完全一致させる）と
-  「実体を読め」の指示だけを持つ:
+- **正本は** `.agents/skills/<name>/SKILL.md`**。** 補助ファイル（`references/`、`scripts/` 等）も正本ディレクトリに置く。Codex はここを直接探索し `$<name>` で呼べる。
+- **Claude Code へは** `.claude/skills/<name>/SKILL.md` **の参照スタブで公開。** スタブは通常ファイルで、frontmatter（`name` / `description` は正本と完全一致）＋「実体を読め」のみ:
 
   ```markdown
   ---
@@ -98,35 +64,22 @@ cd web && npm run lint
   実体を読み、その手順に従って実行せよ。編集は実体側だけに行う。
   ```
 
-- **正本の `SKILL.md` から補助ファイルを指すパスはリポジトリルート相対で書く**
-  （例: `.agents/skills/<name>/references/foo.md`）。スタブ経由で起動するとホストが渡す
-  「スキルのベースディレクトリ」は `.claude/skills/<name>` になるため、`references/foo.md` の
-  ようなスキルディレクトリ相対パスは解決できない。
-- CI（`claude-code-action` の `prompt: "/<name> ..."`）もこのスタブ経由で正本を実行する。
+- **正本から補助ファイルを指すパスはリポジトリルート相対で書く**（例: `.agents/skills/<name>/references/foo.md`）。スタブ経由起動時のベースディレクトリは `.claude/skills/<name>` になり、スキルディレクトリ相対パスは解決できないため。
+- CI（`claude-code-action` の `prompt: "/<name> ..."`）もスタブ経由で正本を実行する。
 
 ### 禁止事項（過去に壊れた方式。再提案しない）
 
-- **symlink**（`.claude/skills/<name>` → `.agents/skills/<name>`）: この環境は
-  `core.symlinks=false` のため、チェックアウト時に「リンク先パスが1行だけ書かれた通常
-  ファイル」に展開され、`SKILL.md` が存在しなくなる。参照スタブに対する利点も無い。
-- **`.claude/skills/` へのファイル一式のコピー・同期**: 二重管理とドリフトだけが増える。
-  スタブで実体を読ませれば補助ファイルも正本側から辿れる。
-- **正本以外の直接編集**: 手順の変更は必ず `.agents/skills/<name>/` に対して行う。
-  スタブ側で更新するのは、正本の `description` を変えたときの frontmatter 同期だけ。
+- **symlink**: この環境は `core.symlinks=false` のため、チェックアウトで「リンク先パスだけの通常ファイル」に展開され `SKILL.md` が消える。
+- `.claude/skills/` **への一式コピー・同期**: 二重管理とドリフトだけが増える。
+- **正本以外の直接編集**: 変更は必ず `.agents/skills/<name>/` へ。スタブ側の更新は `description` 変更時の frontmatter 同期のみ。
 
-### 新規作成・インストール・更新・削除の手順
+### 作成・更新・削除の手順
 
-1. **作成/インストール**: 実体一式を `.agents/skills/<name>/` に置く（外部から導入する
-   場合もコピー先はここ）。次に上のテンプレートで `.claude/skills/<name>/SKILL.md` の
-   スタブを作る。
-2. **更新**: 正本だけを編集する。`description` を変えた場合のみスタブの frontmatter も
-   同じ文字列に更新する。
-3. **削除**: 正本ディレクトリとスタブディレクトリを両方消す。
-4. **検証**（作成・更新・削除のたびに実行）:
-   - `test -f .claude/skills/<name>/SKILL.md` が真で、中身が実際に読めること
-     （「ローカルで呼び出せる」は証拠にならない。壊れたスタブでもモデルがパスを手繰って
-     動いてしまうことがある）。
-   - `git ls-files -s -- .claude/skills/ .claude/commands/` に `120000`（symlink モード）が
-     残っていないこと。symlink を実ファイルで上書きしただけではモードが `120000` のまま
-     残るので、その場合は `git rm --cached <path>` → `git add <path>` で登録し直す。
-   - スタブと正本の `name` / `description` が一致していること。
+1. **作成/インストール**: 実体一式を `.agents/skills/<name>/` に置き、上のテンプレートでスタブを作る。
+2. **更新**: 正本のみ編集。`description` を変えたときだけスタブの frontmatter も同期。
+3. **削除**: 正本とスタブの両ディレクトリを消す。
+4. **検証**（作成・更新・削除のたび）:
+
+- `test -f .claude/skills/<name>/SKILL.md` が真で中身が読めること（「呼び出せた」は証拠にならない）。
+- `git ls-files -s -- .claude/skills/ .claude/commands/` に `120000`（symlink モード）が残っていないこと。残っていたら `git rm --cached <path>` → `git add <path>`。
+- スタブと正本の `name` / `description` が一致していること。
