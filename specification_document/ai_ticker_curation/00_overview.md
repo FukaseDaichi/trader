@@ -3,7 +3,7 @@
 更新日: 2026-07-24 JST
 ステータス: 実装済み機能の As-built 仕様。
 
-このサブディレクトリは、AI 銘柄キュレーションの現行仕様です。実装は `.github/workflows/daily-ticker-curation.yml`、`.github/workflows/weekly-fundamental-report.yml`、`scripts/curation_*`、`scripts/technical_screen.py`、`.claude/skills/*`、`curation_pool.yml`、`tickers.yml settings.curation` にあります。
+このサブディレクトリは、AI 銘柄キュレーションの現行仕様です。実装は `.github/workflows/daily-ticker-curation.yml`、`.github/workflows/weekly-fundamental-report.yml`、`scripts/curation_*`、`scripts/technical_screen.py`、`.agents/skills/*`、`curation_pool.yml`、`tickers.yml settings.curation` にあります。
 
 ## 1. 目的
 
@@ -92,7 +92,7 @@
 
 ## 7. 技術前提
 
-- Claude skills は `.claude/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,jp-stock-pool-screen,weekly-stock-report}/` に配置済み
+- Agent skills の正本は `.agents/skills/{jp-stock-technical-screen,global-macro-screen,jp-stock-fundamental-screen,jp-stock-pool-screen,weekly-stock-report}/`。`.claude/skills/` 側は Claude Code 用の参照スタブ（`07_agent_conventions.md` の Skills 節参照）
 - `curation_pool.yml` は流動性のある日本株候補を保持
 - `tickers.yml settings.curation` が運用パラメータを保持
 - `data/watchlist/` は `.gitignore` 対象

@@ -12,7 +12,7 @@
 | 目的 | 価格/出来高トレンドで候補採点 | 金利・金融政策・為替レジームを調査 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
 | 主入力 | `technical_screen.py` の数値 | Web の一次/公式情報、`curation_pool.yml`, `tickers.yml` | Web の一次情報、`macro_latest.json`、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `macro_latest.json`, `decision_*.json` |
 | モデル | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-opus-4-8` | `claude-sonnet-4-6` |
-| skill | `.claude/skills/jp-stock-technical-screen/` | `.claude/skills/global-macro-screen/` | `.claude/skills/jp-stock-fundamental-screen/` | `.claude/skills/weekly-stock-report/` |
+| skill | `.agents/skills/jp-stock-technical-screen/` | `.agents/skills/global-macro-screen/` | `.agents/skills/jp-stock-fundamental-screen/` | `.agents/skills/weekly-stock-report/` |
 | 出力 | `docs/curation/technical_latest.json` | `docs/curation/macro_latest.json`, `macro_<DATE>.json` | `docs/curation/fundamental_latest.json`, `fundamental_<DATE>.json` | `reports/weekly_<DATE>.md`, `weekly_latest.md` |
 
 ## 2. テクニカル・エージェント

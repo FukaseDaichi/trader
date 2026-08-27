@@ -2,7 +2,7 @@
 
 更新日: 2026-07-24 JST
 
-このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-07-24 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.claude/skills/`、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
+このディレクトリの仕様は、ソースコードを正として整理した現行仕様です。2026-07-24 時点でリポジトリに存在する `main.py`、`src/`、`scripts/`、`web/`、`.github/workflows/`、`.agents/skills/`（`.claude/skills/` は参照スタブ）、`migrations/`、設定ファイルの実装に合わせています（Phase 0〜3 実装済み）。
 
 ## 対象
 
@@ -11,7 +11,7 @@
 | バックエンド | `main.py`, `src/*.py` | `01_backend_python.md` |
 | フロントエンド | `web/` | `02_frontend_web.md` |
 | GitHub Actions | `.github/workflows/*.yml`, `.github/scripts/*.sh` | `03_cicd_workflows.md` |
-| 補助スクリプト | `scripts/*.py`, `.claude/skills/` | `04_scripts.md` |
+| 補助スクリプト | `scripts/*.py`, `.agents/skills/` | `04_scripts.md` |
 | データ契約・横断仕様 | `tickers.yml`, `curation_pool.yml`, `data/`, `docs/`, `migrations/`, env | `05_cross_cutting.md` |
 | 課題・バックログ | 実装レビュー結果と運用チェック | `06_issues_and_backlog.md` |
 | AI銘柄キュレーション | 日次/週次/隔週キュレーション実装 | `ai_ticker_curation/` |

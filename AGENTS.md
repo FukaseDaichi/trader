@@ -32,6 +32,10 @@
    専門用語・ハッシュ・パス・生の数値は末尾へ。
 9. **実装計画はリポジトリルートの `plans/` へ。`docs/` の下には置かない**（日次 publish が
    `docs/` を `rsync --delete` するため）。
+10. **Skill の正本は `.agents/skills/<name>/SKILL.md` だけ。** `.claude/skills/<name>/SKILL.md`
+    は参照スタブ（frontmatter＋「実体を読め」のみ）。symlink とファイル一式コピーは禁止。
+    作成・インストール・更新の手順と検証は
+    [07_agent_conventions.md](specification_document/07_agent_conventions.md) の Skills 節。
 
 残りの不変条件（artifact/gate/manifest の互換検証、Phase 1 スキーマ版の bump、廃止済み
 `docs/history_data.json` 契約、赤=上昇／青=下落）と、上記それぞれの詳細はリンク先2ファイルに

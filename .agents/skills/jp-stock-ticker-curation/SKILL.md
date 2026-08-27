@@ -39,7 +39,7 @@ name into the enabled universe.
 - Keep a temporary longlist, then narrow with the scoring framework.
 
 4. Score with the framework.
-- Read `references/selection-framework.md`.
+- Read `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md`.
 - Score each candidate on earnings quality, guidance, valuation, cash generation, shareholder return, and fundamental catalysts.
 - Drop low-conviction names and keep a balanced sector mix.
 
@@ -96,4 +96,4 @@ When finishing, provide:
 
 ## References
 
-- Use `references/selection-framework.md` for scoring weights, thresholds, and diversification rules.
+- Use `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md` for scoring weights, thresholds, and diversification rules.

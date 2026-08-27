@@ -73,9 +73,60 @@ cd web && npm run lint
   `.github/scripts/commit-and-push.sh`（rebase＋最大3回リトライ）経由でコミットします。
   スケジュールと各 workflow の手順は [03_cicd_workflows.md](03_cicd_workflows.md)。
 
-## Skills
+## Skills（Claude Code / Codex 共有）
 
-`SKILL.md` 形式の手順書です。対話作業は `skills/`、CI の自動キュレーションは
-`.claude/skills/` を使います。使う前にその skill の `SKILL.md` を読み、`references/` は
+`SKILL.md` 形式の手順書です。使う前にその skill の `SKILL.md` を読み、`references/` は
 必要な分だけ読み込みます（例: ユーザーが名前を挙げたとき、または JP 株を調査して
 `tickers.yml` を更新したいときの `jp-stock-ticker-curation`）。
+
+### 配置（唯一の編集元は `.agents/skills/`）
+
+- **正本は `.agents/skills/<name>/SKILL.md`。** 補助ファイル（`references/`、`scripts/`、
+  `agents/openai.yaml` など）もすべて正本ディレクトリに置く。Codex は `.agents/skills/` を
+  直接探索し、`$<name>` で呼び出せる。
+- **Claude Code への公開は `.claude/skills/<name>/SKILL.md` の参照スタブで行う。**
+  スタブは通常ファイルで、frontmatter（`name` / `description` を正本と完全一致させる）と
+  「実体を読め」の指示だけを持つ:
+
+  ```markdown
+  ---
+  name: <name>
+  description: <正本と同じ description>
+  ---
+
+  このファイルは Claude Code 用の参照スタブ。スキルの実体は `.agents/skills/<name>/SKILL.md`。
+  実体を読み、その手順に従って実行せよ。編集は実体側だけに行う。
+  ```
+
+- **正本の `SKILL.md` から補助ファイルを指すパスはリポジトリルート相対で書く**
+  （例: `.agents/skills/<name>/references/foo.md`）。スタブ経由で起動するとホストが渡す
+  「スキルのベースディレクトリ」は `.claude/skills/<name>` になるため、`references/foo.md` の
+  ようなスキルディレクトリ相対パスは解決できない。
+- CI（`claude-code-action` の `prompt: "/<name> ..."`）もこのスタブ経由で正本を実行する。
+
+### 禁止事項（過去に壊れた方式。再提案しない）
+
+- **symlink**（`.claude/skills/<name>` → `.agents/skills/<name>`）: この環境は
+  `core.symlinks=false` のため、チェックアウト時に「リンク先パスが1行だけ書かれた通常
+  ファイル」に展開され、`SKILL.md` が存在しなくなる。参照スタブに対する利点も無い。
+- **`.claude/skills/` へのファイル一式のコピー・同期**: 二重管理とドリフトだけが増える。
+  スタブで実体を読ませれば補助ファイルも正本側から辿れる。
+- **正本以外の直接編集**: 手順の変更は必ず `.agents/skills/<name>/` に対して行う。
+  スタブ側で更新するのは、正本の `description` を変えたときの frontmatter 同期だけ。
+
+### 新規作成・インストール・更新・削除の手順
+
+1. **作成/インストール**: 実体一式を `.agents/skills/<name>/` に置く（外部から導入する
+   場合もコピー先はここ）。次に上のテンプレートで `.claude/skills/<name>/SKILL.md` の
+   スタブを作る。
+2. **更新**: 正本だけを編集する。`description` を変えた場合のみスタブの frontmatter も
+   同じ文字列に更新する。
+3. **削除**: 正本ディレクトリとスタブディレクトリを両方消す。
+4. **検証**（作成・更新・削除のたびに実行）:
+   - `test -f .claude/skills/<name>/SKILL.md` が真で、中身が実際に読めること
+     （「ローカルで呼び出せる」は証拠にならない。壊れたスタブでもモデルがパスを手繰って
+     動いてしまうことがある）。
+   - `git ls-files -s -- .claude/skills/ .claude/commands/` に `120000`（symlink モード）が
+     残っていないこと。symlink を実ファイルで上書きしただけではモードが `120000` のまま
+     残るので、その場合は `git rm --cached <path>` → `git add <path>` で登録し直す。
+   - スタブと正本の `name` / `description` が一致していること。

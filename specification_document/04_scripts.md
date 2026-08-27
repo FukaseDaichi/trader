@@ -104,7 +104,7 @@ KPI 設定の `--cost-bps`（既定20）と `--slippage-bps`（既定10）だけ
 - `scripts/curation_merge.py`: 安全クリティカルな決定論 merge。tech/fund スコア合成、warmup・cooldown・churn/セクターキャップ・conservative mode のガードレール下で `--apply` 時のみ `tickers.yml` を更新
 - `scripts/curation_pool_merge.py`: 候補母集団 `curation_pool.yml` の唯一の書き手（隔週・決定論・LLM 非使用）。ローカル parquet 流動性フロア／`min_fund_score_to_add`／churn・セクター上限／cooldown／add-only・replace 自動切替のガード下で `--apply` 時のみプールを更新し、`docs/curation/pool_decision_*.json` 監査と `data/watchlist/` の stale 掃除を行う。`--check-due` で隔週 cadence ガード。詳細は `ai_ticker_curation/07_pool_refresh.md`
 
-## `.claude/skills/*`（CI から起動される agent skill）
+## `.agents/skills/*`（CI から起動される agent skill。`.claude/skills/*` は参照スタブ）
 
 - `jp-stock-technical-screen`: `technical_screen.py` の結果を精査して `technical_latest.json` を更新（`tickers.yml` 非編集）
 - `global-macro-screen`: 金利・為替など一次情報から `docs/curation/macro_latest.json` を出力（週次）

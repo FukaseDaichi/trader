@@ -56,7 +56,7 @@ GitHub Pagesは`main`ブランチの`/docs`を公開元にします。Next.jsの
 | 補助スクリプト | `scripts/*.py` | 営業日判定、監視、監査、再学習、決済、ドリフト、ローテ更新、ストレステスト |
 | フロントエンド | `web/` | Next.js 16 + React 19 + Recharts 3の静的ダッシュボード |
 | 公開成果物 | `docs/` | GitHub Pages公開ディレクトリ |
-| AI銘柄キュレーション | `scripts/curation_*.py`（`curation_merge`/`curation_pool_merge`/`curation_notify`/`curation_pool_notify`等）, `scripts/technical_screen.py`, `.claude/skills/*`, `curation_pool.yml` | 日次テクニカル・週次マクロ＆ファンダ・隔週プール分析、決定論マージ、週次レポート、LINE通知 |
+| AI銘柄キュレーション | `scripts/curation_*.py`（`curation_merge`/`curation_pool_merge`/`curation_notify`/`curation_pool_notify`等）, `scripts/technical_screen.py`, `.agents/skills/*`（`.claude/skills/*` は参照スタブ）, `curation_pool.yml` | 日次テクニカル・週次マクロ＆ファンダ・隔週プール分析、決定論マージ、週次レポート、LINE通知 |
 | commit/push共通 | `.github/scripts/commit-and-push.sh` | 全workflow共通の`git pull --rebase --autostash`＋最大3回リトライ |
 | テスト | `tests/test_*.py` | ラベル/較正/CS/ポートフォリオ/DB等の単体テスト（pytest不要の素のPython） |
 

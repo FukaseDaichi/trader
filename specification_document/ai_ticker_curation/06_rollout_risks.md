@@ -8,9 +8,9 @@ AI 銘柄キュレーションの主要部品は実装済みです。この文�
 
 | 項目 | 状態 |
 |---|---|
-| `.claude/skills/jp-stock-technical-screen/` | 実装済み |
-| `.claude/skills/jp-stock-fundamental-screen/` | 実装済み |
-| `.claude/skills/weekly-stock-report/` | 実装済み |
+| `.agents/skills/jp-stock-technical-screen/` | 実装済み |
+| `.agents/skills/jp-stock-fundamental-screen/` | 実装済み |
+| `.agents/skills/weekly-stock-report/` | 実装済み |
 | `scripts/technical_screen.py` | 実装済み |
 | `scripts/curation_warmup.py` | 実装済み |
 | `scripts/curation_merge.py` | 実装済み |
@@ -20,7 +20,7 @@ AI 銘柄キュレーションの主要部品は実装済みです。この文�
 | `curation_pool.yml` | 実装済み |
 | `daily-ticker-curation.yml` | 実装済み |
 | `weekly-fundamental-report.yml`（隔週 pool refresh ステップ含む） | 実装済み |
-| `.claude/skills/jp-stock-pool-screen/` | 実装済み（rollout phase 1: add-only） |
+| `.agents/skills/jp-stock-pool-screen/` | 実装済み（rollout phase 1: add-only） |
 | `scripts/curation_pool_merge.py` | 実装済み |
 | `scripts/curation_pool_notify.py` | 実装済み |
 | `tests/test_curation_pool_merge.py` | 実装済み |
