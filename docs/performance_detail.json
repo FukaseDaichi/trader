@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-08-27 09:38:13",
-  "as_of": "2026-08-27",
+  "generated_at": "2026-08-28 14:12:11",
+  "as_of": "2026-08-28",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 159
+      "next_session_open_to_close_v2": 163
     },
-    "included_rows": 159,
+    "included_rows": 163,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,8 +29,8 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 42,
-    "selected_cohorts": 11,
+    "eligible_cohorts": 43,
+    "selected_cohorts": 12,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
     "return_basis": "net_after_entry_exit_costs",
@@ -45,8 +45,8 @@
   "benchmark_coverage": {
     "basis": "same_execution_window_only",
     "available": true,
-    "selected_cohorts": 11,
-    "available_cohorts": 11,
+    "selected_cohorts": 12,
+    "available_cohorts": 12,
     "coverage_ratio": 1.0,
     "reason": null
   },
@@ -192,6 +192,18 @@
       "gross_benchmark_return": -0.034241946384320765,
       "benchmark_return": -0.03724194638432077,
       "n": 10
+    },
+    {
+      "date": "2026-08-28",
+      "entry_date": "2026-08-24",
+      "strategy": 0.8610626554238783,
+      "benchmark": 1.017982797257089,
+      "gross_period_return": 0.0190830993004118,
+      "cost_return": 0.003,
+      "period_return": 0.0160830993004118,
+      "gross_benchmark_return": 0.02047463936714755,
+      "benchmark_return": 0.017474639367147552,
+      "n": 4
     }
   ],
   "drawdown_curve": [
@@ -238,14 +250,18 @@
     {
       "date": "2026-08-21",
       "drawdown": -0.15256669851439053
+    },
+    {
+      "date": "2026-08-28",
+      "drawdown": -0.13893734457612172
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.5862068965517241,
-    "avg_return_20d": 0.010392338362680819,
-    "excess_return_20d": 0.006708398911158326,
-    "sharpe_60d": -2.80812716787349,
-    "sharpe_observations": 11,
+    "hit_rate_20d": 0.6,
+    "avg_return_20d": 0.01091365346919938,
+    "excess_return_20d": 0.006220200432831172,
+    "sharpe_60d": -2.344971512012541,
+    "sharpe_observations": 12,
     "sharpe_annualization_periods": 50.4,
     "sharpe_selection": "eval_date_non_overlap",
     "sharpe_fallback_reason": null,
@@ -253,7 +269,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.2824776379452434,
+    "brier": 0.2813731853336573,
     "bins": [
       {
         "bin_low": 0.0,
@@ -293,16 +309,16 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.5731035452314333,
-        "frac_up": 0.6071428571428571,
-        "count": 84
+        "mean_prob": 0.5731148006265847,
+        "frac_up": 0.6206896551724138,
+        "count": 87
       },
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.6341446521859531,
-        "frac_up": 0.34210526315789475,
-        "count": 38
+        "mean_prob": 0.6345511995658004,
+        "frac_up": 0.3333333333333333,
+        "count": 39
       },
       {
         "bin_low": 0.7000000000000001,
@@ -329,9 +345,9 @@
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 159,
-      "observation_count": 142,
-      "linked_prediction_count": 142,
+      "candidate_signal_count": 163,
+      "observation_count": 146,
+      "linked_prediction_count": 146,
       "conviction_fallback_count": 0,
       "excluded_count": 17,
       "exclusions": {
@@ -374,10 +390,14 @@
         {
           "model_version": "per-ticker-v1-20260815T082320-14e87dcc0699-6b1cfb86",
           "count": 36
+        },
+        {
+          "model_version": "per-ticker-v1-20260822T082514-6132b870c2a5-3cbad0fe",
+          "count": 4
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-08-21",
+      "last_entry_date": "2026-08-24",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
