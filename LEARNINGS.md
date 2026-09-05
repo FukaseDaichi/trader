@@ -15,6 +15,8 @@
 - 2026-09-05: エージェント指示の「クラフト」監査は、まず `git blame` で圧縮パスのコミットを特定するのが最短。このリポジトリは `b310adb4d`（2026-08-27 Refactor for clarity）が AGENTS.md / 07 / 08 にしか当たっておらず、旧世代向けの足場（step-by-step・文字数上限・過剰な大文字強調）は grep 0件だった一方、そのパスが触っていない 2026-06 生まれのスキル群にクラフトが集中していた。監査は「どこが掃除済みか」を先に確定させると対象が一気に絞れる。
 - 2026-09-05: 指示ファイルへの一括変更は、1発見=1 patch ファイルに分けて `diff -u --label a/<path> --label b/<path>` で生成し、`git apply --check` を全件通してから適用すると取捨選択できる形で渡せる。同一ファイルを触る patch が複数あるときは適用順（後ろの行を触る方を後）を明示する。
 - 2026-09-05: 「AI レイヤが実際に効いているか」は offline リプレイで決着する。`scripts/curation_merge.py` の `compute_decision` は純関数なので、各 curation コミットから baseline（`technical_<DATE>.json`）と agent 出力（`technical_latest.json`）を、親コミットから `tickers.yml` と `fundamental_latest.json` を取り出し、両方の入力で `compute_decision` を回して decision を突き合わせればよい。リポジトリには一切書き込まずに済む。
+- 2026-09-06: 「毎日同じ issue が積み上がる」型の調査は、まず全 issue の failure 文字列だけを `gh issue view N --json body` で抜いて横並びにするのが最短。今回は13件すべて `ticker_payloads_too_large` 単独で、しかも数値が単調増加していたため、「パイプラインの故障ではなく閾値超過の一本道」と即断できた。
+- 2026-09-06: 成果物サイズの犯人特定は、git 履歴から日次の合計バイトを再構成（`git ls-tree -r --long <commit> -- <dir>` を全コミットに回す）してから、同じファイルを新旧2時点で JSON パースして構成要素ごとにバイト数を割る、の2段で決まる。今回はこれで「行数は不変、1シグナルが 1,484B→5,208B に肥大」まで即座に絞れた。
 
 ## Mistakes to Avoid
 （失敗と再発防止策）
@@ -32,6 +34,9 @@
 - 2026-09-05: curation の AI ステップは5本すべて `continue-on-error: true`、かつ `scripts/curation_merge.py` が technical 欠落／fundamental 陳腐化で `conservative` に落ちるため、モデル起因の失敗は日次シグナルを止めない。代償として失敗が success として記録され、静かに縮退する。
 - 2026-09-05: `.agents/skills/` 正本から補助ファイルを指すパスは必ずリポジトリルート相対でなければならない（07 の規約）。スタブ経由起動時のベースディレクトリは `.claude/skills/<name>` になるため、`../../` 形式は解決に失敗する。`jp-stock-ticker-curation/SKILL.md` に1件取り残しがあり修正した。
 - 2026-09-05: `scripts/curation_merge.py` が technical JSON から読むのは `score` / `rows_available` / `name` / `sector` の4つだけ。`signals` `rationale` `notes` `model` `horizon_days` は未使用で、`warmup_ok` も `rows_available >= min_warmup_rows` で再計算される。つまり technical agent がユニバースに効く経路は `score` 一本。
+- 2026-09-06: ダッシュボードの signal オブジェクトは `docs/state.json` / `dashboard_index.json` / `tickers/*.json` で共通で、唯一の絞り込み地点が `src/dashboard.py` の `_normalize_signals`。ここは `update_state` と `export_dashboard_data` の両方から呼ばれるため、ここで落とすと既存30日分も次回実行で遡って縮む。
+- 2026-09-06: signal の `threshold_optimization` を消しても監査証跡は失われない。当日分は `docs/backtest_report.json`（publish から --exclude 済み、git に無期限で残る）、履歴は `data/models/<version>/<ticker>/ticker_metadata.json` の `gate_evidence` に不変で入っており、signal の `gate_evidence_sha256` から辿れる。例外は ephemeral fallback gate で、この場合だけ git 履歴が唯一の記録になる。
+- 2026-09-06: DB 書き込みが signal から読むフィールドは `src/db_records.py` の `signal_to_prediction_row` / `signal_to_signal_row` の固定キー写像で全部。ここに無いキーは live write-through も `scripts/backfill_state_signals.py` 経由の backfill も一切参照しない。
 - 2026-09-05: 週次 Weekly Fundamental & Report の `Refresh technical features` ステップ（`technical_screen.py` 再実行）が、週報ライターより前に `technical_latest.json` を baseline で上書きする。そのため週報が読む technical は常に baseline であり、日次エージェントが書いた `rationale` / `notes` の読み手はゼロ。
 - 2026-09-05: 日次 technical agent の編集幅は score ±1〜2点（60銘柄中24〜59件を書き換え、最大 |Δ|=10）。5営業日を offline リプレイした結果、merge の decision は 4/5 日で完全一致、残り1日も watchlist の `warming` マーカー1件（6723.JP）が違うだけでユニバースは不変。実際に swap が出た 2026-08-31 も baseline と agent で同一（4307.JP in / 9983.JP out）。1回あたり約 $1.72・14分・16ターン。
 - 2026-08-27: TOPIX 劣後（IR -0.09）の主因は銘柄選択ではなく構造要因。①target_vol 0.12 による vol targeting で平均グロス 0.496・β0.54（上昇相場の値上がりを半分しか取れない）、②5日ごとのほぼ全入れ替え（turnover 年約50倍）でコスト累計 -5.1%/9ヶ月。銘柄選択自体は alpha +9.7%/年・Sharpe 2.03 と正。

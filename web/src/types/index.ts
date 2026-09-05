@@ -53,7 +53,6 @@ export interface Signal {
   confidence_label?: string;
   confidence_reason?: string;
   thresholds?: SignalThresholds | null;
-  threshold_optimization?: Record<string, unknown> | null;
   status?: "ok" | "failed";
   error?: string | null;
 }
