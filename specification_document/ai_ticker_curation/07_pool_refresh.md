@@ -13,7 +13,7 @@
 
 | 区分 | 実体 |
 |---|---|
-| skill | `.agents/skills/jp-stock-pool-screen/`（`claude-sonnet-4-6`） |
+| skill | `.agents/skills/jp-stock-pool-screen/`（`claude-sonnet-5`） |
 | 決定論 merge | `scripts/curation_pool_merge.py`（`curation_pool.yml` の唯一の書き手、LLM 非使用） |
 | 通知 | `scripts/curation_pool_notify.py`（LINE、best-effort） |
 | テスト | `tests/test_curation_pool_merge.py`（plain script、`compute_pool_decision()` 等を単体検証） |

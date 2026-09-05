@@ -11,7 +11,7 @@
 | 頻度 | 平日 04:30 JST | 土曜 07:00 JST、ファンダ前 | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
 | 目的 | 価格/出来高トレンドで候補採点 | 金利・金融政策・為替レジームを調査 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
 | 主入力 | `technical_screen.py` の数値 | Web の一次/公式情報、`curation_pool.yml`, `tickers.yml` | Web の一次情報、`macro_latest.json`、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `macro_latest.json`, `decision_*.json` |
-| モデル | `claude-sonnet-4-6` | `claude-opus-4-8` | `claude-opus-4-8` | `claude-sonnet-4-6` |
+| モデル | `claude-sonnet-5` | `claude-opus-5` | `claude-opus-5` | `claude-sonnet-5` |
 | skill | `.agents/skills/jp-stock-technical-screen/` | `.agents/skills/global-macro-screen/` | `.agents/skills/jp-stock-fundamental-screen/` | `.agents/skills/weekly-stock-report/` |
 | 出力 | `docs/curation/technical_latest.json` | `docs/curation/macro_latest.json`, `macro_<DATE>.json` | `docs/curation/fundamental_latest.json`, `fundamental_<DATE>.json` | `reports/weekly_<DATE>.md`, `weekly_latest.md` |
 
@@ -108,6 +108,6 @@ agent step は `continue-on-error: true` です。テクニカル agent が失�
 - 出力は `docs/curation/pool_candidates_latest.json` と `pool_candidates_<as_of>.json` のみ（提案）。`curation_pool.yml`・`tickers.yml`・`data/`・`src/`・`web/`・`.github/` は編集禁止、git 不可。
 - ファンダが強く流動性のある日本の大型株を一次情報で調査。短期テクニカルは対象外（日次レイヤの担当）。
 - `fund_score`（0-100、70 以上で追加目安・80 以上で高確信）と参考 `liquidity_jpy` を付ける。流動性の権威は merge 側のローカル parquet 実測値で、AI 提供値は文脈情報。
-- モデルは `claude-sonnet-4-6`、`--max-turns 20`。
+- モデルは `claude-sonnet-5`、`--max-turns 20`。
 
 決定論 merge・ガードレール・cadence・warmup 掃除・通知の詳細は `07_pool_refresh.md` を正とします。

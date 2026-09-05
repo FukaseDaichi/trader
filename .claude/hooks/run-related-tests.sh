@@ -5,7 +5,7 @@
 # fixed immediately; it is silent on pass or when no matching test exists.
 #
 # This is the dev-time guard for the invariant "the daily signal run
-# must never break": the 23 tests under tests/ otherwise run nowhere automatically.
+# must never break": the tests under tests/ otherwise run nowhere automatically.
 set -uo pipefail
 
 # Project standard is uv; if it's missing, never block editing.

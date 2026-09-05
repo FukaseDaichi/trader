@@ -42,9 +42,9 @@ deterministic merge (`scripts/curation_pool_merge.py`) owns `curation_pool.yml`.
 - Avoid theme-only names without disclosed fundamentals.
 - Keep sector diversity in mind. Do not over-concentrate one sector just because
   it has short-term narrative momentum.
-- During the initial rollout, focus on `action_hint: "add"` recommendations.
-  Use `drop` only for clearly stale or structurally weaker pool names; the merge
-  will ignore drops while `max_drops_per_run: 0`.
+- The deterministic merge ignores drops while `max_drops_per_run: 0`
+  (its current default), so lead with `action_hint: "add"`. Use `drop` only for
+  clearly stale or structurally weaker pool names.
 - Score `fund_score` from 0 to 100. `>=70` means suitable for addition;
   `>=80` means high conviction.
 - `liquidity_jpy` is your best estimate of median daily trading value. The
@@ -62,7 +62,7 @@ Write valid UTF-8 JSON to both:
 {
   "schema_version": 1,
   "agent": "pool",
-  "model": "claude-sonnet-4-6",
+  "model": "<the model id actually running this skill>",
   "generated_at": "<ISO8601 +09:00>",
   "as_of": "<YYYY-MM-DD passed as as_of=...>",
   "candidates": [

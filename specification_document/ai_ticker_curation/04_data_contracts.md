@@ -196,7 +196,7 @@ pool:
 }
 ```
 
-`model` は baseline では `deterministic-baseline`、agent 精査後は `claude-sonnet-4-6` になり得ます。
+`model` は baseline では `deterministic-baseline`、agent 精査後はその run を実行したモデルの ID になります（監査証跡。読み手のコードは無し）。
 
 ## 7. `fundamental_latest.json`
 
@@ -206,7 +206,7 @@ Claude fundamental agent が生成します。
 {
   "schema_version": 1,
   "agent": "fundamental",
-  "model": "claude-opus-4-8",
+  "model": "<run を実行したモデル ID>",
   "cadence": "weekly",
   "generated_at": "2026-06-06T07:20:10+09:00",
   "as_of": "2026-06-06",
@@ -248,7 +248,7 @@ Claude global-macro agent が生成します（週次）。`curation_merge.py` �
 {
   "schema_version": 1,
   "agent": "macro",
-  "model": "claude-opus-4-8",
+  "model": "<run を実行したモデル ID>",
   "cadence": "weekly",
   "generated_at": "2026-06-06T07:05:00+09:00",
   "as_of": "2026-06-06",
@@ -370,7 +370,7 @@ Claude pool agent が生成します（隔週）。`curation_pool_merge.py` へ�
 {
   "schema_version": 1,
   "agent": "pool",
-  "model": "claude-sonnet-4-6",
+  "model": "<run を実行したモデル ID>",
   "generated_at": "2026-06-16T07:40:00+09:00",
   "as_of": "2026-06-16",
   "candidates": [

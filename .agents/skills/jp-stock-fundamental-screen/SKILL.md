@@ -59,7 +59,7 @@ daily merge uses your report as a weekly cache.
    {
      "schema_version": 1,
      "agent": "fundamental",
-     "model": "claude-opus-4-8",
+     "model": "<the model id actually running this skill>",
      "cadence": "weekly",
      "generated_at": "<ISO8601 +09:00>",
      "as_of": "<YYYY-MM-DD passed as as_of=...>",
