@@ -29,6 +29,18 @@ MAX_HISTORY_DAYS = 30
 MAX_DASHBOARD_ROWS = 500
 RUN_DATE_ENV = "RUN_DATE_JST"
 
+# Signal fields dropped from state.json / dashboard_index.json / tickers/*.json.
+#
+# `threshold_optimization` is ~3.3KB of gate-tuning diagnostics per signal, and
+# the dashboard keeps 30 days x ~50 tickers of it — 33% of docs/tickers, which
+# is what pushed the total past the watchdog's 10MB guard on 2026-08-17. No
+# dashboard consumer reads it: the frontend declares it as an unused optional
+# type, and db_records maps a fixed field list that excludes it. The durable
+# audit trail stays in docs/backtest_report.json (today) and the immutable
+# data/models/<version>/<ticker>/ticker_metadata.json evidence addressed by each
+# signal's gate_evidence_sha256 (history).
+DASHBOARD_SIGNAL_DROP_FIELDS = ("threshold_optimization",)
+
 DASHBOARD_INDEX_FILE = DOCS_DIR / "dashboard_index.json"
 TICKER_EXPORT_DIR = DOCS_DIR / "tickers"
 LEGACY_HISTORY_FILE = DOCS_DIR / "history_data.json"
@@ -149,10 +161,25 @@ def _atomic_write_json(path: Path, payload: Any, indent: int | None = None) -> N
     temp_path.replace(path)
 
 
+def _slim_signal(signal: dict[str, Any]) -> dict[str, Any]:
+    """Copy a signal without the fields the dashboard does not publish.
+
+    Copies rather than mutates: ``main.py`` hands the same dicts to the
+    notifier, the daily digest and ``db.record_run`` before ``update_dashboard``.
+
+    Top-level keys only. A nested drop path would have to rebuild the inner
+    dicts too, and the unchanged-object fast path below would hand back a
+    caller-owned object that still carries the nested field.
+    """
+    if not any(field in signal for field in DASHBOARD_SIGNAL_DROP_FIELDS):
+        return signal
+    return {k: v for k, v in signal.items() if k not in DASHBOARD_SIGNAL_DROP_FIELDS}
+
+
 def _normalize_signals(signals: Any, allowed_tickers: set[str] | None = None):
     """
     Keep signal list stable, remove duplicate tickers in a day,
-    and optionally filter by allowed tickers.
+    optionally filter by allowed tickers, and drop unpublished fields.
     """
     if not isinstance(signals, list):
         return []
@@ -175,7 +202,7 @@ def _normalize_signals(signals: Any, allowed_tickers: set[str] | None = None):
             continue
         seen_tickers.add(ticker)
 
-        normalized.append(signal)
+        normalized.append(_slim_signal(signal))
 
     return normalized
 

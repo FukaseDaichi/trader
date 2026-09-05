@@ -113,7 +113,6 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
   "confidence_label": "自信あり", "confidence_reason": "過去検証で基準通過",
   "reason": "やや上昇傾向 (上昇確率 72%)",
   "thresholds": {"buy": 0.8, "mild_buy": 0.65, "mild_sell": 0.25, "sell": 0.1, "volatility_limit": 0.04},
-  "threshold_optimization": {},
   "model_version": "per-ticker-v1-20260720T080000-abc123def456-1a2b3c4d", "horizon_days": 5,
   "raw_score": 0.61, "expected_ret": 0.012, "features_hash": "…",
   "artifact_schema_version": 3, "feature_schema_hash": "…",
@@ -138,6 +137,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 - ephemeral fallbackの`model_version`はartifact schema、artifact contract hash、gate contract hashから安定生成し、異なるlabel/feature/calibration/KPI/execution設定の観測を同じversionへ混ぜない。exact boosterは`model_bundle_sha256`で識別する
 - ゲート通過した `BUY` / `MILD_BUY` は、学習ラベルと同じATR倍率から `exit_plan`（利確・損切・現在値比・時間出口・ATR）を持つ。主要値は直下にも平坦化し、DB互換の `stop_loss` は `stop_price` と同値。ATR欠損時はすべて null
 - ゲート未達・モデル失敗でHOLDへ強制した場合、`limit_price` / `stop_loss` / `exit_plan` と全平坦化出口フィールドは誤発注防止のため null に消去される
+- ゲート調整の診断値 `threshold_optimization` はダッシュボード出力に含めない（`src/dashboard.py` の `DASHBOARD_SIGNAL_DROP_FIELDS`）。1シグナルあたり約3.3KB・30日×銘柄数ぶん重複し `docs/tickers` の33%を占めていたため。当日分は `backtest_report.json`、履歴は `gate_evidence_sha256` で addressable な `data/models/<version>/<ticker>/ticker_metadata.json` に残る
 - **active モード時のみ** `target_weight`（建玉外 0.0）が付き、`reason` 末尾に `／建玉 18% (rank 1)` 形式が追記される。shadow では一切付かない
 - 処理失敗時は `status: "failed"`、`prob_up`/`close` 等が null になり得る
 

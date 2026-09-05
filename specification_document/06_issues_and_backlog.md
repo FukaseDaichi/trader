@@ -108,6 +108,7 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 | CS較正の粗さ | 次回shadowレビュー（2026-08-29以降） | 同値scoreや低grossが成績・分散を実際に阻害した場合だけ、isotonic連続化を検討する |
 | `8766.JP`の旧履歴異常 | 学習失敗やdrift breachになれば即時（2026-08-24再確認済み: 学習正常・breachなしで非該当） | 2005年の株式分割級不連続が残る。学習開始日カットまたはcorporate action補正を検討する |
 | `usdjpy`の行数が少ない | macro鮮度警告が出た時だけ | 系列の歴史差によるもので、現時点では異常ではない |
+| `docs/tickers` 総量の残り余裕 | 有効銘柄が65前後に増えた時、または watchdog の `ticker_payloads_too_large` が再発した時 | `threshold_optimization` 除外後は 7.41MB （guard 10MB）。内訳は `data` 4.93MB / signals 2.38MB で、主因は 500行の価格系列（`MAX_DASHBOARD_ROWS`）に移った。約17銘柄ぶんの余裕しかないため、次は行数削減か数値精度の丸めを検討する |
 | 月次監査・stress testのモデル同一性 | P1運用移行完了後 | 配備Phase 1 exact candidateの`gate_evidence`を再評価する監査へ寄せる。日次action・active化は制御しない |
 
 ### Phase 4+
