@@ -1,6 +1,14 @@
 # Selection Framework
 
-Use this framework to score fundamentally driven JP stock candidates before editing `tickers.yml`.
+Use this framework to score fundamentally driven JP stock candidates before
+submitting them to the deterministic curation workflow.
+
+This file is the **canonical scoring rubric**, shared by both producers of the
+`fundamental_latest.json` contract: `jp-stock-fundamental-screen` (weekly, in CI)
+and `jp-stock-ticker-curation` (interactive). Both write the same `score` into the
+same `--fundamental` input of `scripts/curation_merge.py`, which ranks every
+candidate on one `combined = tech_weight x tech + fund_weight x fund` scale — so the
+rubric must not diverge between them. Edit it here only.
 
 ## Scoring Model (100 points)
 

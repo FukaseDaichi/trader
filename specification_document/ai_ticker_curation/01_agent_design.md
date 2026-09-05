@@ -64,7 +64,9 @@ agent は baseline を精査して `technical_latest.json` を必要に応じて
 
 - 出力は `docs/curation/fundamental_latest.json` と `docs/curation/fundamental_<as_of>.json`
 - すべての selected candidate に、直近約 90 日以内の一次情報を少なくとも 1 つ要求
-- `references/selection-framework.md` の 100 点評価を使用
+- 100 点評価は `.agents/skills/jp-stock-fundamental-screen/references/selection-framework.md`
+  が正本。対話パスの `jp-stock-ticker-curation` も同じ `--fundamental` に入るため同じ正本に従い、
+  各スキルにルーブリックを複製しない（複製は 2026-06〜09 に実際に乖離した）
 - `as_of` は merge の鮮度判定で使うため必須
 - `tickers.yml` は編集禁止
 
