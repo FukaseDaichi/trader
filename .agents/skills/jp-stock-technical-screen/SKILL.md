@@ -53,7 +53,7 @@ merge step (`scripts/curation_merge.py`) owns `tickers.yml`.
    {
      "schema_version": 1,
      "agent": "technical",
-     "model": "claude-sonnet-4-6",
+     "model": "<the model id actually running this skill>",
      "generated_at": "<ISO8601 +09:00>",
      "as_of": "<YYYY-MM-DD passed as as_of=...>",
      "data_through": "<YYYY-MM-DD>",

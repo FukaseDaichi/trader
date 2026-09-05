@@ -74,7 +74,7 @@ with this schema:
 {
   "schema_version": 1,
   "agent": "macro",
-  "model": "claude-opus-4-8",
+  "model": "<the model id actually running this skill>",
   "cadence": "weekly",
   "generated_at": "<ISO8601 +09:00>",
   "as_of": "<YYYY-MM-DD passed as as_of=...>",

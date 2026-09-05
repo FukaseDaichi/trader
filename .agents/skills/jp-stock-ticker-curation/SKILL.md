@@ -21,7 +21,7 @@ name into the enabled universe.
 - Read `AGENTS.md`, `specification_document/08_invariants.md`, `tickers.yml`,
   `curation_pool.yml`, `README.md`, and `src/config.py`.
 - Read the `fundamental_latest.json` contract in
-  `../../specification_document/ai_ticker_curation/04_data_contracts.md` before
+  `specification_document/ai_ticker_curation/04_data_contracts.md` before
   creating a proposal.
 - Treat repository paths as repo-relative when documenting changes.
 
@@ -39,7 +39,13 @@ name into the enabled universe.
 - Keep a temporary longlist, then narrow with the scoring framework.
 
 4. Score with the framework.
-- Read `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md`.
+- Read `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md`,
+  which points at the canonical rubric shared with the weekly fundamental agent.
+  Score against that canonical rubric — do not invent your own weights.
+- Read `docs/curation/macro_latest.json`. If it exists and its `as_of` is within
+  ~14 days, apply the macro tilt inside `catalyst` / `risk_penalty` only, tracing
+  every macro claim to a source in that file. If it is missing, empty, or older
+  than ~14 days, score without the tilt and note that in the report.
 - Score each candidate on earnings quality, guidance, valuation, cash generation, shareholder return, and fundamental catalysts.
 - Drop low-conviction names and keep a balanced sector mix.
 
@@ -96,4 +102,7 @@ When finishing, provide:
 
 ## References
 
-- Use `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md` for scoring weights, thresholds, and diversification rules.
+- `.agents/skills/jp-stock-ticker-curation/references/selection-framework.md` —
+  points at the canonical rubric (`jp-stock-fundamental-screen/references/selection-framework.md`)
+  for scoring weights, thresholds, and diversification rules, and records the one
+  interactive-path difference (macro-cache availability).
