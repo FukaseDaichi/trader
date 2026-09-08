@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-5",
-  "generated_at": "2026-09-09T07:05:00+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-09-09T06:59:27+09:00",
   "as_of": "2026-09-09",
   "data_through": "2026-09-08",
   "candidates": [
@@ -31,7 +31,7 @@
       "code": "9984.JP",
       "name": "ソフトバンクグループ",
       "sector": "情報・通信",
-      "score": 85.0,
+      "score": 87.3,
       "signals": {
         "trend": "mixed",
         "ma_stack": "MA5>MA20",
@@ -44,7 +44,7 @@
         "ret_5d": 0.24591410110224254
       },
       "horizon_days": 5,
-      "rationale": "急騰で過熱感（RSI73・5日+24.6%・出来高1.6倍）、MACD強気は継続だが短期は反落リスクあり",
+      "rationale": "もみ合い・MACD強気・RSI73",
       "rows_available": 6658,
       "warmup_ok": true
     },
@@ -304,7 +304,7 @@
       "code": "8411.JP",
       "name": "みずほフィナンシャルグループ",
       "sector": "銀行",
-      "score": 63.5,
+      "score": 65.2,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -317,7 +317,7 @@
         "ret_5d": -0.011268253420719798
       },
       "horizon_days": 5,
-      "rationale": "RSI76で過熱、5日リターンがマイナス転換し勢い鈍化",
+      "rationale": "上昇トレンド・MACD強気・RSI76",
       "rows_available": 5826,
       "warmup_ok": true
     },
@@ -409,7 +409,7 @@
       "code": "8766.JP",
       "name": "東京海上ホールディングス",
       "sector": "保険",
-      "score": 57.5,
+      "score": 59.2,
       "signals": {
         "trend": "mixed",
         "ma_stack": "MA5>MA20",
@@ -422,7 +422,7 @@
         "ret_5d": 0.028026469443363178
       },
       "horizon_days": 5,
-      "rationale": "RSI74の高水準で20日リターンはほぼ横ばい、上値の重さがうかがえる",
+      "rationale": "もみ合い・MACD強気・RSI74",
       "rows_available": 6655,
       "warmup_ok": true
     },
@@ -493,7 +493,7 @@
       "code": "6981.JP",
       "name": "村田製作所",
       "sector": "電子部品",
-      "score": 55.0,
+      "score": 53.2,
       "signals": {
         "trend": "down",
         "ma_stack": "downtrend",
@@ -506,7 +506,7 @@
         "ret_5d": 0.05965790571547758
       },
       "horizon_days": 5,
-      "rationale": "中期は下降トレンドだがMACDヒストグラムが急改善、5日+6.0%・20日+4.9%で短期反発の兆し",
+      "rationale": "下降トレンド・MACD強気・RSI53",
       "rows_available": 6395,
       "warmup_ok": true
     },
@@ -1329,5 +1329,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "Baseline from technical_screen.py with narrow technical-agent refinements (4/60 tickers, |Δ|≤2.3): trimmed overbought/stalling names (9984, 8411, 8766) and lifted 6981 for improving MACD momentum within a longer downtrend."
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
