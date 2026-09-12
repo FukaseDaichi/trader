@@ -1,0 +1,5294 @@
+{
+  "version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+  "kind": "per_ticker_horizon_v1",
+  "artifact_schema_version": 3,
+  "artifact_contract": {
+    "artifact_schema_version": 3,
+    "label_config": {
+      "label_mode": "triple_barrier",
+      "horizon_days": 5,
+      "tb_tp_atr": 1.5,
+      "tb_sl_atr": 1.0,
+      "tb_max_days": 5,
+      "vol_col": "volatility"
+    },
+    "effective_horizon_days": 5,
+    "feature_columns": [
+      "return_1d",
+      "return_2d",
+      "return_3d",
+      "return_5d",
+      "return_10d",
+      "return_20d",
+      "div_ma_5",
+      "div_ma_10",
+      "div_ma_20",
+      "div_ma_60",
+      "ma_5_20_cross",
+      "ma_20_60_cross",
+      "rsi",
+      "rsi_change",
+      "macd",
+      "macd_signal",
+      "macd_hist",
+      "macd_hist_change",
+      "bb_pct_b",
+      "bb_bandwidth",
+      "atr_pct",
+      "volatility",
+      "vol_change",
+      "vol_ratio",
+      "candle_body_pct",
+      "upper_shadow_pct",
+      "lower_shadow_pct",
+      "day_of_week",
+      "month",
+      "is_month_end",
+      "is_month_start",
+      "streak",
+      "gap",
+      "price_position_20d",
+      "macro_usdjpy_ret_20",
+      "macro_usdjpy_ret_60",
+      "macro_usdjpy_vol_20",
+      "macro_topix_ret_20",
+      "macro_topix_vol_20",
+      "macro_topix_above_200dma",
+      "macro_nikkei_ret_20",
+      "macro_nikkei_above_200dma",
+      "macro_nikkei_vi",
+      "macro_jgb10y",
+      "macro_bias_score"
+    ],
+    "feature_schema_hash": "86537bda2ebb12faefd8ff5425e5d2c9ef0c7ea3174ffa5bd09ae69b7bf858f0",
+    "macro_features_enabled": true,
+    "calibration_mode": "isotonic",
+    "calibration_id": "isotonic-pava-v1",
+    "execution_contract_version": "next_session_open_to_close_v2",
+    "contract_sha256": "aea5c2988ded24a09e11194cf9cd5e71cc286af43d21f96276f17b56b1823881"
+  },
+  "gate_contract": {
+    "gate_evidence_schema_version": 1,
+    "source": "deployed_candidate_purged_oos_v1",
+    "artifact_contract_sha256": "aea5c2988ded24a09e11194cf9cd5e71cc286af43d21f96276f17b56b1823881",
+    "gate_config": {
+      "enabled": true,
+      "validation_years": 4,
+      "val_size": 60,
+      "purge_gap": 5,
+      "n_folds": 3,
+      "train_min_rows": 200,
+      "cost_bps": 10.0,
+      "slippage_bps": 5.0,
+      "allow_short": false,
+      "min_cagr": 0.03,
+      "min_avg_daily_net_return": 0.0001,
+      "max_drawdown": 0.25,
+      "min_sharpe": 0.2,
+      "min_round_trips": 10,
+      "sample_sufficiency_metric": "independent_signal_cohorts",
+      "min_independent_signal_cohorts": 5,
+      "auto_threshold_enabled": true,
+      "auto_threshold_min_round_trips": 8,
+      "auto_threshold_min_independent_signal_cohorts": 8,
+      "auto_threshold_objective": "avg_daily_net_return",
+      "auto_threshold_min_gap": 0.05,
+      "metrics_schema_version": 3
+    },
+    "gate_config_hash": "9fafcebf7c2871271d2d0fe88a24350d276d7bde27cb1e65dcecfd7a906f989f",
+    "execution_contract": {
+      "contract_version": "next_session_open_to_close_v2",
+      "market_as_of_basis": "session_close",
+      "decision_timing": "next_session_preopen",
+      "entry_price_basis": "next_session_open",
+      "exit_price_basis": "horizon_session_close",
+      "benchmark_basis": "unavailable_same_basis",
+      "return_basis": "raw_market_price_before_costs",
+      "cost_treatment": "strategy_simulation_only",
+      "cost_bps_per_side": 10.0,
+      "slippage_bps_per_side": 5.0
+    },
+    "execution_contract_version": "next_session_open_to_close_v2",
+    "gate_contract_sha256": "0f5300ca82401aeb68fbca3cb899fc930a5121faf9a8f93d0d76ebb6e804e2f0"
+  },
+  "gate_evidence_schema_version": 1,
+  "gate_evidence_source": "deployed_candidate_purged_oos_v1",
+  "gate_config_hash": "9fafcebf7c2871271d2d0fe88a24350d276d7bde27cb1e65dcecfd7a906f989f",
+  "gate_contract_sha256": "0f5300ca82401aeb68fbca3cb899fc930a5121faf9a8f93d0d76ebb6e804e2f0",
+  "generated_at": "2026-09-12T09:56:47+09:00",
+  "git_commit": "8ccde20fa00a",
+  "config_sha256": "6e6082ed14816ca9cfbfba5a72d92f9cc2df036ee4fe5941e141d832474090b6",
+  "horizon_days": 5,
+  "effective_horizon_days": 5,
+  "label_mode": "triple_barrier",
+  "label_config": {
+    "label_mode": "triple_barrier",
+    "horizon_days": 5,
+    "tb_tp_atr": 1.5,
+    "tb_sl_atr": 1.0,
+    "tb_max_days": 5,
+    "vol_col": "volatility"
+  },
+  "macro_features_enabled": true,
+  "feature_set": [
+    "return_1d",
+    "return_2d",
+    "return_3d",
+    "return_5d",
+    "return_10d",
+    "return_20d",
+    "div_ma_5",
+    "div_ma_10",
+    "div_ma_20",
+    "div_ma_60",
+    "ma_5_20_cross",
+    "ma_20_60_cross",
+    "rsi",
+    "rsi_change",
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    "macd_hist_change",
+    "bb_pct_b",
+    "bb_bandwidth",
+    "atr_pct",
+    "volatility",
+    "vol_change",
+    "vol_ratio",
+    "candle_body_pct",
+    "upper_shadow_pct",
+    "lower_shadow_pct",
+    "day_of_week",
+    "month",
+    "is_month_end",
+    "is_month_start",
+    "streak",
+    "gap",
+    "price_position_20d",
+    "macro_usdjpy_ret_20",
+    "macro_usdjpy_ret_60",
+    "macro_usdjpy_vol_20",
+    "macro_topix_ret_20",
+    "macro_topix_vol_20",
+    "macro_topix_above_200dma",
+    "macro_nikkei_ret_20",
+    "macro_nikkei_above_200dma",
+    "macro_nikkei_vi",
+    "macro_jgb10y",
+    "macro_bias_score"
+  ],
+  "feature_columns": [
+    "return_1d",
+    "return_2d",
+    "return_3d",
+    "return_5d",
+    "return_10d",
+    "return_20d",
+    "div_ma_5",
+    "div_ma_10",
+    "div_ma_20",
+    "div_ma_60",
+    "ma_5_20_cross",
+    "ma_20_60_cross",
+    "rsi",
+    "rsi_change",
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    "macd_hist_change",
+    "bb_pct_b",
+    "bb_bandwidth",
+    "atr_pct",
+    "volatility",
+    "vol_change",
+    "vol_ratio",
+    "candle_body_pct",
+    "upper_shadow_pct",
+    "lower_shadow_pct",
+    "day_of_week",
+    "month",
+    "is_month_end",
+    "is_month_start",
+    "streak",
+    "gap",
+    "price_position_20d",
+    "macro_usdjpy_ret_20",
+    "macro_usdjpy_ret_60",
+    "macro_usdjpy_vol_20",
+    "macro_topix_ret_20",
+    "macro_topix_vol_20",
+    "macro_topix_above_200dma",
+    "macro_nikkei_ret_20",
+    "macro_nikkei_above_200dma",
+    "macro_nikkei_vi",
+    "macro_jgb10y",
+    "macro_bias_score"
+  ],
+  "feature_schema_hash": "86537bda2ebb12faefd8ff5425e5d2c9ef0c7ea3174ffa5bd09ae69b7bf858f0",
+  "calibration_mode": "isotonic",
+  "calibration_id": "isotonic-pava-v1",
+  "execution_contract_version": "next_session_open_to_close_v2",
+  "universe": [
+    "7011.JP",
+    "6501.JP",
+    "6701.JP",
+    "7013.JP",
+    "6762.JP",
+    "6758.JP",
+    "8306.JP",
+    "8035.JP",
+    "6981.JP",
+    "7267.JP",
+    "4901.JP",
+    "8411.JP",
+    "8316.JP",
+    "7974.JP",
+    "7751.JP",
+    "8766.JP",
+    "6301.JP",
+    "6857.JP",
+    "9433.JP",
+    "6702.JP",
+    "8725.JP",
+    "4661.JP",
+    "7203.JP",
+    "6098.JP",
+    "8058.JP",
+    "6861.JP",
+    "4063.JP",
+    "6503.JP",
+    "9432.JP",
+    "8031.JP",
+    "6273.JP",
+    "8001.JP",
+    "8591.JP",
+    "7741.JP",
+    "2914.JP",
+    "8053.JP",
+    "4502.JP",
+    "4568.JP",
+    "4519.JP",
+    "9434.JP",
+    "9020.JP",
+    "4452.JP",
+    "8604.JP",
+    "8750.JP",
+    "4543.JP",
+    "5108.JP",
+    "2502.JP",
+    "9101.JP",
+    "6326.JP",
+    "4307.JP"
+  ],
+  "trained_tickers": [
+    "7011.JP",
+    "6501.JP",
+    "6701.JP",
+    "7013.JP",
+    "6762.JP",
+    "6758.JP",
+    "8306.JP",
+    "8035.JP",
+    "6981.JP",
+    "7267.JP",
+    "4901.JP",
+    "8411.JP",
+    "8316.JP",
+    "7974.JP",
+    "7751.JP",
+    "8766.JP",
+    "6301.JP",
+    "6857.JP",
+    "9433.JP",
+    "6702.JP",
+    "8725.JP",
+    "4661.JP",
+    "7203.JP",
+    "6098.JP",
+    "8058.JP",
+    "6861.JP",
+    "4063.JP",
+    "6503.JP",
+    "9432.JP",
+    "8031.JP",
+    "6273.JP",
+    "8001.JP",
+    "8591.JP",
+    "7741.JP",
+    "2914.JP",
+    "8053.JP",
+    "4502.JP",
+    "4568.JP",
+    "4519.JP",
+    "9434.JP",
+    "9020.JP",
+    "4452.JP",
+    "8604.JP",
+    "8750.JP",
+    "4543.JP",
+    "5108.JP",
+    "2502.JP",
+    "9101.JP",
+    "6326.JP",
+    "4307.JP"
+  ],
+  "cv_metrics": {
+    "by_ticker": {
+      "7011.JP": {
+        "ic": 0.2889472468551983,
+        "auc": 0.568,
+        "brier": 0.2543159288904582,
+        "brier_raw": 0.24467979716999638,
+        "hit_rate": 0.5833333333333334,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.28389799626385137,
+          "brier_cal": 0.22528985507246374
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 31,
+            "mean_pred": 0.26873151351650665,
+            "mean_obs": 0.41935483870967744
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 29,
+            "mean_pred": 0.37532799529191097,
+            "mean_obs": 0.41379310344827586
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6501.JP": {
+        "ic": 0.2941398879845851,
+        "auc": 0.6377142857142857,
+        "brier": 0.28685940072071314,
+        "brier_raw": 0.24228351436843135,
+        "hit_rate": 0.4166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.26185364638602754,
+          "brier_cal": 0.24286231884057968
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 7,
+            "mean_pred": 0.0,
+            "mean_obs": 0.5714285714285714
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 1,
+            "mean_pred": 0.13450636768827956,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 1,
+            "mean_pred": 0.28022559114436324,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 51,
+            "mean_pred": 0.46988578829249306,
+            "mean_obs": 0.6078431372549019
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6701.JP": {
+        "ic": 0.2646629461683454,
+        "auc": 0.6417410714285714,
+        "brier": 0.318902898339623,
+        "brier_raw": 0.24696948049853565,
+        "hit_rate": 0.4666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.28414744983984447,
+          "brier_cal": 0.21104146301726942
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 5,
+            "mean_pred": 0.0,
+            "mean_obs": 0.4
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 2,
+            "mean_pred": 0.15840238332810203,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 52,
+            "mean_pred": 0.2900891608852713,
+            "mean_obs": 0.5769230769230769
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 1,
+            "mean_pred": 0.31666666666666665,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7013.JP": {
+        "ic": 0.12794136803598571,
+        "auc": 0.5382775119617225,
+        "brier": 0.2330715561323528,
+        "brier_raw": 0.23866927868209023,
+        "hit_rate": 0.6333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2999011527481096,
+          "brier_cal": 0.23687730857542177
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 60,
+            "mean_pred": 0.3962962962962963,
+            "mean_obs": 0.36666666666666664
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6762.JP": {
+        "ic": 0.379690885263025,
+        "auc": 0.6142270861833106,
+        "brier": 0.2513333295949488,
+        "brier_raw": 0.2431959669087542,
+        "hit_rate": 0.6166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2517706072069249,
+          "brier_cal": 0.2420504385964912
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 46,
+            "mean_pred": 0.4355163855735821,
+            "mean_obs": 0.2826086956521739
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 5,
+            "mean_pred": 0.524000354183219,
+            "mean_obs": 0.8
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 9,
+            "mean_pred": 0.623874812171422,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6758.JP": {
+        "ic": 0.17322527657759745,
+        "auc": 0.6039952996474736,
+        "brier": 0.39424974715601707,
+        "brier_raw": 0.2788434202081326,
+        "hit_rate": 0.38333333333333336,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2494618223773582,
+          "brier_cal": 0.20473245614035085
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 7,
+            "mean_pred": 0.0407051830923962,
+            "mean_obs": 0.2857142857142857
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 17,
+            "mean_pred": 0.1,
+            "mean_obs": 0.7058823529411765
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 14,
+            "mean_pred": 0.23732125139055466,
+            "mean_obs": 0.5714285714285714
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 22,
+            "mean_pred": 0.35409958592835356,
+            "mean_obs": 0.6818181818181818
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8306.JP": {
+        "ic": 0.3685882767827019,
+        "auc": 0.7430555555555556,
+        "brier": 0.24231001254339948,
+        "brier_raw": 0.24887050332761992,
+        "hit_rate": 0.5,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24255291973757398,
+          "brier_cal": 0.22171296296296295
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 5,
+            "mean_pred": 0.010717259716754728,
+            "mean_obs": 0.2
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 2,
+            "mean_pred": 0.13401199417506712,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 6,
+            "mean_pred": 0.19999999999999998,
+            "mean_obs": 0.16666666666666666
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 41,
+            "mean_pred": 0.44559604770621575,
+            "mean_obs": 0.6829268292682927
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 6,
+            "mean_pred": 0.5,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8035.JP": {
+        "ic": -0.07416855418557612,
+        "auc": 0.47285067873303166,
+        "brier": 0.2910169038040614,
+        "brier_raw": 0.25811612100426706,
+        "hit_rate": 0.43333333333333335,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.26977268502845636,
+          "brier_cal": 0.2438767338767339
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 35,
+            "mean_pred": 0.5639885382688603,
+            "mean_obs": 0.45714285714285713
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 1,
+            "mean_pred": 0.6391270931101027,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 24,
+            "mean_pred": 0.7142857142857143,
+            "mean_obs": 0.4166666666666667
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6981.JP": {
+        "ic": -0.10986297801008847,
+        "auc": 0.3705357142857143,
+        "brier": 0.28473054908190387,
+        "brier_raw": 0.26418680472754136,
+        "hit_rate": 0.4666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2801143408838957,
+          "brier_cal": 0.2409722222222222
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 23,
+            "mean_pred": 0.5845306818720393,
+            "mean_obs": 0.5652173913043478
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 37,
+            "mean_pred": 0.6643691892393051,
+            "mean_obs": 0.40540540540540543
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7267.JP": {
+        "ic": 0.01574804434277477,
+        "auc": 0.49719416386083054,
+        "brier": 0.2711246648504797,
+        "brier_raw": 0.26684198946574755,
+        "hit_rate": 0.45,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.25617633515358507,
+          "brier_cal": 0.23969907407407404
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 36,
+            "mean_pred": 0.3847498028007428,
+            "mean_obs": 0.5555555555555556
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 24,
+            "mean_pred": 0.4166666666666667,
+            "mean_obs": 0.5416666666666666
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4901.JP": {
+        "ic": -0.04850004448837015,
+        "auc": 0.40291806958473625,
+        "brier": 0.2782217069895514,
+        "brier_raw": 0.2652762035359243,
+        "hit_rate": 0.43333333333333335,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2478560627785166,
+          "brier_cal": 0.2292698889591679
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 3,
+            "mean_pred": 0.2352941176470588,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 21,
+            "mean_pred": 0.361111111111111,
+            "mean_obs": 0.7142857142857143
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 29,
+            "mean_pred": 0.46956631983832464,
+            "mean_obs": 0.4827586206896552
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 7,
+            "mean_pred": 0.5483870967741935,
+            "mean_obs": 0.42857142857142855
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8411.JP": {
+        "ic": 0.4796409649441801,
+        "auc": 0.7375565610859729,
+        "brier": 0.2385176689315846,
+        "brier_raw": 0.22750705419584435,
+        "hit_rate": 0.6666666666666666,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2595781936530134,
+          "brier_cal": 0.24404297954671084
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 12,
+            "mean_pred": 0.3611111111111111,
+            "mean_obs": 0.25
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 48,
+            "mean_pred": 0.5070184022520797,
+            "mean_obs": 0.6458333333333334
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8316.JP": {
+        "ic": 0.40805254704380506,
+        "auc": 0.7533333333333333,
+        "brier": 0.25188215068027026,
+        "brier_raw": 0.22416259735158578,
+        "hit_rate": 0.5666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.26318579849265916,
+          "brier_cal": 0.2382532051282051
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 7,
+            "mean_pred": 0.019912956898891703,
+            "mean_obs": 0.2857142857142857
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 6,
+            "mean_pred": 0.20742992960630569,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 1,
+            "mean_pred": 0.4017951025483195,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 46,
+            "mean_pred": 0.5094063545150499,
+            "mean_obs": 0.5434782608695652
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7974.JP": {
+        "ic": 0.5572291971063162,
+        "auc": 0.7081930415263749,
+        "brier": 0.2996270953538662,
+        "brier_raw": 0.2489364214639905,
+        "hit_rate": 0.45,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24697141328655997,
+          "brier_cal": 0.22245903737839226
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 57,
+            "mean_pred": 0.3118279569892473,
+            "mean_obs": 0.543859649122807
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 3,
+            "mean_pred": 0.47844555136428557,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7751.JP": {
+        "ic": 0.13828841545405865,
+        "auc": 0.6617647058823529,
+        "brier": 0.2741963153273127,
+        "brier_raw": 0.24208864582479722,
+        "hit_rate": 0.45,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24481424265304894,
+          "brier_cal": 0.22211056376573618
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 57,
+            "mean_pred": 0.37594507726854726,
+            "mean_obs": 0.543859649122807
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 2,
+            "mean_pred": 0.42857142857142855,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 1,
+            "mean_pred": 0.6666666666666666,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8766.JP": {
+        "ic": 0.4100165078395462,
+        "auc": 0.681868743047831,
+        "brier": 0.23813108386946252,
+        "brier_raw": 0.23140588722277203,
+        "hit_rate": 0.6,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24536124150290764,
+          "brier_cal": 0.2342371235944349
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 13,
+            "mean_pred": 0.32376473766954533,
+            "mean_obs": 0.23076923076923078
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 28,
+            "mean_pred": 0.4150943396226415,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 2,
+            "mean_pred": 0.5,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 17,
+            "mean_pred": 0.6381461675579322,
+            "mean_obs": 0.5882352941176471
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6301.JP": {
+        "ic": 0.2946459478824093,
+        "auc": 0.6902857142857143,
+        "brier": 0.2292889851922514,
+        "brier_raw": 0.2323534413974841,
+        "hit_rate": 0.5833333333333334,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24185037455203118,
+          "brier_cal": 0.23301468636506997
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 15,
+            "mean_pred": 0.28571428571428564,
+            "mean_obs": 0.2
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 18,
+            "mean_pred": 0.3846153846153847,
+            "mean_obs": 0.3888888888888889
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 27,
+            "mean_pred": 0.4285395069708795,
+            "mean_obs": 0.5555555555555556
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6857.JP": {
+        "ic": 0.25519406079366724,
+        "auc": 0.5870535714285714,
+        "brier": 0.24845405118829306,
+        "brier_raw": 0.24650571638641336,
+        "hit_rate": 0.4666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24831290233479908,
+          "brier_cal": 0.23142441578253933
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 11,
+            "mean_pred": 0.0,
+            "mean_obs": 0.09090909090909091
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 14,
+            "mean_pred": 0.26557502985024467,
+            "mean_obs": 0.5714285714285714
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 13,
+            "mean_pred": 0.445424141076315,
+            "mean_obs": 0.7692307692307693
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 22,
+            "mean_pred": 0.5199999999999998,
+            "mean_obs": 0.4090909090909091
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "9433.JP": {
+        "ic": -0.10233849744824237,
+        "auc": 0.41875,
+        "brier": 0.27475864261764366,
+        "brier_raw": 0.299487192527589,
+        "hit_rate": 0.35,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.25192872328361443,
+          "brier_cal": 0.23440860215053766
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 2,
+            "mean_pred": 0.0,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 2,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 55,
+            "mean_pred": 0.4301075268817204,
+            "mean_obs": 0.6727272727272727
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 1,
+            "mean_pred": 0.5,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6702.JP": {
+        "ic": 0.3320867553665616,
+        "auc": 0.7152391546162402,
+        "brier": 0.27604656872667627,
+        "brier_raw": 0.22953573683382447,
+        "hit_rate": 0.5166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.30032839151554264,
+          "brier_cal": 0.2286240759130531
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 60,
+            "mean_pred": 0.3208340977820973,
+            "mean_obs": 0.48333333333333334
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8725.JP": {
+        "ic": 0.25087399596192167,
+        "auc": 0.5578002244668911,
+        "brier": 0.24801903854869795,
+        "brier_raw": 0.261192196215566,
+        "hit_rate": 0.6,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2710000271267707,
+          "brier_cal": 0.24774275362318837
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 11,
+            "mean_pred": 0.4828586823622789,
+            "mean_obs": 0.36363636363636365
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 49,
+            "mean_pred": 0.5099822537710738,
+            "mean_obs": 0.5918367346938775
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4661.JP": {
+        "ic": -0.050352854141378814,
+        "auc": 0.42875,
+        "brier": 0.46972330204266766,
+        "brier_raw": 0.34925667249365877,
+        "hit_rate": 0.3333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.21798742729361997,
+          "brier_cal": 0.19098039215686277
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 11,
+            "mean_pred": 0.0,
+            "mean_obs": 0.9090909090909091
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 17,
+            "mean_pred": 0.17673070458698414,
+            "mean_obs": 0.5294117647058824
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 32,
+            "mean_pred": 0.2699839556092081,
+            "mean_obs": 0.65625
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7203.JP": {
+        "ic": 0.017988644325607497,
+        "auc": 0.42655699177438305,
+        "brier": 0.2641666666666667,
+        "brier_raw": 0.29610011032145794,
+        "hit_rate": 0.38333333333333336,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.26371363669011966,
+          "brier_cal": 0.24750000000000008
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 60,
+            "mean_pred": 0.45,
+            "mean_obs": 0.6166666666666667
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6098.JP": {
+        "ic": 0.04431789153845766,
+        "auc": 0.5663924794359577,
+        "brier": 0.2498996670760703,
+        "brier_raw": 0.23475489593703394,
+        "hit_rate": 0.6333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2474410802731316,
+          "brier_cal": 0.22663377192982456
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 5,
+            "mean_pred": 0.475,
+            "mean_obs": 0.4
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 1,
+            "mean_pred": 0.6,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 47,
+            "mean_pred": 0.6634835221341928,
+            "mean_obs": 0.6595744680851063
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 2,
+            "mean_pred": 0.7540424082059328,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 1,
+            "mean_pred": 0.8697219317850318,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 4,
+            "mean_pred": 1.0,
+            "mean_obs": 0.5
+          }
+        ]
+      },
+      "8058.JP": {
+        "ic": 0.05518322749753975,
+        "auc": 0.6122685185185185,
+        "brier": 0.23823240914458807,
+        "brier_raw": 0.23434455213318253,
+        "hit_rate": 0.6,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2696990900776383,
+          "brier_cal": 0.24592420907534623
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 60,
+            "mean_pred": 0.41072722826207797,
+            "mean_obs": 0.4
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6861.JP": {
+        "ic": 0.42013894955172226,
+        "auc": 0.5353535353535354,
+        "brier": 0.245060277663292,
+        "brier_raw": 0.24591964927591742,
+        "hit_rate": 0.6,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2522271823023873,
+          "brier_cal": 0.24115079365079362
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 15,
+            "mean_pred": 0.35714285714285704,
+            "mean_obs": 0.4666666666666667
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 34,
+            "mean_pred": 0.47170868347338935,
+            "mean_obs": 0.38235294117647056
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 2,
+            "mean_pred": 0.5394108414265764,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 9,
+            "mean_pred": 0.6664066269334108,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4063.JP": {
+        "ic": 0.312498709886208,
+        "auc": 0.8083028083028083,
+        "brier": 0.46233509198473477,
+        "brier_raw": 0.24442421092097483,
+        "hit_rate": 0.43333333333333335,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2545058361081714,
+          "brier_cal": 0.21162367724867728
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 5,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 6,
+            "mean_pred": 0.5423280423280423,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 1,
+            "mean_pred": 0.6928316520662042,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 3,
+            "mean_pred": 0.75,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 11,
+            "mean_pred": 0.875,
+            "mean_obs": 0.09090909090909091
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 34,
+            "mean_pred": 0.9966127405579231,
+            "mean_obs": 0.5294117647058824
+          }
+        ]
+      },
+      "6503.JP": {
+        "ic": 0.003524602444012652,
+        "auc": 0.44030808729139925,
+        "brier": 0.3689379926894789,
+        "brier_raw": 0.28629310337500086,
+        "hit_rate": 0.3,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24368936339726457,
+          "brier_cal": 0.2321077928297756
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 3,
+            "mean_pred": 0.41379310344827586,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 2,
+            "mean_pred": 0.5,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 52,
+            "mean_pred": 0.6666666666666665,
+            "mean_obs": 0.3076923076923077
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 3,
+            "mean_pred": 1.0,
+            "mean_obs": 0.0
+          }
+        ]
+      },
+      "9432.JP": {
+        "ic": 0.2120681105289626,
+        "auc": 0.568986568986569,
+        "brier": 0.4882960610548074,
+        "brier_raw": 0.339810405639926,
+        "hit_rate": 0.35,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.23435638291012945,
+          "brier_cal": 0.21033435810221526
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 58,
+            "mean_pred": 0.1264367816091954,
+            "mean_obs": 0.6379310344827587
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 2,
+            "mean_pred": 0.40816326530612246,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8031.JP": {
+        "ic": 0.06626622443707814,
+        "auc": 0.5554298642533937,
+        "brier": 0.24303703703703705,
+        "brier_raw": 0.2446857780866912,
+        "hit_rate": 0.5666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2657312691379566,
+          "brier_cal": 0.24777777777777782
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 60,
+            "mean_pred": 0.4377777777777779,
+            "mean_obs": 0.43333333333333335
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "6273.JP": {
+        "ic": 0.09005235917838017,
+        "auc": 0.5316742081447964,
+        "brier": 0.2692531242614732,
+        "brier_raw": 0.24619656814555496,
+        "hit_rate": 0.5333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.25572937697769704,
+          "brier_cal": 0.23780515370705235
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 56,
+            "mean_pred": 0.42082149315422374,
+            "mean_obs": 0.44642857142857145
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 1,
+            "mean_pred": 0.75,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 1,
+            "mean_pred": 0.8692730125577799,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 2,
+            "mean_pred": 1.0,
+            "mean_obs": 0.5
+          }
+        ]
+      },
+      "8001.JP": {
+        "ic": 0.03257778702206213,
+        "auc": 0.5347222222222222,
+        "brier": 0.27928890306122445,
+        "brier_raw": 0.2735126696640055,
+        "hit_rate": 0.4,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2696491128481388,
+          "brier_cal": 0.2386160714285714
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 60,
+            "mean_pred": 0.4017857142857144,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8591.JP": {
+        "ic": 0.05243950358978772,
+        "auc": 0.41968325791855204,
+        "brier": 0.3203597967830628,
+        "brier_raw": 0.27737542855382286,
+        "hit_rate": 0.4,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2511796836774828,
+          "brier_cal": 0.2307800137598899
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 12,
+            "mean_pred": 0.0,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 10,
+            "mean_pred": 0.3701410437518958,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 34,
+            "mean_pred": 0.5387543252595156,
+            "mean_obs": 0.38235294117647056
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 4,
+            "mean_pred": 0.6558569942578024,
+            "mean_obs": 0.25
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "7741.JP": {
+        "ic": 0.08265449697312047,
+        "auc": 0.3915343915343915,
+        "brier": 0.2540969273615528,
+        "brier_raw": 0.2521023489094408,
+        "hit_rate": 0.6166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.23950534587852576,
+          "brier_cal": 0.22434883154819862
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 2,
+            "mean_pred": 0.0,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 5,
+            "mean_pred": 0.25,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 48,
+            "mean_pred": 0.4556962025316455,
+            "mean_obs": 0.3125
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 4,
+            "mean_pred": 0.641025641025641,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 1,
+            "mean_pred": 0.7002021043705173,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "2914.JP": {
+        "ic": 0.04631791601272931,
+        "auc": 0.5881032547699214,
+        "brier": 0.28175288089371864,
+        "brier_raw": 0.24361601901969207,
+        "hit_rate": 0.45,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2798950399117412,
+          "brier_cal": 0.22863247863247865
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 60,
+            "mean_pred": 0.3604937206476535,
+            "mean_obs": 0.55
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8053.JP": {
+        "ic": 0.3350995249019833,
+        "auc": 0.5679012345679012,
+        "brier": 0.24148901326660915,
+        "brier_raw": 0.24904409188518664,
+        "hit_rate": 0.6166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2459465416209808,
+          "brier_cal": 0.2381876876876877
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 35,
+            "mean_pred": 0.3401904761904762,
+            "mean_obs": 0.37142857142857144
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 3,
+            "mean_pred": 0.4222222222222222,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 21,
+            "mean_pred": 0.5347490347490348,
+            "mean_obs": 0.6190476190476191
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 1,
+            "mean_pred": 0.6146312493839002,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4502.JP": {
+        "ic": -0.05129324857452448,
+        "auc": 0.5407239819004525,
+        "brier": 0.25118055555555546,
+        "brier_raw": 0.2583058957929608,
+        "hit_rate": 0.43333333333333335,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.30882120036759286,
+          "brier_cal": 0.24993055555555557
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 60,
+            "mean_pred": 0.4916666666666671,
+            "mean_obs": 0.5666666666666667
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4568.JP": {
+        "ic": -0.14826655202523958,
+        "auc": 0.4375,
+        "brier": 0.3871002139913686,
+        "brier_raw": 0.3030149985031676,
+        "hit_rate": 0.36666666666666664,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2330237498754232,
+          "brier_cal": 0.21457807108350585
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 27,
+            "mean_pred": 0.1666666666666667,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 25,
+            "mean_pred": 0.26896219716869474,
+            "mean_obs": 0.56
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 1,
+            "mean_pred": 0.375,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 3,
+            "mean_pred": 0.47826086956521746,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 4,
+            "mean_pred": 0.5535714285714286,
+            "mean_obs": 0.25
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4519.JP": {
+        "ic": 0.1964944935545776,
+        "auc": 0.515,
+        "brier": 0.2862065826798453,
+        "brier_raw": 0.24297261078260077,
+        "hit_rate": 0.5166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2343276322480354,
+          "brier_cal": 0.20319622507122506
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 29,
+            "mean_pred": 0.002377755028287842,
+            "mean_obs": 0.3103448275862069
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 1,
+            "mean_pred": 0.25,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 5,
+            "mean_pred": 0.4444444444444445,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 17,
+            "mean_pred": 0.555320300170211,
+            "mean_obs": 0.17647058823529413
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 8,
+            "mean_pred": 0.625,
+            "mean_obs": 0.625
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "9434.JP": {
+        "ic": -0.07140992630613763,
+        "auc": 0.43774069319640563,
+        "brier": 0.3604246184469261,
+        "brier_raw": 0.2959543167659361,
+        "hit_rate": 0.31666666666666665,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24555180592053974,
+          "brier_cal": 0.23132300569800573
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 4,
+            "mean_pred": 0.04370443704179179,
+            "mean_obs": 0.75
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 2,
+            "mean_pred": 0.13075947729541812,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 9,
+            "mean_pred": 0.2222222222222222,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 19,
+            "mean_pred": 0.34752666184456354,
+            "mean_obs": 0.7368421052631579
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 26,
+            "mean_pred": 0.41597633136094675,
+            "mean_obs": 0.6153846153846154
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "9020.JP": {
+        "ic": 0.1638848017505758,
+        "auc": 0.5245535714285714,
+        "brier": 0.2535334673944269,
+        "brier_raw": 0.2517974493153673,
+        "hit_rate": 0.5833333333333334,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2843750452316808,
+          "brier_cal": 0.2271186440677966
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 55,
+            "mean_pred": 0.34745762711864403,
+            "mean_obs": 0.43636363636363634
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 5,
+            "mean_pred": 0.5,
+            "mean_obs": 0.8
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4452.JP": {
+        "ic": -0.09596000879120836,
+        "auc": 0.5222222222222223,
+        "brier": 0.2778578978257788,
+        "brier_raw": 0.2596114090587812,
+        "hit_rate": 0.5333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.25667016247348806,
+          "brier_cal": 0.22961021505376347
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 14,
+            "mean_pred": 0.2511241629369657,
+            "mean_obs": 0.6428571428571429
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 36,
+            "mean_pred": 0.3655913978494623,
+            "mean_obs": 0.4166666666666667
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 10,
+            "mean_pred": 0.5333333333333333,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8604.JP": {
+        "ic": -0.07343700546149383,
+        "auc": 0.4699074074074074,
+        "brier": 0.2542640661547811,
+        "brier_raw": 0.26491762463464613,
+        "hit_rate": 0.43333333333333335,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2589614926272675,
+          "brier_cal": 0.24181848852901483
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 34,
+            "mean_pred": 0.47368421052631576,
+            "mean_obs": 0.6470588235294118
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 25,
+            "mean_pred": 0.5833333333333334,
+            "mean_obs": 0.52
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 1,
+            "mean_pred": 0.6410256410256411,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "8750.JP": {
+        "ic": 0.061365001354297254,
+        "auc": 0.5479910714285714,
+        "brier": 0.257057789858332,
+        "brier_raw": 0.24006517876388647,
+        "hit_rate": 0.5333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2716507544580641,
+          "brier_cal": 0.2451204523107178
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 4,
+            "mean_pred": 0.3518543184157083,
+            "mean_obs": 0.75
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 56,
+            "mean_pred": 0.49508088134724765,
+            "mean_obs": 0.44642857142857145
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4543.JP": {
+        "ic": 0.309437670820824,
+        "auc": 0.6724537037037037,
+        "brier": 0.23200138031216733,
+        "brier_raw": 0.23281634304115056,
+        "hit_rate": 0.6333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2504786438710866,
+          "brier_cal": 0.23028073286052014
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 48,
+            "mean_pred": 0.3668310100792758,
+            "mean_obs": 0.3541666666666667
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 12,
+            "mean_pred": 0.5531914893617021,
+            "mean_obs": 0.5833333333333334
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "5108.JP": {
+        "ic": -0.10040097682677476,
+        "auc": 0.46162402669632924,
+        "brier": 0.2754899536679922,
+        "brier_raw": 0.27389583417134683,
+        "hit_rate": 0.48333333333333334,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2934824876497073,
+          "brier_cal": 0.2329166666666667
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 12,
+            "mean_pred": 0.25340857745896467,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 7,
+            "mean_pred": 0.35871670234871894,
+            "mean_obs": 0.8571428571428571
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 41,
+            "mean_pred": 0.39999999999999997,
+            "mean_obs": 0.4634146341463415
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "2502.JP": {
+        "ic": 0.15410551087462893,
+        "auc": 0.5625,
+        "brier": 0.45445445119061517,
+        "brier_raw": 0.3000218282483342,
+        "hit_rate": 0.4,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.22837018988172833,
+          "brier_cal": 0.19092578788926343
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 12,
+            "mean_pred": 0.0,
+            "mean_obs": 0.4166666666666667
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 41,
+            "mean_pred": 0.1425535493207678,
+            "mean_obs": 0.6341463414634146
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 4,
+            "mean_pred": 0.2,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 3,
+            "mean_pred": 0.3103448275862069,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "9101.JP": {
+        "ic": -0.27923455995168517,
+        "auc": 0.304,
+        "brier": 0.3918728248550468,
+        "brier_raw": 0.3033711834687665,
+        "hit_rate": 0.3,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.22949826317546615,
+          "brier_cal": 0.18934523809523812
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 3,
+            "mean_pred": 0.0,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 19,
+            "mean_pred": 0.2777523402959413,
+            "mean_obs": 0.7368421052631579
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 21,
+            "mean_pred": 0.4503401360544218,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 4,
+            "mean_pred": 0.6666666666666666,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 1,
+            "mean_pred": 0.7129993010715454,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 9,
+            "mean_pred": 0.8080380290852982,
+            "mean_obs": 0.2222222222222222
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 3,
+            "mean_pred": 1.0,
+            "mean_obs": 0.3333333333333333
+          }
+        ]
+      },
+      "6326.JP": {
+        "ic": 0.38306178099978444,
+        "auc": 0.6921296296296297,
+        "brier": 0.23961443530020674,
+        "brier_raw": 0.22326081439446027,
+        "hit_rate": 0.5333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24983013541612903,
+          "brier_cal": 0.23245641079787424
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 5,
+            "mean_pred": 0.2727272727272727,
+            "mean_obs": 0.2
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 15,
+            "mean_pred": 0.44000000000000017,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 40,
+            "mean_pred": 0.563821138211382,
+            "mean_obs": 0.45
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "4307.JP": {
+        "ic": 0.380884822909098,
+        "auc": 0.6206896551724138,
+        "brier": 0.24258198723280328,
+        "brier_raw": 0.23602604065491875,
+        "hit_rate": 0.55,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.25769259788261484,
+          "brier_cal": 0.2295297187298517
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 1,
+            "mean_pred": 0.0,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 8,
+            "mean_pred": 0.28,
+            "mean_obs": 0.125
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 9,
+            "mean_pred": 0.36363636363636365,
+            "mean_obs": 0.6666666666666666
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 40,
+            "mean_pred": 0.4255319148936171,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 2,
+            "mean_pred": 0.53125,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      }
+    },
+    "aggregate": {
+      "median_ic": 0.13311489174502217,
+      "median_brier": 0.27018889455597644,
+      "median_auc": 0.5566150443601424
+    }
+  }
+}
