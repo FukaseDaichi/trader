@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-09-11 08:03:32",
-  "as_of": "2026-09-11",
+  "generated_at": "2026-09-14 08:04:50",
+  "as_of": "2026-09-14",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 195
+      "next_session_open_to_close_v2": 198
     },
-    "included_rows": 195,
+    "included_rows": 198,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,8 +29,8 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 49,
-    "selected_cohorts": 13,
+    "eligible_cohorts": 50,
+    "selected_cohorts": 14,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
     "return_basis": "net_after_entry_exit_costs",
@@ -45,8 +45,8 @@
   "benchmark_coverage": {
     "basis": "same_execution_window_only",
     "available": true,
-    "selected_cohorts": 13,
-    "available_cohorts": 13,
+    "selected_cohorts": 14,
+    "available_cohorts": 14,
     "coverage_ratio": 1.0,
     "reason": null
   },
@@ -216,6 +216,18 @@
       "gross_benchmark_return": 0.0016199953714417514,
       "benchmark_return": -0.0013800046285582486,
       "n": 6
+    },
+    {
+      "date": "2026-09-11",
+      "entry_date": "2026-09-07",
+      "strategy": 0.8127140568614606,
+      "benchmark": 0.9884824575387029,
+      "gross_period_return": -0.025598539506016465,
+      "cost_return": 0.003,
+      "period_return": -0.028598539506016464,
+      "gross_benchmark_return": -0.024637347455675807,
+      "benchmark_return": -0.027637347455675806,
+      "n": 3
     }
   ],
   "drawdown_curve": [
@@ -270,14 +282,18 @@
     {
       "date": "2026-09-04",
       "drawdown": -0.16335923929106122
+    },
+    {
+      "date": "2026-09-11",
+      "drawdown": -0.1872859431385394
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.5533980582524272,
-    "avg_return_20d": 0.006542837882787385,
-    "excess_return_20d": 0.003153742678640176,
-    "sharpe_60d": -2.6840021461598216,
-    "sharpe_observations": 13,
+    "hit_rate_20d": 0.5445544554455446,
+    "avg_return_20d": 0.004121824862179461,
+    "excess_return_20d": 0.001055193951844747,
+    "sharpe_60d": -3.001496591458713,
+    "sharpe_observations": 14,
     "sharpe_annualization_periods": 50.4,
     "sharpe_selection": "eval_date_non_overlap",
     "sharpe_fallback_reason": null,
@@ -285,7 +301,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.31212576351312277,
+    "brier": 0.31655887153620343,
     "bins": [
       {
         "bin_low": 0.0,
@@ -325,16 +341,16 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.5726261864293466,
-        "frac_up": 0.6132075471698113,
-        "count": 106
+        "mean_prob": 0.572414726743091,
+        "frac_up": 0.6074766355140186,
+        "count": 107
       },
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.6346082096155737,
-        "frac_up": 0.34146341463414637,
-        "count": 41
+        "mean_prob": 0.6351447488424138,
+        "frac_up": 0.3333333333333333,
+        "count": 42
       },
       {
         "bin_low": 0.7000000000000001,
@@ -354,16 +370,16 @@
         "bin_low": 0.9,
         "bin_high": 1.0,
         "mean_prob": 1.0,
-        "frac_up": 0.3333333333333333,
-        "count": 3
+        "frac_up": 0.25,
+        "count": 4
       }
     ],
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 195,
-      "observation_count": 177,
-      "linked_prediction_count": 177,
+      "candidate_signal_count": 198,
+      "observation_count": 180,
+      "linked_prediction_count": 180,
       "conviction_fallback_count": 0,
       "excluded_count": 18,
       "exclusions": {
@@ -414,10 +430,14 @@
         {
           "model_version": "per-ticker-v1-20260829T130254-f7bb329aadda-99201bbb",
           "count": 21
+        },
+        {
+          "model_version": "per-ticker-v1-20260905T094115-91c0f7970654-28b91abd",
+          "count": 3
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-09-04",
+      "last_entry_date": "2026-09-07",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
