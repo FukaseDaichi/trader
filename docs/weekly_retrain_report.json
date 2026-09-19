@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-12T10:11:57+09:00",
-  "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-  "candidate_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-  "active_model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+  "generated_at": "2026-09-19T10:12:47+09:00",
+  "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+  "candidate_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+  "active_model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
   "active_set": true,
   "db_registered": true,
   "db_registry_error": null,
@@ -15,21 +15,21 @@
   "macro_features_enabled": true,
   "feature_count": 45,
   "aggregate_cv": {
-    "median_ic": 0.13311489174502217,
-    "median_brier": 0.27018889455597644,
-    "median_auc": 0.5566150443601424
+    "median_ic": 0.15263155713755,
+    "median_brier": 0.28055941327320394,
+    "median_auc": 0.5567544969718883
   },
   "summary": {
     "total_tickers": 50,
     "ok_tickers": 50,
     "failed_tickers": 0,
     "model_ready_tickers": 50,
-    "gate_passed_tickers": 5
+    "gate_passed_tickers": 4
   },
   "deployment": {
     "status": "activated",
-    "previous_active_version": "per-ticker-v1-20260905T094115-91c0f7970654-28b91abd",
-    "active_model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+    "previous_active_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+    "active_model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
     "candidate_validation": {
       "passed": true,
       "failures": [],
@@ -44,11 +44,11 @@
         "failed_count": 0,
         "ratio": 1.0
       },
-      "previous_in_scope_count": 50,
+      "previous_in_scope_count": 49,
       "required_gate_provenance": null
     },
-    "manifest_sha256": "018ede45a846c83a4171a5dd2e19e0eb5f10d884233cbefb87564d990c632d61",
-    "promoted_path": "/home/runner/work/trader/trader/data/models/per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+    "manifest_sha256": "4f770c231adec1d8adf7e50b87747d77ed71a48c7c443b0210d962eda319a72e",
+    "promoted_path": "/home/runner/work/trader/trader/data/models/per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
     "artifact_error": null,
     "staging_cleanup": {
       "policy": "always_delete_managed_staging_after_report_evidence_is_captured",
@@ -65,11 +65,11 @@
       "quality_error": null,
       "file_active_pointer": {
         "source": "active_model.json",
-        "version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-        "manifest_sha256": "018ede45a846c83a4171a5dd2e19e0eb5f10d884233cbefb87564d990c632d61",
+        "version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+        "manifest_sha256": "4f770c231adec1d8adf7e50b87747d77ed71a48c7c443b0210d962eda319a72e",
         "config_sha256": "6e6082ed14816ca9cfbfba5a72d92f9cc2df036ee4fe5941e141d832474090b6",
-        "activated_at": "2026-09-12T10:11:55+09:00",
-        "git_commit": "8ccde20fa00a"
+        "activated_at": "2026-09-19T10:12:40+09:00",
+        "git_commit": "e65f9cfe12d0"
       }
     }
   },
@@ -79,15 +79,15 @@
       "name": "三菱重工業",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.2889472468551983,
-        "auc": 0.568,
-        "brier": 0.2543159288904582,
-        "brier_raw": 0.24467979716999638,
-        "hit_rate": 0.5833333333333334,
+        "ic": 0.3019214815744819,
+        "auc": 0.5346650998824912,
+        "brier": 0.24422013785399113,
+        "brier_raw": 0.24228968926225247,
+        "hit_rate": 0.6166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -95,8 +95,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.28389799626385137,
-          "brier_cal": 0.22528985507246374
+          "brier_raw": 0.2829300476425219,
+          "brier_cal": 0.21643510658366344
         },
         "reliability": [
           {
@@ -119,17 +119,17 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 31,
-            "mean_pred": 0.26873151351650665,
-            "mean_obs": 0.41935483870967744
+            "count": 54,
+            "mean_pred": 0.280701754385965,
+            "mean_obs": 0.37037037037037035
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 29,
-            "mean_pred": 0.37532799529191097,
-            "mean_obs": 0.41379310344827586
+            "count": 6,
+            "mean_pred": 0.35483870967741943,
+            "mean_obs": 0.5
           },
           {
             "bin": 4,
@@ -227,15 +227,15 @@
       "name": "日立製作所",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.2941398879845851,
-        "auc": 0.6377142857142857,
-        "brier": 0.28685940072071314,
-        "brier_raw": 0.24228351436843135,
-        "hit_rate": 0.4166666666666667,
+        "ic": 0.2696682046768379,
+        "auc": 0.6866515837104072,
+        "brier": 0.25667429432164396,
+        "brier_raw": 0.23716550274697806,
+        "hit_rate": 0.43333333333333335,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -243,33 +243,33 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.26185364638602754,
-          "brier_cal": 0.24286231884057968
+          "brier_raw": 0.2609301428515153,
+          "brier_cal": 0.24574193684566026
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 7,
-            "mean_pred": 0.0,
-            "mean_obs": 0.5714285714285714
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 1,
-            "mean_pred": 0.13450636768827956,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 1,
-            "mean_pred": 0.28022559114436324,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
@@ -283,9 +283,9 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 51,
-            "mean_pred": 0.46988578829249306,
-            "mean_obs": 0.6078431372549019
+            "count": 60,
+            "mean_pred": 0.4312649503908991,
+            "mean_obs": 0.5666666666666667
           },
           {
             "bin": 5,
@@ -375,15 +375,15 @@
       "name": "日本電気",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.2646629461683454,
-        "auc": 0.6417410714285714,
-        "brier": 0.318902898339623,
-        "brier_raw": 0.24696948049853565,
-        "hit_rate": 0.4666666666666667,
+        "ic": 0.35565957781455854,
+        "auc": 0.5558166862514688,
+        "brier": 0.33038667694491497,
+        "brier_raw": 0.26041026600548706,
+        "hit_rate": 0.38333333333333336,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -391,41 +391,41 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.28414744983984447,
-          "brier_cal": 0.21104146301726942
+          "brier_raw": 0.28643871229155393,
+          "brier_cal": 0.21706250000000002
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 5,
+            "count": 2,
             "mean_pred": 0.0,
-            "mean_obs": 0.4
+            "mean_obs": 0.5
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
             "count": 2,
-            "mean_pred": 0.15840238332810203,
-            "mean_obs": 0.0
+            "mean_pred": 0.15344657078935542,
+            "mean_obs": 0.5
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 52,
-            "mean_pred": 0.2900891608852713,
-            "mean_obs": 0.5769230769230769
+            "count": 3,
+            "mean_pred": 0.26252300066427176,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 1,
-            "mean_pred": 0.31666666666666665,
-            "mean_obs": 0.0
+            "count": 53,
+            "mean_pred": 0.32968583740636703,
+            "mean_obs": 0.6226415094339622
           },
           {
             "bin": 4,
@@ -523,15 +523,15 @@
       "name": "IHI",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.12794136803598571,
-        "auc": 0.5382775119617225,
-        "brier": 0.2330715561323528,
-        "brier_raw": 0.23866927868209023,
-        "hit_rate": 0.6333333333333333,
+        "ic": 0.24477608856580277,
+        "auc": 0.5891203703703703,
+        "brier": 0.2390710129011938,
+        "brier_raw": 0.23228669091234394,
+        "hit_rate": 0.6,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -539,8 +539,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2999011527481096,
-          "brier_cal": 0.23687730857542177
+          "brier_raw": 0.2985909508464031,
+          "brier_cal": 0.23262108262108266
         },
         "reliability": [
           {
@@ -563,17 +563,17 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.23595808872423338,
+            "mean_obs": 0.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 60,
-            "mean_pred": 0.3962962962962963,
-            "mean_obs": 0.36666666666666664
+            "count": 59,
+            "mean_pred": 0.3926134631745562,
+            "mean_obs": 0.4067796610169492
           },
           {
             "bin": 4,
@@ -671,15 +671,15 @@
       "name": "TDK",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.379690885263025,
-        "auc": 0.6142270861833106,
-        "brier": 0.2513333295949488,
-        "brier_raw": 0.2431959669087542,
-        "hit_rate": 0.6166666666666667,
+        "ic": 0.19929046257647323,
+        "auc": 0.5426136363636364,
+        "brier": 0.25042466934349883,
+        "brier_raw": 0.25676948755151047,
+        "hit_rate": 0.5166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -687,8 +687,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2517706072069249,
-          "brier_cal": 0.2420504385964912
+          "brier_raw": 0.2597923643517746,
+          "brier_cal": 0.24846458893634973
         },
         "reliability": [
           {
@@ -727,25 +727,25 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 46,
-            "mean_pred": 0.4355163855735821,
-            "mean_obs": 0.2826086956521739
+            "count": 15,
+            "mean_pred": 0.4883720930232558,
+            "mean_obs": 0.0
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 5,
-            "mean_pred": 0.524000354183219,
-            "mean_obs": 0.8
+            "count": 45,
+            "mean_pred": 0.5111476323491857,
+            "mean_obs": 0.35555555555555557
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 9,
-            "mean_pred": 0.623874812171422,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
@@ -777,9 +777,9 @@
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
+        "independent_signal_cohorts<5",
         "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
+        "avg_daily_net_return<0.010%"
       ],
       "metrics": {
         "metrics_schema_version": 3,
@@ -796,20 +796,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 16,
-        "round_trips": 3,
-        "signal_cohorts": 10,
-        "independent_signal_cohorts": 5,
-        "avg_daily_net_return": -0.00018920813776285782,
-        "expectancy_per_trade": -0.004210925022115175,
-        "avg_daily_turnover": 0.03125,
-        "cagr": -0.048706550942699156,
-        "max_drawdown": -0.03847568519805622,
-        "sharpe": -0.7119623291940634,
-        "net_return_total": -0.012601250277579301,
-        "trades": 3,
-        "expectancy": -0.004210925022115175,
-        "turnover": 0.03125
+        "turnover_days": 2,
+        "round_trips": 1,
+        "signal_cohorts": 1,
+        "independent_signal_cohorts": 1,
+        "avg_daily_net_return": 7.087170061908336e-05,
+        "expectancy_per_trade": 0.004495104638332581,
+        "avg_daily_turnover": 0.003125,
+        "cagr": 0.01781666931584236,
+        "max_drawdown": -0.007473259438167235,
+        "sharpe": 0.8943403602624171,
+        "net_return_total": 0.004495104638332581,
+        "trades": 1,
+        "expectancy": 0.004495104638332581,
+        "turnover": 0.003125
       },
       "data_validation_warnings": []
     },
@@ -818,15 +818,15 @@
       "name": "ソニーグループ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.17322527657759745,
-        "auc": 0.6039952996474736,
-        "brier": 0.39424974715601707,
-        "brier_raw": 0.2788434202081326,
-        "hit_rate": 0.38333333333333336,
+        "ic": 0.30703597684341344,
+        "auc": 0.7034659820282413,
+        "brier": 0.4073603829362389,
+        "brier_raw": 0.27622497131207324,
+        "hit_rate": 0.31666666666666665,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -834,41 +834,41 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2494618223773582,
-          "brier_cal": 0.20473245614035085
+          "brier_raw": 0.2514437909474068,
+          "brier_cal": 0.20486111111111116
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 7,
-            "mean_pred": 0.0407051830923962,
-            "mean_obs": 0.2857142857142857
+            "count": 18,
+            "mean_pred": 0.0,
+            "mean_obs": 0.5
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 17,
-            "mean_pred": 0.1,
-            "mean_obs": 0.7058823529411765
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 14,
-            "mean_pred": 0.23732125139055466,
-            "mean_obs": 0.5714285714285714
+            "count": 5,
+            "mean_pred": 0.25674922556765833,
+            "mean_obs": 0.4
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 22,
-            "mean_pred": 0.35409958592835356,
-            "mean_obs": 0.6818181818181818
+            "count": 37,
+            "mean_pred": 0.33333333333333337,
+            "mean_obs": 0.8108108108108109
           },
           {
             "bin": 4,
@@ -962,19 +962,19 @@
       "data_validation_warnings": []
     },
     {
-      "ticker": "8306.JP",
-      "name": "三菱UFJフィナンシャル・グループ",
+      "ticker": "1802.JP",
+      "name": "大林組",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.3685882767827019,
-        "auc": 0.7430555555555556,
-        "brier": 0.24231001254339948,
-        "brier_raw": 0.24887050332761992,
-        "hit_rate": 0.5,
+        "ic": 0.11849463903128932,
+        "auc": 0.5022222222222222,
+        "brier": 0.25720164609053503,
+        "brier_raw": 0.25833585088797434,
+        "hit_rate": 0.48333333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -982,33 +982,33 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24255291973757398,
-          "brier_cal": 0.22171296296296295
+          "brier_raw": 0.29514916185321394,
+          "brier_cal": 0.2388888888888889
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 5,
-            "mean_pred": 0.010717259716754728,
-            "mean_obs": 0.2
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 2,
-            "mean_pred": 0.13401199417506712,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 6,
-            "mean_pred": 0.19999999999999998,
-            "mean_obs": 0.16666666666666666
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
@@ -1022,25 +1022,25 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 41,
-            "mean_pred": 0.44559604770621575,
-            "mean_obs": 0.6829268292682927
+            "count": 59,
+            "mean_pred": 0.4444444444444444,
+            "mean_obs": 0.5084745762711864
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 6,
-            "mean_pred": 0.5,
-            "mean_obs": 1.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.6666666666666666,
+            "mean_obs": 0.0
           },
           {
             "bin": 7,
@@ -1092,20 +1092,165 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "turnover_days": 2,
+        "round_trips": 1,
+        "signal_cohorts": 1,
+        "independent_signal_cohorts": 1,
+        "avg_daily_net_return": -5.067123287702604e-05,
+        "expectancy_per_trade": -0.003249704660350794,
+        "avg_daily_turnover": 0.003125,
+        "cagr": -0.012734766201139447,
+        "max_drawdown": -0.004770332759087226,
+        "sharpe": -1.316288201338276,
+        "net_return_total": -0.003249704660350794,
+        "trades": 1,
+        "expectancy": -0.003249704660350794,
+        "turnover": 0.003125
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "8306.JP",
+      "name": "三菱UFJフィナンシャル・グループ",
+      "status": "ok",
+      "model_ready": true,
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+      "horizon_days": 5,
+      "label_mode": "triple_barrier",
+      "cv_metrics": {
+        "ic": 0.38032595933929314,
+        "auc": 0.7407407407407407,
+        "brier": 0.27051281103694724,
+        "brier_raw": 0.2559575991374547,
+        "hit_rate": 0.4666666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2436512265907717,
+          "brier_cal": 0.22239496959646216
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 16,
+            "mean_pred": 0.0,
+            "mean_obs": 0.25
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 38,
+            "mean_pred": 0.41791044776119407,
+            "mean_obs": 0.7105263157894737
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 5,
+            "mean_pred": 0.5555555555555556,
+            "mean_obs": 0.8
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 1,
+            "mean_pred": 0.75,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "calibration_applied": true,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "independent_signal_cohorts<5"
+      ],
+      "metrics": {
+        "metrics_schema_version": 3,
+        "metrics_semantics": {
+          "turnover_days": "sessions with non-zero entry or exit notional",
+          "round_trips": "completed aggregate signed-position episodes",
+          "signal_cohorts": "non-zero signal sleeves opened",
+          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
+          "avg_daily_net_return": "mean net return across every simulated session",
+          "expectancy_per_trade": "mean compounded net return of completed round trips",
+          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
+          "trades": "deprecated alias of round_trips",
+          "expectancy": "deprecated alias of expectancy_per_trade",
+          "turnover": "deprecated alias of avg_daily_turnover"
+        },
+        "oos_days": 64,
+        "turnover_days": 12,
+        "round_trips": 2,
+        "signal_cohorts": 6,
+        "independent_signal_cohorts": 2,
+        "avg_daily_net_return": 0.00032494815407362276,
+        "expectancy_per_trade": 0.010474671883939246,
+        "avg_daily_turnover": 0.021875000000000002,
+        "cagr": 0.08508656578000662,
+        "max_drawdown": -0.004837925223326045,
+        "sharpe": 3.9530502417512268,
+        "net_return_total": 0.020955535908092182,
+        "trades": 2,
+        "expectancy": 0.010474671883939246,
+        "turnover": 0.021875000000000002
       },
       "data_validation_warnings": [
         "invalid_ohlc_relation:1"
@@ -1116,15 +1261,15 @@
       "name": "東京エレクトロン",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.07416855418557612,
-        "auc": 0.47285067873303166,
-        "brier": 0.2910169038040614,
-        "brier_raw": 0.25811612100426706,
-        "hit_rate": 0.43333333333333335,
+        "ic": -0.08157508810450317,
+        "auc": 0.41828571428571426,
+        "brier": 0.2941786051761496,
+        "brier_raw": 0.2691682469875044,
+        "hit_rate": 0.4166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1132,8 +1277,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.26977268502845636,
-          "brier_cal": 0.2438767338767339
+          "brier_raw": 0.27249391933310735,
+          "brier_cal": 0.2379958446818912
         },
         "reliability": [
           {
@@ -1180,25 +1325,25 @@
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 35,
-            "mean_pred": 0.5639885382688603,
-            "mean_obs": 0.45714285714285713
+            "count": 9,
+            "mean_pred": 0.5116279069767442,
+            "mean_obs": 0.5555555555555556
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 1,
-            "mean_pred": 0.6391270931101027,
-            "mean_obs": 0.0
+            "count": 51,
+            "mean_pred": 0.6406995230524642,
+            "mean_obs": 0.39215686274509803
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 24,
-            "mean_pred": 0.7142857142857143,
-            "mean_obs": 0.4166666666666667
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 8,
@@ -1241,20 +1386,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 64,
-        "round_trips": 1,
-        "signal_cohorts": 60,
+        "turnover_days": 60,
+        "round_trips": 2,
+        "signal_cohorts": 51,
         "independent_signal_cohorts": 12,
-        "avg_daily_net_return": -0.002131299985665046,
-        "expectancy_per_trade": -0.13830198194282217,
-        "avg_daily_turnover": 0.203125,
-        "cagr": -0.4435057480830187,
-        "max_drawdown": -0.2094737907354226,
-        "sharpe": -1.7399068328190992,
-        "net_return_total": -0.13830198194282217,
-        "trades": 1,
-        "expectancy": -0.13830198194282217,
-        "turnover": 0.203125
+        "avg_daily_net_return": -0.0020909047008513433,
+        "expectancy_per_trade": -0.0673314542354349,
+        "avg_daily_turnover": 0.159375,
+        "cagr": -0.4279907858107326,
+        "max_drawdown": -0.17977144682936297,
+        "sharpe": -2.12310743702881,
+        "net_return_total": -0.13226309241706524,
+        "trades": 2,
+        "expectancy": -0.0673314542354349,
+        "turnover": 0.159375
       },
       "data_validation_warnings": [
         "invalid_ohlc_relation:1"
@@ -1265,15 +1410,15 @@
       "name": "村田製作所",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.10986297801008847,
-        "auc": 0.3705357142857143,
-        "brier": 0.28473054908190387,
-        "brier_raw": 0.26418680472754136,
-        "hit_rate": 0.4666666666666667,
+        "ic": 0.05284435748923549,
+        "auc": 0.5576923076923077,
+        "brier": 0.3861798087390051,
+        "brier_raw": 0.25457995168642256,
+        "hit_rate": 0.43333333333333335,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1281,8 +1426,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2801143408838957,
-          "brier_cal": 0.2409722222222222
+          "brier_raw": 0.2664545364548758,
+          "brier_cal": 0.23838383838383834
         },
         "reliability": [
           {
@@ -1330,40 +1475,40 @@
             "lo": 0.5,
             "hi": 0.6000000000000001,
             "count": 23,
-            "mean_pred": 0.5845306818720393,
-            "mean_obs": 0.5652173913043478
+            "mean_pred": 0.5454545454545453,
+            "mean_obs": 0.34782608695652173
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 37,
-            "mean_pred": 0.6643691892393051,
-            "mean_obs": 0.40540540540540543
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.7188296602098977,
+            "mean_obs": 1.0
           },
           {
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 15,
+            "mean_pred": 0.8487168383269776,
+            "mean_obs": 0.5333333333333333
           },
           {
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 21,
+            "mean_pred": 0.9873845050430328,
+            "mean_obs": 0.42857142857142855
           }
         ]
       },
@@ -1373,7 +1518,6 @@
       "failures": [
         "cagr<3.0%",
         "avg_daily_net_return<0.010%",
-        "max_dd>25.0%",
         "sharpe<0.20"
       ],
       "metrics": {
@@ -1391,20 +1535,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 64,
-        "round_trips": 1,
-        "signal_cohorts": 60,
-        "independent_signal_cohorts": 12,
-        "avg_daily_net_return": -0.0017288581190657523,
-        "expectancy_per_trade": -0.12308990563681321,
-        "avg_daily_turnover": 0.1875,
-        "cagr": -0.4038087665861534,
-        "max_drawdown": -0.26153762723780993,
-        "sharpe": -1.0874314568891335,
-        "net_return_total": -0.12308990563681321,
-        "trades": 1,
-        "expectancy": -0.12308990563681321,
-        "turnover": 0.1875
+        "turnover_days": 50,
+        "round_trips": 3,
+        "signal_cohorts": 37,
+        "independent_signal_cohorts": 11,
+        "avg_daily_net_return": -0.0011806424628684198,
+        "expectancy_per_trade": -0.026385759579396113,
+        "avg_daily_turnover": 0.125,
+        "cagr": -0.2836584922793137,
+        "max_drawdown": -0.167830710114945,
+        "sharpe": -1.1145547357591388,
+        "net_return_total": -0.08123359012711207,
+        "trades": 3,
+        "expectancy": -0.026385759579396113,
+        "turnover": 0.125
       },
       "data_validation_warnings": []
     },
@@ -1413,15 +1557,15 @@
       "name": "ホンダ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.01574804434277477,
-        "auc": 0.49719416386083054,
-        "brier": 0.2711246648504797,
-        "brier_raw": 0.26684198946574755,
-        "hit_rate": 0.45,
+        "ic": 0.16823325698081637,
+        "auc": 0.5828437132784959,
+        "brier": 0.2926720767687167,
+        "brier_raw": 0.2825726230250124,
+        "hit_rate": 0.38333333333333336,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1429,8 +1573,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.25617633515358507,
-          "brier_cal": 0.23969907407407404
+          "brier_raw": 0.2548539337870261,
+          "brier_cal": 0.22826839826839823
         },
         "reliability": [
           {
@@ -1461,17 +1605,17 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 36,
-            "mean_pred": 0.3847498028007428,
-            "mean_obs": 0.5555555555555556
+            "count": 60,
+            "mean_pred": 0.38094197314166595,
+            "mean_obs": 0.6166666666666667
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 24,
-            "mean_pred": 0.4166666666666667,
-            "mean_obs": 0.5416666666666666
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
@@ -1561,15 +1705,15 @@
       "name": "富士フイルムホールディングス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.04850004448837015,
-        "auc": 0.40291806958473625,
-        "brier": 0.2782217069895514,
-        "brier_raw": 0.2652762035359243,
-        "hit_rate": 0.43333333333333335,
+        "ic": -0.11296384589849805,
+        "auc": 0.49401913875598086,
+        "brier": 0.32336784176653616,
+        "brier_raw": 0.26844537439111477,
+        "hit_rate": 0.3333333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1577,17 +1721,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2478560627785166,
-          "brier_cal": 0.2292698889591679
+          "brier_raw": 0.25006111708073303,
+          "brier_cal": 0.22773061744077477
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 2,
+            "mean_pred": 0.03432086943751728,
+            "mean_obs": 0.0
           },
           {
             "bin": 1,
@@ -1601,33 +1745,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 3,
-            "mean_pred": 0.2352941176470588,
-            "mean_obs": 0.3333333333333333
+            "count": 18,
+            "mean_pred": 0.21890422972155468,
+            "mean_obs": 0.6111111111111112
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 21,
-            "mean_pred": 0.361111111111111,
-            "mean_obs": 0.7142857142857143
+            "count": 27,
+            "mean_pred": 0.36932960091874834,
+            "mean_obs": 0.7407407407407407
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 29,
-            "mean_pred": 0.46956631983832464,
-            "mean_obs": 0.4827586206896552
+            "count": 9,
+            "mean_pred": 0.4411764705882353,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 7,
-            "mean_pred": 0.5483870967741935,
-            "mean_obs": 0.42857142857142855
+            "count": 4,
+            "mean_pred": 0.5,
+            "mean_obs": 0.25
           },
           {
             "bin": 6,
@@ -1709,15 +1853,15 @@
       "name": "みずほフィナンシャルグループ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.4796409649441801,
-        "auc": 0.7375565610859729,
-        "brier": 0.2385176689315846,
-        "brier_raw": 0.22750705419584435,
-        "hit_rate": 0.6666666666666666,
+        "ic": 0.4720569548549314,
+        "auc": 0.7142857142857143,
+        "brier": 0.2462979501907507,
+        "brier_raw": 0.23170506164056887,
+        "hit_rate": 0.6333333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1725,8 +1869,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2595781936530134,
-          "brier_cal": 0.24404297954671084
+          "brier_raw": 0.2515022158509087,
+          "brier_cal": 0.23501495726495727
         },
         "reliability": [
           {
@@ -1757,25 +1901,25 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 12,
-            "mean_pred": 0.3611111111111111,
-            "mean_obs": 0.25
+            "count": 8,
+            "mean_pred": 0.31454691608558916,
+            "mean_obs": 0.375
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 5,
+            "mean_pred": 0.43252325034129857,
+            "mean_obs": 0.4
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 48,
-            "mean_pred": 0.5070184022520797,
-            "mean_obs": 0.6458333333333334
+            "count": 47,
+            "mean_pred": 0.5060868735341163,
+            "mean_obs": 0.6382978723404256
           },
           {
             "bin": 6,
@@ -1859,15 +2003,15 @@
       "name": "三井住友フィナンシャルグループ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.40805254704380506,
-        "auc": 0.7533333333333333,
-        "brier": 0.25188215068027026,
-        "brier_raw": 0.22416259735158578,
-        "hit_rate": 0.5666666666666667,
+        "ic": 0.38239103753715137,
+        "auc": 0.7296996662958843,
+        "brier": 0.24548379388754,
+        "brier_raw": 0.22906813607636575,
+        "hit_rate": 0.48333333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -1875,17 +2019,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.26318579849265916,
-          "brier_cal": 0.2382532051282051
+          "brier_raw": 0.2654037995634783,
+          "brier_cal": 0.24291218637992826
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 7,
-            "mean_pred": 0.019912956898891703,
-            "mean_obs": 0.2857142857142857
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 1,
@@ -1899,33 +2043,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 6,
-            "mean_pred": 0.20742992960630569,
-            "mean_obs": 0.3333333333333333
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
             "count": 0,
             "mean_pred": null,
             "mean_obs": null
           },
           {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 1,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 0.0
+          },
+          {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 1,
-            "mean_pred": 0.4017951025483195,
-            "mean_obs": 1.0
+            "count": 59,
+            "mean_pred": 0.4681611080736286,
+            "mean_obs": 0.5254237288135594
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 46,
-            "mean_pred": 0.5094063545150499,
-            "mean_obs": 0.5434782608695652
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
@@ -2009,15 +2153,15 @@
       "name": "任天堂",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.5572291971063162,
-        "auc": 0.7081930415263749,
-        "brier": 0.2996270953538662,
-        "brier_raw": 0.2489364214639905,
-        "hit_rate": 0.45,
+        "ic": 0.3576549611899023,
+        "auc": 0.6469907407407407,
+        "brier": 0.30155102227286334,
+        "brier_raw": 0.2544235413981629,
+        "hit_rate": 0.43333333333333335,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2025,197 +2169,49 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24697141328655997,
-          "brier_cal": 0.22245903737839226
+          "brier_raw": 0.24463075799281567,
+          "brier_cal": 0.22151709401709396
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 1,
-            "lo": 0.1,
-            "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 2,
-            "lo": 0.2,
-            "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
-            "count": 57,
-            "mean_pred": 0.3118279569892473,
-            "mean_obs": 0.543859649122807
-          },
-          {
-            "bin": 4,
-            "lo": 0.4,
-            "hi": 0.5,
-            "count": 3,
-            "mean_pred": 0.47844555136428557,
-            "mean_obs": 0.6666666666666666
-          },
-          {
-            "bin": 5,
-            "lo": 0.5,
-            "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 6,
-            "lo": 0.6000000000000001,
-            "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 7,
-            "lo": 0.7000000000000001,
-            "hi": 0.8,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 8,
-            "lo": 0.8,
-            "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 9,
-            "lo": 0.9,
-            "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          }
-        ]
-      },
-      "calibration_applied": true,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "independent_signal_cohorts<5",
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
-      ],
-      "metrics": {
-        "metrics_schema_version": 3,
-        "metrics_semantics": {
-          "turnover_days": "sessions with non-zero entry or exit notional",
-          "round_trips": "completed aggregate signed-position episodes",
-          "signal_cohorts": "non-zero signal sleeves opened",
-          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
-          "avg_daily_net_return": "mean net return across every simulated session",
-          "expectancy_per_trade": "mean compounded net return of completed round trips",
-          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
-          "trades": "deprecated alias of round_trips",
-          "expectancy": "deprecated alias of expectancy_per_trade",
-          "turnover": "deprecated alias of avg_daily_turnover"
-        },
-        "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "7751.JP",
-      "name": "キヤノン",
-      "status": "ok",
-      "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-      "horizon_days": 5,
-      "label_mode": "triple_barrier",
-      "cv_metrics": {
-        "ic": 0.13828841545405865,
-        "auc": 0.6617647058823529,
-        "brier": 0.2741963153273127,
-        "brier_raw": 0.24208864582479722,
-        "hit_rate": 0.45,
-        "oos_rows": 180,
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "calibration": {
-          "applied": true,
-          "reason": "ok",
-          "rows": 120,
-          "brier_raw": 0.24481424265304894,
-          "brier_cal": 0.22211056376573618
-        },
-        "reliability": [
-          {
-            "bin": 0,
-            "lo": 0.0,
-            "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 1,
-            "lo": 0.1,
-            "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 2,
-            "lo": 0.2,
-            "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
-            "count": 57,
-            "mean_pred": 0.37594507726854726,
-            "mean_obs": 0.543859649122807
-          },
-          {
-            "bin": 4,
-            "lo": 0.4,
-            "hi": 0.5,
-            "count": 2,
-            "mean_pred": 0.42857142857142855,
+            "count": 1,
+            "mean_pred": 0.08953827303878227,
             "mean_obs": 1.0
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 28,
+            "mean_pred": 0.29584862244814636,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 29,
+            "mean_pred": 0.35897435897435903,
+            "mean_obs": 0.6551724137931034
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
@@ -2253,9 +2249,9 @@
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 1.0,
+            "mean_obs": 1.0
           }
         ]
       },
@@ -2263,9 +2259,7 @@
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
-        "independent_signal_cohorts<5",
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%"
+        "independent_signal_cohorts<5"
       ],
       "metrics": {
         "metrics_schema_version": 3,
@@ -2282,37 +2276,37 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 2,
+        "turnover_days": 4,
         "round_trips": 1,
-        "signal_cohorts": 1,
+        "signal_cohorts": 2,
         "independent_signal_cohorts": 1,
-        "avg_daily_net_return": 4.8706671705485956e-05,
-        "expectancy_per_trade": 0.0031179943138779365,
-        "avg_daily_turnover": 0.003125,
-        "cagr": 0.01233343956766042,
-        "max_drawdown": -0.0012947317225717736,
-        "sharpe": 2.1841358113773137,
-        "net_return_total": 0.0031179943138779365,
+        "avg_daily_net_return": 0.00016704019926113285,
+        "expectancy_per_trade": 0.010634177759966335,
+        "avg_daily_turnover": 0.009375000000000001,
+        "cagr": 0.04253057550426664,
+        "max_drawdown": -0.005442670537010197,
+        "sharpe": 1.4155781643673155,
+        "net_return_total": 0.010634177759966335,
         "trades": 1,
-        "expectancy": 0.0031179943138779365,
-        "turnover": 0.003125
+        "expectancy": 0.010634177759966335,
+        "turnover": 0.009375000000000001
       },
       "data_validation_warnings": []
     },
     {
-      "ticker": "8766.JP",
-      "name": "東京海上ホールディングス",
+      "ticker": "7751.JP",
+      "name": "キヤノン",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.4100165078395462,
-        "auc": 0.681868743047831,
-        "brier": 0.23813108386946252,
-        "brier_raw": 0.23140588722277203,
-        "hit_rate": 0.6,
+        "ic": 0.1370298572942836,
+        "auc": 0.6030092592592593,
+        "brier": 0.28324720401981035,
+        "brier_raw": 0.26490323969942786,
+        "hit_rate": 0.5333333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2320,8 +2314,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24536124150290764,
-          "brier_cal": 0.2342371235944349
+          "brier_raw": 0.22970393535393843,
+          "brier_cal": 0.19947016869810988
         },
         "reliability": [
           {
@@ -2336,6 +2330,151 @@
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
+            "count": 13,
+            "mean_pred": 0.1668492512841218,
+            "mean_obs": 0.5384615384615384
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 24,
+            "mean_pred": 0.29334245158946676,
+            "mean_obs": 0.5416666666666666
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 1,
+            "mean_pred": 0.4058612156215273,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 14,
+            "mean_pred": 0.5704758594761925,
+            "mean_obs": 0.5
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 4,
+            "mean_pred": 0.6666666666666666,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 3,
+            "mean_pred": 0.8606409172886041,
+            "mean_obs": 1.0
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 1,
+            "mean_pred": 1.0,
+            "mean_obs": 1.0
+          }
+        ]
+      },
+      "calibration_applied": true,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "independent_signal_cohorts<5"
+      ],
+      "metrics": {
+        "metrics_schema_version": 3,
+        "metrics_semantics": {
+          "turnover_days": "sessions with non-zero entry or exit notional",
+          "round_trips": "completed aggregate signed-position episodes",
+          "signal_cohorts": "non-zero signal sleeves opened",
+          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
+          "avg_daily_net_return": "mean net return across every simulated session",
+          "expectancy_per_trade": "mean compounded net return of completed round trips",
+          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
+          "trades": "deprecated alias of round_trips",
+          "expectancy": "deprecated alias of expectancy_per_trade",
+          "turnover": "deprecated alias of avg_daily_turnover"
+        },
+        "oos_days": 64,
+        "turnover_days": 15,
+        "round_trips": 3,
+        "signal_cohorts": 8,
+        "independent_signal_cohorts": 4,
+        "avg_daily_net_return": 0.0005455974281450247,
+        "expectancy_per_trade": 0.011684468308574761,
+        "avg_daily_turnover": 0.037500000000000006,
+        "cagr": 0.1469171457827294,
+        "max_drawdown": -0.002589402164769994,
+        "sharpe": 5.009561190293083,
+        "net_return_total": 0.03542643744624474,
+        "trades": 3,
+        "expectancy": 0.011684468308574761,
+        "turnover": 0.037500000000000006
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "8766.JP",
+      "name": "東京海上ホールディングス",
+      "status": "ok",
+      "model_ready": true,
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+      "horizon_days": 5,
+      "label_mode": "triple_barrier",
+      "cv_metrics": {
+        "ic": 0.5864896795792778,
+        "auc": 0.7856341189674523,
+        "brier": 0.2164611235617436,
+        "brier_raw": 0.21576478221743273,
+        "hit_rate": 0.7333333333333333,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.2417699128265549,
+          "brier_cal": 0.2272122116303702
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 7,
+            "mean_pred": 0.0,
+            "mean_obs": 0.14285714285714285
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
             "count": 0,
             "mean_pred": null,
             "mean_obs": null
@@ -2344,41 +2483,41 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 5,
+            "mean_pred": 0.3,
+            "mean_obs": 0.4
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 13,
-            "mean_pred": 0.32376473766954533,
-            "mean_obs": 0.23076923076923078
+            "count": 21,
+            "mean_pred": 0.37074018981589146,
+            "mean_obs": 0.38095238095238093
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 28,
-            "mean_pred": 0.4150943396226415,
-            "mean_obs": 0.5
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 2,
-            "mean_pred": 0.5,
+            "count": 12,
+            "mean_pred": 0.533422459893048,
             "mean_obs": 1.0
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 17,
-            "mean_pred": 0.6381461675579322,
-            "mean_obs": 0.5882352941176471
+            "count": 15,
+            "mean_pred": 0.6956521739130432,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 7,
@@ -2426,19 +2565,19 @@
         },
         "oos_days": 64,
         "turnover_days": 27,
-        "round_trips": 3,
-        "signal_cohorts": 17,
+        "round_trips": 4,
+        "signal_cohorts": 15,
         "independent_signal_cohorts": 6,
-        "avg_daily_net_return": 0.0005654529652951044,
-        "expectancy_per_trade": 0.01200421146539199,
-        "avg_daily_turnover": 0.053125000000000006,
-        "cagr": 0.15076530976557168,
-        "max_drawdown": -0.025613198627038924,
-        "sharpe": 2.2376321356759457,
-        "net_return_total": 0.0363076433251146,
-        "trades": 3,
-        "expectancy": 0.01200421146539199,
-        "turnover": 0.053125000000000006
+        "avg_daily_net_return": 0.0006942374942419545,
+        "expectancy_per_trade": 0.01104511297439531,
+        "avg_daily_turnover": 0.046875,
+        "cagr": 0.1887318323716234,
+        "max_drawdown": -0.025609809386611726,
+        "sharpe": 2.7655316611562237,
+        "net_return_total": 0.04488603565217164,
+        "trades": 4,
+        "expectancy": 0.01104511297439531,
+        "turnover": 0.046875
       },
       "data_validation_warnings": [
         "invalid_non_positive_ohlcv:1",
@@ -2451,15 +2590,15 @@
       "name": "コマツ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.2946459478824093,
-        "auc": 0.6902857142857143,
-        "brier": 0.2292889851922514,
-        "brier_raw": 0.2323534413974841,
-        "hit_rate": 0.5833333333333334,
+        "ic": 0.12087798854801297,
+        "auc": 0.5821759259259259,
+        "brier": 0.27139331069601264,
+        "brier_raw": 0.23666726078362993,
+        "hit_rate": 0.5666666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2467,17 +2606,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24185037455203118,
-          "brier_cal": 0.23301468636506997
+          "brier_raw": 0.24109563327447517,
+          "brier_cal": 0.22204823389033915
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 20,
+            "mean_pred": 0.0,
+            "mean_obs": 0.3
           },
           {
             "bin": 1,
@@ -2491,33 +2630,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 15,
-            "mean_pred": 0.28571428571428564,
-            "mean_obs": 0.2
+            "count": 1,
+            "mean_pred": 0.2961021883571601,
+            "mean_obs": 0.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 18,
-            "mean_pred": 0.3846153846153847,
-            "mean_obs": 0.3888888888888889
+            "count": 35,
+            "mean_pred": 0.37114690200706524,
+            "mean_obs": 0.4857142857142857
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 27,
-            "mean_pred": 0.4285395069708795,
-            "mean_obs": 0.5555555555555556
+            "count": 2,
+            "mean_pred": 0.42857142857142855,
+            "mean_obs": 0.5
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 2,
+            "mean_pred": 0.5067567567567568,
+            "mean_obs": 0.0
           },
           {
             "bin": 6,
@@ -2599,15 +2738,15 @@
       "name": "アドバンテスト",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.25519406079366724,
-        "auc": 0.5870535714285714,
-        "brier": 0.24845405118829306,
-        "brier_raw": 0.24650571638641336,
-        "hit_rate": 0.4666666666666667,
+        "ic": 0.3224987676697404,
+        "auc": 0.6076388888888888,
+        "brier": 0.23428943689853615,
+        "brier_raw": 0.231858941137537,
+        "hit_rate": 0.6,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2615,17 +2754,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24831290233479908,
-          "brier_cal": 0.23142441578253933
+          "brier_raw": 0.25588347232205,
+          "brier_cal": 0.2363386073307172
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 11,
+            "count": 14,
             "mean_pred": 0.0,
-            "mean_obs": 0.09090909090909091
+            "mean_obs": 0.14285714285714285
           },
           {
             "bin": 1,
@@ -2639,33 +2778,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 14,
-            "mean_pred": 0.26557502985024467,
-            "mean_obs": 0.5714285714285714
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
             "count": 0,
             "mean_pred": null,
             "mean_obs": null
           },
           {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 16,
+            "mean_pred": 0.35714285714285715,
+            "mean_obs": 0.5625
+          },
+          {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 13,
-            "mean_pred": 0.445424141076315,
-            "mean_obs": 0.7692307692307693
+            "count": 30,
+            "mean_pred": 0.44823689849990267,
+            "mean_obs": 0.43333333333333335
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 22,
-            "mean_pred": 0.5199999999999998,
-            "mean_obs": 0.4090909090909091
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
@@ -2747,15 +2886,15 @@
       "name": "KDDI",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.10233849744824237,
-        "auc": 0.41875,
-        "brier": 0.27475864261764366,
-        "brier_raw": 0.299487192527589,
-        "hit_rate": 0.35,
+        "ic": -0.20740683484687214,
+        "auc": 0.4005681818181818,
+        "brier": 0.33335881409450824,
+        "brier_raw": 0.3091993732290549,
+        "hit_rate": 0.3,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2763,17 +2902,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.25192872328361443,
-          "brier_cal": 0.23440860215053766
+          "brier_raw": 0.24501945911100378,
+          "brier_cal": 0.21979166666666666
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 2,
+            "count": 5,
             "mean_pred": 0.0,
-            "mean_obs": 0.0
+            "mean_obs": 0.4
           },
           {
             "bin": 1,
@@ -2787,32 +2926,32 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.23583032594559566,
+            "mean_obs": 1.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 2,
-            "mean_pred": 0.3333333333333333,
-            "mean_obs": 1.0
+            "count": 50,
+            "mean_pred": 0.39583333333333326,
+            "mean_obs": 0.76
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 55,
-            "mean_pred": 0.4301075268817204,
-            "mean_obs": 0.6727272727272727
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 1,
-            "mean_pred": 0.5,
+            "count": 3,
+            "mean_pred": 0.5305680507170857,
             "mean_obs": 1.0
           },
           {
@@ -2843,9 +2982,9 @@
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 1.0,
+            "mean_obs": 0.0
           }
         ]
       },
@@ -2873,20 +3012,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "turnover_days": 2,
+        "round_trips": 1,
+        "signal_cohorts": 1,
+        "independent_signal_cohorts": 1,
+        "avg_daily_net_return": -2.857918885920268e-05,
+        "expectancy_per_trade": -0.001842215188772589,
+        "avg_daily_turnover": 0.00625,
+        "cagr": -0.007234118862009864,
+        "max_drawdown": -0.0030582102519548515,
+        "sharpe": -0.6666751441936226,
+        "net_return_total": -0.001842215188772589,
+        "trades": 1,
+        "expectancy": -0.001842215188772589,
+        "turnover": 0.00625
       },
       "data_validation_warnings": []
     },
@@ -2895,15 +3034,15 @@
       "name": "富士通",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.3320867553665616,
-        "auc": 0.7152391546162402,
-        "brier": 0.27604656872667627,
-        "brier_raw": 0.22953573683382447,
-        "hit_rate": 0.5166666666666667,
+        "ic": 0.21547012524540884,
+        "auc": 0.6863839285714286,
+        "brier": 0.29687074829931964,
+        "brier_raw": 0.23912688880275193,
+        "hit_rate": 0.4666666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -2911,8 +3050,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.30032839151554264,
-          "brier_cal": 0.2286240759130531
+          "brier_raw": 0.33317285984971573,
+          "brier_cal": 0.22461188540456833
         },
         "reliability": [
           {
@@ -2944,8 +3083,8 @@
             "lo": 0.30000000000000004,
             "hi": 0.4,
             "count": 60,
-            "mean_pred": 0.3208340977820973,
-            "mean_obs": 0.48333333333333334
+            "mean_pred": 0.3142857142857142,
+            "mean_obs": 0.5333333333333333
           },
           {
             "bin": 4,
@@ -3043,15 +3182,15 @@
       "name": "MS&ADインシュアランスグループホールディングス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.25087399596192167,
-        "auc": 0.5578002244668911,
-        "brier": 0.24801903854869795,
-        "brier_raw": 0.261192196215566,
-        "hit_rate": 0.6,
+        "ic": 0.5020746779845962,
+        "auc": 0.7199074074074074,
+        "brier": 0.23490279760917346,
+        "brier_raw": 0.2449904462096687,
+        "hit_rate": 0.65,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3059,17 +3198,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2710000271267707,
-          "brier_cal": 0.24774275362318837
+          "brier_raw": 0.2573269239882011,
+          "brier_cal": 0.24175627240143366
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.0,
+            "mean_obs": 0.0
           },
           {
             "bin": 1,
@@ -3091,25 +3230,25 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 7,
+            "mean_pred": 0.33972319203570434,
+            "mean_obs": 0.2857142857142857
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 11,
-            "mean_pred": 0.4828586823622789,
-            "mean_obs": 0.36363636363636365
+            "count": 19,
+            "mean_pred": 0.45217676071642215,
+            "mean_obs": 0.5263157894736842
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 49,
-            "mean_pred": 0.5099822537710738,
-            "mean_obs": 0.5918367346938775
+            "count": 33,
+            "mean_pred": 0.5333333333333333,
+            "mean_obs": 0.7272727272727273
           },
           {
             "bin": 6,
@@ -3193,15 +3332,15 @@
       "name": "オリエンタルランド",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.050352854141378814,
-        "auc": 0.42875,
-        "brier": 0.46972330204266766,
-        "brier_raw": 0.34925667249365877,
-        "hit_rate": 0.3333333333333333,
+        "ic": -0.003310991164753087,
+        "auc": 0.424,
+        "brier": 0.3694436658419202,
+        "brier_raw": 0.30722228474045943,
+        "hit_rate": 0.4166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3209,41 +3348,41 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.21798742729361997,
-          "brier_cal": 0.19098039215686277
+          "brier_raw": 0.22488181830187853,
+          "brier_cal": 0.20160467671060892
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 11,
-            "mean_pred": 0.0,
-            "mean_obs": 0.9090909090909091
+            "count": 10,
+            "mean_pred": 0.004980161432210044,
+            "mean_obs": 0.7
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 17,
-            "mean_pred": 0.17673070458698414,
-            "mean_obs": 0.5294117647058824
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 32,
-            "mean_pred": 0.2699839556092081,
-            "mean_obs": 0.65625
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 50,
+            "mean_pred": 0.32069693438488733,
+            "mean_obs": 0.56
           },
           {
             "bin": 4,
@@ -3341,15 +3480,15 @@
       "name": "トヨタ自動車",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.017988644325607497,
-        "auc": 0.42655699177438305,
-        "brier": 0.2641666666666667,
-        "brier_raw": 0.29610011032145794,
-        "hit_rate": 0.38333333333333336,
+        "ic": 0.0867496350387595,
+        "auc": 0.46153846153846156,
+        "brier": 0.3199568406285493,
+        "brier_raw": 0.3119650457051575,
+        "hit_rate": 0.35,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3357,8 +3496,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.26371363669011966,
-          "brier_cal": 0.24750000000000008
+          "brier_raw": 0.25530584192833455,
+          "brier_cal": 0.23983712715855568
         },
         "reliability": [
           {
@@ -3381,9 +3520,9 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 23,
+            "mean_pred": 0.28571428571428564,
+            "mean_obs": 0.6956521739130435
           },
           {
             "bin": 3,
@@ -3397,9 +3536,9 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 60,
-            "mean_pred": 0.45,
-            "mean_obs": 0.6166666666666667
+            "count": 37,
+            "mean_pred": 0.4037275770679246,
+            "mean_obs": 0.6216216216216216
           },
           {
             "bin": 5,
@@ -3489,15 +3628,15 @@
       "name": "リクルートホールディングス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.04431789153845766,
-        "auc": 0.5663924794359577,
-        "brier": 0.2498996670760703,
-        "brier_raw": 0.23475489593703394,
-        "hit_rate": 0.6333333333333333,
+        "ic": 0.08804828042467475,
+        "auc": 0.5633971291866029,
+        "brier": 0.23661273474480937,
+        "brier_raw": 0.2362744249275827,
+        "hit_rate": 0.6833333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3505,8 +3644,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2474410802731316,
-          "brier_cal": 0.22663377192982456
+          "brier_raw": 0.2485878404832988,
+          "brier_cal": 0.2221348096348096
         },
         "reliability": [
           {
@@ -3529,65 +3668,65 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.2916666666666667,
+            "mean_obs": 0.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 2,
+            "mean_pred": 0.3388116243761347,
+            "mean_obs": 0.0
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 5,
-            "mean_pred": 0.475,
-            "mean_obs": 0.4
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 1,
-            "mean_pred": 0.6,
-            "mean_obs": 1.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 47,
-            "mean_pred": 0.6634835221341928,
-            "mean_obs": 0.6595744680851063
+            "count": 55,
+            "mean_pred": 0.6399237126509855,
+            "mean_obs": 0.6909090909090909
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 2,
-            "mean_pred": 0.7540424082059328,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 1,
-            "mean_pred": 0.8697219317850318,
-            "mean_obs": 1.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 4,
+            "count": 2,
             "mean_pred": 1.0,
-            "mean_obs": 0.5
+            "mean_obs": 0.0
           }
         ]
       },
@@ -3610,19 +3749,19 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 63,
+        "turnover_days": 64,
         "round_trips": 1,
-        "signal_cohorts": 55,
+        "signal_cohorts": 57,
         "independent_signal_cohorts": 12,
-        "avg_daily_net_return": 0.0027513690208818805,
-        "expectancy_per_trade": 0.18405073347902579,
+        "avg_daily_net_return": 0.0033199258235800913,
+        "expectancy_per_trade": 0.22779321378936457,
         "avg_daily_turnover": 0.17812499999999998,
-        "cagr": 0.94489249396283,
-        "max_drawdown": -0.05685699657386212,
-        "sharpe": 2.922114375607685,
-        "net_return_total": 0.18405073347902579,
+        "cagr": 1.243523318161794,
+        "max_drawdown": -0.06140124046229967,
+        "sharpe": 3.525013162311315,
+        "net_return_total": 0.22779321378936457,
         "trades": 1,
-        "expectancy": 0.18405073347902579,
+        "expectancy": 0.22779321378936457,
         "turnover": 0.17812499999999998
       },
       "data_validation_warnings": []
@@ -3632,15 +3771,15 @@
       "name": "三菱商事",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.05518322749753975,
-        "auc": 0.6122685185185185,
-        "brier": 0.23823240914458807,
-        "brier_raw": 0.23434455213318253,
-        "hit_rate": 0.6,
+        "ic": 0.01391159111404968,
+        "auc": 0.5782857142857143,
+        "brier": 0.24390083860910047,
+        "brier_raw": 0.24432462340555275,
+        "hit_rate": 0.5833333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3648,8 +3787,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2696990900776383,
-          "brier_cal": 0.24592420907534623
+          "brier_raw": 0.2674807542831345,
+          "brier_cal": 0.24408242829295457
         },
         "reliability": [
           {
@@ -3680,16 +3819,16 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 55,
+            "mean_pred": 0.39682539682539664,
+            "mean_obs": 0.41818181818181815
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 60,
-            "mean_pred": 0.41072722826207797,
+            "count": 5,
+            "mean_pred": 0.47368421052631576,
             "mean_obs": 0.4
           },
           {
@@ -3780,15 +3919,15 @@
       "name": "キーエンス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.42013894955172226,
-        "auc": 0.5353535353535354,
-        "brier": 0.245060277663292,
-        "brier_raw": 0.24591964927591742,
-        "hit_rate": 0.6,
+        "ic": 0.40700363719768873,
+        "auc": 0.5954285714285714,
+        "brier": 0.24542830900904555,
+        "brier_raw": 0.23532926408387977,
+        "hit_rate": 0.5833333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3796,8 +3935,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2522271823023873,
-          "brier_cal": 0.24115079365079362
+          "brier_raw": 0.2454409516327253,
+          "brier_cal": 0.2345575909961686
         },
         "reliability": [
           {
@@ -3820,41 +3959,41 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 16,
+            "mean_pred": 0.27768309924469525,
+            "mean_obs": 0.375
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 15,
-            "mean_pred": 0.35714285714285704,
-            "mean_obs": 0.4666666666666667
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 34,
-            "mean_pred": 0.47170868347338935,
-            "mean_obs": 0.38235294117647056
+            "count": 44,
+            "mean_pred": 0.47126436781609177,
+            "mean_obs": 0.4318181818181818
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 2,
-            "mean_pred": 0.5394108414265764,
-            "mean_obs": 0.5
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 9,
-            "mean_pred": 0.6664066269334108,
-            "mean_obs": 0.6666666666666666
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
@@ -3886,7 +4025,10 @@
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
-        "independent_signal_cohorts<5"
+        "independent_signal_cohorts<5",
+        "cagr<3.0%",
+        "avg_daily_net_return<0.010%",
+        "sharpe<0.20"
       ],
       "metrics": {
         "metrics_schema_version": 3,
@@ -3903,20 +4045,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 13,
-        "round_trips": 1,
-        "signal_cohorts": 9,
-        "independent_signal_cohorts": 2,
-        "avg_daily_net_return": 0.0010198096925803273,
-        "expectancy_per_trade": 0.06624995244429943,
-        "avg_daily_turnover": 0.028125,
-        "cagr": 0.28734488025249716,
-        "max_drawdown": -0.01962765067027339,
-        "sharpe": 2.76206711472945,
-        "net_return_total": 0.06624995244429943,
-        "trades": 1,
-        "expectancy": 0.06624995244429943,
-        "turnover": 0.028125
+        "turnover_days": 0,
+        "round_trips": 0,
+        "signal_cohorts": 0,
+        "independent_signal_cohorts": 0,
+        "avg_daily_net_return": 0.0,
+        "expectancy_per_trade": 0.0,
+        "avg_daily_turnover": 0.0,
+        "cagr": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "net_return_total": 0.0,
+        "trades": 0,
+        "expectancy": 0.0,
+        "turnover": 0.0
       },
       "data_validation_warnings": []
     },
@@ -3925,15 +4067,15 @@
       "name": "信越化学工業",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.312498709886208,
-        "auc": 0.8083028083028083,
-        "brier": 0.46233509198473477,
-        "brier_raw": 0.24442421092097483,
-        "hit_rate": 0.43333333333333335,
+        "ic": 0.39513599836990365,
+        "auc": 0.7048611111111112,
+        "brier": 0.3532886808832172,
+        "brier_raw": 0.22705892996036078,
+        "hit_rate": 0.4,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -3941,8 +4083,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2545058361081714,
-          "brier_cal": 0.21162367724867728
+          "brier_raw": 0.2543679704158916,
+          "brier_cal": 0.19376984126984131
         },
         "reliability": [
           {
@@ -3973,9 +4115,9 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 5,
-            "mean_pred": 0.3333333333333333,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 4,
@@ -3989,41 +4131,41 @@
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 6,
-            "mean_pred": 0.5423280423280423,
-            "mean_obs": 0.3333333333333333
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 1,
-            "mean_pred": 0.6928316520662042,
-            "mean_obs": 0.0
+            "count": 19,
+            "mean_pred": 0.6513157894736841,
+            "mean_obs": 0.21052631578947367
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
             "count": 3,
-            "mean_pred": 0.75,
-            "mean_obs": 0.0
+            "mean_pred": 0.7432092287979261,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 11,
-            "mean_pred": 0.875,
-            "mean_obs": 0.09090909090909091
+            "count": 27,
+            "mean_pred": 0.8000000000000002,
+            "mean_obs": 0.3333333333333333
           },
           {
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 34,
-            "mean_pred": 0.9966127405579231,
-            "mean_obs": 0.5294117647058824
+            "count": 11,
+            "mean_pred": 0.9905596231732176,
+            "mean_obs": 0.8181818181818182
           }
         ]
       },
@@ -4050,20 +4192,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 57,
+        "turnover_days": 64,
         "round_trips": 1,
-        "signal_cohorts": 51,
-        "independent_signal_cohorts": 11,
-        "avg_daily_net_return": -0.003337268120856627,
-        "expectancy_per_trade": -0.2043890725321572,
-        "avg_daily_turnover": 0.30937499999999996,
-        "cagr": -0.5935480969008295,
-        "max_drawdown": -0.24728658404401604,
-        "sharpe": -2.4863322802084107,
-        "net_return_total": -0.2043890725321572,
+        "signal_cohorts": 60,
+        "independent_signal_cohorts": 12,
+        "avg_daily_net_return": -0.0021994978551703537,
+        "expectancy_per_trade": -0.14074123398819627,
+        "avg_daily_turnover": 0.31562500000000004,
+        "cagr": -0.4496827357059293,
+        "max_drawdown": -0.1841853064005876,
+        "sharpe": -1.904557642898119,
+        "net_return_total": -0.14074123398819627,
         "trades": 1,
-        "expectancy": -0.2043890725321572,
-        "turnover": 0.30937499999999996
+        "expectancy": -0.14074123398819627,
+        "turnover": 0.31562500000000004
       },
       "data_validation_warnings": []
     },
@@ -4072,15 +4214,15 @@
       "name": "三菱電機",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.003524602444012652,
-        "auc": 0.44030808729139925,
-        "brier": 0.3689379926894789,
-        "brier_raw": 0.28629310337500086,
-        "hit_rate": 0.3,
+        "ic": 0.1851307205995907,
+        "auc": 0.5132275132275133,
+        "brier": 0.31914160037571904,
+        "brier_raw": 0.28041759594762433,
+        "hit_rate": 0.3333333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4088,8 +4230,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24368936339726457,
-          "brier_cal": 0.2321077928297756
+          "brier_raw": 0.2444628269384129,
+          "brier_cal": 0.23181993806993806
         },
         "reliability": [
           {
@@ -4128,33 +4270,33 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 3,
-            "mean_pred": 0.41379310344827586,
-            "mean_obs": 0.6666666666666666
+            "count": 2,
+            "mean_pred": 0.452991452991453,
+            "mean_obs": 0.0
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 2,
-            "mean_pred": 0.5,
-            "mean_obs": 0.5
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 52,
-            "mean_pred": 0.6666666666666665,
-            "mean_obs": 0.3076923076923077
+            "count": 54,
+            "mean_pred": 0.6216216216216216,
+            "mean_obs": 0.3333333333333333
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 4,
+            "mean_pred": 0.75,
+            "mean_obs": 0.0
           },
           {
             "bin": 8,
@@ -4168,9 +4310,9 @@
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 3,
-            "mean_pred": 1.0,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           }
         ]
       },
@@ -4197,20 +4339,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 63,
+        "turnover_days": 64,
         "round_trips": 1,
-        "signal_cohorts": 55,
+        "signal_cohorts": 58,
         "independent_signal_cohorts": 12,
-        "avg_daily_net_return": -0.0011767609677385761,
-        "expectancy_per_trade": -0.07721536353830527,
-        "avg_daily_turnover": 0.18125000000000002,
-        "cagr": -0.2712431516674342,
-        "max_drawdown": -0.10160729524639922,
-        "sharpe": -1.4923105449771774,
-        "net_return_total": -0.07721536353830527,
+        "avg_daily_net_return": -0.001287631285180046,
+        "expectancy_per_trade": -0.0839601320762593,
+        "avg_daily_turnover": 0.19374999999999998,
+        "cagr": -0.29199250793108555,
+        "max_drawdown": -0.09529008382557336,
+        "sharpe": -1.5972028150541617,
+        "net_return_total": -0.0839601320762593,
         "trades": 1,
-        "expectancy": -0.07721536353830527,
-        "turnover": 0.18125000000000002
+        "expectancy": -0.0839601320762593,
+        "turnover": 0.19374999999999998
       },
       "data_validation_warnings": []
     },
@@ -4219,15 +4361,15 @@
       "name": "日本電信電話",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.2120681105289626,
-        "auc": 0.568986568986569,
-        "brier": 0.4882960610548074,
-        "brier_raw": 0.339810405639926,
-        "hit_rate": 0.35,
+        "ic": 0.2461694521529759,
+        "auc": 0.53125,
+        "brier": 0.6955790145540045,
+        "brier_raw": 0.3832512633392994,
+        "hit_rate": 0.2833333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4235,25 +4377,25 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.23435638291012945,
-          "brier_cal": 0.21033435810221526
+          "brier_raw": 0.2317649020668163,
+          "brier_cal": 0.19438063672438674
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 57,
+            "mean_pred": 0.012186331272142643,
+            "mean_obs": 0.7368421052631579
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 58,
-            "mean_pred": 0.1264367816091954,
-            "mean_obs": 0.6379310344827587
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
@@ -4267,17 +4409,17 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.32727272727272727,
+            "mean_obs": 1.0
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 2,
-            "mean_pred": 0.40816326530612246,
-            "mean_obs": 1.0
+            "count": 1,
+            "mean_pred": 0.40625,
+            "mean_obs": 0.0
           },
           {
             "bin": 5,
@@ -4291,9 +4433,9 @@
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.6363636363636364,
+            "mean_obs": 1.0
           },
           {
             "bin": 7,
@@ -4367,15 +4509,15 @@
       "name": "三井物産",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.06626622443707814,
-        "auc": 0.5554298642533937,
-        "brier": 0.24303703703703705,
-        "brier_raw": 0.2446857780866912,
-        "hit_rate": 0.5666666666666667,
+        "ic": 0.010151220070735866,
+        "auc": 0.5494994438264739,
+        "brier": 0.26676517133476974,
+        "brier_raw": 0.2519107275339106,
+        "hit_rate": 0.5166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4383,8 +4525,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2657312691379566,
-          "brier_cal": 0.24777777777777782
+          "brier_raw": 0.2543591075110307,
+          "brier_cal": 0.2348172514619883
         },
         "reliability": [
           {
@@ -4415,25 +4557,25 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 48,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 0.4791666666666667
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 60,
-            "mean_pred": 0.4377777777777779,
-            "mean_obs": 0.43333333333333335
+            "count": 2,
+            "mean_pred": 0.4083333333333333,
+            "mean_obs": 0.5
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 10,
+            "mean_pred": 0.5473684210526315,
+            "mean_obs": 0.5
           },
           {
             "bin": 6,
@@ -4493,20 +4635,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "turnover_days": 14,
+        "round_trips": 2,
+        "signal_cohorts": 9,
+        "independent_signal_cohorts": 3,
+        "avg_daily_net_return": 1.9511702318491446e-05,
+        "expectancy_per_trade": 0.0005550393608481086,
+        "avg_daily_turnover": 0.028125,
+        "cagr": 0.004338117581567769,
+        "max_drawdown": -0.00771929321856224,
+        "sharpe": 0.14333811389640616,
+        "net_return_total": 0.0010999658079298147,
+        "trades": 2,
+        "expectancy": 0.0005550393608481086,
+        "turnover": 0.028125
       },
       "data_validation_warnings": []
     },
@@ -4515,15 +4657,15 @@
       "name": "SMC",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.09005235917838017,
-        "auc": 0.5316742081447964,
-        "brier": 0.2692531242614732,
-        "brier_raw": 0.24619656814555496,
-        "hit_rate": 0.5333333333333333,
+        "ic": -0.31186187489934253,
+        "auc": 0.3726851851851852,
+        "brier": 0.2575856995335932,
+        "brier_raw": 0.2511432646777481,
+        "hit_rate": 0.5666666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4531,8 +4673,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.25572937697769704,
-          "brier_cal": 0.23780515370705235
+          "brier_raw": 0.24868274029726317,
+          "brier_cal": 0.23249230718483016
         },
         "reliability": [
           {
@@ -4563,25 +4705,25 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 46,
+            "mean_pred": 0.3838241806908197,
+            "mean_obs": 0.43478260869565216
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 56,
-            "mean_pred": 0.42082149315422374,
-            "mean_obs": 0.44642857142857145
+            "count": 12,
+            "mean_pred": 0.4721132846674845,
+            "mean_obs": 0.3333333333333333
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.5,
+            "mean_obs": 0.0
           },
           {
             "bin": 6,
@@ -4595,25 +4737,25 @@
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 1,
-            "mean_pred": 0.75,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 1,
-            "mean_pred": 0.8692730125577799,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 2,
-            "mean_pred": 1.0,
-            "mean_obs": 0.5
+            "count": 1,
+            "mean_pred": 0.931973330213432,
+            "mean_obs": 0.0
           }
         ]
       },
@@ -4641,20 +4783,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 6,
+        "turnover_days": 2,
         "round_trips": 1,
-        "signal_cohorts": 4,
-        "independent_signal_cohorts": 2,
-        "avg_daily_net_return": -0.0001639055508933135,
-        "expectancy_per_trade": -0.011660739239810702,
-        "avg_daily_turnover": 0.021875000000000002,
-        "cagr": -0.04513370800166283,
-        "max_drawdown": -0.048138835466720487,
-        "sharpe": -0.4224115455063477,
-        "net_return_total": -0.011660739239810702,
+        "signal_cohorts": 1,
+        "independent_signal_cohorts": 1,
+        "avg_daily_net_return": -9.456163858516769e-05,
+        "expectancy_per_trade": -0.006123585109923502,
+        "avg_daily_turnover": 0.00625,
+        "cagr": -0.02389561252709471,
+        "max_drawdown": -0.015578239593263432,
+        "sharpe": -0.8966514223286365,
+        "net_return_total": -0.006123585109923502,
         "trades": 1,
-        "expectancy": -0.011660739239810702,
-        "turnover": 0.021875000000000002
+        "expectancy": -0.006123585109923502,
+        "turnover": 0.00625
       },
       "data_validation_warnings": []
     },
@@ -4663,15 +4805,15 @@
       "name": "伊藤忠商事",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.03257778702206213,
-        "auc": 0.5347222222222222,
-        "brier": 0.27928890306122445,
-        "brier_raw": 0.2735126696640055,
-        "hit_rate": 0.4,
+        "ic": 0.13354499067208092,
+        "auc": 0.6166056166056166,
+        "brier": 0.3333852687739221,
+        "brier_raw": 0.26996393243703215,
+        "hit_rate": 0.35,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4679,25 +4821,25 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2696491128481388,
-          "brier_cal": 0.2386160714285714
+          "brier_raw": 0.26044526377326066,
+          "brier_cal": 0.22985449735449734
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 3,
+            "mean_pred": 0.016262328737210497,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 7,
+            "mean_pred": 0.15629007975748885,
+            "mean_obs": 0.42857142857142855
           },
           {
             "bin": 2,
@@ -4711,17 +4853,17 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 46,
+            "mean_pred": 0.3571428571428571,
+            "mean_obs": 0.6739130434782609
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 60,
-            "mean_pred": 0.4017857142857144,
-            "mean_obs": 0.6
+            "count": 4,
+            "mean_pred": 0.4,
+            "mean_obs": 0.75
           },
           {
             "bin": 5,
@@ -4811,15 +4953,15 @@
       "name": "オリックス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.05243950358978772,
-        "auc": 0.41968325791855204,
-        "brier": 0.3203597967830628,
-        "brier_raw": 0.27737542855382286,
-        "hit_rate": 0.4,
+        "ic": 0.20413093709794367,
+        "auc": 0.5446428571428571,
+        "brier": 0.2932417471819646,
+        "brier_raw": 0.25127604352247784,
+        "hit_rate": 0.5166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -4827,25 +4969,25 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2511796836774828,
-          "brier_cal": 0.2307800137598899
+          "brier_raw": 0.2548885677763932,
+          "brier_cal": 0.22835144927536233
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 12,
-            "mean_pred": 0.0,
-            "mean_obs": 0.5
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 22,
+            "mean_pred": 0.16666666666666663,
+            "mean_obs": 0.4090909090909091
           },
           {
             "bin": 2,
@@ -4859,9 +5001,9 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 10,
-            "mean_pred": 0.3701410437518958,
-            "mean_obs": 0.6
+            "count": 7,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 0.5714285714285714
           },
           {
             "bin": 4,
@@ -4875,17 +5017,309 @@
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 34,
-            "mean_pred": 0.5387543252595156,
-            "mean_obs": 0.38235294117647056
+            "count": 23,
+            "mean_pred": 0.532608695652174,
+            "mean_obs": 0.43478260869565216
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 4,
-            "mean_pred": 0.6558569942578024,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 8,
+            "mean_pred": 1.0,
+            "mean_obs": 0.625
+          }
+        ]
+      },
+      "calibration_applied": true,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "independent_signal_cohorts<5"
+      ],
+      "metrics": {
+        "metrics_schema_version": 3,
+        "metrics_semantics": {
+          "turnover_days": "sessions with non-zero entry or exit notional",
+          "round_trips": "completed aggregate signed-position episodes",
+          "signal_cohorts": "non-zero signal sleeves opened",
+          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
+          "avg_daily_net_return": "mean net return across every simulated session",
+          "expectancy_per_trade": "mean compounded net return of completed round trips",
+          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
+          "trades": "deprecated alias of round_trips",
+          "expectancy": "deprecated alias of expectancy_per_trade",
+          "turnover": "deprecated alias of avg_daily_turnover"
+        },
+        "oos_days": 64,
+        "turnover_days": 16,
+        "round_trips": 3,
+        "signal_cohorts": 8,
+        "independent_signal_cohorts": 4,
+        "avg_daily_net_return": 0.0004396273434442332,
+        "expectancy_per_trade": 0.009244722784969683,
+        "avg_daily_turnover": 0.05,
+        "cagr": 0.11469639392723963,
+        "max_drawdown": -0.023797435336601502,
+        "sharpe": 1.6779102813058802,
+        "net_return_total": 0.027960148364869042,
+        "trades": 3,
+        "expectancy": 0.009244722784969683,
+        "turnover": 0.05
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "7741.JP",
+      "name": "HOYA",
+      "status": "ok",
+      "model_ready": true,
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+      "horizon_days": 5,
+      "label_mode": "triple_barrier",
+      "cv_metrics": {
+        "ic": 0.19169943430246253,
+        "auc": 0.4659090909090909,
+        "brier": 0.27519514687012486,
+        "brier_raw": 0.2479764493155233,
+        "hit_rate": 0.5166666666666667,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.24035458781064858,
+          "brier_cal": 0.226584145021645
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 1,
+            "mean_pred": 0.2,
+            "mean_obs": 0.0
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 28,
+            "mean_pred": 0.46875,
             "mean_obs": 0.25
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 7,
+            "mean_pred": 0.5,
+            "mean_obs": 0.42857142857142855
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 24,
+            "mean_pred": 0.6382761348548842,
+            "mean_obs": 0.25
+          },
+          {
+            "bin": 7,
+            "lo": 0.7000000000000001,
+            "hi": 0.8,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 8,
+            "lo": 0.8,
+            "hi": 0.9,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 9,
+            "lo": 0.9,
+            "hi": 1.0,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          }
+        ]
+      },
+      "calibration_applied": true,
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "cagr<3.0%",
+        "avg_daily_net_return<0.010%",
+        "sharpe<0.20"
+      ],
+      "metrics": {
+        "metrics_schema_version": 3,
+        "metrics_semantics": {
+          "turnover_days": "sessions with non-zero entry or exit notional",
+          "round_trips": "completed aggregate signed-position episodes",
+          "signal_cohorts": "non-zero signal sleeves opened",
+          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
+          "avg_daily_net_return": "mean net return across every simulated session",
+          "expectancy_per_trade": "mean compounded net return of completed round trips",
+          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
+          "trades": "deprecated alias of round_trips",
+          "expectancy": "deprecated alias of expectancy_per_trade",
+          "turnover": "deprecated alias of avg_daily_turnover"
+        },
+        "oos_days": 64,
+        "turnover_days": 37,
+        "round_trips": 3,
+        "signal_cohorts": 24,
+        "independent_signal_cohorts": 8,
+        "avg_daily_net_return": -0.000650085010160588,
+        "expectancy_per_trade": -0.01384567653013665,
+        "avg_daily_turnover": 0.075,
+        "cagr": -0.15241855950868777,
+        "max_drawdown": -0.04381311010725675,
+        "sharpe": -3.0030397074021025,
+        "net_return_total": -0.04112859984805395,
+        "trades": 3,
+        "expectancy": -0.01384567653013665,
+        "turnover": 0.075
+      },
+      "data_validation_warnings": []
+    },
+    {
+      "ticker": "2914.JP",
+      "name": "日本たばこ産業",
+      "status": "ok",
+      "model_ready": true,
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
+      "horizon_days": 5,
+      "label_mode": "triple_barrier",
+      "cv_metrics": {
+        "ic": 0.06250979674248752,
+        "auc": 0.5325714285714286,
+        "brier": 0.31748354823592706,
+        "brier_raw": 0.24609838650199756,
+        "hit_rate": 0.4,
+        "oos_rows": 180,
+        "tuning_rows": 120,
+        "holdout_rows": 60,
+        "calibration": {
+          "applied": true,
+          "reason": "ok",
+          "rows": 120,
+          "brier_raw": 0.26172190466554157,
+          "brier_cal": 0.2162390873015873
+        },
+        "reliability": [
+          {
+            "bin": 0,
+            "lo": 0.0,
+            "hi": 0.1,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 1,
+            "lo": 0.1,
+            "hi": 0.2,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
+          },
+          {
+            "bin": 2,
+            "lo": 0.2,
+            "hi": 0.30000000000000004,
+            "count": 20,
+            "mean_pred": 0.23809523809523808,
+            "mean_obs": 0.6
+          },
+          {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 24,
+            "mean_pred": 0.3125,
+            "mean_obs": 0.5416666666666666
+          },
+          {
+            "bin": 4,
+            "lo": 0.4,
+            "hi": 0.5,
+            "count": 13,
+            "mean_pred": 0.4428560025511387,
+            "mean_obs": 0.6923076923076923
+          },
+          {
+            "bin": 5,
+            "lo": 0.5,
+            "hi": 0.6000000000000001,
+            "count": 3,
+            "mean_pred": 0.5833333333333334,
+            "mean_obs": 0.3333333333333333
+          },
+          {
+            "bin": 6,
+            "lo": 0.6000000000000001,
+            "hi": 0.7000000000000001,
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
@@ -4937,315 +5371,19 @@
         },
         "oos_days": 64,
         "turnover_days": 6,
-        "round_trips": 3,
-        "signal_cohorts": 3,
-        "independent_signal_cohorts": 3,
-        "avg_daily_net_return": 5.3342175642359325e-05,
-        "expectancy_per_trade": 0.0011326489753485565,
-        "avg_daily_turnover": 0.009375000000000001,
-        "cagr": 0.013456261990711704,
-        "max_drawdown": -0.003038361634108866,
-        "sharpe": 1.094947022420142,
-        "net_return_total": 0.0034004428625433736,
-        "trades": 3,
-        "expectancy": 0.0011326489753485565,
-        "turnover": 0.009375000000000001
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "7741.JP",
-      "name": "HOYA",
-      "status": "ok",
-      "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-      "horizon_days": 5,
-      "label_mode": "triple_barrier",
-      "cv_metrics": {
-        "ic": 0.08265449697312047,
-        "auc": 0.3915343915343915,
-        "brier": 0.2540969273615528,
-        "brier_raw": 0.2521023489094408,
-        "hit_rate": 0.6166666666666667,
-        "oos_rows": 180,
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "calibration": {
-          "applied": true,
-          "reason": "ok",
-          "rows": 120,
-          "brier_raw": 0.23950534587852576,
-          "brier_cal": 0.22434883154819862
-        },
-        "reliability": [
-          {
-            "bin": 0,
-            "lo": 0.0,
-            "hi": 0.1,
-            "count": 2,
-            "mean_pred": 0.0,
-            "mean_obs": 0.0
-          },
-          {
-            "bin": 1,
-            "lo": 0.1,
-            "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 2,
-            "lo": 0.2,
-            "hi": 0.30000000000000004,
-            "count": 5,
-            "mean_pred": 0.25,
-            "mean_obs": 0.6
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 4,
-            "lo": 0.4,
-            "hi": 0.5,
-            "count": 48,
-            "mean_pred": 0.4556962025316455,
-            "mean_obs": 0.3125
-          },
-          {
-            "bin": 5,
-            "lo": 0.5,
-            "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 6,
-            "lo": 0.6000000000000001,
-            "hi": 0.7000000000000001,
-            "count": 4,
-            "mean_pred": 0.641025641025641,
-            "mean_obs": 0.0
-          },
-          {
-            "bin": 7,
-            "lo": 0.7000000000000001,
-            "hi": 0.8,
-            "count": 1,
-            "mean_pred": 0.7002021043705173,
-            "mean_obs": 0.0
-          },
-          {
-            "bin": 8,
-            "lo": 0.8,
-            "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 9,
-            "lo": 0.9,
-            "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          }
-        ]
-      },
-      "calibration_applied": true,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "independent_signal_cohorts<5",
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
-      ],
-      "metrics": {
-        "metrics_schema_version": 3,
-        "metrics_semantics": {
-          "turnover_days": "sessions with non-zero entry or exit notional",
-          "round_trips": "completed aggregate signed-position episodes",
-          "signal_cohorts": "non-zero signal sleeves opened",
-          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
-          "avg_daily_net_return": "mean net return across every simulated session",
-          "expectancy_per_trade": "mean compounded net return of completed round trips",
-          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
-          "trades": "deprecated alias of round_trips",
-          "expectancy": "deprecated alias of expectancy_per_trade",
-          "turnover": "deprecated alias of avg_daily_turnover"
-        },
-        "oos_days": 64,
-        "turnover_days": 10,
         "round_trips": 2,
-        "signal_cohorts": 5,
+        "signal_cohorts": 3,
         "independent_signal_cohorts": 2,
-        "avg_daily_net_return": -0.0003295278905737199,
-        "expectancy_per_trade": -0.010546083203772982,
-        "avg_daily_turnover": 0.018750000000000003,
-        "cagr": -0.08030637270912844,
-        "max_drawdown": -0.02103645160912837,
-        "sharpe": -2.291483727165768,
-        "net_return_total": -0.02103645160912837,
+        "avg_daily_net_return": 6.557172722155819e-05,
+        "expectancy_per_trade": 0.002086315433017072,
+        "avg_daily_turnover": 0.009375000000000001,
+        "cagr": 0.016536223087895374,
+        "max_drawdown": -0.004089588429578295,
+        "sharpe": 1.0545188336579248,
+        "net_return_total": 0.004174017473995928,
         "trades": 2,
-        "expectancy": -0.010546083203772982,
-        "turnover": 0.018750000000000003
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "2914.JP",
-      "name": "日本たばこ産業",
-      "status": "ok",
-      "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-      "horizon_days": 5,
-      "label_mode": "triple_barrier",
-      "cv_metrics": {
-        "ic": 0.04631791601272931,
-        "auc": 0.5881032547699214,
-        "brier": 0.28175288089371864,
-        "brier_raw": 0.24361601901969207,
-        "hit_rate": 0.45,
-        "oos_rows": 180,
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "calibration": {
-          "applied": true,
-          "reason": "ok",
-          "rows": 120,
-          "brier_raw": 0.2798950399117412,
-          "brier_cal": 0.22863247863247865
-        },
-        "reliability": [
-          {
-            "bin": 0,
-            "lo": 0.0,
-            "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 1,
-            "lo": 0.1,
-            "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 2,
-            "lo": 0.2,
-            "hi": 0.30000000000000004,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
-            "count": 60,
-            "mean_pred": 0.3604937206476535,
-            "mean_obs": 0.55
-          },
-          {
-            "bin": 4,
-            "lo": 0.4,
-            "hi": 0.5,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 5,
-            "lo": 0.5,
-            "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 6,
-            "lo": 0.6000000000000001,
-            "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 7,
-            "lo": 0.7000000000000001,
-            "hi": 0.8,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 8,
-            "lo": 0.8,
-            "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 9,
-            "lo": 0.9,
-            "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          }
-        ]
-      },
-      "calibration_applied": true,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "independent_signal_cohorts<5",
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
-      ],
-      "metrics": {
-        "metrics_schema_version": 3,
-        "metrics_semantics": {
-          "turnover_days": "sessions with non-zero entry or exit notional",
-          "round_trips": "completed aggregate signed-position episodes",
-          "signal_cohorts": "non-zero signal sleeves opened",
-          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
-          "avg_daily_net_return": "mean net return across every simulated session",
-          "expectancy_per_trade": "mean compounded net return of completed round trips",
-          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
-          "trades": "deprecated alias of round_trips",
-          "expectancy": "deprecated alias of expectancy_per_trade",
-          "turnover": "deprecated alias of avg_daily_turnover"
-        },
-        "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "expectancy": 0.002086315433017072,
+        "turnover": 0.009375000000000001
       },
       "data_validation_warnings": []
     },
@@ -5254,15 +5392,15 @@
       "name": "住友商事",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.3350995249019833,
-        "auc": 0.5679012345679012,
-        "brier": 0.24148901326660915,
-        "brier_raw": 0.24904409188518664,
-        "hit_rate": 0.6166666666666667,
+        "ic": 0.33387345201472635,
+        "auc": 0.503393665158371,
+        "brier": 0.2888689351772235,
+        "brier_raw": 0.2691524780140991,
+        "hit_rate": 0.5333333333333333,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -5270,8 +5408,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2459465416209808,
-          "brier_cal": 0.2381876876876877
+          "brier_raw": 0.23954285285656632,
+          "brier_cal": 0.22717323794626426
         },
         "reliability": [
           {
@@ -5286,9 +5424,9 @@
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 22,
+            "mean_pred": 0.125,
+            "mean_obs": 0.4090909090909091
           },
           {
             "bin": 2,
@@ -5302,32 +5440,32 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 35,
-            "mean_pred": 0.3401904761904762,
-            "mean_obs": 0.37142857142857144
+            "count": 15,
+            "mean_pred": 0.31724926569163264,
+            "mean_obs": 0.4666666666666667
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
             "count": 3,
-            "mean_pred": 0.4222222222222222,
+            "mean_pred": 0.4375,
             "mean_obs": 0.3333333333333333
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 21,
-            "mean_pred": 0.5347490347490348,
-            "mean_obs": 0.6190476190476191
+            "count": 17,
+            "mean_pred": 0.5337743010997531,
+            "mean_obs": 0.5294117647058824
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 1,
-            "mean_pred": 0.6146312493839002,
+            "count": 3,
+            "mean_pred": 0.6287081773187969,
             "mean_obs": 0.0
           },
           {
@@ -5402,15 +5540,15 @@
       "name": "武田薬品工業",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.05129324857452448,
-        "auc": 0.5407239819004525,
-        "brier": 0.25118055555555546,
-        "brier_raw": 0.2583058957929608,
-        "hit_rate": 0.43333333333333335,
+        "ic": -0.0665885313335674,
+        "auc": 0.4270833333333333,
+        "brier": 0.25473007524289565,
+        "brier_raw": 0.2671654387284771,
+        "hit_rate": 0.4,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -5418,8 +5556,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.30882120036759286,
-          "brier_cal": 0.24993055555555557
+          "brier_raw": 0.3003002350625458,
+          "brier_cal": 0.24330484330484334
         },
         "reliability": [
           {
@@ -5459,8 +5597,8 @@
             "lo": 0.4,
             "hi": 0.5,
             "count": 60,
-            "mean_pred": 0.4916666666666671,
-            "mean_obs": 0.5666666666666667
+            "mean_pred": 0.47863247863247854,
+            "mean_obs": 0.6
           },
           {
             "bin": 5,
@@ -5550,15 +5688,15 @@
       "name": "第一三共",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.14826655202523958,
-        "auc": 0.4375,
-        "brier": 0.3871002139913686,
-        "brier_raw": 0.3030149985031676,
-        "hit_rate": 0.36666666666666664,
+        "ic": -0.04068395422602555,
+        "auc": 0.5193889541715628,
+        "brier": 0.4186425245123735,
+        "brier_raw": 0.2910753145232246,
+        "hit_rate": 0.4166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -5566,65 +5704,65 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2330237498754232,
-          "brier_cal": 0.21457807108350585
+          "brier_raw": 0.2333617077076287,
+          "brier_cal": 0.21084092748336936
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 17,
+            "mean_pred": 0.006692204533519386,
+            "mean_obs": 0.6470588235294118
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 27,
-            "mean_pred": 0.1666666666666667,
-            "mean_obs": 0.6666666666666666
+            "count": 15,
+            "mean_pred": 0.18021396825679975,
+            "mean_obs": 0.5333333333333333
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 25,
-            "mean_pred": 0.26896219716869474,
-            "mean_obs": 0.56
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 1,
-            "mean_pred": 0.375,
-            "mean_obs": 1.0
+            "count": 18,
+            "mean_pred": 0.3068972371297952,
+            "mean_obs": 0.6666666666666666
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 3,
-            "mean_pred": 0.47826086956521746,
-            "mean_obs": 0.6666666666666666
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 4,
-            "mean_pred": 0.5535714285714286,
-            "mean_obs": 0.25
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 10,
+            "mean_pred": 0.642857142857143,
+            "mean_obs": 0.6
           },
           {
             "bin": 7,
@@ -5676,20 +5814,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "turnover_days": 20,
+        "round_trips": 4,
+        "signal_cohorts": 10,
+        "independent_signal_cohorts": 4,
+        "avg_daily_net_return": 1.7883066904556444e-05,
+        "expectancy_per_trade": 0.0003021399111180767,
+        "avg_daily_turnover": 0.03125,
+        "cagr": 0.0019867496229215575,
+        "max_drawdown": -0.03725895784401789,
+        "sharpe": 0.06384196614633675,
+        "net_return_total": 0.0005041978322604113,
+        "trades": 4,
+        "expectancy": 0.0003021399111180767,
+        "turnover": 0.03125
       },
       "data_validation_warnings": []
     },
@@ -5698,15 +5836,15 @@
       "name": "中外製薬",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.1964944935545776,
-        "auc": 0.515,
-        "brier": 0.2862065826798453,
-        "brier_raw": 0.24297261078260077,
-        "hit_rate": 0.5166666666666667,
+        "ic": 0.26122394325884196,
+        "auc": 0.57,
+        "brier": 0.27787162252659753,
+        "brier_raw": 0.2534825059545663,
+        "hit_rate": 0.5666666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -5714,65 +5852,65 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2343276322480354,
-          "brier_cal": 0.20319622507122506
+          "brier_raw": 0.2352543965692727,
+          "brier_cal": 0.2145249118165785
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 29,
-            "mean_pred": 0.002377755028287842,
-            "mean_obs": 0.3103448275862069
+            "count": 6,
+            "mean_pred": 0.015524125240868198,
+            "mean_obs": 0.5
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 2,
+            "mean_pred": 0.11692085970990759,
+            "mean_obs": 0.0
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 1,
-            "mean_pred": 0.25,
+            "count": 3,
+            "mean_pred": 0.23137644767494192,
             "mean_obs": 0.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.37100592949607103,
+            "mean_obs": 0.0
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 5,
-            "mean_pred": 0.4444444444444445,
-            "mean_obs": 0.6
+            "count": 18,
+            "mean_pred": 0.4104312420971208,
+            "mean_obs": 0.2777777777777778
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 17,
-            "mean_pred": 0.555320300170211,
-            "mean_obs": 0.17647058823529413
+            "count": 19,
+            "mean_pred": 0.512781954887218,
+            "mean_obs": 0.3684210526315789
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 8,
-            "mean_pred": 0.625,
-            "mean_obs": 0.625
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
@@ -5786,9 +5924,9 @@
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 11,
+            "mean_pred": 0.875,
+            "mean_obs": 0.45454545454545453
           },
           {
             "bin": 9,
@@ -5804,9 +5942,7 @@
       "gate_passed": false,
       "gate_reason": "kpi_failed",
       "failures": [
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
+        "independent_signal_cohorts<5"
       ],
       "metrics": {
         "metrics_schema_version": 3,
@@ -5823,20 +5959,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 37,
-        "round_trips": 4,
-        "signal_cohorts": 25,
-        "independent_signal_cohorts": 8,
-        "avg_daily_net_return": -0.00039262278253049794,
-        "expectancy_per_trade": -0.006381661881927458,
-        "avg_daily_turnover": 0.078125,
-        "cagr": -0.09705954057973254,
-        "max_drawdown": -0.053257854276555494,
-        "sharpe": -1.2516085359506945,
-        "net_return_total": -0.025596528635687843,
-        "trades": 4,
-        "expectancy": -0.006381661881927458,
-        "turnover": 0.078125
+        "turnover_days": 19,
+        "round_trips": 3,
+        "signal_cohorts": 11,
+        "independent_signal_cohorts": 4,
+        "avg_daily_net_return": 0.0003952821565849624,
+        "expectancy_per_trade": 0.00828684261598489,
+        "avg_daily_turnover": 0.06875,
+        "cagr": 0.10206760563454687,
+        "max_drawdown": -0.03214175022334931,
+        "sharpe": 1.4364185579654278,
+        "net_return_total": 0.024989820310268307,
+        "trades": 3,
+        "expectancy": 0.00828684261598489,
+        "turnover": 0.06875
       },
       "data_validation_warnings": []
     },
@@ -5845,15 +5981,15 @@
       "name": "ソフトバンク",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.07140992630613763,
-        "auc": 0.43774069319640563,
-        "brier": 0.3604246184469261,
-        "brier_raw": 0.2959543167659361,
-        "hit_rate": 0.31666666666666665,
+        "ic": -0.021723306185239693,
+        "auc": 0.4673913043478261,
+        "brier": 0.40384826158112,
+        "brier_raw": 0.3140621343069216,
+        "hit_rate": 0.23333333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -5861,49 +5997,49 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24555180592053974,
-          "brier_cal": 0.23132300569800573
+          "brier_raw": 0.24274247543838998,
+          "brier_cal": 0.22594123798167914
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 4,
-            "mean_pred": 0.04370443704179179,
-            "mean_obs": 0.75
+            "count": 3,
+            "mean_pred": 0.016785967819512762,
+            "mean_obs": 1.0
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 2,
-            "mean_pred": 0.13075947729541812,
-            "mean_obs": 1.0
+            "count": 1,
+            "mean_pred": 0.1503344431165642,
+            "mean_obs": 0.0
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 9,
-            "mean_pred": 0.2222222222222222,
-            "mean_obs": 0.6666666666666666
+            "count": 32,
+            "mean_pred": 0.2702702702702703,
+            "mean_obs": 0.8125
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 19,
-            "mean_pred": 0.34752666184456354,
-            "mean_obs": 0.7368421052631579
+            "count": 3,
+            "mean_pred": 0.3365783972208352,
+            "mean_obs": 0.3333333333333333
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 26,
-            "mean_pred": 0.41597633136094675,
-            "mean_obs": 0.6153846153846154
+            "count": 21,
+            "mean_pred": 0.41256502601040423,
+            "mean_obs": 0.7619047619047619
           },
           {
             "bin": 5,
@@ -5993,15 +6129,15 @@
       "name": "東日本旅客鉄道",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.1638848017505758,
-        "auc": 0.5245535714285714,
-        "brier": 0.2535334673944269,
-        "brier_raw": 0.2517974493153673,
-        "hit_rate": 0.5833333333333334,
+        "ic": 0.1361478397689188,
+        "auc": 0.5127919911012235,
+        "brier": 0.28866487771579213,
+        "brier_raw": 0.25957622959011245,
+        "hit_rate": 0.48333333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6009,8 +6145,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2843750452316808,
-          "brier_cal": 0.2271186440677966
+          "brier_raw": 0.27917965825717594,
+          "brier_cal": 0.2155462184873949
         },
         "reliability": [
           {
@@ -6041,9 +6177,9 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 55,
-            "mean_pred": 0.34745762711864403,
-            "mean_obs": 0.43636363636363634
+            "count": 60,
+            "mean_pred": 0.319327731092437,
+            "mean_obs": 0.5166666666666667
           },
           {
             "bin": 4,
@@ -6057,9 +6193,9 @@
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 5,
-            "mean_pred": 0.5,
-            "mean_obs": 0.8
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
@@ -6141,15 +6277,15 @@
       "name": "花王",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.09596000879120836,
-        "auc": 0.5222222222222223,
-        "brier": 0.2778578978257788,
-        "brier_raw": 0.2596114090587812,
-        "hit_rate": 0.5333333333333333,
+        "ic": -0.19606246507948888,
+        "auc": 0.5439377085650723,
+        "brier": 0.25036709934415974,
+        "brier_raw": 0.24889719591397375,
+        "hit_rate": 0.5166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6157,17 +6293,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.25667016247348806,
-          "brier_cal": 0.22961021505376347
+          "brier_raw": 0.25355166588328276,
+          "brier_cal": 0.23081910858226648
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.049138598804396624,
+            "mean_obs": 0.0
           },
           {
             "bin": 1,
@@ -6181,33 +6317,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 14,
-            "mean_pred": 0.2511241629369657,
-            "mean_obs": 0.6428571428571429
+            "count": 1,
+            "mean_pred": 0.2,
+            "mean_obs": 0.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 36,
-            "mean_pred": 0.3655913978494623,
-            "mean_obs": 0.4166666666666667
+            "count": 27,
+            "mean_pred": 0.39189189189189183,
+            "mean_obs": 0.48148148148148145
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 31,
+            "mean_pred": 0.42105263157894723,
+            "mean_obs": 0.5161290322580645
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 10,
-            "mean_pred": 0.5333333333333333,
-            "mean_obs": 0.6
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,
@@ -6289,15 +6425,15 @@
       "name": "野村ホールディングス",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.07343700546149383,
-        "auc": 0.4699074074074074,
-        "brier": 0.2542640661547811,
-        "brier_raw": 0.26491762463464613,
-        "hit_rate": 0.43333333333333335,
+        "ic": -0.153183133631805,
+        "auc": 0.4700352526439483,
+        "brier": 0.39124932169321003,
+        "brier_raw": 0.28472858441327176,
+        "hit_rate": 0.45,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6305,17 +6441,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2589614926272675,
-          "brier_cal": 0.24181848852901483
+          "brier_raw": 0.24936644085966886,
+          "brier_cal": 0.2343805627332759
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 20,
+            "mean_pred": 0.0,
+            "mean_obs": 0.65
           },
           {
             "bin": 1,
@@ -6345,25 +6481,25 @@
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 34,
-            "mean_pred": 0.47368421052631576,
-            "mean_obs": 0.6470588235294118
+            "count": 10,
+            "mean_pred": 0.4,
+            "mean_obs": 0.7
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 25,
-            "mean_pred": 0.5833333333333334,
-            "mean_obs": 0.52
+            "count": 30,
+            "mean_pred": 0.5251091236449714,
+            "mean_obs": 0.5666666666666667
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 1,
-            "mean_pred": 0.6410256410256411,
-            "mean_obs": 1.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 7,
@@ -6392,9 +6528,14 @@
         ]
       },
       "calibration_applied": true,
-      "gate_passed": true,
-      "gate_reason": "ok",
-      "failures": [],
+      "gate_passed": false,
+      "gate_reason": "kpi_failed",
+      "failures": [
+        "independent_signal_cohorts<5",
+        "cagr<3.0%",
+        "avg_daily_net_return<0.010%",
+        "sharpe<0.20"
+      ],
       "metrics": {
         "metrics_schema_version": 3,
         "metrics_semantics": {
@@ -6410,20 +6551,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 40,
-        "round_trips": 4,
-        "signal_cohorts": 26,
-        "independent_signal_cohorts": 7,
-        "avg_daily_net_return": 0.00019959988952879205,
-        "expectancy_per_trade": 0.0028355287641061433,
-        "avg_daily_turnover": 0.08125,
-        "cagr": 0.04546688810925015,
-        "max_drawdown": -0.03885587102994814,
-        "sharpe": 0.46667416347523405,
-        "net_return_total": 0.01135633394804536,
-        "trades": 4,
-        "expectancy": 0.0028355287641061433,
-        "turnover": 0.08125
+        "turnover_days": 0,
+        "round_trips": 0,
+        "signal_cohorts": 0,
+        "independent_signal_cohorts": 0,
+        "avg_daily_net_return": 0.0,
+        "expectancy_per_trade": 0.0,
+        "avg_daily_turnover": 0.0,
+        "cagr": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "net_return_total": 0.0,
+        "trades": 0,
+        "expectancy": 0.0,
+        "turnover": 0.0
       },
       "data_validation_warnings": []
     },
@@ -6432,15 +6573,15 @@
       "name": "第一ライフグループ（第一生命ホールディングス）",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.061365001354297254,
-        "auc": 0.5479910714285714,
-        "brier": 0.257057789858332,
-        "brier_raw": 0.24006517876388647,
-        "hit_rate": 0.5333333333333333,
+        "ic": 0.10319116514397478,
+        "auc": 0.6262513904338154,
+        "brier": 0.24578536559897665,
+        "brier_raw": 0.23004082328084416,
+        "hit_rate": 0.5166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6448,17 +6589,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2716507544580641,
-          "brier_cal": 0.2451204523107178
+          "brier_raw": 0.2745515149326843,
+          "brier_cal": 0.24525073746312684
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.0,
+            "mean_obs": 0.0
           },
           {
             "bin": 1,
@@ -6480,17 +6621,17 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 4,
-            "mean_pred": 0.3518543184157083,
-            "mean_obs": 0.75
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 56,
-            "mean_pred": 0.49508088134724765,
-            "mean_obs": 0.44642857142857145
+            "count": 59,
+            "mean_pred": 0.48672566371681397,
+            "mean_obs": 0.4915254237288136
           },
           {
             "bin": 5,
@@ -6580,15 +6721,15 @@
       "name": "テルモ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.309437670820824,
-        "auc": 0.6724537037037037,
-        "brier": 0.23200138031216733,
-        "brier_raw": 0.23281634304115056,
-        "hit_rate": 0.6333333333333333,
+        "ic": 0.1307040624210639,
+        "auc": 0.5954285714285714,
+        "brier": 0.2525637286294658,
+        "brier_raw": 0.23936914641258536,
+        "hit_rate": 0.5833333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6596,17 +6737,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.2504786438710866,
-          "brier_cal": 0.23028073286052014
+          "brier_raw": 0.23842581566007712,
+          "brier_cal": 0.22205901100375733
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 3,
+            "mean_pred": 0.0,
+            "mean_obs": 0.3333333333333333
           },
           {
             "bin": 1,
@@ -6628,168 +6769,25 @@
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 48,
-            "mean_pred": 0.3668310100792758,
-            "mean_obs": 0.3541666666666667
+            "count": 39,
+            "mean_pred": 0.3541666666666666,
+            "mean_obs": 0.41025641025641024
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 14,
+            "mean_pred": 0.46402116402116417,
+            "mean_obs": 0.42857142857142855
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 12,
-            "mean_pred": 0.5531914893617021,
-            "mean_obs": 0.5833333333333334
-          },
-          {
-            "bin": 6,
-            "lo": 0.6000000000000001,
-            "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 7,
-            "lo": 0.7000000000000001,
-            "hi": 0.8,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 8,
-            "lo": 0.8,
-            "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 9,
-            "lo": 0.9,
-            "hi": 1.0,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          }
-        ]
-      },
-      "calibration_applied": true,
-      "gate_passed": true,
-      "gate_reason": "ok",
-      "failures": [],
-      "metrics": {
-        "metrics_schema_version": 3,
-        "metrics_semantics": {
-          "turnover_days": "sessions with non-zero entry or exit notional",
-          "round_trips": "completed aggregate signed-position episodes",
-          "signal_cohorts": "non-zero signal sleeves opened",
-          "independent_signal_cohorts": "entry sessions separated by at least the effective horizon",
-          "avg_daily_net_return": "mean net return across every simulated session",
-          "expectancy_per_trade": "mean compounded net return of completed round trips",
-          "avg_daily_turnover": "mean entry-plus-exit notional across sessions",
-          "trades": "deprecated alias of round_trips",
-          "expectancy": "deprecated alias of expectancy_per_trade",
-          "turnover": "deprecated alias of avg_daily_turnover"
-        },
-        "oos_days": 64,
-        "turnover_days": 24,
-        "round_trips": 6,
-        "signal_cohorts": 12,
-        "independent_signal_cohorts": 7,
-        "avg_daily_net_return": 0.00029184240840842313,
-        "expectancy_per_trade": 0.003143121619720709,
-        "avg_daily_turnover": 0.037500000000000006,
-        "cagr": 0.07518157035717321,
-        "max_drawdown": -0.009915450598400044,
-        "sharpe": 1.6043662730597954,
-        "net_return_total": 0.018580554062190613,
-        "trades": 6,
-        "expectancy": 0.003143121619720709,
-        "turnover": 0.037500000000000006
-      },
-      "data_validation_warnings": []
-    },
-    {
-      "ticker": "5108.JP",
-      "name": "ブリヂストン",
-      "status": "ok",
-      "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
-      "horizon_days": 5,
-      "label_mode": "triple_barrier",
-      "cv_metrics": {
-        "ic": -0.10040097682677476,
-        "auc": 0.46162402669632924,
-        "brier": 0.2754899536679922,
-        "brier_raw": 0.27389583417134683,
-        "hit_rate": 0.48333333333333334,
-        "oos_rows": 180,
-        "tuning_rows": 120,
-        "holdout_rows": 60,
-        "calibration": {
-          "applied": true,
-          "reason": "ok",
-          "rows": 120,
-          "brier_raw": 0.2934824876497073,
-          "brier_cal": 0.2329166666666667
-        },
-        "reliability": [
-          {
-            "bin": 0,
-            "lo": 0.0,
-            "hi": 0.1,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 1,
-            "lo": 0.1,
-            "hi": 0.2,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
-          },
-          {
-            "bin": 2,
-            "lo": 0.2,
-            "hi": 0.30000000000000004,
-            "count": 12,
-            "mean_pred": 0.25340857745896467,
+            "count": 4,
+            "mean_pred": 0.5652173913043478,
             "mean_obs": 0.5
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
-            "count": 7,
-            "mean_pred": 0.35871670234871894,
-            "mean_obs": 0.8571428571428571
-          },
-          {
-            "bin": 4,
-            "lo": 0.4,
-            "hi": 0.5,
-            "count": 41,
-            "mean_pred": 0.39999999999999997,
-            "mean_obs": 0.4634146341463415
-          },
-          {
-            "bin": 5,
-            "lo": 0.5,
-            "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
           },
           {
             "bin": 6,
@@ -6831,8 +6829,7 @@
       "failures": [
         "independent_signal_cohorts<5",
         "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
+        "avg_daily_net_return<0.010%"
       ],
       "metrics": {
         "metrics_schema_version": 3,
@@ -6849,37 +6846,37 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 0,
-        "round_trips": 0,
-        "signal_cohorts": 0,
-        "independent_signal_cohorts": 0,
-        "avg_daily_net_return": 0.0,
-        "expectancy_per_trade": 0.0,
-        "avg_daily_turnover": 0.0,
-        "cagr": 0.0,
-        "max_drawdown": 0.0,
-        "sharpe": 0.0,
-        "net_return_total": 0.0,
-        "trades": 0,
-        "expectancy": 0.0,
-        "turnover": 0.0
+        "turnover_days": 8,
+        "round_trips": 1,
+        "signal_cohorts": 4,
+        "independent_signal_cohorts": 1,
+        "avg_daily_net_return": 1.5731476462635766e-05,
+        "expectancy_per_trade": 0.0009814210895260356,
+        "avg_daily_turnover": 0.0125,
+        "cagr": 0.0038699193795952436,
+        "max_drawdown": -0.0036859116022099903,
+        "sharpe": 0.27769387397055434,
+        "net_return_total": 0.0009814210895260356,
+        "trades": 1,
+        "expectancy": 0.0009814210895260356,
+        "turnover": 0.0125
       },
       "data_validation_warnings": []
     },
     {
-      "ticker": "2502.JP",
-      "name": "アサヒグループホールディングス",
+      "ticker": "5108.JP",
+      "name": "ブリヂストン",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.15410551087462893,
-        "auc": 0.5625,
-        "brier": 0.45445445119061517,
-        "brier_raw": 0.3000218282483342,
-        "hit_rate": 0.4,
+        "ic": -0.14133916074685998,
+        "auc": 0.39043381535038935,
+        "brier": 0.37050571076342825,
+        "brier_raw": 0.2830243681822197,
+        "hit_rate": 0.48333333333333334,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -6887,41 +6884,41 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.22837018988172833,
-          "brier_cal": 0.19092578788926343
+          "brier_raw": 0.2567121403102672,
+          "brier_cal": 0.21990948114968273
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 12,
-            "mean_pred": 0.0,
-            "mean_obs": 0.4166666666666667
+            "count": 16,
+            "mean_pred": 0.003260879265028119,
+            "mean_obs": 0.6875
           },
           {
             "bin": 1,
             "lo": 0.1,
             "hi": 0.2,
-            "count": 41,
-            "mean_pred": 0.1425535493207678,
-            "mean_obs": 0.6341463414634146
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 4,
-            "mean_pred": 0.2,
-            "mean_obs": 0.5
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 3,
-            "mean_pred": 0.3103448275862069,
-            "mean_obs": 1.0
+            "count": 44,
+            "mean_pred": 0.370826122365876,
+            "mean_obs": 0.45454545454545453
           },
           {
             "bin": 4,
@@ -7019,15 +7016,15 @@
       "name": "日本郵船",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": -0.27923455995168517,
-        "auc": 0.304,
-        "brier": 0.3918728248550468,
-        "brier_raw": 0.3033711834687665,
-        "hit_rate": 0.3,
+        "ic": -0.14137390409994924,
+        "auc": 0.4017094017094017,
+        "brier": 0.35693352421885133,
+        "brier_raw": 0.29248873303089007,
+        "hit_rate": 0.36666666666666664,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -7035,17 +7032,17 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.22949826317546615,
-          "brier_cal": 0.18934523809523812
+          "brier_raw": 0.23388230421073702,
+          "brier_cal": 0.19589530892448515
         },
         "reliability": [
           {
             "bin": 0,
             "lo": 0.0,
             "hi": 0.1,
-            "count": 3,
+            "count": 4,
             "mean_pred": 0.0,
-            "mean_obs": 0.6666666666666666
+            "mean_obs": 0.5
           },
           {
             "bin": 1,
@@ -7059,76 +7056,72 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 19,
-            "mean_pred": 0.2777523402959413,
-            "mean_obs": 0.7368421052631579
+            "count": 3,
+            "mean_pred": 0.25,
+            "mean_obs": 1.0
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 7,
+            "mean_pred": 0.3333333333333333,
+            "mean_obs": 0.8571428571428571
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
             "count": 21,
-            "mean_pred": 0.4503401360544218,
-            "mean_obs": 0.6666666666666666
+            "mean_pred": 0.4140451396922609,
+            "mean_obs": 0.7142857142857143
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 3,
+            "mean_pred": 0.5,
+            "mean_obs": 1.0
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 4,
-            "mean_pred": 0.6666666666666666,
-            "mean_obs": 0.5
+            "count": 11,
+            "mean_pred": 0.6804438933945902,
+            "mean_obs": 0.2727272727272727
           },
           {
             "bin": 7,
             "lo": 0.7000000000000001,
             "hi": 0.8,
-            "count": 1,
-            "mean_pred": 0.7129993010715454,
-            "mean_obs": 0.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 9,
-            "mean_pred": 0.8080380290852982,
-            "mean_obs": 0.2222222222222222
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 9,
             "lo": 0.9,
             "hi": 1.0,
-            "count": 3,
+            "count": 11,
             "mean_pred": 1.0,
-            "mean_obs": 0.3333333333333333
+            "mean_obs": 0.6363636363636364
           }
         ]
       },
       "calibration_applied": true,
-      "gate_passed": false,
-      "gate_reason": "kpi_failed",
-      "failures": [
-        "cagr<3.0%",
-        "avg_daily_net_return<0.010%",
-        "sharpe<0.20"
-      ],
+      "gate_passed": true,
+      "gate_reason": "ok",
+      "failures": [],
       "metrics": {
         "metrics_schema_version": 3,
         "metrics_semantics": {
@@ -7144,20 +7137,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 30,
-        "round_trips": 6,
-        "signal_cohorts": 17,
-        "independent_signal_cohorts": 8,
-        "avg_daily_net_return": -0.00013247537409472076,
-        "expectancy_per_trade": -0.0014489704591578723,
-        "avg_daily_turnover": 0.09062500000000001,
-        "cagr": -0.03695134718431403,
-        "max_drawdown": -0.06309453101807061,
-        "sharpe": -0.3616246108722882,
-        "net_return_total": -0.009516673780476381,
-        "trades": 6,
-        "expectancy": -0.0014489704591578723,
-        "turnover": 0.09062500000000001
+        "turnover_days": 36,
+        "round_trips": 4,
+        "signal_cohorts": 22,
+        "independent_signal_cohorts": 7,
+        "avg_daily_net_return": 0.001271792886951081,
+        "expectancy_per_trade": 0.0202951405007617,
+        "avg_daily_turnover": 0.103125,
+        "cagr": 0.37021610944845684,
+        "max_drawdown": -0.033209186248646994,
+        "sharpe": 3.102612153297623,
+        "net_return_total": 0.0832783935784549,
+        "trades": 4,
+        "expectancy": 0.0202951405007617,
+        "turnover": 0.103125
       },
       "data_validation_warnings": []
     },
@@ -7166,15 +7159,15 @@
       "name": "クボタ",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.38306178099978444,
-        "auc": 0.6921296296296297,
-        "brier": 0.23961443530020674,
-        "brier_raw": 0.22326081439446027,
-        "hit_rate": 0.5333333333333333,
+        "ic": 0.2945916271837098,
+        "auc": 0.681551116333725,
+        "brier": 0.20611062522220272,
+        "brier_raw": 0.22606804738084688,
+        "hit_rate": 0.7166666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -7182,8 +7175,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.24983013541612903,
-          "brier_cal": 0.23245641079787424
+          "brier_raw": 0.24065415813486118,
+          "brier_cal": 0.22593877727472803
         },
         "reliability": [
           {
@@ -7206,41 +7199,41 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 5,
-            "mean_pred": 0.2727272727272727,
-            "mean_obs": 0.2
-          },
-          {
-            "bin": 3,
-            "lo": 0.30000000000000004,
-            "hi": 0.4,
             "count": 0,
             "mean_pred": null,
             "mean_obs": null
           },
           {
+            "bin": 3,
+            "lo": 0.30000000000000004,
+            "hi": 0.4,
+            "count": 26,
+            "mean_pred": 0.3157894736842105,
+            "mean_obs": 0.23076923076923078
+          },
+          {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 15,
-            "mean_pred": 0.44000000000000017,
+            "count": 18,
+            "mean_pred": 0.4495212052108682,
             "mean_obs": 0.3333333333333333
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 40,
-            "mean_pred": 0.563821138211382,
-            "mean_obs": 0.45
+            "count": 13,
+            "mean_pred": 0.5555555555555555,
+            "mean_obs": 0.6153846153846154
           },
           {
             "bin": 6,
             "lo": 0.6000000000000001,
             "hi": 0.7000000000000001,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 1,
+            "mean_pred": 0.625,
+            "mean_obs": 1.0
           },
           {
             "bin": 7,
@@ -7254,9 +7247,9 @@
             "bin": 8,
             "lo": 0.8,
             "hi": 0.9,
-            "count": 0,
-            "mean_pred": null,
-            "mean_obs": null
+            "count": 2,
+            "mean_pred": 0.8,
+            "mean_obs": 1.0
           },
           {
             "bin": 9,
@@ -7287,20 +7280,20 @@
           "turnover": "deprecated alias of avg_daily_turnover"
         },
         "oos_days": 64,
-        "turnover_days": 41,
+        "turnover_days": 26,
         "round_trips": 4,
-        "signal_cohorts": 26,
-        "independent_signal_cohorts": 9,
-        "avg_daily_net_return": 0.0004471794900744638,
-        "expectancy_per_trade": 0.0070766426212886535,
-        "avg_daily_turnover": 0.08125,
-        "cagr": 0.11698328610475017,
-        "max_drawdown": -0.021990579813860878,
-        "sharpe": 1.7661446822342404,
-        "net_return_total": 0.028495344193546934,
+        "signal_cohorts": 16,
+        "independent_signal_cohorts": 8,
+        "avg_daily_net_return": 0.0003716864988474793,
+        "expectancy_per_trade": 0.005884924431633021,
+        "avg_daily_turnover": 0.05625,
+        "cagr": 0.09625416863017322,
+        "max_drawdown": -0.01962627647014814,
+        "sharpe": 1.582871827178605,
+        "net_return_total": 0.023613941901760693,
         "trades": 4,
-        "expectancy": 0.0070766426212886535,
-        "turnover": 0.08125
+        "expectancy": 0.005884924431633021,
+        "turnover": 0.05625
       },
       "data_validation_warnings": []
     },
@@ -7309,15 +7302,15 @@
       "name": "野村総合研究所",
       "status": "ok",
       "model_ready": true,
-      "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+      "model_version": "per-ticker-v1-20260919T100044-e65f9cfe12d0-e72aa259",
       "horizon_days": 5,
       "label_mode": "triple_barrier",
       "cv_metrics": {
-        "ic": 0.380884822909098,
-        "auc": 0.6206896551724138,
-        "brier": 0.24258198723280328,
-        "brier_raw": 0.23602604065491875,
-        "hit_rate": 0.55,
+        "ic": 0.518826584347005,
+        "auc": 0.7254464285714286,
+        "brier": 0.26452500158910286,
+        "brier_raw": 0.2352854307929814,
+        "hit_rate": 0.4666666666666667,
         "oos_rows": 180,
         "tuning_rows": 120,
         "holdout_rows": 60,
@@ -7325,8 +7318,8 @@
           "applied": true,
           "reason": "ok",
           "rows": 120,
-          "brier_raw": 0.25769259788261484,
-          "brier_cal": 0.2295297187298517
+          "brier_raw": 0.26931034041305907,
+          "brier_cal": 0.2344074533590663
         },
         "reliability": [
           {
@@ -7349,33 +7342,33 @@
             "bin": 2,
             "lo": 0.2,
             "hi": 0.30000000000000004,
-            "count": 8,
-            "mean_pred": 0.28,
-            "mean_obs": 0.125
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 3,
             "lo": 0.30000000000000004,
             "hi": 0.4,
-            "count": 9,
-            "mean_pred": 0.36363636363636365,
-            "mean_obs": 0.6666666666666666
+            "count": 43,
+            "mean_pred": 0.33276722640588746,
+            "mean_obs": 0.4883720930232558
           },
           {
             "bin": 4,
             "lo": 0.4,
             "hi": 0.5,
-            "count": 40,
-            "mean_pred": 0.4255319148936171,
-            "mean_obs": 0.5
+            "count": 16,
+            "mean_pred": 0.4444444444444444,
+            "mean_obs": 0.6875
           },
           {
             "bin": 5,
             "lo": 0.5,
             "hi": 0.6000000000000001,
-            "count": 2,
-            "mean_pred": 0.53125,
-            "mean_obs": 1.0
+            "count": 0,
+            "mean_pred": null,
+            "mean_obs": null
           },
           {
             "bin": 6,

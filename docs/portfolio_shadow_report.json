@@ -1,15 +1,11 @@
 {
   "available": true,
-  "n_dates": 42,
-  "n_records": 2100,
-  "n_paired_dates": 28,
-  "n_paired_records": 124,
+  "n_dates": 43,
+  "n_records": 2150,
+  "n_paired_dates": 30,
+  "n_paired_records": 136,
   "date_coverage": {
     "observed_dates": [
-      "2026-07-14",
-      "2026-07-15",
-      "2026-07-16",
-      "2026-07-17",
       "2026-07-21",
       "2026-07-22",
       "2026-07-23",
@@ -47,11 +43,14 @@
       "2026-09-08",
       "2026-09-09",
       "2026-09-10",
-      "2026-09-11"
+      "2026-09-11",
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18"
     ],
     "paired_dates": [
-      "2026-07-15",
-      "2026-07-17",
       "2026-07-29",
       "2026-07-30",
       "2026-07-31",
@@ -77,15 +76,13 @@
       "2026-09-01",
       "2026-09-02",
       "2026-09-03",
-      "2026-09-04"
+      "2026-09-04",
+      "2026-09-07",
+      "2026-09-09",
+      "2026-09-10",
+      "2026-09-11"
     ],
     "excluded_dates": {
-      "2026-07-14": [
-        "fewer_than_two_paired_names"
-      ],
-      "2026-07-16": [
-        "fewer_than_two_paired_names"
-      ],
       "2026-07-21": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
@@ -120,27 +117,30 @@
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-09-07": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
       "2026-09-08": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-09-14": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-09-09": [
+      "2026-09-15": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-09-10": [
+      "2026-09-16": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-09-11": [
+      "2026-09-17": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-09-18": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
@@ -148,42 +148,42 @@
     }
   },
   "top_n": 8,
-  "generated_at": "2026-09-12T10:13:39+09:00",
+  "generated_at": "2026-09-19T10:14:19+09:00",
   "window": {
-    "start": "2026-07-14",
-    "end": "2026-09-12",
+    "start": "2026-07-21",
+    "end": "2026-09-19",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20260912",
+  "model_version": "cs-v1-20260919",
   "comparison": {
     "phase1": {
-      "daily_ic": 0.016657906104590007,
-      "rank_ic": -0.0413697086755756,
-      "topn_realized_return": 0.011534261304172786,
-      "hit_rate": 0.6129032258064516,
-      "max_drawdown": -0.1422134201268741,
+      "daily_ic": 0.10045533055095862,
+      "rank_ic": 0.04329303380755801,
+      "topn_realized_return": 0.01280250995547683,
+      "hit_rate": 0.6029411764705882,
+      "max_drawdown": -0.142213420126874,
       "turnover": null,
-      "n_dates_with_topn": 28
+      "n_dates_with_topn": 30
     },
     "phase2": {
-      "daily_ic": 0.05761018175898581,
-      "rank_ic": 0.05081919524002575,
-      "topn_realized_return": 0.011534261304172786,
-      "hit_rate": 0.6129032258064516,
-      "max_drawdown": -0.1422134201268741,
-      "turnover": 0.006348638858895001,
+      "daily_ic": 0.18097389361200006,
+      "rank_ic": 0.15821603720118993,
+      "topn_realized_return": 0.01280250995547683,
+      "hit_rate": 0.6029411764705882,
+      "max_drawdown": -0.142213420126874,
+      "turnover": 0.008154361654103832,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.0050973342951517765,
-        "mean_realized_ret": 0.009765147295502851,
-        "bias": -0.004667813000351075,
-        "n": 124
+        "mean_expected_ret": 0.004940801478771978,
+        "mean_realized_ret": 0.012107185153925327,
+        "bias": -0.007166383675153349,
+        "n": 136
       },
-      "n_dates_with_topn": 28
+      "n_dates_with_topn": 30
     },
     "delta": {
-      "daily_ic": 0.0409522756543958,
-      "rank_ic": 0.09218890391560135,
+      "daily_ic": 0.08051856306104144,
+      "rank_ic": 0.11492300339363193,
       "topn_realized_return": 0.0,
       "hit_rate": 0.0,
       "max_drawdown": 0.0
@@ -201,7 +201,6 @@
     "phase2_prediction": "portfolio_snapshots.model_version",
     "outcome_contract_version": "next_session_open_to_close_v2",
     "snapshot_model_versions": [
-      "cs-v1-20260711",
       "cs-v1-20260718",
       "cs-v1-20260725",
       "cs-v1-20260801",
@@ -209,13 +208,10 @@
       "cs-v1-20260815",
       "cs-v1-20260822",
       "cs-v1-20260829",
-      "cs-v1-20260905"
+      "cs-v1-20260905",
+      "cs-v1-20260912"
     ],
     "snapshot_model_version_by_date": {
-      "2026-07-14": "cs-v1-20260711",
-      "2026-07-15": "cs-v1-20260711",
-      "2026-07-16": "cs-v1-20260711",
-      "2026-07-17": "cs-v1-20260711",
       "2026-07-21": "cs-v1-20260718",
       "2026-07-22": "cs-v1-20260718",
       "2026-07-23": "cs-v1-20260718",
@@ -253,15 +249,20 @@
       "2026-09-08": "cs-v1-20260905",
       "2026-09-09": "cs-v1-20260905",
       "2026-09-10": "cs-v1-20260905",
-      "2026-09-11": "cs-v1-20260905"
+      "2026-09-11": "cs-v1-20260905",
+      "2026-09-14": "cs-v1-20260912",
+      "2026-09-15": "cs-v1-20260912",
+      "2026-09-16": "cs-v1-20260912",
+      "2026-09-17": "cs-v1-20260912",
+      "2026-09-18": "cs-v1-20260912"
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 28,
+    "shadow_days": 30,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": 0.0409522756543958,
+    "cs_ic_vs_phase1": 0.08051856306104144,
     "reasons": [
       "portfolio_gate not passed"
     ]
