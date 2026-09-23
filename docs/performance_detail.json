@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-09-18 08:29:55",
-  "as_of": "2026-09-18",
+  "generated_at": "2026-09-24 08:32:25",
+  "as_of": "2026-09-24",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 213
+      "next_session_open_to_close_v2": 217
     },
-    "included_rows": 213,
+    "included_rows": 217,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,8 +29,8 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 54,
-    "selected_cohorts": 14,
+    "eligible_cohorts": 55,
+    "selected_cohorts": 15,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
     "return_basis": "net_after_entry_exit_costs",
@@ -45,8 +45,8 @@
   "benchmark_coverage": {
     "basis": "same_execution_window_only",
     "available": true,
-    "selected_cohorts": 14,
-    "available_cohorts": 14,
+    "selected_cohorts": 15,
+    "available_cohorts": 15,
     "coverage_ratio": 1.0,
     "reason": null
   },
@@ -228,6 +228,18 @@
       "gross_benchmark_return": -0.024637347455675807,
       "benchmark_return": -0.027637347455675806,
       "n": 3
+    },
+    {
+      "date": "2026-09-18",
+      "entry_date": "2026-09-14",
+      "strategy": 0.8260795362021708,
+      "benchmark": 1.0030267372127102,
+      "gross_period_return": 0.01944548808756305,
+      "cost_return": 0.003,
+      "period_return": 0.01644548808756305,
+      "gross_benchmark_return": 0.01771374586679264,
+      "benchmark_return": 0.014713745866792641,
+      "n": 4
     }
   ],
   "drawdown_curve": [
@@ -286,14 +298,18 @@
     {
       "date": "2026-09-11",
       "drawdown": -0.1872859431385394
+    },
+    {
+      "date": "2026-09-18",
+      "drawdown": -0.17392046379782922
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.5274725274725275,
-    "avg_return_20d": -0.0008733565630802549,
-    "excess_return_20d": 0.0005880374575764338,
-    "sharpe_60d": -3.001496591458713,
-    "sharpe_observations": 14,
+    "hit_rate_20d": 0.5217391304347826,
+    "avg_return_20d": -0.0003893719968005305,
+    "excess_return_20d": 0.0015011097993166073,
+    "sharpe_60d": -2.5875211896869823,
+    "sharpe_observations": 15,
     "sharpe_annualization_periods": 50.4,
     "sharpe_selection": "eval_date_non_overlap",
     "sharpe_fallback_reason": null,
@@ -301,7 +317,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.30549028246884646,
+    "brier": 0.3038322693669671,
     "bins": [
       {
         "bin_low": 0.0,
@@ -341,16 +357,16 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.5718977216445574,
-        "frac_up": 0.6071428571428571,
-        "count": 112
+        "mean_prob": 0.5718517733965849,
+        "frac_up": 0.5964912280701754,
+        "count": 114
       },
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.641491301453273,
-        "frac_up": 0.43137254901960786,
-        "count": 51
+        "mean_prob": 0.641869559946174,
+        "frac_up": 0.4528301886792453,
+        "count": 53
       },
       {
         "bin_low": 0.7000000000000001,
@@ -377,9 +393,9 @@
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 213,
-      "observation_count": 195,
-      "linked_prediction_count": 195,
+      "candidate_signal_count": 217,
+      "observation_count": 199,
+      "linked_prediction_count": 199,
       "conviction_fallback_count": 0,
       "excluded_count": 18,
       "exclusions": {
@@ -434,10 +450,14 @@
         {
           "model_version": "per-ticker-v1-20260905T094115-91c0f7970654-28b91abd",
           "count": 18
+        },
+        {
+          "model_version": "per-ticker-v1-20260912T095647-8ccde20fa00a-c2dd8da9",
+          "count": 4
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-09-11",
+      "last_entry_date": "2026-09-14",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
