@@ -1,16 +1,11 @@
 {
   "available": true,
-  "n_dates": 43,
-  "n_records": 2150,
-  "n_paired_dates": 30,
-  "n_paired_records": 136,
+  "n_dates": 40,
+  "n_records": 2000,
+  "n_paired_dates": 32,
+  "n_paired_records": 143,
   "date_coverage": {
     "observed_dates": [
-      "2026-07-21",
-      "2026-07-22",
-      "2026-07-23",
-      "2026-07-24",
-      "2026-07-27",
       "2026-07-28",
       "2026-07-29",
       "2026-07-30",
@@ -48,7 +43,9 @@
       "2026-09-15",
       "2026-09-16",
       "2026-09-17",
-      "2026-09-18"
+      "2026-09-18",
+      "2026-09-24",
+      "2026-09-25"
     ],
     "paired_dates": [
       "2026-07-29",
@@ -80,34 +77,11 @@
       "2026-09-07",
       "2026-09-09",
       "2026-09-10",
-      "2026-09-11"
+      "2026-09-11",
+      "2026-09-14",
+      "2026-09-15"
     ],
     "excluded_dates": {
-      "2026-07-21": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-07-22": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-07-23": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-07-24": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-07-27": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
       "2026-07-28": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
@@ -118,16 +92,6 @@
         "fewer_than_two_paired_names"
       ],
       "2026-09-08": [
-        "fewer_than_two_paired_names"
-      ],
-      "2026-09-14": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-09-15": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
       "2026-09-16": [
@@ -144,46 +108,56 @@
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
+      ],
+      "2026-09-24": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-09-25": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
       ]
     }
   },
   "top_n": 8,
-  "generated_at": "2026-09-19T10:14:19+09:00",
+  "generated_at": "2026-09-26T11:03:40+09:00",
   "window": {
-    "start": "2026-07-21",
-    "end": "2026-09-19",
+    "start": "2026-07-28",
+    "end": "2026-09-26",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20260919",
+  "model_version": "cs-v1-20260926",
   "comparison": {
     "phase1": {
-      "daily_ic": 0.10045533055095862,
-      "rank_ic": 0.04329303380755801,
-      "topn_realized_return": 0.01280250995547683,
-      "hit_rate": 0.6029411764705882,
+      "daily_ic": 0.10960630397898237,
+      "rank_ic": 0.08121221919458563,
+      "topn_realized_return": 0.011339252897777777,
+      "hit_rate": 0.5944055944055944,
       "max_drawdown": -0.142213420126874,
       "turnover": null,
-      "n_dates_with_topn": 30
+      "n_dates_with_topn": 32
     },
     "phase2": {
-      "daily_ic": 0.18097389361200006,
-      "rank_ic": 0.15821603720118993,
-      "topn_realized_return": 0.01280250995547683,
-      "hit_rate": 0.6029411764705882,
+      "daily_ic": 0.18865243275053084,
+      "rank_ic": 0.17298945641743146,
+      "topn_realized_return": 0.011339252897777777,
+      "hit_rate": 0.5944055944055944,
       "max_drawdown": -0.142213420126874,
-      "turnover": 0.008154361654103832,
+      "turnover": 0.008751578289810451,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.004940801478771978,
-        "mean_realized_ret": 0.012107185153925327,
-        "bias": -0.007166383675153349,
-        "n": 136
+        "mean_expected_ret": 0.004907004157399488,
+        "mean_realized_ret": 0.011205350008497619,
+        "bias": -0.006298345851098131,
+        "n": 143
       },
-      "n_dates_with_topn": 30
+      "n_dates_with_topn": 32
     },
     "delta": {
-      "daily_ic": 0.08051856306104144,
-      "rank_ic": 0.11492300339363193,
+      "daily_ic": 0.07904612877154847,
+      "rank_ic": 0.09177723722284584,
       "topn_realized_return": 0.0,
       "hit_rate": 0.0,
       "max_drawdown": 0.0
@@ -201,7 +175,6 @@
     "phase2_prediction": "portfolio_snapshots.model_version",
     "outcome_contract_version": "next_session_open_to_close_v2",
     "snapshot_model_versions": [
-      "cs-v1-20260718",
       "cs-v1-20260725",
       "cs-v1-20260801",
       "cs-v1-20260808",
@@ -209,14 +182,10 @@
       "cs-v1-20260822",
       "cs-v1-20260829",
       "cs-v1-20260905",
-      "cs-v1-20260912"
+      "cs-v1-20260912",
+      "cs-v1-20260919"
     ],
     "snapshot_model_version_by_date": {
-      "2026-07-21": "cs-v1-20260718",
-      "2026-07-22": "cs-v1-20260718",
-      "2026-07-23": "cs-v1-20260718",
-      "2026-07-24": "cs-v1-20260718",
-      "2026-07-27": "cs-v1-20260725",
       "2026-07-28": "cs-v1-20260725",
       "2026-07-29": "cs-v1-20260725",
       "2026-07-30": "cs-v1-20260725",
@@ -254,15 +223,17 @@
       "2026-09-15": "cs-v1-20260912",
       "2026-09-16": "cs-v1-20260912",
       "2026-09-17": "cs-v1-20260912",
-      "2026-09-18": "cs-v1-20260912"
+      "2026-09-18": "cs-v1-20260912",
+      "2026-09-24": "cs-v1-20260919",
+      "2026-09-25": "cs-v1-20260919"
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 30,
+    "shadow_days": 32,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": 0.08051856306104144,
+    "cs_ic_vs_phase1": 0.07904612877154847,
     "reasons": [
       "portfolio_gate not passed"
     ]
