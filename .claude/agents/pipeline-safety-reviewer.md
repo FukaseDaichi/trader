@@ -64,17 +64,36 @@ any weakening of these guards or any merge that runs before the gate check.
 **Any new data file written under `docs/`** (e.g. a new `docs/*.json` emitted by
 `src/dashboard.py` or a script) MUST be added to that workflow's `--exclude`
 list, or the next publish deletes it. If the diff adds a new `docs/` artifact,
-confirm the exclude entry exists; `tests/test_publish_workflow.py` enforces this.
+confirm the exclude entry exists. `tests/test_publish_workflow.py` only covers
+JSON files directly under `docs/`; a new directory needs the exclude list checked
+by hand.
 
 **6. tickers.yml / curation_pool.yml write-ownership.**
 These two files may be changed **only** by `scripts/curation_merge.py` and
-`scripts/curation_pool_merge.py`. Flag any other code that writes them, and any
+`scripts/curation_pool_merge.py`, plus `scripts/universe_select.py --apply` for an
+explicitly requested universe selection (08). Flag any other code that writes them, and any
 agent-authored direct edit (a PreToolUse hook already blocks manual edits — make
 sure the change does not route around it).
 
 **7. Legacy contract removal.**
 `docs/history_data.json` is a removed legacy contract; the frontend must not read
 it and `src/dashboard.py` removes it. Flag any reintroduction.
+
+**8. Shared artifact compatibility check, fail-closed.**
+Saved-model, drift, and model-quality readers share one runtime
+artifact/gate/manifest compatibility check. A stale or broken artifact must
+fail closed and must not be presented as current quality evidence. Flag a reader
+that skips the shared check or implements its own looser one.
+
+**9. Phase 1 schema version bump.**
+If a Phase 1 feature's meaning changes while its column name stays the same, the
+Phase 1 artifact schema version must be bumped and the model retrained — the
+ordered feature hash cannot detect a same-name semantic change. Flag feature
+changes in `src/` that alter computation without that bump.
+
+**10. Ticker parquet is never deleted.**
+A disabled ticker's parquet moves to `data/archive/`; history cannot be
+regenerated from the source feed. Flag any code path that deletes `data/*.parquet`.
 
 ## Output format
 

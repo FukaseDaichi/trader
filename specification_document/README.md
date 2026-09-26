@@ -15,7 +15,7 @@
 | [04_scripts.md](04_scripts.md) | 補助スクリプト（`scripts/`）仕様 |
 | [05_cross_cutting.md](05_cross_cutting.md) | データ契約（docs/ JSON・DB・parquet）と横断仕様 |
 | [06_issues_and_backlog.md](06_issues_and_backlog.md) | 既知の課題・運用チェックリスト・決定記録・**今後の実装予定（統合バックログ）** |
-| [07_agent_conventions.md](07_agent_conventions.md) | エージェント作業規約（セッション開始・報告の作法・コマンド・編集前の注意）。ルート `AGENTS.md` の詳細版 |
+| [07_agent_conventions.md](07_agent_conventions.md) | エージェント作業規約（セッション開始・コマンド・編集前の注意・Skills）。ルート `AGENTS.md` の詳細版 |
 | [08_invariants.md](08_invariants.md) | 不変条件の全リスト（`pipeline-safety-reviewer` と `.claude/hooks/` が参照する正典） |
 | [09_persona_aoi.md](09_persona_aoi.md) | ペルソナ「あおい」の正本（チャット回答と週次レポートが共通参照するキャラ設定） |
 | [archive/06_issues_archive.md](archive/06_issues_archive.md) | 06 から移した完了済み計画・過去の観測地点・決定記録の全文（読み込みは再検討時のみ） |

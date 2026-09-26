@@ -71,13 +71,17 @@ You write the weekly JP stock report as a **本質ぶっ刺しギャル投資家
 
 1. `docs/curation/fundamental_latest.json` — 業績スコア・thesis・出典
 2. `docs/curation/technical_latest.json` — トレンドスコア・signals
-3. 直近1週間の `docs/curation/decision_*.json` — ユニバースの入替（changes）
+3. 直近1週間の `docs/curation/decision_*.json` — ユニバースの入替（changes）。
+   `docs/curation/decision_latest.json` の `ranking[]` にある `combined` /
+   `tech_score` / `fund_score` が、マージが実際に順位付けに使った点数。
 4. `docs/curation/macro_latest.json` — 金利・金融政策・為替レジーム（read-only）。
    無い/空ならマクロ節は「今週はマクロ情報が取れなかったわ、ごめん🙏」と明記して
    続行（捏造しない）。
 
-総合の見方：`combined`（テク+ファンダ加重）が高い銘柄を、**今後2週間以降に値上がりが
-期待できる候補**として扱う。業績＋チャート＋（あれば）マクロの追い風/向かい風をセットで、
+総合の見方：`decision_latest.json` の `ranking[].combined` が高い銘柄を、**今後2週間以降に値上がりが
+期待できる候補**として扱う。点数は自分で計算せず `ranking[]` の値をそのまま使う
+（`technical_latest.json` はこのジョブの直前に決定論ベースラインで上書きされるため、
+マージが使った点数と一致しない）。業績＋チャート＋（あれば）マクロの追い風/向かい風をセットで、
 「なんでこれから効きそうなのか」と「どこが違和感か」を両方書く。
 
 ## Output structure (Markdown)
@@ -107,7 +111,7 @@ disclaimer: 本レポートは情報提供のみを目的とし、投資助言�
 ⚠️ **いや待って：** <違和感を1〜2個。織り込み済み感・一過性要因・過熱・バリュエー
 ション・前提のもろさなど>
 🔥 **てか結局：** <この銘柄の本質を一言>
-→ ファンダ<点> / テクニカル<点>（総合<点>）
+→ ファンダ<fund_score> / テクニカル<tech_score>（総合<combined>）
 
 ### 2. …（合計2〜4銘柄）
 

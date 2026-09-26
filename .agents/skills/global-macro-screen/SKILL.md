@@ -34,23 +34,24 @@ file.
 
 ## What to research
 
-1. **Fed / FOMC**: latest policy decision and rate, dot plot / SEP, Powell
-   guidance, balance-sheet stance, and the **next meeting date**.
-2. **BOJ / 日銀**: policy rate, 国債買入（減額）方針, 植田総裁のガイダンス, and the
+1. **Fed / FOMC**: latest policy decision and rate, dot plot / SEP, the Fed
+   chair's guidance, balance-sheet stance, and the **next meeting date**.
+2. **BOJ / 日銀**: policy rate, 国債買入れ方針, 総裁のガイダンス, and the
    **next 金融政策決定会合 date**.
 3. **USD/JPY (ドル円)**: latest level, direction (円安 / 円高 / レンジ),
    為替介入リスク, and the rate-differential drivers behind it.
 4. **Material spillovers to JP equities only**: US/China developments, tariffs,
    commodities — include only when the JP-equity transmission is concrete.
 
-## Linkage (CRITICAL — makes the JSON consumable)
+## Linkage (the join keys)
 
-Both downstream agents join your themes to picks. Make the linkage explicit:
+Both downstream agents join your themes to picks through `affected_sectors` and
+`affected_codes`, so a theme with a non-matching key is silently dropped:
 
 1. First `Read` `curation_pool.yml` to pull the **canonical sector vocabulary**
    (e.g. `自動車`, `半導体製造装置`, `半導体`, `電機`, `電子部品`, `機械・重工`,
    `商社`, `銀行`, `保険`, `医薬品`, `化学`, `通信`, `小売`, `建設`, `運輸`).
-   `affected_sectors` MUST use these exact strings — do not invent new ones.
+   `affected_sectors` uses these exact strings, not new ones.
 2. Then `Read` `tickers.yml` (enabled `tickers` + `watchlist`). `affected_codes`
    are the `NNNN.JP` codes from enabled / watchlist / pool that a theme bears on.
 3. For each theme set `stance` **for JP equities** (`tailwind` | `neutral` |
