@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-5",
-  "generated_at": "2026-09-28T07:34:12+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-09-28T07:30:58+09:00",
   "as_of": "2026-09-28",
   "data_through": "2026-09-25",
   "candidates": [
@@ -23,8 +23,29 @@
         "ret_5d": 0.0842005676442763
       },
       "horizon_days": 5,
-      "rationale": "MA5>MA20のもみ合いだが20日+12.5%・5日+8.4%と勢い十分、RSI66・MACD強気で高値圏更新を試す形",
+      "rationale": "もみ合い・MACD強気・RSI66",
       "rows_available": 6406,
+      "warmup_ok": true
+    },
+    {
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "score": 82.2,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "MA5>MA20",
+        "rsi14": 79.2749658002736,
+        "macd": "bull",
+        "atr_pct": 0.05166393127771764,
+        "vol_ratio": 1.136548678240824,
+        "breakout_20d": false,
+        "ret_20d": 0.17052932761087258,
+        "ret_5d": 0.14948019106490595
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・MACD強気・RSI79",
+      "rows_available": 4078,
       "warmup_ok": true
     },
     {
@@ -44,7 +65,7 @@
         "ret_5d": 0.060333269488603625
       },
       "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60の教科書的な上昇トレンド、RSI62で過熱感なくMACDも強気拡大中",
+      "rationale": "上昇トレンド・MACD強気・RSI62",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -65,29 +86,8 @@
         "ret_5d": 0.021039290240811193
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド継続、20日+8.0%・RSI63で健全、押し目は浅く高値圏に接近",
+      "rationale": "上昇トレンド・MACD強気・RSI63",
       "rows_available": 6668,
-      "warmup_ok": true
-    },
-    {
-      "code": "6920.JP",
-      "name": "レーザーテック",
-      "sector": "半導体製造装置",
-      "score": 79.5,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 79.2749658002736,
-        "macd": "bull",
-        "atr_pct": 0.05166393127771764,
-        "vol_ratio": 1.136548678240824,
-        "breakout_20d": false,
-        "ret_20d": 0.17052932761087258,
-        "ret_5d": 0.14948019106490595
-      },
-      "horizon_days": 5,
-      "rationale": "5日+14.9%・RSI79.3は過熱気味でスピード違反リスク、短期は反落に注意しつつ中期トレンドは強気維持",
-      "rows_available": 4078,
       "warmup_ok": true
     },
     {
@@ -107,7 +107,7 @@
         "ret_5d": 0.020865401060372823
       },
       "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60の上昇トレンド、RSI58・出来高1.21倍とバランス良好で20日高値に接近",
+      "rationale": "上昇トレンド・MACD強気・RSI58",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -128,7 +128,7 @@
         "ret_5d": 0.06780185758513935
       },
       "horizon_days": 5,
-      "rationale": "20日高値を更新するブレイクアウト、MACDヒストグラムも急拡大で勢い強い",
+      "rationale": "もみ合い・MACD強気・20日高値圏ブレイク・RSI60",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -149,7 +149,28 @@
         "ret_5d": 0.032610611669310785
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド継続中、RSI54で過熱感なくMACDも強気、20日/60日高値圏を維持",
+      "rationale": "上昇トレンド・MACD強気・RSI54",
+      "rows_available": 6668,
+      "warmup_ok": true
+    },
+    {
+      "code": "9984.JP",
+      "name": "ソフトバンクグループ",
+      "sector": "情報・通信",
+      "score": 77.5,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 66.28586609989372,
+        "macd": "bull",
+        "atr_pct": 0.07379790940766551,
+        "vol_ratio": 1.1604817866454535,
+        "breakout_20d": false,
+        "ret_20d": 0.20896402594849617,
+        "ret_5d": -0.020544672718585733
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI66",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -170,28 +191,7 @@
         "ret_5d": 0.036119402985074656
       },
       "horizon_days": 5,
-      "rationale": "MA5>MA20>MA60の上昇トレンド、RSI57・MACD強気で無理のない上昇が続く",
-      "rows_available": 6668,
-      "warmup_ok": true
-    },
-    {
-      "code": "9984.JP",
-      "name": "ソフトバンクグループ",
-      "sector": "情報・通信",
-      "score": 74.0,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 66.28586609989372,
-        "macd": "bull",
-        "atr_pct": 0.07379790940766551,
-        "vol_ratio": 1.1604817866454535,
-        "breakout_20d": false,
-        "ret_20d": 0.20896402594849617,
-        "ret_5d": -0.020544672718585733
-      },
-      "horizon_days": 5,
-      "rationale": "20日+20.9%と急伸も直近5日は-2.1%・MACDヒストグラムが急減速、ATR7.4%と値動き荒く短期反落リスクに注意",
+      "rationale": "上昇トレンド・MACD強気・RSI57",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -233,7 +233,7 @@
         "ret_5d": 0.10237717908082411
       },
       "horizon_days": 5,
-      "rationale": "60日ベースはまだ下落基調だが直近5日+10.2%・MACD急改善で自律反発の色彩、出来高も伴う",
+      "rationale": "もみ合い・MACD強気・RSI63",
       "rows_available": 5741,
       "warmup_ok": true
     },
@@ -280,48 +280,6 @@
       "warmup_ok": true
     },
     {
-      "code": "6301.JP",
-      "name": "コマツ",
-      "sector": "機械",
-      "score": 71.5,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "mixed",
-        "rsi14": 57.782101167315176,
-        "macd": "bear",
-        "atr_pct": 0.027477561705310394,
-        "vol_ratio": 1.378332957835799,
-        "breakout_20d": true,
-        "ret_20d": 0.026881720430107503,
-        "ret_5d": 0.0821529745042493
-      },
-      "horizon_days": 5,
-      "rationale": "20日高値更新のブレイクアウト、出来高1.38倍と厚みを伴いMACDヒストグラムはマイナスながら急改善しゴールデンクロス接近",
-      "rows_available": 6668,
-      "warmup_ok": true
-    },
-    {
-      "code": "8035.JP",
-      "name": "東京エレクトロン",
-      "sector": "半導体製造装置",
-      "score": 69.0,
-      "signals": {
-        "trend": "down",
-        "ma_stack": "downtrend",
-        "rsi14": 61.19500984898227,
-        "macd": "bull",
-        "atr_pct": 0.03951824891315337,
-        "vol_ratio": 1.0750353627874158,
-        "breakout_20d": false,
-        "ret_20d": 0.02003248511099076,
-        "ret_5d": 0.11589338598223109
-      },
-      "horizon_days": 5,
-      "rationale": "移動平均は依然下向きだが直近5日+11.6%・MACDヒストグラムが大きく改善、下降トレンドからの反転の芽",
-      "rows_available": 6667,
-      "warmup_ok": true
-    },
-    {
       "code": "2914.JP",
       "name": "日本たばこ産業",
       "sector": "食品",
@@ -339,6 +297,27 @@
       },
       "horizon_days": 5,
       "rationale": "上昇トレンド・MACD強気・RSI46",
+      "rows_available": 6668,
+      "warmup_ok": true
+    },
+    {
+      "code": "6301.JP",
+      "name": "コマツ",
+      "sector": "機械",
+      "score": 67.6,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "mixed",
+        "rsi14": 57.782101167315176,
+        "macd": "bear",
+        "atr_pct": 0.027477561705310394,
+        "vol_ratio": 1.378332957835799,
+        "breakout_20d": true,
+        "ret_20d": 0.026881720430107503,
+        "ret_5d": 0.0821529745042493
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・20日高値圏ブレイク・RSI58",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -385,6 +364,27 @@
       "warmup_ok": true
     },
     {
+      "code": "8035.JP",
+      "name": "東京エレクトロン",
+      "sector": "半導体製造装置",
+      "score": 63.1,
+      "signals": {
+        "trend": "down",
+        "ma_stack": "downtrend",
+        "rsi14": 61.19500984898227,
+        "macd": "bull",
+        "atr_pct": 0.03951824891315337,
+        "vol_ratio": 1.0750353627874158,
+        "breakout_20d": false,
+        "ret_20d": 0.02003248511099076,
+        "ret_5d": 0.11589338598223109
+      },
+      "horizon_days": 5,
+      "rationale": "下降トレンド・MACD強気・RSI61",
+      "rows_available": 6667,
+      "warmup_ok": true
+    },
+    {
       "code": "9101.JP",
       "name": "日本郵船",
       "sector": "海運",
@@ -423,27 +423,6 @@
       },
       "horizon_days": 5,
       "rationale": "もみ合い・MACD強気・RSI61",
-      "rows_available": 6668,
-      "warmup_ok": true
-    },
-    {
-      "code": "6857.JP",
-      "name": "アドバンテスト",
-      "sector": "半導体製造装置",
-      "score": 59.5,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "mixed",
-        "rsi14": 55.32846715328467,
-        "macd": "bear",
-        "atr_pct": 0.046691176470588236,
-        "vol_ratio": 0.9321656299083234,
-        "breakout_20d": false,
-        "ret_20d": -0.013062409288824406,
-        "ret_5d": 0.1273209549071619
-      },
-      "horizon_days": 5,
-      "rationale": "MACD自体はマイナスだがヒストグラムの改善幅が大きく直近5日+12.7%、半導体装置株の戻りの中で相対的に強い",
       "rows_available": 6668,
       "warmup_ok": true
     },
@@ -613,6 +592,27 @@
       "horizon_days": 5,
       "rationale": "もみ合い・RSI52",
       "rows_available": 5170,
+      "warmup_ok": true
+    },
+    {
+      "code": "6857.JP",
+      "name": "アドバンテスト",
+      "sector": "半導体製造装置",
+      "score": 54.0,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "mixed",
+        "rsi14": 55.32846715328467,
+        "macd": "bear",
+        "atr_pct": 0.046691176470588236,
+        "vol_ratio": 0.9321656299083234,
+        "breakout_20d": false,
+        "ret_20d": -0.013062409288824406,
+        "ret_5d": 0.1273209549071619
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・RSI55",
+      "rows_available": 6668,
       "warmup_ok": true
     },
     {
@@ -1329,5 +1329,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "デターミニスティック基準値を技術アナリストが精査。過熱感のある銘柄(6920レーザーテック RSI79、9984ソフトバンクG 20日+20.9%だが直近5日は反落・ATR7.4%)はスコアをやや下方修正。半導体製造装置セクター(8035東京エレクトロン、6857アドバンテスト、6301コマツ含む)は移動平均こそ弱いが直近5日の急反発とMACDヒストグラムの急改善が目立ち、反転の初動を示すためスコアを上方修正した。"
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
