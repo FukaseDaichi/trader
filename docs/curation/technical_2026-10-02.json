@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-5",
-  "generated_at": "2026-10-02T09:10:00+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-10-02T08:23:15+09:00",
   "as_of": "2026-10-02",
   "data_through": "2026-10-01",
   "candidates": [
@@ -44,7 +44,7 @@
         "ret_5d": 0.0338476070528968
       },
       "horizon_days": 5,
-      "rationale": "20日騰落率+26%の急伸もRSIは50台で過熱感なし、MACD強気継続。ただし出来高は5日/20日比0.77と伸びを欠き、ATR6.1%で値幅リスクは大きい点に留意",
+      "rationale": "上昇トレンド・MACD強気・RSI50",
       "rows_available": 6672,
       "warmup_ok": true
     },
@@ -52,7 +52,7 @@
       "code": "6920.JP",
       "name": "レーザーテック",
       "sector": "半導体製造装置",
-      "score": 78.6,
+      "score": 80.3,
       "signals": {
         "trend": "mixed",
         "ma_stack": "MA5>MA20",
@@ -65,7 +65,7 @@
         "ret_5d": 0.08471593765711405
       },
       "horizon_days": 5,
-      "rationale": "20日高値ブレイクでMACD強気だがRSIは80近辺で過熱、20日騰落率も+28%とかなり短期的に伸びきっており、5日ホライズンでは押し目リスクを織り込みベースラインよりやや減点",
+      "rationale": "もみ合い・MACD強気・20日高値圏ブレイク・RSI80",
       "rows_available": 4082,
       "warmup_ok": true
     },
@@ -1329,5 +1329,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "scripts/technical_screen.py のベースラインを技術分析エージェントがレビュー。6920.JPはRSI80近辺の過熱と20日騰落率+28%の伸びきりを踏まえスコアを減点、9984.JPは出来高非確認を注記。他銘柄はベースラインの重み付け（トレンド25/中期モメンタム20/短期モメンタム10/RSI15/MACD10/出来高10/ブレイクアウト10）に概ね同意し据え置き。"
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
