@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-5",
-  "generated_at": "2026-10-08T09:30:00+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-10-08T08:42:46+09:00",
   "as_of": "2026-10-08",
   "data_through": "2026-10-07",
   "candidates": [
@@ -10,7 +10,7 @@
       "code": "6857.JP",
       "name": "アドバンテスト",
       "sector": "半導体製造装置",
-      "score": 81.8,
+      "score": 83.5,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -23,7 +23,7 @@
         "ret_5d": 0.2084063047285465
       },
       "horizon_days": 5,
-      "rationale": "半導体装置の主力銘柄、直近1ヶ月で+25%の急騰。トレンド・MACDとも最強だがRSI86・ATR4.1%と過熱感もあり、短期は上値を追いにくい。",
+      "rationale": "上昇トレンド・MACD強気・RSI86",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -44,7 +44,7 @@
         "ret_5d": 0.042961839777609256
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド継続、20日高値圏ブレイクでMACDも強気。RSI59は適正水準で過熱感なく続伸余地あり。",
+      "rationale": "上昇トレンド・MACD強気・20日高値圏ブレイク・RSI59",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -65,7 +65,7 @@
         "ret_5d": 0.05665877208963388
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気を維持しつつRSI77まで上昇。電機セクターの主導株として底堅いが、短期は一服も想定。",
+      "rationale": "上昇トレンド・MACD強気・RSI77",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -86,7 +86,7 @@
         "ret_5d": 0.1891982556189198
       },
       "horizon_days": 5,
-      "rationale": "出来高急増(vol_ratio1.46)を伴う上昇でMACD強気。RSI82と過熱気味だがMA60未確認のためトレンド完成度はやや低め。",
+      "rationale": "もみ合い・MACD強気・RSI82",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -107,8 +107,29 @@
         "ret_5d": 0.05316242908173985
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気・RSI63は理想的な健全水準。出来高はやや細いが押し目買い継続で説明可能。",
+      "rationale": "上昇トレンド・MACD強気・RSI63",
       "rows_available": 6676,
+      "warmup_ok": true
+    },
+    {
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "score": 77.3,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 92.45014245014245,
+        "macd": "bull",
+        "atr_pct": 0.04655172413793104,
+        "vol_ratio": 1.1188305805373184,
+        "breakout_20d": false,
+        "ret_20d": 0.3984327908378542,
+        "ret_5d": 0.12813031850230971
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI92",
+      "rows_available": 4086,
       "warmup_ok": true
     },
     {
@@ -128,7 +149,7 @@
         "ret_5d": 0.126990192332187
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気でRSI81まで上昇。20日高値圏で強いが短期過熱もあり追随は押し目待ちが無難。",
+      "rationale": "上昇トレンド・MACD強気・RSI81",
       "rows_available": 6414,
       "warmup_ok": true
     },
@@ -149,7 +170,7 @@
         "ret_5d": 0.14667817083692847
       },
       "horizon_days": 5,
-      "rationale": "直近5日で+15%の急騰、MACD強気だがMA60未確認のもみ合いレンジ。RSI85の過熱感には要警戒。",
+      "rationale": "もみ合い・MACD強気・RSI85",
       "rows_available": 5749,
       "warmup_ok": true
     },
@@ -170,29 +191,8 @@
         "ret_5d": 0.07363520947947522
       },
       "horizon_days": 5,
-      "rationale": "半導体装置セクター全般の強さを反映しMACD強気。RSI80は過熱域で短期の値幅調整リスクあり。",
+      "rationale": "もみ合い・MACD強気・RSI80",
       "rows_available": 6675,
-      "warmup_ok": true
-    },
-    {
-      "code": "6920.JP",
-      "name": "レーザーテック",
-      "sector": "半導体製造装置",
-      "score": 75.6,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 92.45014245014245,
-        "macd": "bull",
-        "atr_pct": 0.04655172413793104,
-        "vol_ratio": 1.1188305805373184,
-        "breakout_20d": false,
-        "ret_20d": 0.3984327908378542,
-        "ret_5d": 0.12813031850230971
-      },
-      "horizon_days": 5,
-      "rationale": "1ヶ月で+40%の急騰、トレンド・MACDとも最強だがRSI92は過熱域。短期的な反落リスクに注意しつつ基調は良好。",
-      "rows_available": 4086,
       "warmup_ok": true
     },
     {
@@ -212,7 +212,7 @@
         "ret_5d": -0.0032922988834812594
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気でRSI63は健全水準。ただし直近5日は小幅反落でモメンタムはやや鈍化。",
+      "rationale": "上昇トレンド・MACD強気・RSI63",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -233,7 +233,7 @@
         "ret_5d": 0.08668407310704951
       },
       "horizon_days": 5,
-      "rationale": "半導体装置セクター連動で上昇、MACD強気。MA60未確認のレンジ相場かつRSI79の過熱感に注意。",
+      "rationale": "もみ合い・MACD強気・RSI79",
       "rows_available": 6417,
       "warmup_ok": true
     },
@@ -254,7 +254,7 @@
         "ret_5d": 0.029870300013101092
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気を維持、RSI71はやや過熱気味だが20日・60日リターンとも堅調で中期トレンドは良好。",
+      "rationale": "上昇トレンド・MACD強気・RSI71",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -275,7 +275,7 @@
         "ret_5d": 0.056181665264928515
       },
       "horizon_days": 5,
-      "rationale": "MACD強気に転換しRSI73まで回復。MA60未確認のレンジブレイク初期段階で、トレンド転換の初動として注目。",
+      "rationale": "もみ合い・MACD強気・RSI73",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -296,7 +296,7 @@
         "ret_5d": 0.027180406212664376
       },
       "horizon_days": 5,
-      "rationale": "MACD強気・RSI63の健全水準で底堅い上昇。MA60未確認のためトレンド完成度はまだ発展途上。",
+      "rationale": "もみ合い・MACD強気・RSI63",
       "rows_available": 6676,
       "warmup_ok": true
     },
@@ -317,7 +317,7 @@
         "ret_5d": 0.0013551665725579642
       },
       "horizon_days": 5,
-      "rationale": "上昇トレンド・MACD強気に加え20日高値圏ブレイク。RSI51は理想的な健全水準で続伸余地あり。",
+      "rationale": "上昇トレンド・MACD強気・20日高値圏ブレイク・RSI51",
       "rows_available": 5844,
       "warmup_ok": true
     },
@@ -1329,5 +1329,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "ベースライン(technical_screen.py)をもとに、過熱銘柄(RSI>85)のスコアを±2点以内で微修正し上位銘柄の根拠を補強。"
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
