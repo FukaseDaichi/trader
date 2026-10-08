@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-10-07 09:33:13",
-  "as_of": "2026-10-07",
+  "generated_at": "2026-10-08 09:55:34",
+  "as_of": "2026-10-08",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 244
+      "next_session_open_to_close_v2": 246
     },
-    "included_rows": 244,
+    "included_rows": 246,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,8 +29,8 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 63,
-    "selected_cohorts": 16,
+    "eligible_cohorts": 64,
+    "selected_cohorts": 17,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
     "return_basis": "net_after_entry_exit_costs",
@@ -45,8 +45,8 @@
   "benchmark_coverage": {
     "basis": "same_execution_window_only",
     "available": true,
-    "selected_cohorts": 16,
-    "available_cohorts": 16,
+    "selected_cohorts": 17,
+    "available_cohorts": 17,
     "coverage_ratio": 1.0,
     "reason": null
   },
@@ -252,6 +252,18 @@
       "gross_benchmark_return": 0.008794260587826841,
       "benchmark_return": 0.005794260587826841,
       "n": 2
+    },
+    {
+      "date": "2026-10-08",
+      "entry_date": "2026-10-02",
+      "strategy": 0.8293578865514775,
+      "benchmark": 1.0037285993337903,
+      "gross_period_return": 0.026048688537216202,
+      "cost_return": 0.003,
+      "period_return": 0.023048688537216203,
+      "gross_benchmark_return": -0.002065167508031207,
+      "benchmark_return": -0.005065167508031207,
+      "n": 2
     }
   ],
   "drawdown_curve": [
@@ -318,14 +330,18 @@
     {
       "date": "2026-09-30",
       "drawdown": -0.18932706151325351
+    },
+    {
+      "date": "2026-10-08",
+      "drawdown": -0.17064211344852254
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.4927536231884058,
-    "avg_return_20d": 0.001184152685531775,
-    "excess_return_20d": -0.0027538353776337928,
-    "sharpe_60d": -2.0662537340194773,
-    "sharpe_observations": 14,
+    "hit_rate_20d": 0.45454545454545453,
+    "avg_return_20d": -0.0010439281108255982,
+    "excess_return_20d": -0.003686593344160911,
+    "sharpe_60d": 1.127280641577173,
+    "sharpe_observations": 15,
     "sharpe_annualization_periods": 50.4,
     "sharpe_selection": "eval_date_non_overlap",
     "sharpe_fallback_reason": null,
@@ -333,7 +349,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.3066666507737456,
+    "brier": 0.30611007256743006,
     "bins": [
       {
         "bin_low": 0.0,
@@ -380,9 +396,9 @@
       {
         "bin_low": 0.6000000000000001,
         "bin_high": 0.7000000000000001,
-        "mean_prob": 0.6452652423861815,
-        "frac_up": 0.4117647058823529,
-        "count": 68
+        "mean_prob": 0.6458238015984281,
+        "frac_up": 0.4142857142857143,
+        "count": 70
       },
       {
         "bin_low": 0.7000000000000001,
@@ -409,9 +425,9 @@
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 244,
-      "observation_count": 226,
-      "linked_prediction_count": 226,
+      "candidate_signal_count": 246,
+      "observation_count": 228,
+      "linked_prediction_count": 228,
       "conviction_fallback_count": 0,
       "excluded_count": 18,
       "exclusions": {
@@ -477,11 +493,11 @@
         },
         {
           "model_version": "per-ticker-v1-20260926T101546-a56df35c66df-5fe6a48f",
-          "count": 8
+          "count": 10
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-09-30",
+      "last_entry_date": "2026-10-02",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
