@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "agent": "technical",
-  "model": "claude-sonnet-5",
-  "generated_at": "2026-10-09T08:53:54+09:00",
+  "model": "deterministic-baseline",
+  "generated_at": "2026-10-09T08:52:53+09:00",
   "as_of": "2026-10-09",
   "data_through": "2026-10-08",
   "candidates": [
@@ -10,7 +10,7 @@
       "code": "4307.JP",
       "name": "野村総合研究所",
       "sector": "ITサービス",
-      "score": 82.0,
+      "score": 81.3,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -23,7 +23,7 @@
         "ret_5d": 0.05248453402514475
       },
       "horizon_days": 5,
-      "rationale": "上昇(赤)トレンド継続でMA200上、RSI55は過熱なしの健全圏。MACDは強気で変化もプラスと勢い持続、20日高値まで残りわずかで最有力候補",
+      "rationale": "上昇トレンド・MACD強気・RSI55",
       "rows_available": 6164,
       "warmup_ok": true
     },
@@ -49,6 +49,27 @@
       "warmup_ok": true
     },
     {
+      "code": "6762.JP",
+      "name": "TDK",
+      "sector": "電子部品",
+      "score": 79.7,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "MA5>MA20",
+        "rsi14": 75.8124228712464,
+        "macd": "bull",
+        "atr_pct": 0.03951170182028316,
+        "vol_ratio": 1.4199501865300583,
+        "breakout_20d": false,
+        "ret_20d": 0.1612145613152156,
+        "ret_5d": 0.08156249999999998
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・MACD強気・RSI76",
+      "rows_available": 6677,
+      "warmup_ok": true
+    },
+    {
       "code": "6701.JP",
       "name": "日本電気",
       "sector": "電機",
@@ -70,52 +91,10 @@
       "warmup_ok": true
     },
     {
-      "code": "6762.JP",
-      "name": "TDK",
-      "sector": "電子部品",
-      "score": 77.5,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 75.8124228712464,
-        "macd": "bull",
-        "atr_pct": 0.03951170182028316,
-        "vol_ratio": 1.4199501865300583,
-        "breakout_20d": false,
-        "ret_20d": 0.1612145613152156,
-        "ret_5d": 0.08156249999999998
-      },
-      "horizon_days": 5,
-      "rationale": "出来高急増(vol_ratio1.42)を伴う上昇(赤)だがRSI76で短期過熱、MACDヒストグラムの伸びは鈍化中につき追いかけ買いは注意",
-      "rows_available": 6677,
-      "warmup_ok": true
-    },
-    {
-      "code": "6098.JP",
-      "name": "リクルートホールディングス",
-      "sector": "サービス",
-      "score": 75.5,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 57.028112449799195,
-        "macd": "bear",
-        "atr_pct": 0.029278723579241713,
-        "vol_ratio": 0.65931858866449,
-        "breakout_20d": false,
-        "ret_20d": 0.07620817843866168,
-        "ret_5d": 0.036705461056401045
-      },
-      "horizon_days": 5,
-      "rationale": "MACDヒストグラムは現状マイナスだが変化幅+32は全銘柄中最大の改善。上昇(赤)トレンド継続・RSI57で健全、ゴールデンクロス接近",
-      "rows_available": 2946,
-      "warmup_ok": true
-    },
-    {
       "code": "6857.JP",
       "name": "アドバンテスト",
       "sector": "半導体製造装置",
-      "score": 74.0,
+      "score": 79.1,
       "signals": {
         "trend": "up",
         "ma_stack": "MA5>MA20>MA60",
@@ -128,8 +107,71 @@
         "ret_5d": 0.08481786758840726
       },
       "horizon_days": 5,
-      "rationale": "20日騰落+18%の急伸でRSI87まで過熱、MACDヒストグラムの変化は-84と勢い鈍化が顕著で短期は調整リスクを意識",
+      "rationale": "上昇トレンド・MACD強気・RSI87",
       "rows_available": 6677,
+      "warmup_ok": true
+    },
+    {
+      "code": "6920.JP",
+      "name": "レーザーテック",
+      "sector": "半導体製造装置",
+      "score": 73.6,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 93.0640243902439,
+        "macd": "bull",
+        "atr_pct": 0.04670505438259757,
+        "vol_ratio": 1.0791552638466444,
+        "breakout_20d": false,
+        "ret_20d": 0.31750491711154827,
+        "ret_5d": 0.025814920148763854
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・MACD強気・RSI93",
+      "rows_available": 4087,
+      "warmup_ok": true
+    },
+    {
+      "code": "6723.JP",
+      "name": "ルネサスエレクトロニクス",
+      "sector": "半導体",
+      "score": 73.4,
+      "signals": {
+        "trend": "mixed",
+        "ma_stack": "MA5>MA20",
+        "rsi14": 75.42113323124043,
+        "macd": "bull",
+        "atr_pct": 0.03909026297085998,
+        "vol_ratio": 1.1728891301905868,
+        "breakout_20d": false,
+        "ret_20d": 0.12224507787246552,
+        "ret_5d": 0.05613938053097356
+      },
+      "horizon_days": 5,
+      "rationale": "もみ合い・MACD強気・RSI75",
+      "rows_available": 5750,
+      "warmup_ok": true
+    },
+    {
+      "code": "6098.JP",
+      "name": "リクルートホールディングス",
+      "sector": "サービス",
+      "score": 72.8,
+      "signals": {
+        "trend": "up",
+        "ma_stack": "MA5>MA20>MA60",
+        "rsi14": 57.028112449799195,
+        "macd": "bear",
+        "atr_pct": 0.029278723579241713,
+        "vol_ratio": 0.65931858866449,
+        "breakout_20d": false,
+        "ret_20d": 0.07620817843866168,
+        "ret_5d": 0.036705461056401045
+      },
+      "horizon_days": 5,
+      "rationale": "上昇トレンド・RSI57",
+      "rows_available": 2946,
       "warmup_ok": true
     },
     {
@@ -154,27 +196,6 @@
       "warmup_ok": true
     },
     {
-      "code": "6723.JP",
-      "name": "ルネサスエレクトロニクス",
-      "sector": "半導体",
-      "score": 71.5,
-      "signals": {
-        "trend": "mixed",
-        "ma_stack": "MA5>MA20",
-        "rsi14": 75.42113323124043,
-        "macd": "bull",
-        "atr_pct": 0.03909026297085998,
-        "vol_ratio": 1.1728891301905868,
-        "breakout_20d": false,
-        "ret_20d": 0.12224507787246552,
-        "ret_5d": 0.05613938053097356
-      },
-      "horizon_days": 5,
-      "rationale": "RSI75で短期過熱、MACD変化-11と勢い一服。60日騰落はなお-21%で戻り途上のため慎重に",
-      "rows_available": 5750,
-      "warmup_ok": true
-    },
-    {
       "code": "4452.JP",
       "name": "花王",
       "sector": "消費財",
@@ -193,27 +214,6 @@
       "horizon_days": 5,
       "rationale": "上昇トレンド・MACD強気・RSI59",
       "rows_available": 6677,
-      "warmup_ok": true
-    },
-    {
-      "code": "6920.JP",
-      "name": "レーザーテック",
-      "sector": "半導体製造装置",
-      "score": 68.5,
-      "signals": {
-        "trend": "up",
-        "ma_stack": "MA5>MA20>MA60",
-        "rsi14": 93.0640243902439,
-        "macd": "bull",
-        "atr_pct": 0.04670505438259757,
-        "vol_ratio": 1.0791552638466444,
-        "breakout_20d": false,
-        "ret_20d": 0.31750491711154827,
-        "ret_5d": 0.025814920148763854
-      },
-      "horizon_days": 5,
-      "rationale": "20日騰落+32%の急騰でRSI93と極端な過熱感、MACD変化-117で失速兆候。短期は利確売りを警戒",
-      "rows_available": 4087,
       "warmup_ok": true
     },
     {
@@ -1329,5 +1329,5 @@
     "9983.JP",
     "9984.JP"
   ],
-  "notes": "半導体/半導体製造装置セクター(6857,6920,6723,6146,6981,8035)でRSI70超の過熱銘柄が集中、短期は利確圧力に注意。アドバンテスト・レーザーテックはRSI85超の極端な過熱につき判断ベースラインより減点。リクルートはMACD改善幅が全銘柄最大でベースラインより加点。"
+  "notes": "Deterministic baseline from technical_screen.py. May be refined by the technical agent."
 }
