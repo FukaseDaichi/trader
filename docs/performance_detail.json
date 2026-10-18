@@ -1,7 +1,7 @@
 {
   "available": true,
-  "generated_at": "2026-10-16 08:38:14",
-  "as_of": "2026-10-16",
+  "generated_at": "2026-10-19 08:27:47",
+  "as_of": "2026-10-19",
   "horizon_days": 5,
   "history_days": 180,
   "execution_contract": {
@@ -19,9 +19,9 @@
   "contract_coverage": {
     "required_contract_version": "next_session_open_to_close_v2",
     "source_counts": {
-      "next_session_open_to_close_v2": 253
+      "next_session_open_to_close_v2": 257
     },
-    "included_rows": 253,
+    "included_rows": 257,
     "excluded_rows": 0,
     "fallback_assumption": null
   },
@@ -29,8 +29,8 @@
     "name": "non_overlapping_cohorts_v1",
     "selection": "eval_date_non_overlap",
     "fallback_reason": null,
-    "eligible_cohorts": 66,
-    "selected_cohorts": 17,
+    "eligible_cohorts": 67,
+    "selected_cohorts": 18,
     "overlapping_horizon_returns_compounded": false,
     "capital_per_cohort": 1.0,
     "return_basis": "net_after_entry_exit_costs",
@@ -45,8 +45,8 @@
   "benchmark_coverage": {
     "basis": "same_execution_window_only",
     "available": true,
-    "selected_cohorts": 17,
-    "available_cohorts": 17,
+    "selected_cohorts": 18,
+    "available_cohorts": 18,
     "coverage_ratio": 1.0,
     "reason": null
   },
@@ -264,6 +264,18 @@
       "gross_benchmark_return": -0.002065167508031207,
       "benchmark_return": -0.005065167508031207,
       "n": 2
+    },
+    {
+      "date": "2026-10-16",
+      "entry_date": "2026-10-09",
+      "strategy": 0.7893452174159321,
+      "benchmark": 0.9937919632183985,
+      "gross_period_return": -0.04524535919218253,
+      "cost_return": 0.003,
+      "period_return": -0.048245359192182535,
+      "gross_benchmark_return": -0.006899724011039554,
+      "benchmark_return": -0.009899724011039553,
+      "n": 4
     }
   ],
   "drawdown_curve": [
@@ -334,14 +346,18 @@
     {
       "date": "2026-10-08",
       "drawdown": -0.17064211344852254
+    },
+    {
+      "date": "2026-10-16",
+      "drawdown": -0.2106547825840679
     }
   ],
   "rolling": {
-    "hit_rate_20d": 0.5161290322580645,
-    "avg_return_20d": 0.005241025836700773,
-    "excess_return_20d": 0.0043263150847726835,
-    "sharpe_60d": -0.6618408488727207,
-    "sharpe_observations": 14,
+    "hit_rate_20d": 0.49206349206349204,
+    "avg_return_20d": 0.0005551483597445834,
+    "excess_return_20d": -0.0006312929866507489,
+    "sharpe_60d": -1.5346172087519978,
+    "sharpe_observations": 15,
     "sharpe_annualization_periods": 50.4,
     "sharpe_selection": "eval_date_non_overlap",
     "sharpe_fallback_reason": null,
@@ -349,7 +365,7 @@
     "sharpe_round_trip_cost_rate": 0.003
   },
   "reliability": {
-    "brier": 0.3018244976817551,
+    "brier": 0.3008485199403638,
     "bins": [
       {
         "bin_low": 0.0,
@@ -389,9 +405,9 @@
       {
         "bin_low": 0.5,
         "bin_high": 0.6000000000000001,
-        "mean_prob": 0.572493602070929,
-        "frac_up": 0.575,
-        "count": 120
+        "mean_prob": 0.5724058740490477,
+        "frac_up": 0.5772357723577236,
+        "count": 123
       },
       {
         "bin_low": 0.6000000000000001,
@@ -425,13 +441,13 @@
     "provenance": {
       "phase": "phase1",
       "source": "signals.prediction_id",
-      "candidate_signal_count": 253,
-      "observation_count": 234,
-      "linked_prediction_count": 234,
+      "candidate_signal_count": 257,
+      "observation_count": 237,
+      "linked_prediction_count": 237,
       "conviction_fallback_count": 0,
-      "excluded_count": 19,
+      "excluded_count": 20,
       "exclusions": {
-        "missing_compatibility_contract": 14,
+        "missing_compatibility_contract": 15,
         "prediction_horizon_mismatch": 5
       },
       "model_versions": [
@@ -497,11 +513,11 @@
         },
         {
           "model_version": "per-ticker-v1-20261003T104650-8d73d6066113-5f9f387c",
-          "count": 4
+          "count": 7
         }
       ],
       "first_entry_date": "2026-06-15",
-      "last_entry_date": "2026-10-08",
+      "last_entry_date": "2026-10-09",
       "outcome_contract_versions": [
         "next_session_open_to_close_v2"
       ],
