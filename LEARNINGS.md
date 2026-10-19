@@ -20,6 +20,7 @@
 - 2026-09-06: 「毎日同じ issue が積み上がる」型の調査は、まず全 issue の failure 文字列だけを `gh issue view N --json body` で抜いて横並びにするのが最短。今回は13件すべて `ticker_payloads_too_large` 単独で、しかも数値が単調増加していたため、「パイプラインの故障ではなく閾値超過の一本道」と即断できた。
 - 2026-09-06: 成果物サイズの犯人特定は、git 履歴から日次の合計バイトを再構成（`git ls-tree -r --long <commit> -- <dir>` を全コミットに回す）してから、同じファイルを新旧2時点で JSON パースして構成要素ごとにバイト数を割る、の2段で決まる。今回はこれで「行数は不変、1シグナルが 1,484B→5,208B に肥大」まで即座に絞れた。
 - 2026-09-26: 指示ファイルの節を別ファイルへ移したら、移した節の見出し名（例「ユーザーへの報告」）と移動元のファイル名でリポジトリ全体を grep し、参照切れを潰す。`d30b0dff3` では 09 と AGENTS.md の索引に参照切れが残り、読み手の文脈を書いた1行と規律1つが移設時に落ちていた。
+- 2026-10-19: Phase 2 の週次推移は、`git log --grep='Weekly retrain refresh'` の各コミットから `git show <c>:docs/portfolio_backtest.json` と `docs/portfolio_shadow_report.json` を読めば数秒で並べられる（IR・turnover・`cs_ic_vs_phase1`・gate failures）。06 の「現在地」は手で更新されないと止まるので、状況判断の前に必ずこれで実測を取る。
 
 ## Mistakes to Avoid
 （失敗と再発防止策）
@@ -31,6 +32,7 @@
 - 2026-09-06: パイロット2日で IC 改善 +0.030（現行の3倍）が出て「合格」と判断しかけた。17日に増やしたら +0.002 まで消え、本命の判定軸（大幅修正銘柄に絞った IC）は負に反転した。IC 系の検証は最低15日、かつ重複窓を考慮したブロックブートストラップで信頼区間がゼロを外れるまで結論を出さない。少数日の結果は方向すら信用できない。
 - 2026-08-27: PowerShell で python の stdout を `| Select-Object -First N` に通すと broken pipe で exit 255 になる（スクリプト自体は正常終了）。終了コードの検証はパイプなしで実行して `$LASTEXITCODE` を見る。
 - 2026-09-26: ハーネスは `git pull --rebase` より前に `CLAUDE.md`→`AGENTS.md` を読み込むため、古いチェックアウトで始まったセッションは pull 後もしばらく旧版の指示で動く（今回は「1〜3行で要約して提示」の旧 LEARNINGS ルールを踏んだ）。pull で `AGENTS.md` や 07〜09 が更新されたら、ディスク上の現行版を読み直してから作業する。
+- 2026-10-19: Core 日次ジョブは stooq への接続タイムアウト（connect timeout=20 × 銘柄数・リトライ）が重なると `timeout-minutes: 30` に達して強制キャンセルされる（2026-10-19 実例）。job の強制キャンセルは main.py のフォールバックでは救えず、当時は Retry ワークフローだけが救済経路だった。同日 PR #25 で Stooq サーキットブレーカー（連続3回の接続失敗で遮断、300秒ごとに1回だけ再試行）を入れ、全断時の待ちを1プロセスあたり約2分に抑えた。外部 API を銘柄ループで叩く処理は「1件あたりの最悪待ち時間 × 件数」と job timeout を必ず突き合わせる。
 
 ## Domain Knowledge
 （業務・仕様に関する事実）
@@ -57,6 +59,7 @@
 - 2026-09-06: Claude Code の output style（`.claude/output-styles/`）はシステムプロンプトを直接書き換えるので口調の強制力は最も高いが、非 default の style はコード生成向けの組み込み指示を落とす仕様。開発リポジトリでペルソナ目的に使うのは副作用が大きく不適。加えて `/output-style` はターミナルダイアログ系のためデスクトップアプリからは開けない。
 - 2026-09-26: 週報の「総合」点は、モデルが `technical_latest.json` と `fundamental_latest.json` の平均を自分で計算したもので、マージの `combined` ではない。週次ジョブの `Refresh technical features` が technical をベースラインで上書きするため、2026-09-26 号では伊藤忠が 69.2 と載ったが、マージ上は 76.25 だった。正しい値は `decision_latest.json` の `ranking[]`（`combined` / `tech_score` / `fund_score`）にある。ただし週次ジョブはマージを回さないので、`fund_score` は前回の fundamental に基づく値になる。
 - 2026-09-26: `pipeline-safety-reviewer.md` の不変条件は 08 の手書きの写しで、08 と同期する仕組みが無い。2026-09-26 時点で、fail-closed・スキーマ版の bump・parquet 削除禁止の3つが欠け、`universe_select.py --apply`（08 が許可している tickers.yml の3人目の書き手）も漏れていた。08 を変えたらレビュアーも直す。
+- 2026-10-19: Phase 2 公式 backtest の IR は週ごとに ±0.8 振れる（2026-09-19 −0.84 → 09-26 +0.80 → 10-17 +0.002）。単週の IR で畳む/育てるを決めてはいけない。一方 turnover は 0.99→0.69 と単調に下がりつつも、全週で `turnover>0.40` が唯一の安定した gate 不合格要因。
 
 ## Open Questions
 （未解決・要調査）
