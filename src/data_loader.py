@@ -1,5 +1,6 @@
 import io
 import json
+import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -17,7 +18,65 @@ DEFAULT_HTTP_TIMEOUT_SEC = 20
 DEFAULT_STALE_OPEN_DAYS = 0
 DEFAULT_YF_FALLBACK_ENABLED = True
 DEFAULT_MAX_DAILY_MOVE = 0.50
+DEFAULT_STOOQ_CIRCUIT_BREAKER_THRESHOLD = 3
+DEFAULT_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC = 300
 JPX_HOLIDAY_CACHE = DATA_DIR / "jpx_holidays.json"
+
+# Process-scoped Stooq circuit breaker. When Stooq is unreachable every request
+# blocks for the full connect timeout (per resolved address), which across ~50
+# tickers exceeds the workflow's job timeout. After N consecutive
+# connection-level failures, skip Stooq so callers fall through to yfinance /
+# the cached parquet immediately. While open, one probe request is let through
+# per cooldown so long-running jobs return to Stooq once it recovers.
+_stooq_consecutive_connect_failures = 0
+_stooq_circuit_opened_at = None
+
+
+def reset_stooq_circuit() -> None:
+    global _stooq_consecutive_connect_failures, _stooq_circuit_opened_at
+    _stooq_consecutive_connect_failures = 0
+    _stooq_circuit_opened_at = None
+
+
+def _stooq_circuit_blocks() -> bool:
+    if _stooq_circuit_opened_at is None:
+        return False
+    cooldown = max(
+        0,
+        _get_env_int(
+            "TRADER_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC",
+            DEFAULT_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC,
+        ),
+    )
+    return time.monotonic() - _stooq_circuit_opened_at < cooldown
+
+
+def _record_stooq_reachable() -> None:
+    global _stooq_consecutive_connect_failures, _stooq_circuit_opened_at
+    if _stooq_circuit_opened_at is not None:
+        print("Stooq circuit breaker closed: probe request succeeded.")
+    _stooq_consecutive_connect_failures = 0
+    _stooq_circuit_opened_at = None
+
+
+def _record_stooq_connect_failure() -> None:
+    global _stooq_consecutive_connect_failures, _stooq_circuit_opened_at
+    _stooq_consecutive_connect_failures += 1
+    if _stooq_circuit_opened_at is not None:
+        # Failed half-open probe: restart the cooldown.
+        _stooq_circuit_opened_at = time.monotonic()
+        return
+    threshold = _get_env_int(
+        "TRADER_STOOQ_CIRCUIT_BREAKER_THRESHOLD",
+        DEFAULT_STOOQ_CIRCUIT_BREAKER_THRESHOLD,
+    )
+    if threshold > 0 and _stooq_consecutive_connect_failures >= threshold:
+        _stooq_circuit_opened_at = time.monotonic()
+        print(
+            "Stooq circuit breaker opened after "
+            f"{_stooq_consecutive_connect_failures} consecutive connection "
+            "failures; skipping Stooq until a probe succeeds."
+        )
 
 
 _get_env_int = get_env_int
@@ -207,12 +266,21 @@ def download_stooq_data(ticker_code):
     Download historical data from Stooq.
     Stooq URL format for CSV download: https://stooq.com/q/d/l/?s={code}&i=d
     """
+    if _stooq_circuit_blocks():
+        print(f"Skipping Stooq for {ticker_code}: circuit breaker is open.")
+        return None
+
     url = f"https://stooq.com/q/d/l/?s={ticker_code}&i=d"
     headers = {"User-Agent": "Mozilla/5.0"}
     timeout_sec = _get_env_int("TRADER_DATA_HTTP_TIMEOUT_SEC", DEFAULT_HTTP_TIMEOUT_SEC)
 
     try:
-        response = requests.get(url, headers=headers, timeout=timeout_sec)
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout_sec)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            _record_stooq_connect_failure()
+            raise
+        _record_stooq_reachable()
         response.raise_for_status()
 
         # Check if content is valid CSV (sometimes Stooq returns an HTML page on error)
@@ -443,9 +511,7 @@ def load_archived_data(ticker_code):
         df = pd.read_parquet(file_path)
         normalized = _normalize_ohlcv(df)
         if normalized is None:
-            print(
-                f"Archived data for {ticker_code} is missing required OHLCV columns."
-            )
+            print(f"Archived data for {ticker_code} is missing required OHLCV columns.")
             continue
         validated = _validate_ohlcv(
             normalized, ticker_code=ticker_code, source="archive"

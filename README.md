@@ -129,6 +129,8 @@ uv run python main.py
 | `TRADER_YF_FALLBACK_ENABLED` | yfinanceフォールバック | `true` |
 | `TRADER_DATA_STALE_OPEN_DAYS` | 鮮度遅れを許容する営業日数 | `0` |
 | `TRADER_DATA_HTTP_TIMEOUT_SEC` | データ取得HTTPタイムアウト秒 | `20` |
+| `TRADER_STOOQ_CIRCUIT_BREAKER_THRESHOLD` | Stooq接続失敗がこの回数連続したらStooqをスキップ（0で無効） | `3` |
+| `TRADER_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC` | スキップ中にStooqへ再試行する間隔秒 | `300` |
 | `TRADER_DATA_MAX_DAILY_MOVE` | 日次変動の異常値警告しきい値 | `0.50` |
 
 ### KPIゲート・閾値最適化
