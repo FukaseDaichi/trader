@@ -1,31 +1,32 @@
 # 既知の課題・運用計画・バックログ
 
-更新日: 2026-08-27 JST
+更新日: 2026-10-19 JST
 
 この文書は「現時点で直っていないこと」「いつ対応するか」「次へ進める条件」「今後実装する予定のもの」を扱う唯一の一覧です。解決済みの修正履歴はgit log、完了した計画・過去の観測地点・決定記録の全文（採用理由と不採用案）は[archive/06_issues_archive.md](archive/06_issues_archive.md)を参照してください。日付は最短の目安であり、条件未達なら延期します。
 
 ## 結論
 
-- **2026-08-24 最初の総合判定を実施（判定者: 人間、記録者: agent）**: 結果は**shadow継続**。portfolio KPI gate不合格（`ir<0.00`、`turnover>0.40`）と`active_readiness.active_ready=false`が残るため、active化はしない。
-- **Phase 2は観察継続（畳まない・作り直さない）**: 判断根拠と次回判定は「Phase 2の継続判断」を参照。次回レビューは2026-08-29（土）の週次再学習後。
+- **2026-10-19 判断（判定者: 人間、記録者: agent）**: 2026-08-24の「`cs_ic_vs_phase1`の悪化が続けば畳む」方針を**取り下げ**。条件は成立しなかった（直近4週の`cs_ic_vs_phase1`は+0.30〜+0.51）。shadow継続は変わらない。portfolio KPI gateは`turnover>0.40`で不合格、`active_ready=false`。
+- **Phase 2は観察継続（畳まない・作り直さない）**: 判断根拠は「Phase 2の継続判断」を参照。次は唯一の安定した不合格要因であるturnoverの再校正に着手できる。
 - `TRADER_PORTFOLIO_MODE=shadow`を維持する。active化は全条件合格＋人間の明示承認があった場合のみ。
 
 2026-07-19以前のportfolio/shadow指標はv2/schema v3移行前の履歴であり、以降のactive判断には使用しない。
 
-## 現在地（2026-08-24）
+## 現在地（2026-10-19）
 
-2026-08-22の週次再学習（`cs-v1-20260822`）と2026-08-24の日次運用まで反映した最新値。
+2026-10-17の週次再学習（`cs-v1-20261017`）と2026-10-19の日次運用まで反映した最新値。
 
 | 項目 | 状態 | 判断 |
 | --- | --- | --- |
-| Phase 2公式backtest | `cs-v1-20260822`: IR **-0.0901**（前回-0.3905から改善）、turnover **0.9919**（前回0.9205から悪化）、Sharpe 2.03、max DD -4.7%、benchmark coverage 1.0。gate failures=`["ir<0.00","turnover>0.40"]` | gate不合格。IRは改善方向だが負 |
-| Phase 2 shadow report | 2026-08-22時点で`shadow_days=24`、`n_paired_dates=24`、`n_paired_records=79`、`cs_ic_vs_phase1=**-0.2825**`（前回-0.2404から悪化）、`active_ready=false` | shadow維持 |
-| 8766.JP旧履歴異常 | 2026-08-24確認: model_qualityに正常掲載（IC 0.3438、Brier 0.2256、calibration 120行）、drift `breached=false`（PSI warningはmacro `usdjpy_ret_60`由来で全銘柄共通傾向） | 即時対応条件（学習失敗・drift breach）に非該当。観察継続 |
-| 日次運用 | 2026-08-24のcore daily・curation・publishまで正常コミット | 正常 |
+| Phase 2公式backtest | `cs-v1-20261017`: IR **+0.0017**、turnover **0.6908**、Sharpe 1.29、max DD -5.3%、alpha +6.7%、beta 0.44、benchmark coverage 1.0。gate failures=`["turnover>0.40"]` | gate不合格。IRは週ごとに±0.8振れるため単週では判断しない |
+| Phase 2 shadow report | 2026-10-17時点で`shadow_days=31`、`n_paired_dates=31`、`n_paired_records=120`、`cs_ic_vs_phase1=**+0.4104**`、`active_ready=false`（reason: `portfolio_gate not passed`） | shadow維持 |
+| Phase 1 gate | 2026-10-16は50銘柄中6銘柄が通過、actionable 3件（MILD_BUY）。2026-10-19は1銘柄通過、全HOLD | ゲートは仕様どおり機能 |
+| drift | `summary.breached=false`。多くの銘柄は`n_outcomes`不足（`min_outcomes=30`）で`insufficient_sample` | 観察継続 |
+| 日次運用 | 2026-10-19のCoreがstooq全断で`timeout-minutes: 30`に達してキャンセル。Retryが救済し当日シグナルは出力済み。対策のStooqサーキットブレーカーはPR #25で2026-10-19にマージ済み | 2026-10-20以降のCoreで効果を確認 |
 
 ## 週次レビュー（継続中）
 
-4週間shadow監視（2026-07-27〜08-21、完了・詳細はarchive）から継続する週次確認。次回は2026-08-29（土）の週次再学習後。毎週、同じ観点で記録する。
+4週間shadow監視（2026-07-27〜08-21、完了・詳細はarchive）から継続する週次確認。毎週土曜の週次再学習後に、同じ観点で記録する。
 
 | 観点 | 合格方向 | 即時停止条件 |
 | --- | --- | --- |
@@ -38,9 +39,35 @@
 
 休場・HOLD・データ欠損で観測が増えなかった週は、カレンダーだけ進めてもactive判断の証拠に数えない。
 
+### 週次記録（2026-08-29〜10-17、2026-10-19 にまとめて記録）
+
+08-24 以降の週次レビューは記録が止まっていたため、各週の Weekly retrain refresh コミット時点の公式 artifact（`docs/portfolio_backtest.json`・`docs/portfolio_shadow_report.json`・`docs/state.json`）から再構成した。Phase 1 gate は各週最終営業日のシグナルで数えた。
+
+| 週 | CS version | IR | turnover | Sharpe | max DD | `cs_ic_vs_phase1` | paired dates / records | Phase 1 gate 通過 | gate failures |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 08-29 | `cs-v1-20260829` | -0.615 | 0.928 | 0.93 | -4.7% | +0.024 | 25 / 106 | 5/50 | `ir<0.00`, `turnover>0.40` |
+| 09-05 | `cs-v1-20260905` | -0.620 | 0.838 | 1.48 | -3.2% | -0.084 | 24 / 104 | 9/50 | `ir<0.00`, `turnover>0.40` |
+| 09-12 | `cs-v1-20260912` | -0.697 | 0.947 | 0.97 | -4.6% | +0.041 | 28 / 124 | 7/50 | `ir<0.00`, `turnover>0.40` |
+| 09-19 | `cs-v1-20260919` | -0.839 | 0.944 | 0.85 | -6.2% | +0.081 | 30 / 136 | 5/50 | `ir<0.00`, `turnover>0.40` |
+| 09-26 | `cs-v1-20260926` | +0.799 | 0.863 | -0.03 | -6.7% | +0.079 | 32 / 143 | 4/50 | `sharpe<0.30`, `turnover>0.40` |
+| 10-03 | `cs-v1-20261003` | +0.574 | 0.680 | -0.23 | -7.0% | +0.302 | 33 / 135 | 4/50 | `sharpe<0.30`, `turnover>0.40` |
+| 10-10 | `cs-v1-20261010` | +0.351 | 0.698 | -0.66 | -9.7% | +0.509 | 33 / 131 | 7/50 | `sharpe<0.30`, `turnover>0.40` |
+| 10-17 | `cs-v1-20261017` | +0.002 | 0.691 | 1.29 | -5.3% | +0.410 | 31 / 120 | 6/50 | `turnover>0.40` |
+
+benchmark coverage は全週 1.0。
+
+読み取り:
+
+- `cs_ic_vs_phase1` は 08-22 の -0.2825 から 7/8 週で正、直近4週は +0.30〜+0.51。08-24 判断の「悪化継続なら畳む」条件は成立しなかった。
+- IR は週ごとに ±0.8 振れ、09-26 以降の正転も Sharpe が負の週（戦略も負けたが、ベンチマークがより大きく下げた局面）と重なる。単週の IR は合否の根拠にしない。
+- turnover は 0.99 → 0.69 と下がったが全週で上限 0.40 を超え、唯一の安定した gate 不合格要因。
+- paired dates は 24〜33、records は 104〜143 で推移し、8週で単調には増えていない。
+
 ### active化の総合判定チェックリスト
 
-**最初の総合判定（2026-08-22予定 → 2026-08-24実施）: shadow継続。** gate合格・turnover再校正・`active_ready=true`が未達（portfolio gate failures=`["ir<0.00","turnover>0.40"]`、`cs_ic_vs_phase1=-0.2825`）。次回判定は週次レビューの一環として継続する。
+**最初の総合判定（2026-08-22予定 → 2026-08-24実施）: shadow継続。** gate合格・turnover再校正・`active_ready=true`が未達（portfolio gate failures=`["ir<0.00","turnover>0.40"]`、`cs_ic_vs_phase1=-0.2825`）。
+
+**2026-10-19 再判定: shadow継続。** gate合格・turnover再校正・`active_ready=true`がなお未達（gate failures=`["turnover>0.40"]`、`cs_ic_vs_phase1=+0.4104`）。次回判定は週次レビューの一環として継続する。
 
 以下を**すべて**満たした場合だけ、active化を人間が検討できる。1項目でも未達なら`shadow`を継続する。
 
@@ -65,7 +92,7 @@
 
 ### Phase 2 active化を禁止する
 
-公式`docs/portfolio_backtest.json`のportfolio KPI gateが不合格（`ir<0.00`、`turnover>0.40`。最新の実測値は「現在地」を参照）。`portfolio_backtest.json`が現行v2、strategy net対benchmark net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。解消するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
+公式`docs/portfolio_backtest.json`のportfolio KPI gateが不合格（2026-10-17時点は`turnover>0.40`。IR・Sharpeも週によって不合格になる。最新の実測値は「現在地」を参照）。`portfolio_backtest.json`が現行v2、strategy net対benchmark net、benchmark完全coverage、明示的gate合格、当日snapshotと同じCS `model_version`を満たす場合だけactive可とする。解消するまでは`TRADER_PORTFOLIO_MODE=shadow`を維持する。
 
 ### `execution.BENCHMARK_BASIS`を変更しない（2026-08-10 決定の要点）
 
@@ -76,13 +103,14 @@
 
 ### Phase 2の継続判断
 
-TOPIX open実装の目的は「active化の実現」ではなく「IRという評価軸を初めて測定可能にすること」だった。公式artifactで測った結果はIR **負**であり、これはPhase 2を縮小・shadow-onlyに畳む根拠になりうる。
+TOPIX open実装の目的は「active化の実現」ではなく「IRという評価軸を初めて測定可能にすること」だった。2026-08時点の公式artifactではIRが負で、Phase 2を縮小・shadow-onlyに畳む根拠になりうるとされた。その後IRは週ごとに大きく振れながら、2026-09-26以降は正になっている。
 
-**判断記録（2026-08-24、人間が決定）: 観察継続（畳まない・作り直さない）。**
+**判断記録（2026-10-19、人間が決定、記録者: agent）: 「畳む」方針を取り下げ。観察継続（作り直さない）。**
 
-- 根拠: shadowはPhase 1の本番シグナル・通知に一切影響せず、維持コストは週次再学習が回るだけでほぼゼロ。IRは-0.3905（08-01）→-0.0901（08-22）と明確に改善方向。
-- 懸念: `cs_ic_vs_phase1`は-0.2404→-0.2825、turnoverは0.9205→0.9919と悪化。
-- 次回判定: 週次レビュー（次回2026-08-29）で同じ3指標（IR、cs_ic_vs_phase1、turnover）を確認する。`cs_ic_vs_phase1`の悪化が続く場合はshadow-only縮小（畳む）方向へ傾ける。学習設計の作り直し（育てる）は、ICが悪い原因の分析を先に行ってからでないと着手しない。
+- 根拠: 2026-08-24の条件「`cs_ic_vs_phase1`の悪化が続く場合はshadow-only縮小へ傾ける」は成立しなかった。-0.2825（08-22）以降の8週中7週で正、直近4週は+0.30〜+0.51（週次記録の表を参照）。
+- 留保: IRは週ごとに±0.8振れ（09-19 -0.84 → 09-26 +0.80 → 10-17 +0.002）、正転した週の多くはSharpeが負だった。IRの改善はまだ合格の根拠にならない。
+- 次: 全週で不合格が続く唯一の要因であるturnover（0.99 → 0.69、上限0.40）の再校正に着手する（バックログ参照）。学習設計の作り直し（育てる）は引き続き、原因分析を先に行ってからでないと着手しない。
+- 前回の判断記録（2026-08-24「観察継続、悪化継続なら畳む方向」）の全文は[archive/06_issues_archive.md](archive/06_issues_archive.md)。
 
 ## 対応しない（方針）
 
@@ -98,14 +126,14 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 
 | 項目 | 内容 | 備考 |
 | --- | --- | --- |
-| `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.9919`（2026-08-22）。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | active総合判定の必須項目。数値合わせのために緩めない。2026-08-24判断でPhase 2は観察継続のため、着手は畳む/育てるの方向が定まってから |
-| `cs_ic_vs_phase1`の改善 | Phase 2のCS ICがPhase 1を下回る（`-0.2825`、悪化傾向）。まず原因分析、その上で特徴量・ラベル・学習設計の見直し | 改善見込みが立たない場合はPhase 2縮小の判断材料（2026-08-24判断: 悪化継続ならshadow-only縮小へ傾ける） |
+| `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.6908`（2026-10-17、08-22は0.9919）。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | active総合判定の必須項目。数値合わせのために緩めない。2026-10-19判断で「畳む」方針を取り下げたため着手可 |
 
 ### 観察中（条件が揃ったら判断）
 
 | 項目 | いつ判断するか | 内容 |
 | --- | --- | --- |
-| CS較正の粗さ | 次回shadowレビュー（2026-08-29以降） | 同値scoreや低grossが成績・分散を実際に阻害した場合だけ、isotonic連続化を検討する |
+| `cs_ic_vs_phase1`の持続性 | 週次レビューごと | 2026-09-12以降は6週連続で正（直近+0.41）。再び負へ戻り数週続く場合は、原因分析を先に行ってから特徴量・ラベル・学習設計を見直す |
+| CS較正の粗さ | 次回shadowレビュー | 同値scoreや低grossが成績・分散を実際に阻害した場合だけ、isotonic連続化を検討する |
 | `8766.JP`の旧履歴異常 | 学習失敗やdrift breachになれば即時（2026-08-24再確認済み: 学習正常・breachなしで非該当） | 2005年の株式分割級不連続が残る。学習開始日カットまたはcorporate action補正を検討する |
 | `usdjpy`の行数が少ない | macro鮮度警告が出た時だけ | 系列の歴史差によるもので、現時点では異常ではない |
 | `docs/tickers` 総量の残り余裕 | 有効銘柄が65前後に増えた時、または watchdog の `ticker_payloads_too_large` が再発した時 | `threshold_optimization` 除外後は 7.41MB （guard 10MB）。内訳は `data` 4.93MB / signals 2.38MB で、主因は 500行の価格系列（`MAX_DASHBOARD_ROWS`）に移った。約17銘柄ぶんの余裕しかないため、次は行数削減か数値精度の丸めを検討する |
