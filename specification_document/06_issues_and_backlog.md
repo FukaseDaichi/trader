@@ -22,7 +22,7 @@
 | Phase 2 shadow report | 2026-10-17時点で`shadow_days=31`、`n_paired_dates=31`、`n_paired_records=120`、`cs_ic_vs_phase1=**+0.4104**`、`active_ready=false`（reason: `portfolio_gate not passed`） | shadow維持 |
 | Phase 1 gate | 2026-10-16は50銘柄中6銘柄が通過、actionable 3件（MILD_BUY）。2026-10-19は1銘柄通過、全HOLD | ゲートは仕様どおり機能 |
 | drift | `summary.breached=false`。多くの銘柄は`n_outcomes`不足（`min_outcomes=30`）で`insufficient_sample` | 観察継続 |
-| 日次運用 | 2026-10-19のCoreがstooq全断で`timeout-minutes: 30`に達してキャンセル。Retryが救済し当日シグナルは出力済み。対策はサーキットブレーカー（PR #25） | 対策マージまで注視 |
+| 日次運用 | 2026-10-19のCoreがstooq全断で`timeout-minutes: 30`に達してキャンセル。Retryが救済し当日シグナルは出力済み。対策のStooqサーキットブレーカーはPR #25で2026-10-19にマージ済み | 2026-10-20以降のCoreで効果を確認 |
 
 ## 週次レビュー（継続中）
 
