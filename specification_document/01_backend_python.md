@@ -77,6 +77,7 @@
 - Stooq URL: `https://stooq.com/q/d/l/?s={ticker_code}&i=d`、yfinance は `NNNN.JP` → `NNNN.T`
 - 鮮度判定: `data/jpx_holidays.json` で JST の直近完了営業日と比較（`TRADER_DATA_STALE_OPEN_DAYS`、既定 0）
 - フォールバック: Stooq 失敗または鮮度不足時、`TRADER_YF_FALLBACK_ENABLED=true` なら yfinance
+- Stooq サーキットブレーカー: 接続レベルの失敗（`ConnectionError` / `Timeout`）が `TRADER_STOOQ_CIRCUIT_BREAKER_THRESHOLD`（既定 3、0で無効）回連続したら Stooq へ接続せず即 `None` を返し、上記フォールバック（yfinance → 既存 parquet）へ進む。遮断中も `TRADER_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC`（既定 300）ごとに1リクエストだけ試行し、応答を受け取れれば遮断を解除する（失敗なら待ち時間をやり直す）。応答を受け取れれば（HTTP エラー含む）連続カウントは 0 に戻る。状態はプロセス単位で、`update_macro_snapshots.py` と `main.py` は別々に判定する。Stooq 全断時に1銘柄あたり接続タイムアウト分待たされ、Core ジョブが `timeout-minutes: 30` で強制キャンセルされた（2026-10-19）ための対策
 - 検証: OHLCVの非有限値を含む行を除外したうえで、価格の正値、OHLC 関係、異常な終値変化を検査。警告は DataFrame attrs 経由でレポートの `data_validation_warnings` へ
 - `update_data(dest_dir=...)` で任意ディレクトリへ保存可能（キュレーション warmup は `data/watchlist/`）
 
