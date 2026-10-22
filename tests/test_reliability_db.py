@@ -279,6 +279,9 @@ def test_drift_outcomes_use_signal_prediction_and_current_execution_contract():
     assert "s.run_date = p.run_date" not in normalized
     assert "s.ticker = p.ticker" not in normalized
     assert "o.contract_version = %(contract)s" in normalized
+    # A stale-data rerun re-issues the same trade; count it once.
+    assert "select distinct on (s.ticker, o.entry_date)" in normalized
+    assert normalized.endswith("order by s.ticker, o.entry_date, s.run_date, s.id")
     assert params == {
         "horizon": 5,
         "version": "per-ticker-v1-20260718",
@@ -314,6 +317,8 @@ def test_drift_outcomes_pool_across_model_lineage_by_kind():
     assert "p.cs_rank is null" in normalized
     assert "o.contract_version = %(contract)s" in normalized
     assert "model_version = %(version)s" not in normalized
+    assert "select distinct on (s.ticker, o.entry_date)" in normalized
+    assert normalized.endswith("order by s.ticker, o.entry_date, s.run_date, s.id")
     assert params == {
         "horizon": 5,
         "kind": db.PHASE1_MODEL_KIND,

@@ -35,7 +35,7 @@
 
 `daily-preopen-retry` は `scripts/run_guard.py needs-core-run`（`docs/state.json` の当日エントリ確認）で冪等化。当日分がなければ、マクロ更新 → core と同じ Phase 0/1/2/3 env で `main.py` → `settle_outcomes.py --refill-benchmark`（同一basis TOPIX benchmarkの冪等補填を含む）を実行し、DB台帳・Phase 2 snapshot・実現結果まで同日中に回復させます。マクロ更新と決済は core と同様に best-effort で、失敗しても日次シグナル公開を止めません。`daily-ticker-curation` は `scripts/curation_guard.py needs-run` で冪等化。
 
-`daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加え、日次ループ内でHOLDへ縮退した銘柄処理失敗・outbox滞留/dead letter・ドリフトを検知し、失敗時に GitHub Issue を起票します。
+`daily-watchdog` は鮮度・完全性チェック（`scripts/workflow_watchdog.py`）に加え、日次ループ内でHOLDへ縮退した銘柄処理失敗・outbox滞留/dead letter・ドリフトを検知し、失敗時に GitHub Issue を起票します。ドリフト Issue は open な「Model drift detected」が既にあれば新規起票せず、その Issue に当日分をコメントします（同日の再実行では重複コメントしない）。
 
 ## 週次処理
 

@@ -151,6 +151,68 @@ def test_incompatible_active_model_is_reported_unavailable():
     ]
 
 
+def test_breach_output_names_only_breached_tickers():
+    # A PSI-only warning must not appear in the DRIFT_BREACH line that the
+    # watchdog copies into the Issue; only sufficient-sample breaches do.
+    import io
+    from contextlib import redirect_stdout
+
+    import pandas as pd
+
+    tickers = [{"code": "6098.JP"}, {"code": "7011.JP"}]
+    outcomes = {
+        "6098.JP": [
+            {"prob_up": 0.5 + i / 100, "realized_ret": -i / 100, "hit": False}
+            for i in range(30)
+        ]
+    }
+    payloads = []
+    out = io.StringIO()
+    with (
+        mock.patch.object(drift_check, "TICKERS", tickers),
+        mock.patch.object(
+            drift_check.model_store,
+            "read_active_model",
+            return_value={"version": "v1", "kind": "per_ticker_horizon_v1"},
+        ),
+        mock.patch.object(
+            drift_check.model_store,
+            "validate_runtime_active_phase1",
+            return_value={"compatible": True, "reasons": []},
+        ),
+        mock.patch.object(drift_check, "_db_outcomes_by_ticker", return_value=outcomes),
+        mock.patch.object(drift_check, "load_macro_panel", return_value=None),
+        mock.patch.object(
+            drift_check.model_store,
+            "load_model_bundle",
+            return_value={"feature_reference": {"psi": {}}},
+        ),
+        mock.patch.object(
+            drift_check, "load_data", return_value=pd.DataFrame({"close": [1.0]})
+        ),
+        mock.patch.object(
+            drift_check, "build_feature_frame", return_value=pd.DataFrame()
+        ),
+        mock.patch.object(
+            drift_check.phase1, "feature_psi", return_value=(0.5, {"atr_pct": 0.5})
+        ),
+        mock.patch.object(drift_check.db, "db_enabled", return_value=False),
+        mock.patch.object(drift_check, "_write", side_effect=payloads.append),
+        mock.patch.object(sys, "argv", ["drift_check.py"]),
+        redirect_stdout(out),
+    ):
+        assert drift_check.main() == drift_check.BREACH_EXIT_CODE
+
+    summary = payloads[0]["summary"]
+    assert summary["warned_tickers"] == ["6098.JP", "7011.JP"]
+    assert summary["breached_tickers"] == ["6098.JP"]
+    breach_line = next(
+        line for line in out.getvalue().splitlines() if "DRIFT_BREACH" in line
+    )
+    assert "6098.JP" in breach_line
+    assert "7011.JP" not in breach_line
+
+
 ALL_TESTS = [
     test_psi_warning_is_not_breach_when_outcomes_insufficient,
     test_psi_warning_becomes_breach_when_outcomes_sufficient,
@@ -158,6 +220,7 @@ ALL_TESTS = [
     test_outcomes_pool_across_lineage_when_kind_available,
     test_outcomes_fall_back_to_exact_version_without_kind,
     test_incompatible_active_model_is_reported_unavailable,
+    test_breach_output_names_only_breached_tickers,
 ]
 
 

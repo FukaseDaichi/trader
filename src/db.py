@@ -1162,6 +1162,14 @@ def upsert_model_quality(conn, row: dict) -> None:
 # --- Phase 1: drift -------------------------------------------------------
 
 
+# A run on stale prices (data-fetch fallback) re-issues a signal for a market
+# date that an earlier run already covered; both settle to the same entry/exit,
+# so counting both double-weights one trade and inflates n_outcomes past
+# min_outcomes. Keep the earliest run's signal: it was issued before the entry
+# session, the later one only after it.
+_DRIFT_ONE_OUTCOME_PER_ENTRY = " ORDER BY s.ticker, o.entry_date, s.run_date, s.id"
+
+
 def fetch_prediction_outcomes(
     conn, model_version: str, horizon_days: int
 ) -> list[dict]:
@@ -1171,20 +1179,22 @@ def fetch_prediction_outcomes(
     Drift must not pick a different Phase 1/CS prediction that merely shares a
     run date and ticker. Only outcomes settled under the current execution
     contract are comparable with the active model's probabilities.
+    One row per (ticker, entry_date): see ``_DRIFT_ONE_OUTCOME_PER_ENTRY``.
     """
     from psycopg.rows import dict_row
     from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
+            "SELECT DISTINCT ON (s.ticker, o.entry_date)"
+            " p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
             " FROM signals s"
             " JOIN predictions p ON p.id = s.prediction_id"
             " JOIN signal_outcomes o ON o.signal_id = s.id"
             "  AND o.horizon_days = %(horizon)s"
             "  AND o.contract_version = %(contract)s"
             " WHERE p.model_version = %(version)s"
-            "  AND p.horizon_days = %(horizon)s",
+            "  AND p.horizon_days = %(horizon)s" + _DRIFT_ONE_OUTCOME_PER_ENTRY,
             {
                 "horizon": horizon_days,
                 "version": model_version,
@@ -1206,13 +1216,15 @@ def fetch_prediction_outcomes_for_kind(
     keeps pooled IC/hit-rate comparable; the registry join also excludes the
     legacy version (never registered under this kind) and ``cs_rank IS NULL``
     keeps cross-sectional predictions out even if a kind ever collided.
+    One row per (ticker, entry_date): see ``_DRIFT_ONE_OUTCOME_PER_ENTRY``.
     """
     from psycopg.rows import dict_row
     from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
+            "SELECT DISTINCT ON (s.ticker, o.entry_date)"
+            " p.ticker, p.prob_up, p.raw_score, o.realized_ret, o.hit"
             " FROM signals s"
             " JOIN predictions p ON p.id = s.prediction_id"
             " JOIN model_registry mr ON mr.version = p.model_version"
@@ -1221,7 +1233,7 @@ def fetch_prediction_outcomes_for_kind(
             "  AND o.contract_version = %(contract)s"
             " WHERE mr.kind = %(kind)s"
             "  AND p.cs_rank IS NULL"
-            "  AND p.horizon_days = %(horizon)s",
+            "  AND p.horizon_days = %(horizon)s" + _DRIFT_ONE_OUTCOME_PER_ENTRY,
             {
                 "horizon": horizon_days,
                 "kind": model_kind,
