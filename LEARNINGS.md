@@ -33,6 +33,7 @@
 - 2026-08-27: PowerShell で python の stdout を `| Select-Object -First N` に通すと broken pipe で exit 255 になる（スクリプト自体は正常終了）。終了コードの検証はパイプなしで実行して `$LASTEXITCODE` を見る。
 - 2026-09-26: ハーネスは `git pull --rebase` より前に `CLAUDE.md`→`AGENTS.md` を読み込むため、古いチェックアウトで始まったセッションは pull 後もしばらく旧版の指示で動く（今回は「1〜3行で要約して提示」の旧 LEARNINGS ルールを踏んだ）。pull で `AGENTS.md` や 07〜09 が更新されたら、ディスク上の現行版を読み直してから作業する。
 - 2026-10-19: Core 日次ジョブは stooq への接続タイムアウト（connect timeout=20 × 銘柄数・リトライ）が重なると `timeout-minutes: 30` に達して強制キャンセルされる（2026-10-19 実例）。job の強制キャンセルは main.py のフォールバックでは救えず、当時は Retry ワークフローだけが救済経路だった。同日 PR #25 で Stooq サーキットブレーカー（連続3回の接続失敗で遮断、300秒ごとに1回だけ再試行）を入れ、全断時の待ちを1プロセスあたり約2分に抑えた。外部 API を銘柄ループで叩く処理は「1件あたりの最悪待ち時間 × 件数」と job timeout を必ず突き合わせる。
+- 2026-10-22: drift Issue の本文 `DRIFT_BREACH ... breached for [...]` は当時 PSI 警告銘柄（warned）を並べており、47銘柄が breach に見えたが実 breach は `6098.JP` の1件だけだった。drift Issue を読むときは本文ではなく `docs/drift_report.json` の `summary.breached_tickers` と各銘柄の `breach_reasons` を正とする（2026-10-22 に出力を breach 銘柄だけに修正済み）。
 
 ## Domain Knowledge
 （業務・仕様に関する事実）
@@ -60,11 +61,13 @@
 - 2026-09-26: 週報の「総合」点は、モデルが `technical_latest.json` と `fundamental_latest.json` の平均を自分で計算したもので、マージの `combined` ではない。週次ジョブの `Refresh technical features` が technical をベースラインで上書きするため、2026-09-26 号では伊藤忠が 69.2 と載ったが、マージ上は 76.25 だった。正しい値は `decision_latest.json` の `ranking[]`（`combined` / `tech_score` / `fund_score`）にある。ただし週次ジョブはマージを回さないので、`fund_score` は前回の fundamental に基づく値になる。
 - 2026-09-26: `pipeline-safety-reviewer.md` の不変条件は 08 の手書きの写しで、08 と同期する仕組みが無い。2026-09-26 時点で、fail-closed・スキーマ版の bump・parquet 削除禁止の3つが欠け、`universe_select.py --apply`（08 が許可している tickers.yml の3人目の書き手）も漏れていた。08 を変えたらレビュアーも直す。
 - 2026-10-19: Phase 2 公式 backtest の IR は週ごとに ±0.8 振れる（2026-09-19 −0.84 → 09-26 +0.80 → 10-17 +0.002）。単週の IR で畳む/育てるを決めてはいけない。一方 turnover は 0.99→0.69 と単調に下がりつつも、全週で `turnover>0.40` が唯一の安定した gate 不合格要因。
+- 2026-10-22: データ取得が stale な日の再実行は、前日と同じ `market_as_of_date` / `entry_date` のシグナルを別 `run_date` で再発行し、両方が同一 outcome に精算される。`docs/signal_outcomes_recent.json` で同じ `(ticker, entry_date)` が2行並び、直後の数営業日ぶんが欠けていればこのパターン。drift の `n_outcomes` はこれで水増しされていた（2026-10-22 に drift 側だけ重複排除）。
 
 ## Open Questions
 （未解決・要調査）
 
 - 2026-09-06: 日次 technical agent は現状維持で決着（裁量拡大は19日検証で不合格、`min_gap` 引き下げは25日で効果ゼロ、ファンダ寄せは検証材料が存在せず保留）。残る最大の論点は**テクニカル式の27年負 IC が生存バイアスの産物かどうか**。現在の検証は enabled 50銘柄の全履歴で、廃止・除外銘柄が欠落している。候補プール側でも再現するなら、重み調整ではなく**式の符号そのもの**の議論になる。$0・AI実行ゼロで測れる。
+- 2026-10-22: Phase 1 の PSI 参照分布は `train_pool_end`（holdout・内部検証の手前）までの250行で作られるため、再学習直後でも直近窓と約3ヶ月ずれ、50銘柄中47銘柄が常時 `psi>0.25` 警告になる。`build_feature_reference` の docstring「再学習直後は PSI≈0」は成り立っていない。参照を直近へ寄せるかは artifact 内容を変えるので未着手。
 
 ## Consolidated Principles
 （統合パス専用。通常の更新処理から直接追記しない）
