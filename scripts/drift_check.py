@@ -308,7 +308,15 @@ def main() -> int:
             )
 
     if breached:
-        print(f"DRIFT_BREACH: model {version} breached for {warned}")
+        print(f"DRIFT_BREACH: model {version} breached for {breached_tickers}")
+        for code in breached_tickers:
+            row = by_ticker[code]
+            print(
+                f"  {code}: {row['breach_reasons']} ic={row['ic']} "
+                f"brier={row['brier']} n_outcomes={row['n_outcomes']} "
+                f"psi_worst={row['psi_worst_feature']}"
+            )
+        print(f"drift: {len(warned)} ticker(s) with dashboard-only warnings.")
         return BREACH_EXIT_CODE
     print(f"drift: ok (model {version}; {insufficient} ticker(s) insufficient sample).")
     return 0

@@ -124,11 +124,15 @@ jobs:
           EOF
           )
 
-          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq 'length')
-          if [ "$EXISTING" -eq 0 ]; then
+          # One open drift issue at a time: a breach persists across days, so
+          # later days comment on the open issue instead of opening a new one.
+          EXISTING=$(gh issue list --state open --search "\"Model drift detected\" in:title" --json number,title --jq '[.[] | select(.title | startswith("Model drift detected"))] | sort_by(.number) | last | .number // empty')
+          if [ -z "$EXISTING" ]; then
             gh issue create --title "$TITLE" --body "$BODY"
+          elif gh issue view "$EXISTING" --json body,comments --jq '.body, .comments[].body' | grep -qF "Model drift thresholds were breached for $TODAY_JST."; then
+            echo "Drift issue #$EXISTING already updated for $TODAY_JST."
           else
-            echo "Open drift issue already exists for $TODAY_JST."
+            gh issue comment "$EXISTING" --body "$BODY"
           fi
 
       - name: Create watchdog failure issue

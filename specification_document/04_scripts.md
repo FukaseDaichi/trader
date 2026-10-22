@@ -46,7 +46,7 @@ Phase 1の**実学習とatomic配備**: データ更新 → 特徴量 → v2ラ�
 
 ### `scripts/drift_check.py`
 
-日次推論と同じruntime artifact/gate契約、manifest/checksum、候補合格を先に検証し、互換なactiveモデルだけrolling IC / Brier / hit-rate（signal-linked Phase 1 predictions × v2 signal_outcomes）と特徴量PSIを計算して`docs/drift_report.json`へ出力する。不一致時は旧artifactを正常扱いせずunavailableへfail-closeする。閾値（`TRADER_DRIFT_*`）割れはexit codeでworkflowへ伝搬し、watchdogがIssueを起票。
+日次推論と同じruntime artifact/gate契約、manifest/checksum、候補合格を先に検証し、互換なactiveモデルだけrolling IC / Brier / hit-rate（signal-linked Phase 1 predictions × v2 signal_outcomes。同じ`(ticker, entry_date)`の取引は最も早い`run_date`の1件だけ数え、stale-data再実行による二重計上で`min_outcomes`を水増ししない）と特徴量PSIを計算して`docs/drift_report.json`へ出力する。不一致時は旧artifactを正常扱いせずunavailableへfail-closeする。閾値（`TRADER_DRIFT_*`）割れはexit codeでworkflowへ伝搬し、watchdogがIssueを起票。`DRIFT_BREACH`行に出すのはbreach銘柄だけで、PSIのみの警告銘柄は件数だけ出す。
 
 ## Phase 2（クロスセクション・ポートフォリオ）
 

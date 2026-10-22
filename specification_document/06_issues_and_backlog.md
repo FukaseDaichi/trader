@@ -21,7 +21,7 @@
 | Phase 2公式backtest | `cs-v1-20261017`: IR **+0.0017**、turnover **0.6908**、Sharpe 1.29、max DD -5.3%、alpha +6.7%、beta 0.44、benchmark coverage 1.0。gate failures=`["turnover>0.40"]` | gate不合格。IRは週ごとに±0.8振れるため単週では判断しない |
 | Phase 2 shadow report | 2026-10-17時点で`shadow_days=31`、`n_paired_dates=31`、`n_paired_records=120`、`cs_ic_vs_phase1=**+0.4104**`、`active_ready=false`（reason: `portfolio_gate not passed`） | shadow維持 |
 | Phase 1 gate | 2026-10-16は50銘柄中6銘柄が通過、actionable 3件（MILD_BUY）。2026-10-19は1銘柄通過、全HOLD | ゲートは仕様どおり機能 |
-| drift | `summary.breached=false`。多くの銘柄は`n_outcomes`不足（`min_outcomes=30`）で`insufficient_sample` | 観察継続 |
+| drift | 2026-10-20〜22に`6098.JP`だけがbreach（IC −0.28、`n_outcomes`=30〜32）し、Issue #27〜#29が毎日起票された。stale-data再実行で同じ取引のoutcomeが二重計上され（`6098.JP`は直近29件中4組が重複）、`min_outcomes=30`へ水増しで到達していた。2026-10-22に`(ticker, entry_date)`単位の重複排除とIssueの集約を実装。残り49銘柄は`insufficient_sample`、PSI警告（47銘柄）はダッシュボード表示のみ | 重複排除後に30件へ達して再びbreachするなら、実際の劣化として扱う |
 | 日次運用 | 2026-10-19のCoreがstooq全断で`timeout-minutes: 30`に達してキャンセル。Retryが救済し当日シグナルは出力済み。対策のStooqサーキットブレーカーはPR #25で2026-10-19にマージ済み | 2026-10-20以降のCoreで効果を確認 |
 
 ## 週次レビュー（継続中）
