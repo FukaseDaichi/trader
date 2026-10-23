@@ -1,6 +1,6 @@
 # GitHub Actions仕様
 
-更新日: 2026-07-24 JST
+更新日: 2026-10-24 JST
 
 ## ワークフロー一覧
 
@@ -20,6 +20,7 @@
 | Quarterly Stress Test | `quarterly-stress-test.yml` | 四半期初日 10:00 | 高コスト前提 KPI 評価 | `docs/stress_test_report.json` |
 | Manual DB Migrate | `manual-db-migrate.yml` | 手動（`workflow_dispatch`） | `migrations/*.sql` を冪等適用（`dry_run` でプレビュー） | なし（DB のみ） |
 | CI Tests | `ci-tests.yml` | code/workflow変更のpush・pull request、手動 | Pythonの全`tests/test_*.py`をplain scriptとして実行 + frontend lint・本番静的ビルド | なし |
+| Dependabot Auto-merge | `dependabot-auto-merge.yml` | `CI Tests` 完了時（`workflow_run`） | Dependabot の uv/npm minor・patch PR を CI 成功後に squash merge | なし（PR merge のみ） |
 
 ## 日次処理
 
@@ -41,6 +42,19 @@
 
 - **weekly-model-retrain（土曜 08:00）**: `weekly_model_retrain.py` が一意versionをstagingへ作り、銘柄別exact-candidate OOS証跡、schema v3 manifest/checksum、全対象coverageを検証する。合格時だけimmutable directoryをpromoteして`active_model.json`をatomic更新し、`model_registry`へ登録する（DB失敗はregistry eventをoutboxへ待避）。候補却下時は前activeを維持する。続いて`weekly_cross_section_retrain.py`がCSモデルを学習し、v2非重複・往復コスト後ポートフォリオバックテストとKPIゲートを`docs/cs_model_quality.json` / `docs/portfolio_backtest.json`へ出力する。最後に`portfolio_shadow_report.py`がsignal-linked Phase 1予測とsnapshot exact-version Phase 2予測を比較し、`active_readiness`を`docs/portfolio_shadow_report.json`へ出力する
 - **weekly-fundamental-report（土曜 07:00）**: テクニカル更新 → Claude のマクロ/ファンダ agent → **隔週（14日）の pool refresh**（cadence ガード → `/jp-stock-pool-screen` → 決定論 `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新。いずれも `continue-on-error: true` で週次本体を巻き込まない）→ レポートライター agent → commit（`reports` / `docs/curation` / `curation_pool.yml`）→ `curation_notify.py` でレポート URL を LINE 通知 → 隔週 `curation_pool_notify.py` でプール変更を通知 → `weekly_performance_notify.py` で週間実績サマリを LINE 通知（DB 不通・実績ゼロは no-op）。詳細は `ai_ticker_curation/07_pool_refresh.md`
+
+## 依存関係の更新
+
+`.github/dependabot.yml` が uv（`/`）・npm（`/web`）・GitHub Actions の更新 PR を毎週土曜 12:00 JST に作る（weekly retrain の後、月曜 pre-open 前に週末を挟む時刻）。minor/patch はエコシステムごとに1本の group PR、major は個別 PR。
+
+`dependabot-auto-merge.yml` は `CI Tests` の `workflow_run` 完了で起動し、次をすべて満たす PR だけを `gh pr merge --squash --match-head-commit` で merge する。満たさないものはスキップして open のまま残す（手動レビュー）。
+
+- 作成者が `dependabot[bot]` で、CI の結論が `success`
+- ブランチが `dependabot/uv/*` か `dependabot/npm_and_yarn/*`（GitHub Actions の更新は `.github/workflows/` を変更し、`GITHUB_TOKEN` では merge できないため手動。merge したら下の Action 版表も更新する）
+- コミットメッセージの `update-type` に `semver-major` を含まない
+- PR の head が CI で検証したコミットのまま
+
+branch protection / required status checks は使わない。required checks は日次パイプラインの `main` への直接 push も拒否するため、`workflow_run` 側で CI 結果を見る方式にしている。PR の merge は `GITHUB_TOKEN` で行うので、merge 後の `main` への push で `CI Tests` は再実行されない。
 
 ## publishの同期仕様
 
