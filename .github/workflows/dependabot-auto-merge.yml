@@ -1,0 +1,73 @@
+name: Dependabot Auto-merge
+
+# Squash-merges a Dependabot PR after CI Tests succeeds on its head commit.
+#
+# Runs on workflow_run (main's copy of this file, no PR code checked out), so
+# no branch protection / required checks are needed — those would also block
+# the daily pipeline's direct pushes to main.
+#
+# Merged only when all hold:
+#   - PR author is dependabot[bot]
+#   - ecosystem is uv or npm (github_actions bumps edit .github/workflows/,
+#     which GITHUB_TOKEN cannot merge — those stay manual)
+#   - no dependency in the PR is a semver-major update
+#   - the PR head is still the commit CI tested (--match-head-commit)
+# Anything else is skipped and left open for manual review.
+
+on:
+  workflow_run:
+    workflows: ["CI Tests"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  auto-merge:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Merge if eligible
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          case "$HEAD_BRANCH" in
+            dependabot/uv/*|dependabot/npm_and_yarn/*) ;;
+            *) echo "Skip: ${HEAD_BRANCH} is not a uv/npm update."; exit 0 ;;
+          esac
+
+          pr="$(gh pr list --head "$HEAD_BRANCH" --state open --json number,author \
+            --jq '.[] | select(.author.login == "app/dependabot" or .author.login == "dependabot[bot]") | .number')"
+          if [ -z "$pr" ]; then
+            echo "Skip: no open Dependabot PR for ${HEAD_BRANCH}."
+            exit 0
+          fi
+
+          # Dependabot records each bump's update-type in the commit message
+          # metadata (the same source dependabot/fetch-metadata parses).
+          message="$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}" --jq '.commit.message')"
+          if grep -q 'update-type: version-update:semver-major' <<<"$message"; then
+            echo "Skip: PR #${pr} contains a major update; leaving it for manual review."
+            exit 0
+          fi
+          if ! grep -q 'update-type: version-update:semver-' <<<"$message"; then
+            echo "Skip: PR #${pr} has no update-type metadata; leaving it for manual review."
+            exit 0
+          fi
+
+          gh pr merge "$pr" --squash --match-head-commit "$HEAD_SHA"
+          echo "Merged PR #${pr} at ${HEAD_SHA}."
