@@ -36,6 +36,7 @@
 - 2026-10-19: Core 日次ジョブは stooq への接続タイムアウト（connect timeout=20 × 銘柄数・リトライ）が重なると `timeout-minutes: 30` に達して強制キャンセルされる（2026-10-19 実例）。job の強制キャンセルは main.py のフォールバックでは救えず、当時は Retry ワークフローだけが救済経路だった。同日 PR #25 で Stooq サーキットブレーカー（連続3回の接続失敗で遮断、300秒ごとに1回だけ再試行）を入れ、全断時の待ちを1プロセスあたり約2分に抑えた。外部 API を銘柄ループで叩く処理は「1件あたりの最悪待ち時間 × 件数」と job timeout を必ず突き合わせる。
 - 2026-10-22: drift Issue の本文 `DRIFT_BREACH ... breached for [...]` は当時 PSI 警告銘柄（warned）を並べており、47銘柄が breach に見えたが実 breach は `6098.JP` の1件だけだった。drift Issue を読むときは本文ではなく `docs/drift_report.json` の `summary.breached_tickers` と各銘柄の `breach_reasons` を正とする（2026-10-22 に出力を breach 銘柄だけに修正済み）。
 - 2026-10-23: `uv lock --upgrade-package curl-cffi` だけでは curl-cffi が上がらない。yfinance 1.2.0 が curl-cffi <0.14 を縛っているため、yfinance も同時に upgrade する必要がある（1.7.0 で解除）。また cloud セッションの proxy は Yahoo への CONNECT を 403 で拒否するため yfinance の実取得はローカル検証できない（`download_yfinance_data` は None を返して縮退するだけ）。
+- 2026-10-24: このリポジトリで「CI が通ったら自動マージ」を branch protection の required status checks で組んではいけない。required checks は日次パイプライン（GITHUB_TOKEN）の `main` への直接 push も拒否し、日次シグナルが止まる。`workflow_run`（`CI Tests` completed）で結論と head SHA を見て `gh pr merge --match-head-commit` する方式にした（`dependabot-auto-merge.yml`）。
 
 ## Domain Knowledge
 （業務・仕様に関する事実）
