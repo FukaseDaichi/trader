@@ -21,6 +21,7 @@
 - 2026-09-06: 成果物サイズの犯人特定は、git 履歴から日次の合計バイトを再構成（`git ls-tree -r --long <commit> -- <dir>` を全コミットに回す）してから、同じファイルを新旧2時点で JSON パースして構成要素ごとにバイト数を割る、の2段で決まる。今回はこれで「行数は不変、1シグナルが 1,484B→5,208B に肥大」まで即座に絞れた。
 - 2026-09-26: 指示ファイルの節を別ファイルへ移したら、移した節の見出し名（例「ユーザーへの報告」）と移動元のファイル名でリポジトリ全体を grep し、参照切れを潰す。`d30b0dff3` では 09 と AGENTS.md の索引に参照切れが残り、読み手の文脈を書いた1行と規律1つが移設時に落ちていた。
 - 2026-10-19: Phase 2 の週次推移は、`git log --grep='Weekly retrain refresh'` の各コミットから `git show <c>:docs/portfolio_backtest.json` と `docs/portfolio_shadow_report.json` を読めば数秒で並べられる（IR・turnover・`cs_ic_vs_phase1`・gate failures）。06 の「現在地」は手で更新されないと止まるので、状況判断の前に必ずこれで実測を取る。
+- 2026-10-23: Python 依存の脆弱性監査は `uv export --frozen --no-hashes --no-emit-project --format requirements-txt > req.txt` → `uvx pip-audit -r req.txt --no-deps --disable-pip` で回る（`--no-emit-project` を付けないと先頭の `-e .` 行で pip-audit がパースエラー）。修正は `uv lock --upgrade-package <pkg>` を脆弱パッケージ分だけ並べると影響が最小。web は `npm audit` → `npm install --save-exact next@X eslint-config-next@X` → `npm audit fix`。
 
 ## Mistakes to Avoid
 （失敗と再発防止策）
@@ -34,6 +35,7 @@
 - 2026-09-26: ハーネスは `git pull --rebase` より前に `CLAUDE.md`→`AGENTS.md` を読み込むため、古いチェックアウトで始まったセッションは pull 後もしばらく旧版の指示で動く（今回は「1〜3行で要約して提示」の旧 LEARNINGS ルールを踏んだ）。pull で `AGENTS.md` や 07〜09 が更新されたら、ディスク上の現行版を読み直してから作業する。
 - 2026-10-19: Core 日次ジョブは stooq への接続タイムアウト（connect timeout=20 × 銘柄数・リトライ）が重なると `timeout-minutes: 30` に達して強制キャンセルされる（2026-10-19 実例）。job の強制キャンセルは main.py のフォールバックでは救えず、当時は Retry ワークフローだけが救済経路だった。同日 PR #25 で Stooq サーキットブレーカー（連続3回の接続失敗で遮断、300秒ごとに1回だけ再試行）を入れ、全断時の待ちを1プロセスあたり約2分に抑えた。外部 API を銘柄ループで叩く処理は「1件あたりの最悪待ち時間 × 件数」と job timeout を必ず突き合わせる。
 - 2026-10-22: drift Issue の本文 `DRIFT_BREACH ... breached for [...]` は当時 PSI 警告銘柄（warned）を並べており、47銘柄が breach に見えたが実 breach は `6098.JP` の1件だけだった。drift Issue を読むときは本文ではなく `docs/drift_report.json` の `summary.breached_tickers` と各銘柄の `breach_reasons` を正とする（2026-10-22 に出力を breach 銘柄だけに修正済み）。
+- 2026-10-23: `uv lock --upgrade-package curl-cffi` だけでは curl-cffi が上がらない。yfinance 1.2.0 が curl-cffi <0.14 を縛っているため、yfinance も同時に upgrade する必要がある（1.7.0 で解除）。また cloud セッションの proxy は Yahoo への CONNECT を 403 で拒否するため yfinance の実取得はローカル検証できない（`download_yfinance_data` は None を返して縮退するだけ）。
 
 ## Domain Knowledge
 （業務・仕様に関する事実）
