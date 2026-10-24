@@ -2,15 +2,10 @@
   "available": true,
   "n_dates": 40,
   "n_records": 2000,
-  "n_paired_dates": 31,
-  "n_paired_records": 120,
+  "n_paired_dates": 30,
+  "n_paired_records": 99,
   "date_coverage": {
     "observed_dates": [
-      "2026-08-18",
-      "2026-08-19",
-      "2026-08-20",
-      "2026-08-21",
-      "2026-08-24",
       "2026-08-25",
       "2026-08-26",
       "2026-08-27",
@@ -45,14 +40,14 @@
       "2026-10-13",
       "2026-10-14",
       "2026-10-15",
-      "2026-10-16"
+      "2026-10-16",
+      "2026-10-19",
+      "2026-10-20",
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23"
     ],
     "paired_dates": [
-      "2026-08-18",
-      "2026-08-19",
-      "2026-08-20",
-      "2026-08-21",
-      "2026-08-24",
       "2026-08-25",
       "2026-08-26",
       "2026-08-27",
@@ -78,7 +73,11 @@
       "2026-10-01",
       "2026-10-02",
       "2026-10-05",
-      "2026-10-07"
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09",
+      "2026-10-15",
+      "2026-10-16"
     ],
     "excluded_dates": {
       "2026-09-08": [
@@ -92,32 +91,33 @@
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-10-08": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
-      "2026-10-09": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
-        "fewer_than_two_paired_names"
-      ],
       "2026-10-13": [
-        "missing_phase1_settled_outcome",
-        "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
       "2026-10-14": [
+        "fewer_than_two_paired_names"
+      ],
+      "2026-10-19": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-10-15": [
+      "2026-10-20": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-10-16": [
+      "2026-10-21": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-10-22": [
+        "missing_phase1_settled_outcome",
+        "missing_phase2_settled_outcome",
+        "fewer_than_two_paired_names"
+      ],
+      "2026-10-23": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
@@ -125,42 +125,42 @@
     }
   },
   "top_n": 8,
-  "generated_at": "2026-10-17T11:06:26+09:00",
+  "generated_at": "2026-10-24T10:45:58+09:00",
   "window": {
-    "start": "2026-08-18",
-    "end": "2026-10-17",
+    "start": "2026-08-25",
+    "end": "2026-10-24",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20261017",
+  "model_version": "cs-v1-20261024",
   "comparison": {
     "phase1": {
-      "daily_ic": -0.20867369862232216,
-      "rank_ic": -0.1348109403697568,
-      "topn_realized_return": 0.0021805548528013178,
-      "hit_rate": 0.5416666666666666,
-      "max_drawdown": -0.14074052362346245,
+      "daily_ic": -0.08642673749687015,
+      "rank_ic": -0.01049511457255818,
+      "topn_realized_return": 0.002196148200126551,
+      "hit_rate": 0.5454545454545454,
+      "max_drawdown": -0.140740523623462,
       "turnover": null,
-      "n_dates_with_topn": 31
+      "n_dates_with_topn": 30
     },
     "phase2": {
-      "daily_ic": 0.20174676242238046,
-      "rank_ic": 0.23308304310827369,
-      "topn_realized_return": 0.0021805548528013178,
-      "hit_rate": 0.5416666666666666,
-      "max_drawdown": -0.14074052362346245,
-      "turnover": 0.006696781203594155,
+      "daily_ic": 0.17432544242066825,
+      "rank_ic": 0.22486069267786785,
+      "topn_realized_return": 0.002196148200126551,
+      "hit_rate": 0.5454545454545454,
+      "max_drawdown": -0.140740523623462,
+      "turnover": 0.006960675211993163,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.00475339639442382,
-        "mean_realized_ret": 0.0024316346650742533,
-        "bias": 0.0023217617293495667,
-        "n": 120
+        "mean_expected_ret": 0.004752471199491587,
+        "mean_realized_ret": 0.0033993103252999,
+        "bias": 0.0013531608741916869,
+        "n": 99
       },
-      "n_dates_with_topn": 31
+      "n_dates_with_topn": 30
     },
     "delta": {
-      "daily_ic": 0.41042046104470264,
-      "rank_ic": 0.3678939834780305,
+      "daily_ic": 0.2607521799175384,
+      "rank_ic": 0.235355807250426,
       "topn_realized_return": 0.0,
       "hit_rate": 0.0,
       "max_drawdown": 0.0
@@ -178,7 +178,6 @@
     "phase2_prediction": "portfolio_snapshots.model_version",
     "outcome_contract_version": "next_session_open_to_close_v2",
     "snapshot_model_versions": [
-      "cs-v1-20260815",
       "cs-v1-20260822",
       "cs-v1-20260829",
       "cs-v1-20260905",
@@ -186,14 +185,10 @@
       "cs-v1-20260919",
       "cs-v1-20260926",
       "cs-v1-20261003",
-      "cs-v1-20261010"
+      "cs-v1-20261010",
+      "cs-v1-20261017"
     ],
     "snapshot_model_version_by_date": {
-      "2026-08-18": "cs-v1-20260815",
-      "2026-08-19": "cs-v1-20260815",
-      "2026-08-20": "cs-v1-20260815",
-      "2026-08-21": "cs-v1-20260815",
-      "2026-08-24": "cs-v1-20260822",
       "2026-08-25": "cs-v1-20260822",
       "2026-08-26": "cs-v1-20260822",
       "2026-08-27": "cs-v1-20260822",
@@ -228,15 +223,20 @@
       "2026-10-13": "cs-v1-20261010",
       "2026-10-14": "cs-v1-20261010",
       "2026-10-15": "cs-v1-20261010",
-      "2026-10-16": "cs-v1-20261010"
+      "2026-10-16": "cs-v1-20261010",
+      "2026-10-19": "cs-v1-20261017",
+      "2026-10-20": "cs-v1-20261017",
+      "2026-10-21": "cs-v1-20261017",
+      "2026-10-22": "cs-v1-20261017",
+      "2026-10-23": "cs-v1-20261017"
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 31,
+    "shadow_days": 30,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": 0.41042046104470264,
+    "cs_ic_vs_phase1": 0.2607521799175384,
     "reasons": [
       "portfolio_gate not passed"
     ]
