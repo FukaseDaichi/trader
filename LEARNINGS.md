@@ -37,6 +37,7 @@
 - 2026-10-22: drift Issue の本文 `DRIFT_BREACH ... breached for [...]` は当時 PSI 警告銘柄（warned）を並べており、47銘柄が breach に見えたが実 breach は `6098.JP` の1件だけだった。drift Issue を読むときは本文ではなく `docs/drift_report.json` の `summary.breached_tickers` と各銘柄の `breach_reasons` を正とする（2026-10-22 に出力を breach 銘柄だけに修正済み）。
 - 2026-10-23: `uv lock --upgrade-package curl-cffi` だけでは curl-cffi が上がらない。yfinance 1.2.0 が curl-cffi <0.14 を縛っているため、yfinance も同時に upgrade する必要がある（1.7.0 で解除）。また cloud セッションの proxy は Yahoo への CONNECT を 403 で拒否するため yfinance の実取得はローカル検証できない（`download_yfinance_data` は None を返して縮退するだけ）。
 - 2026-10-24: このリポジトリで「CI が通ったら自動マージ」を branch protection の required status checks で組んではいけない。required checks は日次パイプライン（GITHUB_TOKEN）の `main` への直接 push も拒否し、日次シグナルが止まる。`workflow_run`（`CI Tests` completed）で結論と head SHA を見て `gh pr merge --match-head-commit` する方式にした（`dependabot-auto-merge.yml`）。
+- 2026-10-24: このMacのBashツールはzshで動くので、echo ===SETTINGS のように「=」で始まる区切り文字を引用符なしで渡すと「== not found」でコマンドごと失敗する。区切りは echo "---X" のように引用符で囲む
 
 ## Domain Knowledge
 （業務・仕様に関する事実）
@@ -65,6 +66,7 @@
 - 2026-09-26: `pipeline-safety-reviewer.md` の不変条件は 08 の手書きの写しで、08 と同期する仕組みが無い。2026-09-26 時点で、fail-closed・スキーマ版の bump・parquet 削除禁止の3つが欠け、`universe_select.py --apply`（08 が許可している tickers.yml の3人目の書き手）も漏れていた。08 を変えたらレビュアーも直す。
 - 2026-10-19: Phase 2 公式 backtest の IR は週ごとに ±0.8 振れる（2026-09-19 −0.84 → 09-26 +0.80 → 10-17 +0.002）。単週の IR で畳む/育てるを決めてはいけない。一方 turnover は 0.99→0.69 と単調に下がりつつも、全週で `turnover>0.40` が唯一の安定した gate 不合格要因。
 - 2026-10-22: データ取得が stale な日の再実行は、前日と同じ `market_as_of_date` / `entry_date` のシグナルを別 `run_date` で再発行し、両方が同一 outcome に精算される。`docs/signal_outcomes_recent.json` で同じ `(ticker, entry_date)` が2行並び、直後の数営業日ぶんが欠けていればこのパターン。drift の `n_outcomes` はこれで水増しされていた（2026-10-22 に drift 側だけ重複排除）。
+- 2026-10-24: trader の tickers.yml/curation_pool.yml を守る PreToolUse フック protect-deterministic-files.sh は matcher が Edit|Write|MultiEdit だけで、Bash（sed -i やリダイレクト）での書き込みは止められない。parquet 削除にも機械的なガードはない
 
 ## Open Questions
 （未解決・要調査）
