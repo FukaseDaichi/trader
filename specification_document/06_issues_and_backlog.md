@@ -126,14 +126,13 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 
 | 項目 | 内容 | 備考 |
 | --- | --- | --- |
-| migration `0005_market_outcomes` の適用 | `manual-db-migrate.yml` を人間が実行する。未適用の間、`settle_market_outcomes.py` と shadow report の `full_universe`・drift の `all_predictions` は「テーブルなし」で no-op に縮退する | 適用後の最初の Core で直近90日の予測を backfill する（60日の shadow window を即日埋める）。中身は「観察中」の全銘柄比較を参照 |
 | `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.6908`（2026-10-17、08-22は0.9919）。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | active総合判定の必須項目。数値合わせのために緩めない。2026-10-19判断で「畳む」方針を取り下げたため着手可。ただし2026-10-25に shadow 比較の標本が1日約3銘柄と判明したため、`full_universe` の結果を先に確認してから着手する |
 
 ### 観察中（条件が揃ったら判断）
 
 | 項目 | いつ判断するか | 内容 |
 | --- | --- | --- |
-| 全銘柄比較を判定の入力へ切り替えるか | migration 0005 適用後、最低2回の週次レビューで既存値と `full_universe` / drift `all_predictions` を並べて記録した後 | `signal_outcomes` は actionable しか決済しないため、shadow 比較（`cs_ic_vs_phase1`・`shadow_days`）と drift は1日約3銘柄の偏った標本で測られていた（2026-10-24: `n_paired_records=99`／30日、`top_n=8` を下回るため top-N の delta は構造的に0、drift は50/50が `insufficient_sample`）。評価専用台帳 `market_outcomes` を追加し、参考値として併記している。`active_readiness` の入力、および drift breach の標本と閾値（`min_ic`・`max_brier`）を切り替えるかは人間が判断する。判定基準の変更なので決定記録を残す。HOLD を `signal_outcomes` に混ぜる案は、成績KPIの全読み手へフィルタが必要で漏れると静かに数値が変わるため不採用 |
+| 全銘柄比較を判定の入力へ切り替えるか | 最低2回の週次レビュー（migration 0005 は2026-10-25に`manual-db-migrate.yml`で適用済み。初回の直近90日 backfill は2026-10-26の Core）で既存値と `full_universe` / drift `all_predictions` を並べて記録した後 | `signal_outcomes` は actionable しか決済しないため、shadow 比較（`cs_ic_vs_phase1`・`shadow_days`）と drift は1日約3銘柄の偏った標本で測られていた（2026-10-24: `n_paired_records=99`／30日、`top_n=8` を下回るため top-N の delta は構造的に0、drift は50/50が `insufficient_sample`）。評価専用台帳 `market_outcomes` を追加し、参考値として併記している。`active_readiness` の入力、および drift breach の標本と閾値（`min_ic`・`max_brier`）を切り替えるかは人間が判断する。判定基準の変更なので決定記録を残す。HOLD を `signal_outcomes` に混ぜる案は、成績KPIの全読み手へフィルタが必要で漏れると静かに数値が変わるため不採用 |
 | `cs_ic_vs_phase1`の持続性 | 週次レビューごと | 2026-09-12以降は6週連続で正（直近+0.41）。再び負へ戻り数週続く場合は、原因分析を先に行ってから特徴量・ラベル・学習設計を見直す |
 | CS較正の粗さ | 次回shadowレビュー | 同値scoreや低grossが成績・分散を実際に阻害した場合だけ、isotonic連続化を検討する |
 | `8766.JP`の旧履歴異常 | 学習失敗やdrift breachになれば即時（2026-08-24再確認済み: 学習正常・breachなしで非該当） | 2005年の株式分割級不連続が残る。学習開始日カットまたはcorporate action補正を検討する |
