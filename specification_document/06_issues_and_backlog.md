@@ -126,7 +126,7 @@ AIが書く`reports/weekly_*.md`は内容チェックなしでURLがLINE通知�
 
 | 項目 | 内容 | 備考 |
 | --- | --- | --- |
-| migration `0005_market_outcomes` の適用 | `manual-db-migrate.yml` を人間が実行する。未適用の間、`settle_market_outcomes.py` と shadow report の `full_universe`・drift の `all_predictions` は「テーブルなし」で no-op に縮退する | 適用後の最初の Core で予測のある全期間を backfill する。中身は「観察中」の全銘柄比較を参照 |
+| migration `0005_market_outcomes` の適用 | `manual-db-migrate.yml` を人間が実行する。未適用の間、`settle_market_outcomes.py` と shadow report の `full_universe`・drift の `all_predictions` は「テーブルなし」で no-op に縮退する | 適用後の最初の Core で直近90日の予測を backfill する（60日の shadow window を即日埋める）。中身は「観察中」の全銘柄比較を参照 |
 | `TRADER_PORTFOLIO_BACKTEST_MAX_TURNOVER`の再校正 | 現行`0.40`に対し実測`0.6908`（2026-10-17、08-22は0.9919）。v2 shadow分布と同一basis benchmarkが揃ったので、根拠付きで再設定する | active総合判定の必須項目。数値合わせのために緩めない。2026-10-19判断で「畳む」方針を取り下げたため着手可。ただし2026-10-25に shadow 比較の標本が1日約3銘柄と判明したため、`full_universe` の結果を先に確認してから着手する |
 
 ### 観察中（条件が揃ったら判断）

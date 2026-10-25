@@ -334,7 +334,86 @@ def test_all_prediction_outcomes_degrade_and_pick_scope():
     assert calls == [(5, "per_ticker_horizon_v1", "v1")]
 
 
+def test_all_prediction_rows_leave_existing_drift_outputs_identical():
+    import io
+    from contextlib import redirect_stdout
+
+    import pandas as pd
+
+    tickers = [{"code": "6098.JP"}, {"code": "7011.JP"}]
+    outcomes = {
+        "6098.JP": [
+            {"prob_up": 0.5 + i / 100, "realized_ret": -i / 100, "hit": False}
+            for i in range(30)
+        ]
+    }
+    all_rows = {
+        code: [{"prob_up": 0.9 - i / 100, "realized_ret": i / 100} for i in range(40)]
+        for code in ("6098.JP", "7011.JP")
+    }
+
+    def run(all_result):
+        payloads = []
+        with (
+            mock.patch.object(drift_check, "TICKERS", tickers),
+            mock.patch.object(
+                drift_check.model_store,
+                "read_active_model",
+                return_value={"version": "v1", "kind": "per_ticker_horizon_v1"},
+            ),
+            mock.patch.object(
+                drift_check.model_store,
+                "validate_runtime_active_phase1",
+                return_value={"compatible": True, "reasons": []},
+            ),
+            mock.patch.object(
+                drift_check, "_db_outcomes_by_ticker", return_value=outcomes
+            ),
+            mock.patch.object(
+                drift_check,
+                "_db_all_prediction_outcomes_by_ticker",
+                return_value=all_result,
+            ),
+            mock.patch.object(drift_check, "load_macro_panel", return_value=None),
+            mock.patch.object(
+                drift_check.model_store,
+                "load_model_bundle",
+                return_value={"feature_reference": {"psi": {}}},
+            ),
+            mock.patch.object(
+                drift_check, "load_data", return_value=pd.DataFrame({"close": [1.0]})
+            ),
+            mock.patch.object(
+                drift_check, "build_feature_frame", return_value=pd.DataFrame()
+            ),
+            mock.patch.object(
+                drift_check.phase1,
+                "feature_psi",
+                return_value=(0.5, {"atr_pct": 0.5}),
+            ),
+            mock.patch.object(drift_check.db, "db_enabled", return_value=False),
+            mock.patch.object(drift_check, "_write", side_effect=payloads.append),
+            mock.patch.object(sys, "argv", ["drift_check.py"]),
+            redirect_stdout(io.StringIO()),
+        ):
+            code = drift_check.main()
+        payload = payloads[0]
+        legacy_rows = {
+            k: {kk: vv for kk, vv in v.items() if kk != "all_predictions"}
+            for k, v in payload["by_ticker"].items()
+        }
+        legacy = {k: v for k, v in payload.items() if k != "all_predictions"}
+        legacy["by_ticker"] = legacy_rows
+        return code, legacy
+
+    without = run((None, "market_outcomes_unavailable"))
+    with_rows = run((all_rows, None))
+    assert without[0] == with_rows[0] == drift_check.BREACH_EXIT_CODE
+    assert without[1] == with_rows[1]
+
+
 ALL_TESTS = [
+    test_all_prediction_rows_leave_existing_drift_outputs_identical,
     test_all_prediction_metrics_never_warn_breach_or_change_exit_code,
     test_all_prediction_outcomes_degrade_and_pick_scope,
     test_psi_warning_is_not_breach_when_outcomes_insufficient,

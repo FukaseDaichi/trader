@@ -31,7 +31,7 @@
 1. `scripts/update_macro_snapshots.py --as-of <today>`: マクロ系列取得 → `data/macro/macro_panel.parquet` 更新 + `macro_snapshots` upsert（失敗しても続行）
 2. `main.py`: 日次シグナル + Phase 2 snapshot + 通知 + DB write-through + ダッシュボード出力。`DATABASE_URL` / LINE secrets / `TRADER_PORTFOLIO_*` などの env はこのステップに集約
 3. `scripts/settle_outcomes.py --as-of <today> --refill-benchmark`: 翌営業日寄付き→1/5/10営業日目終値の実現結果 + settle当日分の実績JSON再エクスポート（失敗はwarningで続行）。決済時にマクロパネルの`topix_open`→`topix`で同一basis TOPIX benchmarkをインライン計算し、`--refill-benchmark` はv2の`benchmark_ret`未設定行を冪等補填する
-4. `scripts/settle_market_outcomes.py`（`continue-on-error`、`timeout-minutes: 5`）: 評価専用の `market_outcomes` へ HOLD を含む全予測銘柄の実現リターンを追加。既存の決済とは別プロセスで、常に exit 0
+4. `scripts/settle_market_outcomes.py --lookback-days 90`（`continue-on-error`、`timeout-minutes: 5`）: 評価専用の `market_outcomes` へ HOLD を含む全予測銘柄の実現リターンを追加。既存の決済とは別プロセスで、常に exit 0
 5. `scripts/drift_check.py --as-of <today> || true`: `main.py`と同じlabel/horizon/calibration/macro envでactive schema v3のruntime契約・manifestを検証してから`docs/drift_report.json`を出力。不整合は旧モデルを評価せずunavailableへfail-closeする
 6. `.github/scripts/commit-and-push.sh` で commit/push
 

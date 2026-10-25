@@ -20,6 +20,10 @@ refilled on every run.
 Usage:
   uv run python scripts/settle_market_outcomes.py
   uv run python scripts/settle_market_outcomes.py --since 2026-08-01
+  uv run python scripts/settle_market_outcomes.py --lookback-days 90
+
+The daily workflow passes --lookback-days so the step stays short and pairs
+that can never settle (no parquet / missing as-of row) age out of the scan.
 
 Always exits 0: DB disabled / unreachable, migration 0005 not applied, or any
 other error is logged and skipped so the daily run is never affected.
@@ -29,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -48,6 +53,7 @@ from src.execution import (  # noqa: E402
     SAME_BASIS_BENCHMARK,
     resolve_execution_window,
 )
+from scripts.curation_common import today_jst_iso  # noqa: E402
 from scripts.settle_outcomes import _load_topix_by_date  # noqa: E402
 
 
@@ -181,6 +187,16 @@ def settle(conn, *, since: str | None) -> tuple[int, int]:
     return total, len(by_ticker)
 
 
+def _resolve_since(since: str | None, lookback_days: int | None) -> str | None:
+    """Explicit ``--since`` wins; otherwise ``today JST - lookback_days``."""
+    if since:
+        return since
+    if lookback_days is None:
+        return None
+    start = date.fromisoformat(today_jst_iso()) - timedelta(days=max(0, lookback_days))
+    return start.isoformat()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -188,7 +204,14 @@ def main() -> int:
         default=None,
         help="Only settle predictions with as_of_date >= this ISO date.",
     )
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=None,
+        help="Only settle predictions from the last N calendar days (ignored with --since).",
+    )
     args = parser.parse_args()
+    since = _resolve_since(args.since, args.lookback_days)
 
     if not db.db_enabled():
         print("DB disabled or DATABASE_URL unset; skipping market settlement.")
@@ -209,7 +232,7 @@ def main() -> int:
                 "market_outcomes table missing (migration 0005 not applied); skipping."
             )
             return 0
-        total, tickers = settle(conn, since=args.since)
+        total, tickers = settle(conn, since=since)
         print(f"Market settlement: inserted {total} rows across {tickers} tickers.")
     except Exception as exc:  # noqa: BLE001 — evaluation-only; never fail the job
         print(f"Market settlement failed (ignored): {type(exc).__name__}: {exc}")

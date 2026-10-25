@@ -34,7 +34,7 @@ JPX 営業日判定と休日キャッシュ同期。`is-open`（指定日また�
 
 ### `scripts/settle_market_outcomes.py`
 
-評価専用の実現リターン台帳 `market_outcomes`（migration 0005）を埋める。`predictions` に存在する全 `(ticker, as_of_date)`（Phase 1 / Phase 2、HOLD を含む）について、`settle_outcomes.py` と同じ v2 約定窓・同一basis TOPIX benchmark で 1/5/10 営業日の `realized_ret` を計算し、未決済の `(horizon, contract)` だけを `ON CONFLICT DO NOTHING` で追加する。action に依存しないため `hit` / MAE / MFE は持たない。benchmark が NULL の行は毎回冪等に補填する。`--since YYYY-MM-DD` で対象の `as_of_date` を絞れる（既定は全期間なので、初回実行が過去分の backfill を兼ねる）。
+評価専用の実現リターン台帳 `market_outcomes`（migration 0005）を埋める。`predictions` に存在する全 `(ticker, as_of_date)`（Phase 1 / Phase 2、HOLD を含む）について、`settle_outcomes.py` と同じ v2 約定窓・同一basis TOPIX benchmark で 1/5/10 営業日の `realized_ret` を計算し、未決済の `(horizon, contract)` だけを `ON CONFLICT DO NOTHING` で追加する。action に依存しないため `hit` / MAE / MFE は持たない。benchmark が NULL の行は毎回冪等に補填する。`--since YYYY-MM-DD` または `--lookback-days N` で対象の `as_of_date` を絞れる（両方なしは全期間）。日次 workflow は `--lookback-days 90` で呼び、60日の shadow window を初回から埋めつつ、決済できない組（parquet なし・as-of 行なし）が毎日再走査され続けないようにする。
 
 読み手は `portfolio_shadow_report.py` の `full_universe` と `drift_check.py` の `all_predictions` だけで、KPIゲート・成績KPI・通知・`signal_outcomes` には一切関与しない。DB無効・接続不可・テーブル未作成（migration 0005 未適用）・その他の例外はログを出して常に exit 0。
 

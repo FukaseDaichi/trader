@@ -105,8 +105,10 @@ jobs:
           TRADER_DB_ENABLED: "true"
         # Every predicted name (HOLD included) for the shadow report and
         # drift's informational metrics. Separate process so it can never
-        # affect signal_outcomes settlement; always exits 0.
-        run: uv run python scripts/settle_market_outcomes.py
+        # affect signal_outcomes settlement; always exits 0. The lookback
+        # covers the 60-day shadow window and keeps the step short; older
+        # history can be settled with --since.
+        run: uv run python scripts/settle_market_outcomes.py --lookback-days 90
 
       - name: Publish model drift report
         if: ${{ steps.market.outputs.is_open == 'true' }}

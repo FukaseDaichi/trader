@@ -611,6 +611,22 @@ def test_full_universe_block_unavailable_and_safe_fetch_degrades():
         "informational_only": True,
     }
 
+    original_build = psr.portfolio_shadow.build_shadow_report
+    try:
+
+        def broken(*_args, **_kwargs):
+            raise ValueError("bad frame")
+
+        psr.portfolio_shadow.build_shadow_report = broken
+        assert psr._full_universe_block([], {}, None, top_n=8) == {
+            "available": False,
+            "reason": "build_error: ValueError",
+            "outcome_source": "market_outcomes",
+            "informational_only": True,
+        }
+    finally:
+        psr.portfolio_shadow.build_shadow_report = original_build
+
     original = psr.db.market_outcomes_available
     try:
         psr.db.market_outcomes_available = lambda conn: False

@@ -220,7 +220,18 @@ def test_main_exits_zero_when_db_disabled_or_table_missing():
         sys.argv = argv
 
 
+def test_resolve_since_prefers_explicit_date_then_lookback():
+    originals = _patch(today_jst_iso=lambda: "2026-10-25")
+    try:
+        assert settle_market_outcomes._resolve_since("2026-08-01", 90) == "2026-08-01"
+        assert settle_market_outcomes._resolve_since(None, 90) == "2026-07-27"
+        assert settle_market_outcomes._resolve_since(None, None) is None
+    finally:
+        _restore(originals)
+
+
 ALL_TESTS = [
+    test_resolve_since_prefers_explicit_date_then_lookback,
     test_rows_use_contract_v2_window_without_action,
     test_rows_fall_back_to_archived_data_and_skip_unknown_dates,
     test_settle_covers_hold_names_and_isolates_ticker_failures,

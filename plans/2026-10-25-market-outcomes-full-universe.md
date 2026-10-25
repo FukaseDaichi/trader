@@ -95,8 +95,8 @@ Step 1〜3 は1本の PR にまとめる（2026-10-25 にユーザーが決定�
     `_load_topix_by_date()` を import して再利用する。`realized_ret` は
     `exit_price / entry_price - 1`。
   - 冪等: PK で `ON CONFLICT DO NOTHING`。前方データ不足の行は次回以降に決済する。
-  - `--since YYYY-MM-DD`: 対象の `as_of_date` を絞る。既定は全期間なので、初回実行が過去分の
-    backfill を兼ねる（parquet の価格履歴から再計算できるため、過去60日の shadow window を即座に埋められる）。
+  - `--since YYYY-MM-DD` / `--lookback-days N`: 対象の `as_of_date` を絞る。日次 workflow は
+    `--lookback-days 90` で呼ぶので、初回実行が直近90日の backfill を兼ねる（parquet の価格履歴から再計算できるため、過去60日の shadow window を即座に埋められる）。
   - 縮退: DB 無効、接続不可、テーブル未作成（`UndefinedTable`）、その他の例外は全て
     ログを出して exit 0 で終える。
 - `daily-preopen-core.yml` と `daily-preopen-retry.yml` の「Settle realized outcomes」の直後に、

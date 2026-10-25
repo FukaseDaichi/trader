@@ -335,7 +335,14 @@ def _full_universe_block(
         {**r, "realized_ret": realized_by_key.get((r["date"], r["ticker"]))}
         for r in records
     ]
-    block = portfolio_shadow.build_shadow_report(full_records, top_n=top_n)
+    try:
+        block = portfolio_shadow.build_shadow_report(full_records, top_n=top_n)
+    except Exception as exc:  # noqa: BLE001 — the block must stay strictly additive
+        return {
+            "available": False,
+            "reason": f"build_error: {type(exc).__name__}",
+            **meta,
+        }
     block.update(meta)
     return block
 
