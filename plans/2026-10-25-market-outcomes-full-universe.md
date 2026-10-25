@@ -1,7 +1,7 @@
 # 全銘柄の実現リターン台帳（`market_outcomes`）— 評価専用
 
 作成日: 2026-10-25 JST
-状態: 計画（未着手）
+状態: Step 1〜3 実装済み（1本の PR にまとめた）。migration 0005 の適用と Step 4 の判断待ち
 
 ## 目的
 
@@ -83,8 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_market_outcomes_asof ON market_outcomes (market_a
 
 ## 実装ステップ
 
-各ステップは独立した PR にする。Step 1〜3 は既存の判定（`active_readiness`、drift breach）を
-一切変えない。判定の入力を切り替えるのは Step 4 で、人間の判断を挟む。
+Step 1〜3 は1本の PR にまとめる（2026-10-25 にユーザーが決定）。Step 1〜3 は既存の判定
+（`active_readiness`、drift breach）を一切変えない。判定の入力を切り替えるのは Step 4 で、人間の判断を挟む。
 
 ### Step 1: 台帳の書き手
 
@@ -95,12 +95,12 @@ CREATE INDEX IF NOT EXISTS idx_market_outcomes_asof ON market_outcomes (market_a
     `_load_topix_by_date()` を import して再利用する。`realized_ret` は
     `exit_price / entry_price - 1`。
   - 冪等: PK で `ON CONFLICT DO NOTHING`。前方データ不足の行は次回以降に決済する。
-  - `--backfill-from YYYY-MM-DD`: 過去の予測を一括決済する。parquet の価格履歴から再計算できるので、
-    過去60日の shadow window を即座に埋められる。
+  - `--since YYYY-MM-DD`: 対象の `as_of_date` を絞る。既定は全期間なので、初回実行が過去分の
+    backfill を兼ねる（parquet の価格履歴から再計算できるため、過去60日の shadow window を即座に埋められる）。
   - 縮退: DB 無効、接続不可、テーブル未作成（`UndefinedTable`）、その他の例外は全て
     ログを出して exit 0 で終える。
 - `daily-preopen-core.yml` と `daily-preopen-retry.yml` の「Settle realized outcomes」の直後に、
-  `continue-on-error: true` のステップとして追加する。既存の決済ステップとは別プロセスにし、
+  `continue-on-error: true`・`timeout-minutes: 5` のステップとして追加する。既存の決済ステップとは別プロセスにし、
   新スクリプトの失敗が既存決済へ波及しないようにする。
 - `settle_outcomes.py` は変更しない。
 - テスト: `tests/test_settle_market_outcomes.py`（DB 不要。fake conn で冪等性、HOLD を含むこと、
@@ -111,10 +111,11 @@ CREATE INDEX IF NOT EXISTS idx_market_outcomes_asof ON market_outcomes (market_a
 - `scripts/portfolio_shadow_report.py` に、`market_outcomes` から `realized_ret` を取る2本目の
   クエリを追加する。join は `predictions.as_of_date = market_outcomes.market_as_of_date`
   （Phase 1 / Phase 2 とも同じ市場日の同じ実現リターンを共有する）。
-- 出力 JSON に `comparison_full_universe` と `coverage_full_universe` を**追加**する。
+- 出力 JSON の末尾に `full_universe` ブロックを**追加**する（`build_shadow_report()` と同じ
+  `n_paired_*` / `date_coverage` / `comparison` 構造に `outcome_source` / `informational_only` を付けたもの）。
   - 既存の `comparison`・`n_paired_*`・`date_coverage`・`active_readiness` は従来の
     actionable-only 計算のまま変えない。
-  - テーブル未作成・取得失敗時は `comparison_full_universe: {"available": false, "reason": ...}`
+  - テーブル未作成・取得失敗時は `full_universe: {"available": false, "reason": ...}`
     とし、既存キーは影響を受けない。
 - `src/portfolio_shadow.py` の計算関数（`compare_phase1_phase2` ほか）は入力レコードを変えるだけで
   再利用する。関数のシグネチャと既存出力は変えない。
@@ -124,8 +125,9 @@ CREATE INDEX IF NOT EXISTS idx_market_outcomes_asof ON market_outcomes (market_a
 
 ### Step 3: drift に全予測ベースの指標を参考表示
 
-- `scripts/drift_check.py` の銘柄別出力に `ic_all_predictions` / `brier_all_predictions` /
-  `n_all_predictions` を**参考値として追加**する。
+- `scripts/drift_check.py` の銘柄別出力に `all_predictions`（`ic` / `brier` / `n_outcomes` /
+  `metric_status` / `thresholds_exceeded`）を、トップレベルに `all_predictions` 要約を**参考値として追加**する。
+  DB に保存される `summary` は変えない。
 - breach 判定（`breach_reasons`）・Issue 起票・watchdog の終了コードには使わない。
   過去分を backfill すると即座に `min_outcomes=30` を超えるため、判定に入れると初日に
   breach と Issue が大量に出るおそれがある。
@@ -133,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_market_outcomes_asof ON market_outcomes (market_a
 
 ### Step 4: 判定入力の切替（人間の判断が必要）
 
-Step 2 の `comparison_full_universe` を最低2回の週次レビュー（土曜の再学習後）で
+Step 2 の `full_universe` を最低2回の週次レビュー（土曜の再学習後）で
 既存 `comparison` と並べて記録してから、人間が次を判断する。
 
 - `active_readiness.cs_ic_vs_phase1` の入力を全銘柄比較へ切り替えるか。
@@ -175,7 +177,7 @@ Step 2 の `comparison_full_universe` を最低2回の週次レビュー（土�
 
 ## 完了の定義
 
-- Step 1〜3 がマージされ、`portfolio_shadow_report.json` の `comparison_full_universe` で、
+- Step 1〜3 がマージされ、`portfolio_shadow_report.json` の `full_universe` で、
   paired 銘柄数が1日あたり概ね有効銘柄数に近づいている。
 - 既存の `comparison` / `active_readiness` / `drift_report.json` の判定キーが、変更前とバイト一致している。
 - Step 4 の判断材料（2週分の並列記録）が `06_issues_and_backlog.md` の週次記録にある。

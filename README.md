@@ -248,6 +248,7 @@ Neon Postgresに以下を記録します。スキーマは`migrations/*.sql`、�
 
 - `predictions` / `signals`: 日次の予測値とシグナル（モデルバージョン・ホライズン付き）
 - `signal_outcomes`: `scripts/settle_outcomes.py`が`next_session_open_to_close_v2`で1/5/10営業日結果を決済し、entry/exit basisとcontract versionを保存
+- `market_outcomes`: `scripts/settle_market_outcomes.py`がHOLDを含む全予測銘柄の実現リターンを同じv2契約で記録する評価専用台帳（shadow比較・drift参考値のみが読む）
 - `model_registry`: 週次学習モデルのバージョン台帳。activeフラグはmodel kind単位
 - `macro_snapshots`: マクロ指標の日次スナップショット
 - `portfolio_snapshots` / `backtest_runs` / `backtest_equity`: Phase 2のポートフォリオ記録

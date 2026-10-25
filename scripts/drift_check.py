@@ -13,6 +13,13 @@ sample or no active model is a no-op warning (exit 0).
 
 PSI works without a DB (artifact + current prices only); IC/Brier need the DB.
 
+Informational all-prediction metrics: signal_outcomes settles actionable
+signals only, so the IC/Brier above see few names. Each ticker also carries
+``all_predictions`` (IC/Brier over every signal-linked prediction, HOLD
+included, from the evaluation-only market_outcomes ledger), and the payload a
+top-level ``all_predictions`` summary. They never feed warnings, breaches,
+the exit code or the persisted drift_reports summary.
+
 Usage:
   uv run python scripts/drift_check.py
   uv run python scripts/drift_check.py --as-of 2026-06-09
@@ -110,6 +117,60 @@ def _db_outcomes_by_ticker(
     return by_ticker
 
 
+def _db_all_prediction_outcomes_by_ticker(
+    model_version: str, model_kind: str | None, horizon: int
+) -> tuple[dict[str, list[dict]] | None, str | None]:
+    """Never raises: ``(rows_by_ticker, None)`` or ``(None, reason)``."""
+    if not db.db_enabled():
+        return None, "db_disabled"
+    try:
+        conn = db.connect()
+    except Exception as exc:  # noqa: BLE001
+        return None, f"db_error: {type(exc).__name__}"
+    try:
+        if not db.market_outcomes_available(conn):
+            return None, "market_outcomes_unavailable"
+        rows = db.fetch_prediction_market_outcomes(
+            conn, horizon, model_kind=model_kind, model_version=model_version
+        )
+    except Exception as exc:  # noqa: BLE001
+        return None, f"db_error: {type(exc).__name__}"
+    finally:
+        conn.close()
+
+    by_ticker: dict[str, list[dict]] = {}
+    for r in rows:
+        by_ticker.setdefault(r["ticker"], []).append(r)
+    return by_ticker, None
+
+
+def _all_prediction_metrics(rows: list[dict], thresholds: dict) -> dict:
+    """IC/Brier over every prediction; same formulas and sample floor as drift."""
+    n = len(rows)
+    ic = brier = None
+    metric_status = "insufficient_sample"
+    if n >= thresholds["min_outcomes"]:
+        metric_status = "ok"
+        prob = [r.get("prob_up") for r in rows]
+        ret = [r.get("realized_ret") for r in rows]
+        up_label = [1 if (r.get("realized_ret") or 0) > 0 else 0 for r in rows]
+        ic = ic_score(prob, ret)
+        brier = brier_score(prob, up_label)
+    exceeded = []
+    if metric_status == "ok":
+        if ic is not None and ic < thresholds["min_ic"]:
+            exceeded.append(f"ic<{thresholds['min_ic']}")
+        if brier is not None and brier > thresholds["max_brier"]:
+            exceeded.append(f"brier>{thresholds['max_brier']}")
+    return {
+        "ic": ic,
+        "brier": brier,
+        "n_outcomes": n,
+        "metric_status": metric_status,
+        "thresholds_exceeded": exceeded,
+    }
+
+
 def _drift_reasons(
     metric_status: str, ic, brier, psi_max, thresholds: dict
 ) -> tuple[list[str], list[str]]:
@@ -140,6 +201,30 @@ def _drift_reasons(
             breach_reasons.append(reason)
 
     return reasons, breach_reasons
+
+
+def _all_predictions_summary(
+    by_ticker: dict, all_rows_by_ticker: dict | None, reason: str | None
+) -> dict:
+    meta = {"outcome_source": "market_outcomes", "informational_only": True}
+    if all_rows_by_ticker is None:
+        return {"available": False, "reason": reason, **meta}
+    metrics = {
+        code: row["all_predictions"]
+        for code, row in by_ticker.items()
+        if "all_predictions" in row
+    }
+    return {
+        "available": True,
+        **meta,
+        "n_outcomes": sum(m["n_outcomes"] for m in metrics.values()),
+        "sufficient_sample_tickers": sorted(
+            code for code, m in metrics.items() if m["metric_status"] == "ok"
+        ),
+        "thresholds_exceeded_tickers": sorted(
+            code for code, m in metrics.items() if m["thresholds_exceeded"]
+        ),
+    }
 
 
 def main() -> int:
@@ -195,6 +280,9 @@ def main() -> int:
     horizon = active.get("horizon_days") or effective_horizon(label_cfg)
     model_kind = active.get("kind")
     outcomes_by_ticker = _db_outcomes_by_ticker(version, model_kind, horizon)
+    all_rows_by_ticker, all_reason = _db_all_prediction_outcomes_by_ticker(
+        version, model_kind, horizon
+    )
     macro_panel = load_macro_panel()
 
     by_ticker: dict[str, dict] = {}
@@ -264,6 +352,10 @@ def main() -> int:
             "reasons": reasons,
             "breach_reasons": breach_reasons,
         }
+        if all_rows_by_ticker is not None:
+            by_ticker[code]["all_predictions"] = _all_prediction_metrics(
+                all_rows_by_ticker.get(code, []), thresholds
+            )
 
     breached_tickers = [code for code, row in by_ticker.items() if row.get("breached")]
     breached = len(breached_tickers) > 0
@@ -291,6 +383,9 @@ def main() -> int:
         },
         "by_ticker": by_ticker,
     }
+    payload["all_predictions"] = _all_predictions_summary(
+        by_ticker, all_rows_by_ticker, all_reason
+    )
     _write(payload)
 
     if db.db_enabled():

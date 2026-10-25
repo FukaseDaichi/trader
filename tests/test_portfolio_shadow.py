@@ -551,6 +551,84 @@ def test_snapshot_weights_and_records_retain_model_provenance():
     assert mismatched["p2_prev_weight"] is None
 
 
+def test_full_universe_sql_joins_market_outcomes_on_signal_as_of():
+    psr = _load_psr()
+    cursor = _SqlCursor(
+        [
+            {"run_date": "2026-06-10", "ticker": "7011.JP", "realized_ret": 0.01},
+            {"run_date": "2026-06-10", "ticker": None, "realized_ret": 0.02},
+        ]
+    )
+    realized = psr._fetch_full_universe_realized(
+        _SqlConn(cursor), "2026-06-01", "2026-06-30", 5
+    )
+    assert realized == {("2026-06-10", "7011.JP"): 0.01}
+    sql, params = cursor.executed[0]
+    normalized = " ".join(sql.split()).lower()
+    assert "from signals s join market_outcomes m" in normalized
+    assert "m.market_as_of_date = s.as_of_date" in normalized
+    assert "m.horizon_days = %(horizon)s" in normalized
+    assert "m.contract_version = %(contract)s" in normalized
+    assert "signal_outcomes" not in normalized
+    assert params["contract"] == psr.EXECUTION_CONTRACT_VERSION
+    assert params["horizon"] == 5
+
+
+def test_full_universe_block_counts_hold_names():
+    psr = _load_psr()
+    records, top_n = _planted_records(n_dates=8, n_tickers=10)
+    # Actionable-only settlement: one settled name per date, HOLD names None.
+    realized_by_key = {(r["date"], r["ticker"]): r["realized_ret"] for r in records}
+    sparse = [
+        {**r, "realized_ret": r["realized_ret"] if r["ticker"] == "1000.JP" else None}
+        for r in records
+    ]
+    snapshot = [dict(r) for r in sparse]
+
+    legacy = ps.build_shadow_report(sparse, top_n=top_n)
+    assert legacy["available"] is False
+    assert legacy["n_paired_records"] == 0
+
+    block = psr._full_universe_block(sparse, realized_by_key, None, top_n=top_n)
+    assert sparse == snapshot  # input records are not mutated
+    assert block["available"] is True
+    assert block["outcome_source"] == "market_outcomes"
+    assert block["informational_only"] is True
+    assert block["n_paired_dates"] == 8
+    assert block["n_paired_records"] == 80
+    # With the whole universe, top-N picks differ between the models.
+    assert block["comparison"]["delta"]["topn_realized_return"] != 0.0
+    assert block["comparison"]["delta"]["daily_ic"] > 0.5
+
+
+def test_full_universe_block_unavailable_and_safe_fetch_degrades():
+    psr = _load_psr()
+    block = psr._full_universe_block([], None, "market_outcomes_unavailable", top_n=8)
+    assert block == {
+        "available": False,
+        "reason": "market_outcomes_unavailable",
+        "outcome_source": "market_outcomes",
+        "informational_only": True,
+    }
+
+    original = psr.db.market_outcomes_available
+    try:
+        psr.db.market_outcomes_available = lambda conn: False
+        assert psr._fetch_full_universe_realized_safe(
+            object(), "2026-06-01", "2026-06-30", 5
+        ) == (None, "market_outcomes_unavailable")
+
+        def boom(conn):
+            raise RuntimeError("aborted transaction")
+
+        psr.db.market_outcomes_available = boom
+        assert psr._fetch_full_universe_realized_safe(
+            object(), "2026-06-01", "2026-06-30", 5
+        ) == (None, "db_error: RuntimeError")
+    finally:
+        psr.db.market_outcomes_available = original
+
+
 ALL_TESTS = [
     test_planted_signal_phase2_beats_phase1,
     test_topn_realized_return_handcomputed,
@@ -571,6 +649,9 @@ ALL_TESTS = [
     test_active_readiness_ic_unavailable_or_below_floor,
     test_shadow_sql_uses_linked_phase1_current_outcome_and_snapshot_cs_version,
     test_snapshot_weights_and_records_retain_model_provenance,
+    test_full_universe_sql_joins_market_outcomes_on_signal_as_of,
+    test_full_universe_block_counts_hold_names,
+    test_full_universe_block_unavailable_and_safe_fetch_degrades,
 ]
 
 

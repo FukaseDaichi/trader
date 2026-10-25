@@ -213,7 +213,130 @@ def test_breach_output_names_only_breached_tickers():
     assert "7011.JP" not in breach_line
 
 
+def test_all_prediction_metrics_never_warn_breach_or_change_exit_code():
+    import pandas as pd
+
+    tickers = [{"code": "6098.JP"}, {"code": "7011.JP"}]
+    # 40 HOLD-inclusive outcomes with perfectly inverted probabilities.
+    all_rows = {
+        "7011.JP": [
+            {"prob_up": 0.4 + i / 100, "realized_ret": -i / 100} for i in range(40)
+        ]
+    }
+    payloads = []
+    with (
+        mock.patch.object(drift_check, "TICKERS", tickers),
+        mock.patch.object(
+            drift_check.model_store,
+            "read_active_model",
+            return_value={"version": "v1", "kind": "per_ticker_horizon_v1"},
+        ),
+        mock.patch.object(
+            drift_check.model_store,
+            "validate_runtime_active_phase1",
+            return_value={"compatible": True, "reasons": []},
+        ),
+        mock.patch.object(drift_check, "_db_outcomes_by_ticker", return_value={}),
+        mock.patch.object(
+            drift_check,
+            "_db_all_prediction_outcomes_by_ticker",
+            return_value=(all_rows, None),
+        ),
+        mock.patch.object(drift_check, "load_macro_panel", return_value=None),
+        mock.patch.object(
+            drift_check.model_store,
+            "load_model_bundle",
+            return_value={"feature_reference": {"psi": {}}},
+        ),
+        mock.patch.object(
+            drift_check, "load_data", return_value=pd.DataFrame({"close": [1.0]})
+        ),
+        mock.patch.object(
+            drift_check, "build_feature_frame", return_value=pd.DataFrame()
+        ),
+        mock.patch.object(
+            drift_check.phase1, "feature_psi", return_value=(0.1, {"atr_pct": 0.1})
+        ),
+        mock.patch.object(drift_check.db, "db_enabled", return_value=False),
+        mock.patch.object(drift_check, "_write", side_effect=payloads.append),
+        mock.patch.object(sys, "argv", ["drift_check.py"]),
+    ):
+        assert drift_check.main() == 0
+
+    payload = payloads[0]
+    assert payload["summary"] == {
+        "tickers": 2,
+        "breached": False,
+        "warned_tickers": [],
+        "breached_tickers": [],
+        "insufficient_sample_tickers": 2,
+    }
+    row = payload["by_ticker"]["7011.JP"]
+    assert row["warning"] is False and row["breach_reasons"] == []
+    assert row["all_predictions"]["metric_status"] == "ok"
+    assert row["all_predictions"]["n_outcomes"] == 40
+    assert row["all_predictions"]["thresholds_exceeded"] == ["ic<-0.02", "brier>0.3"]
+    assert payload["by_ticker"]["6098.JP"]["all_predictions"]["n_outcomes"] == 0
+    assert payload["all_predictions"] == {
+        "available": True,
+        "outcome_source": "market_outcomes",
+        "informational_only": True,
+        "n_outcomes": 40,
+        "sufficient_sample_tickers": ["7011.JP"],
+        "thresholds_exceeded_tickers": ["7011.JP"],
+    }
+
+
+def test_all_prediction_outcomes_degrade_and_pick_scope():
+    class FakeConn:
+        def close(self):
+            return None
+
+    with mock.patch.object(drift_check.db, "db_enabled", return_value=False):
+        assert drift_check._db_all_prediction_outcomes_by_ticker("v", None, 5) == (
+            None,
+            "db_disabled",
+        )
+
+    with (
+        mock.patch.object(drift_check.db, "db_enabled", return_value=True),
+        mock.patch.object(drift_check.db, "connect", return_value=FakeConn()),
+        mock.patch.object(
+            drift_check.db, "market_outcomes_available", return_value=False
+        ),
+    ):
+        assert drift_check._db_all_prediction_outcomes_by_ticker("v", None, 5) == (
+            None,
+            "market_outcomes_unavailable",
+        )
+
+    calls = []
+
+    def fake_fetch(conn, horizon, *, model_kind=None, model_version=None):
+        calls.append((horizon, model_kind, model_version))
+        return [{"ticker": "7011.JP", "prob_up": 0.6, "realized_ret": 0.01}]
+
+    with (
+        mock.patch.object(drift_check.db, "db_enabled", return_value=True),
+        mock.patch.object(drift_check.db, "connect", return_value=FakeConn()),
+        mock.patch.object(
+            drift_check.db, "market_outcomes_available", return_value=True
+        ),
+        mock.patch.object(
+            drift_check.db, "fetch_prediction_market_outcomes", side_effect=fake_fetch
+        ),
+    ):
+        by_ticker, reason = drift_check._db_all_prediction_outcomes_by_ticker(
+            "v1", "per_ticker_horizon_v1", 5
+        )
+    assert reason is None
+    assert list(by_ticker) == ["7011.JP"]
+    assert calls == [(5, "per_ticker_horizon_v1", "v1")]
+
+
 ALL_TESTS = [
+    test_all_prediction_metrics_never_warn_breach_or_change_exit_code,
+    test_all_prediction_outcomes_degrade_and_pick_scope,
     test_psi_warning_is_not_breach_when_outcomes_insufficient,
     test_psi_warning_becomes_breach_when_outcomes_sufficient,
     test_metric_threshold_breach_requires_sufficient_outcomes,

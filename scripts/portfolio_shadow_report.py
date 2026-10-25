@@ -24,6 +24,14 @@ DB join (see migrations/0001 + 0003):
   historical provenance. Snapshot positions/weights are fetched separately and
   merged per (date, ticker), retaining the snapshot model version for audit.
 
+Full-universe block (informational): the paired comparison above only sees
+names where Phase 1 issued an actionable signal, because ``signal_outcomes``
+settles actionable signals only. ``full_universe`` re-runs the same pure
+comparison with ``realized_ret`` from the model-agnostic ``market_outcomes``
+ledger (migration 0005), joined on the Phase 1 signal's market as-of date, so
+HOLD names count too. ``active_readiness`` never reads this block; a missing
+table or read error only marks the block ``available: false``.
+
 Usage:
   TRADER_DB_ENABLED=false uv run python scripts/portfolio_shadow_report.py
   uv run python scripts/portfolio_shadow_report.py --output docs/portfolio_shadow_report.json
@@ -261,6 +269,77 @@ def _assemble_records(pred_rows: list[dict], weights_by_date: dict) -> list[dict
     return records
 
 
+def _fetch_full_universe_realized(
+    conn, start_date: str, end_date: str, horizon_days: int
+) -> dict[tuple[str, str], float]:
+    """
+    ``{(run_date_iso, ticker) -> realized_ret}`` from ``market_outcomes``.
+
+    Anchored on ``signals.as_of_date`` — the same market date the paired
+    comparison settles from — so only the population changes, not the window.
+    """
+    from psycopg.rows import dict_row
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT s.run_date, s.ticker, m.realized_ret"
+            " FROM signals s"
+            " JOIN market_outcomes m"
+            "   ON m.ticker = s.ticker"
+            "  AND m.market_as_of_date = s.as_of_date"
+            "  AND m.horizon_days = %(horizon)s"
+            "  AND m.contract_version = %(contract)s"
+            " WHERE s.run_date BETWEEN %(start)s AND %(end)s",
+            {
+                "horizon": horizon_days,
+                "start": start_date,
+                "end": end_date,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
+        )
+        rows = cur.fetchall()
+    return {
+        (str(r.get("run_date")), r.get("ticker")): r.get("realized_ret")
+        for r in rows
+        if r.get("ticker")
+    }
+
+
+def _fetch_full_universe_realized_safe(
+    conn, start_date: str, end_date: str, horizon_days: int
+) -> tuple[dict | None, str | None]:
+    """Never raises: ``(realized_by_key, None)`` or ``(None, reason)``."""
+    try:
+        if not db.market_outcomes_available(conn):
+            return None, "market_outcomes_unavailable"
+        return (
+            _fetch_full_universe_realized(conn, start_date, end_date, horizon_days),
+            None,
+        )
+    except Exception as exc:  # noqa: BLE001 — informational block only
+        return None, f"db_error: {type(exc).__name__}"
+
+
+def _full_universe_block(
+    records: list[dict],
+    realized_by_key: dict | None,
+    unavailable_reason: str | None,
+    *,
+    top_n: int,
+) -> dict:
+    """Same pure comparison with ``realized_ret`` replaced by the ledger value."""
+    meta = {"outcome_source": "market_outcomes", "informational_only": True}
+    if realized_by_key is None:
+        return {"available": False, "reason": unavailable_reason, **meta}
+    full_records = [
+        {**r, "realized_ret": realized_by_key.get((r["date"], r["ticker"]))}
+        for r in records
+    ]
+    block = portfolio_shadow.build_shadow_report(full_records, top_n=top_n)
+    block.update(meta)
+    return block
+
+
 def _resolve_active_cs_version(conn) -> str | None:
     """Best-effort: the active cross-sectional model version (informational)."""
     try:
@@ -326,6 +405,9 @@ def run_report(
         pred_rows = _fetch_pred_outcome_rows(conn, start_iso, end_iso, horizon_days)
         weights_by_date = _fetch_snapshot_weights(conn, start_iso, end_iso)
         model_version = _resolve_active_cs_version(conn)
+        full_realized, full_reason = _fetch_full_universe_realized_safe(
+            conn, start_iso, end_iso, horizon_days
+        )
     except Exception as exc:  # noqa: BLE001 — DB read failure must not abort
         _atomic_write_json(
             output_path,
@@ -364,12 +446,22 @@ def run_report(
         report,
         gate_passed=portfolio.read_portfolio_gate(expected_model_version=model_version),
     )
+    report["full_universe"] = _full_universe_block(
+        records, full_realized, full_reason, top_n=top_n
+    )
     _atomic_write_json(output_path, report)
     print(
         f"shadow-report: available={report['available']} "
         f"reason={report.get('reason')} n_dates={report.get('n_dates')} "
         f"n_paired_dates={report.get('n_paired_dates')} "
         f"n_records={report.get('n_records')} -> {output_path}"
+    )
+    full = report["full_universe"]
+    print(
+        f"shadow-report: full_universe available={full.get('available')} "
+        f"reason={full.get('reason')} "
+        f"n_paired_dates={full.get('n_paired_dates')} "
+        f"n_paired_records={full.get('n_paired_records')}"
     )
     return 0
 

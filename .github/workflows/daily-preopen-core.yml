@@ -96,6 +96,18 @@ jobs:
         # benchmark_ret is still NULL because the panel lagged on settle day.
         run: uv run python scripts/settle_outcomes.py --as-of "${{ steps.market.outputs.today_jst }}" --refill-benchmark
 
+      - name: Settle evaluation-only market outcomes
+        if: ${{ steps.market.outputs.is_open == 'true' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRADER_DB_ENABLED: "true"
+        # Every predicted name (HOLD included) for the shadow report and
+        # drift's informational metrics. Separate process so it can never
+        # affect signal_outcomes settlement; always exits 0.
+        run: uv run python scripts/settle_market_outcomes.py
+
       - name: Publish model drift report
         if: ${{ steps.market.outputs.is_open == 'true' }}
         continue-on-error: true

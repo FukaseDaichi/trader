@@ -1007,6 +1007,131 @@ def update_outcome_benchmark(
     conn.commit()
 
 
+# --- market_outcomes (evaluation-only ledger, migration 0005) --------------
+
+
+def market_outcomes_available(conn) -> bool:
+    """True when migration 0005 has created ``market_outcomes``."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('public.market_outcomes') IS NOT NULL")
+        row = cur.fetchone()
+    return bool(row and row[0])
+
+
+def fetch_unsettled_market_outcomes(conn, since: str | None = None) -> list[dict]:
+    """(ticker, market date) pairs with a prediction but missing market outcomes.
+
+    Every prediction row (Phase 1 and Phase 2, any action) contributes its
+    ``as_of_date``; the realized return is a market fact shared by all models,
+    so one ledger row per (ticker, as_of_date, horizon) serves both.
+    """
+    from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT p.ticker, p.as_of_date,"
+            " COALESCE(array_agg(m.horizon_days) FILTER (WHERE m.horizon_days IS NOT NULL), '{}') AS settled"
+            " FROM (SELECT DISTINCT ticker, as_of_date FROM predictions"
+            "       WHERE (%(since)s::date IS NULL OR as_of_date >= %(since)s::date)) p"
+            " LEFT JOIN market_outcomes m"
+            "   ON m.ticker = p.ticker AND m.market_as_of_date = p.as_of_date"
+            "  AND m.contract_version = %(contract)s"
+            " GROUP BY p.ticker, p.as_of_date",
+            {"since": since, "contract": EXECUTION_CONTRACT_VERSION},
+        )
+        rows = cur.fetchall()
+    result = []
+    for r in rows:
+        settled = set(r["settled"] or [])
+        missing = [h for h in OUTCOME_HORIZONS if h not in settled]
+        if missing:
+            result.append(
+                {
+                    "ticker": r["ticker"],
+                    "as_of_date": str(r["as_of_date"]),
+                    "missing_horizons": missing,
+                }
+            )
+    return result
+
+
+def insert_market_outcomes(conn, rows: list[dict]) -> int:
+    """Insert settled market outcomes; existing keys are left untouched."""
+    if not rows:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO market_outcomes"
+            " (ticker, market_as_of_date, horizon_days, contract_version,"
+            "  entry_date, eval_date, entry_price, exit_price, entry_price_basis,"
+            "  exit_price_basis, realized_ret, benchmark_ret, excess_ret,"
+            "  benchmark_basis)"
+            " VALUES (%(ticker)s, %(market_as_of_date)s, %(horizon_days)s,"
+            "  %(contract_version)s, %(entry_date)s, %(eval_date)s,"
+            "  %(entry_price)s, %(exit_price)s, %(entry_price_basis)s,"
+            "  %(exit_price_basis)s, %(realized_ret)s, %(benchmark_ret)s,"
+            "  %(excess_ret)s, %(benchmark_basis)s)"
+            " ON CONFLICT (ticker, market_as_of_date, horizon_days, contract_version)"
+            " DO NOTHING",
+            rows,
+        )
+    conn.commit()
+    return len(rows)
+
+
+def fetch_market_outcomes_missing_benchmark(conn) -> list[dict]:
+    """Contract-v2 market outcomes whose same-basis benchmark is still NULL."""
+    from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT ticker, market_as_of_date, horizon_days, entry_date, eval_date,"
+            " realized_ret"
+            " FROM market_outcomes"
+            " WHERE benchmark_ret IS NULL AND contract_version = %s",
+            (EXECUTION_CONTRACT_VERSION,),
+        )
+        rows = cur.fetchall()
+    for r in rows:
+        for key in ("market_as_of_date", "entry_date", "eval_date"):
+            if r.get(key) is not None:
+                r[key] = str(r[key])
+    return rows
+
+
+def update_market_outcome_benchmark(
+    conn,
+    ticker: str,
+    market_as_of_date: str,
+    horizon_days: int,
+    benchmark_ret: float,
+    excess_ret: float,
+    benchmark_basis: str,
+) -> None:
+    """Idempotently write benchmark_ret/excess_ret/basis for one ledger row."""
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE market_outcomes"
+            " SET benchmark_ret=%s, excess_ret=%s, benchmark_basis=%s"
+            " WHERE ticker=%s AND market_as_of_date=%s AND horizon_days=%s"
+            "   AND contract_version=%s",
+            (
+                benchmark_ret,
+                excess_ret,
+                benchmark_basis,
+                ticker,
+                market_as_of_date,
+                horizon_days,
+                EXECUTION_CONTRACT_VERSION,
+            ),
+        )
+    conn.commit()
+
+
 def db_size_mb(conn) -> float:
     with conn.cursor() as cur:
         cur.execute("SELECT pg_database_size(current_database())")
@@ -1237,6 +1362,60 @@ def fetch_prediction_outcomes_for_kind(
             {
                 "horizon": horizon_days,
                 "kind": model_kind,
+                "contract": EXECUTION_CONTRACT_VERSION,
+            },
+        )
+        return cur.fetchall()
+
+
+def fetch_prediction_market_outcomes(
+    conn,
+    horizon_days: int,
+    *,
+    model_kind: str | None = None,
+    model_version: str | None = None,
+) -> list[dict]:
+    """
+    Every signal-linked Phase 1 prediction (HOLD included) with its
+    ``market_outcomes`` return — the full-population twin of
+    :func:`fetch_prediction_outcomes_for_kind` / :func:`fetch_prediction_outcomes`.
+
+    Pooled by registry kind when given, else the exact version. Evaluation
+    only: drift breach decisions never read these rows.
+    One row per (ticker, entry_date): see ``_DRIFT_ONE_OUTCOME_PER_ENTRY``.
+    """
+    from psycopg.rows import dict_row
+    from .execution import EXECUTION_CONTRACT_VERSION
+
+    if model_kind:
+        scope_join = " JOIN model_registry mr ON mr.version = p.model_version"
+        scope_where = " WHERE mr.kind = %(scope)s AND p.cs_rank IS NULL"
+        scope = model_kind
+    else:
+        scope_join = ""
+        scope_where = " WHERE p.model_version = %(scope)s"
+        scope = model_version
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            (
+                "SELECT DISTINCT ON (s.ticker, o.entry_date)"
+                " p.ticker, p.prob_up, p.raw_score, o.realized_ret"
+                " FROM signals s"
+                " JOIN predictions p ON p.id = s.prediction_id"
+            )
+            + scope_join
+            + (
+                " JOIN market_outcomes o"
+                "   ON o.ticker = s.ticker AND o.market_as_of_date = s.as_of_date"
+                "  AND o.horizon_days = %(horizon)s"
+                "  AND o.contract_version = %(contract)s"
+            )
+            + scope_where
+            + "  AND p.horizon_days = %(horizon)s"
+            + _DRIFT_ONE_OUTCOME_PER_ENTRY,
+            {
+                "horizon": horizon_days,
+                "scope": scope,
                 "contract": EXECUTION_CONTRACT_VERSION,
             },
         )

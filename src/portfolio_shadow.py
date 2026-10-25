@@ -24,7 +24,11 @@ module a list of normalized per-(date, ticker) records:
 
 The market ``realized_ret`` is a property of (date, ticker, horizon) — it
 applies to ANY model's prediction of that ticker on that date — so it is shared
-by the Phase 1 and Phase 2 evaluations of the same name.
+by the Phase 1 and Phase 2 evaluations of the same name.  The record builder
+decides where it comes from: ``signal_outcomes`` settles actionable signals
+only (so HOLD names carry ``None``), while the evaluation-only
+``market_outcomes`` ledger covers every predicted name.  The logic here is the
+same for either source.
 
 Comparisons use only *paired* dates and names: the same (date, ticker) must have
 a settled return, a Phase 1 score, and the Phase 2 rank / expected return, and

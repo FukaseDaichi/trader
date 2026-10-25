@@ -32,6 +32,12 @@ JPX 営業日判定と休日キャッシュ同期。`is-open`（指定日また�
 
 決済はマクロパネルの `topix_open`（entry日寄付き）→ `topix`（eval日終値）で同一basisの `benchmark_ret` / `excess_ret` をグロス計算し、成功行だけ `benchmark_basis=next_session_open_to_horizon_session_close` を持つ。欠損時はNULL＋`unavailable_same_basis` で縮退して保存する。`--refill-benchmark` はv2で `benchmark_ret` が未設定の行を冪等補填する（旧v1のclose-to-close補填経路は削除済み）。migration 0004適用後の既存結果は `--restate-execution-contract` でv2へ再計算・置換でき、通常実行もlegacy行をv2未決済として段階的に置換する。`--restate-execution-contract` 自体の挙動は本件で変更していない。決済完了後に成績JSONを再エクスポートし、settle当日の実績を同日commitへ反映する。
 
+### `scripts/settle_market_outcomes.py`
+
+評価専用の実現リターン台帳 `market_outcomes`（migration 0005）を埋める。`predictions` に存在する全 `(ticker, as_of_date)`（Phase 1 / Phase 2、HOLD を含む）について、`settle_outcomes.py` と同じ v2 約定窓・同一basis TOPIX benchmark で 1/5/10 営業日の `realized_ret` を計算し、未決済の `(horizon, contract)` だけを `ON CONFLICT DO NOTHING` で追加する。action に依存しないため `hit` / MAE / MFE は持たない。benchmark が NULL の行は毎回冪等に補填する。`--since YYYY-MM-DD` で対象の `as_of_date` を絞れる（既定は全期間なので、初回実行が過去分の backfill を兼ねる）。
+
+読み手は `portfolio_shadow_report.py` の `full_universe` と `drift_check.py` の `all_predictions` だけで、KPIゲート・成績KPI・通知・`signal_outcomes` には一切関与しない。DB無効・接続不可・テーブル未作成（migration 0005 未適用）・その他の例外はログを出して常に exit 0。
+
 ### `scripts/backfill_state_signals.py`
 
 `docs/state.json`（直近約30日）から `signals` / `predictions` を seed する初期バックフィル。冪等。
@@ -48,6 +54,8 @@ Phase 1の**実学習とatomic配備**: データ更新 → 特徴量 → v2ラ�
 
 日次推論と同じruntime artifact/gate契約、manifest/checksum、候補合格を先に検証し、互換なactiveモデルだけrolling IC / Brier / hit-rate（signal-linked Phase 1 predictions × v2 signal_outcomes。同じ`(ticker, entry_date)`の取引は最も早い`run_date`の1件だけ数え、stale-data再実行による二重計上で`min_outcomes`を水増ししない）と特徴量PSIを計算して`docs/drift_report.json`へ出力する。不一致時は旧artifactを正常扱いせずunavailableへfail-closeする。閾値（`TRADER_DRIFT_*`）割れはexit codeでworkflowへ伝搬し、watchdogがIssueを起票。`DRIFT_BREACH`行に出すのはbreach銘柄だけで、PSIのみの警告銘柄は件数だけ出す。
 
+参考値として、銘柄別の `all_predictions`（signal-linked Phase 1 予測を HOLD 込みで `market_outcomes` と結合した IC / Brier / 件数 / `thresholds_exceeded`）と、トップレベルの `all_predictions` 要約（`sufficient_sample_tickers` / `thresholds_exceeded_tickers`）も出す。同じ `(ticker, entry_date)` 重複排除と `min_outcomes` を使うが、warning・breach・exit code・DB の `drift_reports.metrics`（`summary` のみ保存）には一切使わない。breach の標本を全予測へ切り替えるかは人間の判断待ち（`06_issues_and_backlog.md`）。
+
 ## Phase 2（クロスセクション・ポートフォリオ）
 
 ### `scripts/universe_select.py`
@@ -61,6 +69,8 @@ Phase 1の**実学習とatomic配備**: データ更新 → 特徴量 → v2ラ�
 ### `scripts/portfolio_shadow_report.py`
 
 shadow期間のPhase 1 vs Phase 2比較（daily IC、的中率等）を`src/portfolio_shadow.py`の純粋ロジックで集計し、`docs/portfolio_shadow_report.json`を出力する。Phase 1は`signals.prediction_id`に直接紐付く予測、Phase 2は各日の`portfolio_snapshots.model_version`と完全一致するCS予測、結果は現行v2契約だけを使う。同じ`(date, ticker)`に決済済み結果・両予測・保存weightが揃うpaired日／銘柄だけを比較し、`n_dates`、`n_paired_dates`、`n_paired_records`、`date_coverage`、prediction/outcome/snapshot provenance、除外理由を監査できる。`active_readiness`はpairedな`shadow_days >= 10`、ポートフォリオゲート通過、CS daily IC ≥ Phase 1比−0.005を要求する。**activeへの切替自体は人間がenvを変更する**が、TOPIX同一basis coverage不足中はゲートがfail-closeする。
+
+`signal_outcomes` は actionable なシグナルしか決済しないため、上の paired 比較は「Phase 1 が売買シグナルを出した銘柄」だけで計算される（2026-10-24 時点で1日あたり約3銘柄）。参考値として、同じ純粋ロジックを `market_outcomes` の `realized_ret`（Phase 1 シグナルの `as_of_date` で結合）で再計算した `full_universe` ブロックを末尾に追加する（`outcome_source: "market_outcomes"`、`informational_only: true`、同じ `n_paired_*` / `date_coverage` / `comparison` 構造）。`active_readiness` はこのブロックを読まない。テーブル未作成・取得失敗時は `full_universe.available=false` と理由だけを出し、既存キーは影響を受けない。
 
 ## 通知
 

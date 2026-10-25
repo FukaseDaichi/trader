@@ -65,6 +65,7 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 | `predictions` | モデル生出力（run_date / as_of_date / model_version / horizon / raw_score / prob_up / expected_ret / cs_rank / features_hash） |
 | `signals` | 人間向け判断（action / raw_action / conviction / **target_weight** / thresholds / gate_passed / status） |
 | `signal_outcomes` | 実現結果台帳（horizon 1/5/10 別行）。`market_as_of_date`、実約定 `entry_date`、entry/exit priceとbasis、`contract_version`、benchmark basis、realized_ret / benchmark_ret / excess_ret / hit / mae / mfe / exit_reason |
+| `market_outcomes` | 評価専用の実現リターン台帳（migration 0005）。PK `(ticker, market_as_of_date, horizon_days, contract_version)`。予測のある全銘柄（HOLD 含む）の entry/exit price と basis、realized_ret / benchmark_ret / excess_ret / benchmark_basis。日付・価格・benchmark の意味は `signal_outcomes` の v2 と同一で、action 依存の hit / MAE / MFE は持たない。読み手は shadow report の `full_universe` と drift の `all_predictions` だけで、KPIゲート・成績KPI・通知は読まない |
 | `portfolio_snapshots` | 日次目標建玉（positions JSONB / diff / gross / sector_exposure / expected_vol / regime） |
 | `macro_snapshots` | マクロ日次スナップショット |
 | `model_quality_snapshots` / `drift_reports` | Phase 1 品質・ドリフト履歴 |
@@ -88,10 +89,10 @@ Phase 1の`feature_schema_hash`は列名と順序の契約である。同じ列�
 | `performance_detail.json` | 任意 | settle / `main.py` | equity_curve（strategy/benchmark）・drawdown・rolling・reliability（契約は下記） |
 | `signal_outcomes_recent.json` | 任意 | settle / `main.py` | 直近実現結果（最大200行） |
 | `model_quality.json` | 任意 | `main.py` / 週次再学習 | runtime互換性・manifest検証済みPhase 1モデル品質 + ドリフトoverlay。不整合はunavailable |
-| `drift_report.json` | 内部 | `drift_check.py` | runtime互換性・manifest検証後のsignal-linked Phase 1 IC/Brier/PSIドリフト |
+| `drift_report.json` | 内部 | `drift_check.py` | runtime互換性・manifest検証後のsignal-linked Phase 1 IC/Brier/PSIドリフト。参考値の `all_predictions`（`market_outcomes` ベース、判定に不使用） |
 | `portfolio_latest.json` | 任意 | `main.py` | 今日の目標建玉（positions / diff_summary / gross / expected_vol / mode / model_version） |
 | `portfolio_backtest.json` | 内部 | 週次 CS 再学習 | v2実行provenance検証済み・非重複期間のポートフォリオwalk-forward結果。旧book全決済＋新book全建て（最終決済を含む）のコスト後strategy/TOPIXと、除外期間の`data_quality`、CS `model_version`を持つ。`read_portfolio_gate()`は当日snapshotとのexact versionも含めactive可否判定に読む |
-| `portfolio_shadow_report.json` | 内部 | 週次 | signal-linked Phase 1とsnapshot exact-version Phase 2のv2 paired比較 + provenance + `active_readiness` |
+| `portfolio_shadow_report.json` | 内部 | 週次 | signal-linked Phase 1とsnapshot exact-version Phase 2のv2 paired比較 + provenance + `active_readiness`。末尾に参考値の `full_universe`（`market_outcomes` ベースの同構造比較、`active_readiness` は読まない） |
 | `cs_model_quality.json` | 内部 | 週次 CS 再学習 | CS モデル品質 + ポートフォリオゲート結果 |
 | `weekly_retrain_report.json` | 内部 | 週次再学習 | 銘柄別学習結果 |
 | `curation/*.json` | 内部/任意 | キュレーション | technical/fundamental/decision/warmup/macro_latest/pool_candidates/pool_decision（スキーマは `ai_ticker_curation/04_data_contracts.md` が正） |
