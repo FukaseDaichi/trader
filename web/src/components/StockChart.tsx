@@ -463,13 +463,15 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
               }}
               labelFormatter={(label) => {
                 try {
-                  return format(parseISO(label), "yyyy-MM-dd");
+                  return typeof label === "string"
+                    ? format(parseISO(label), "yyyy-MM-dd")
+                    : label;
                 } catch {
                   return label;
                 }
               }}
-              formatter={(value: number | undefined) => [
-                value != null ? value.toLocaleString() : "---",
+              formatter={(value) => [
+                typeof value === "number" ? value.toLocaleString() : "---",
                 "出来高",
               ]}
             />
@@ -520,13 +522,15 @@ export default function StockChart({ data, tickerName }: StockChartProps) {
               }}
               labelFormatter={(label) => {
                 try {
-                  return format(parseISO(label), "yyyy-MM-dd");
+                  return typeof label === "string"
+                    ? format(parseISO(label), "yyyy-MM-dd")
+                    : label;
                 } catch {
                   return label;
                 }
               }}
-              formatter={(value: number | undefined) => [
-                value != null ? value.toFixed(1) : "---",
+              formatter={(value) => [
+                typeof value === "number" ? value.toFixed(1) : "---",
                 "RSI",
               ]}
             />

@@ -173,7 +173,7 @@ function EquityCurveSection({ detail }: { detail: PerformanceDetailType | null }
             <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `${((v - 1) * 100).toFixed(1)}%`} />
             <Tooltip
               contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", color: "#e2e8f0" }}
-              formatter={(v: number | undefined) => [v == null ? "—" : `${((v - 1) * 100).toFixed(2)}%`]}
+              formatter={(v) => [typeof v !== "number" ? "—" : `${((v - 1) * 100).toFixed(2)}%`]}
             />
             <Legend />
             <Line dataKey="strategy" stroke="#f87171" dot={false} name="AI" strokeWidth={2} />
@@ -204,7 +204,7 @@ function DrawdownSection({ detail }: { detail: PerformanceDetailType | null }) {
             <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `${(v * 100).toFixed(1)}%`} />
             <Tooltip
               contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", color: "#e2e8f0" }}
-              formatter={(v: number | undefined) => [v == null ? "—" : `${(v * 100).toFixed(2)}%`]}
+              formatter={(v) => [typeof v !== "number" ? "—" : `${(v * 100).toFixed(2)}%`]}
             />
             <Area dataKey="drawdown" stroke="#60a5fa" fill="#60a5fa" fillOpacity={0.3} name="ドローダウン" />
           </AreaChart>
@@ -250,7 +250,7 @@ function ReliabilitySection({ detail }: { detail: PerformanceDetailType | null }
               <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} domain={[0, 1]} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", color: "#e2e8f0" }}
-                formatter={(v: number | undefined) => [v == null ? "—" : `${(v * 100).toFixed(1)}%`]}
+                formatter={(v) => [typeof v !== "number" ? "—" : `${(v * 100).toFixed(1)}%`]}
               />
               <Legend />
               <ReferenceLine y={0} stroke="#475569" />
