@@ -183,12 +183,10 @@ def _validated_market_frame(
     if has_open:
         cols.append("open")
 
+    from .data_loader import naive_ns_dates
+
     out = df[cols].copy()
-    out["date"] = (
-        pd.to_datetime(out["date"], errors="coerce")
-        .dt.tz_localize(None)
-        .astype(DATE_DTYPE)
-    )
+    out["date"] = naive_ns_dates(pd.to_datetime(out["date"], errors="coerce"))
     out["close"] = pd.to_numeric(out["close"], errors="coerce")
     if has_open:
         out["open"] = pd.to_numeric(out["open"], errors="coerce")

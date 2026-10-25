@@ -119,6 +119,24 @@ def test_add_macro_features_joins_across_date_resolutions():
             assert np.isnan(values[0]) and values[1:] == [0.1, 0.2], values
 
 
+def test_market_frame_drops_dates_ns_cannot_hold():
+    from src import macro
+
+    raw = pd.DataFrame(
+        {
+            "date": ["1600-01-01", "2026-01-05", "2026-01-06"],
+            "close": [100.0, 100.0, 101.0],
+        }
+    )
+    out = macro._validated_market_frame(raw, source="test", symbol="TEST")
+    assert out is not None
+    assert str(out["date"].dtype) == "datetime64[ns]"
+    assert out["date"].tolist() == [
+        pd.Timestamp("2026-01-05"),
+        pd.Timestamp("2026-01-06"),
+    ]
+
+
 def test_build_macro_panel_columns_and_returns():
     usd, _ = _series("2026-01-01", 70, 0.1, "usdjpy")
     top, _ = _series("2026-01-01", 70, 1.0, "topix")
@@ -565,6 +583,7 @@ ALL_TESTS = [
     test_add_macro_features_none_panel_emits_nan_schema,
     test_add_macro_features_backward_join_no_future_leak,
     test_add_macro_features_joins_across_date_resolutions,
+    test_market_frame_drops_dates_ns_cannot_hold,
     test_build_macro_panel_columns_and_returns,
     test_build_macro_panel_empty_input,
     test_latest_snapshot_row,
