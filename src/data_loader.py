@@ -160,6 +160,21 @@ def _assess_freshness(df, stale_open_days: int) -> dict:
     }
 
 
+def naive_ns_dates(dates: pd.Series) -> pd.Series:
+    """Return tz-naive datetime64[ns] dates; out-of-range values become NaT.
+
+    pandas 3 keeps the resolution a source hands back (yfinance: [s], parsed
+    strings: [us]) where pandas 2 always coerced to [ns]. Pinning to [ns] keeps
+    the persisted parquet schema and the merge_asof keys in add_macro_features
+    on one resolution. Dates [ns] cannot hold (pre-1677 / post-2262) become NaT
+    so callers drop that row, as pandas 2's errors="coerce" parse did, instead
+    of failing the whole frame.
+    """
+    dates = dates.dt.tz_localize(None)
+    in_range = dates.between(pd.Timestamp.min, pd.Timestamp.max)
+    return dates.where(in_range).astype("datetime64[ns]")
+
+
 def _normalize_ohlcv(df):
     if df is None or df.empty:
         return None
@@ -179,14 +194,15 @@ def _normalize_ohlcv(df):
         return None
 
     normalized = normalized[REQUIRED_COLS].copy()
-    normalized["date"] = pd.to_datetime(normalized["date"], errors="coerce")
+    normalized["date"] = naive_ns_dates(
+        pd.to_datetime(normalized["date"], errors="coerce")
+    )
     normalized = normalized.dropna(subset=["date"])
 
     for col in ["open", "high", "low", "close", "volume"]:
         normalized[col] = pd.to_numeric(normalized[col], errors="coerce")
     normalized = normalized.dropna(subset=["open", "high", "low", "close", "volume"])
 
-    normalized["date"] = normalized["date"].dt.tz_localize(None)
     normalized = (
         normalized.sort_values("date")
         .drop_duplicates(subset=["date"], keep="last")

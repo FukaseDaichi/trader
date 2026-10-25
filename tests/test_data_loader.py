@@ -44,6 +44,43 @@ def test_nonfinite_ohlcv_rows_are_rejected():
     assert "invalid_non_finite_ohlcv:2" in validated.attrs["validation_warnings"]
 
 
+def test_normalize_ohlcv_pins_date_to_ns():
+    # yfinance under pandas 3 indexes dates as datetime64[s]; the persisted
+    # parquet schema and downstream merge_asof keys stay on [ns].
+    index = pd.DatetimeIndex(
+        pd.to_datetime(["2026-10-15", "2026-10-16"]).as_unit("s"), name="Date"
+    )
+    yf_like = pd.DataFrame(
+        {
+            "Open": [100.0, 101.0],
+            "High": [102.0, 103.0],
+            "Low": [99.0, 100.0],
+            "Close": [101.0, 102.0],
+            "Volume": [1000, 1100],
+        },
+        index=index,
+    )
+    for raw in (yf_like.reset_index(), pd.read_csv(io.StringIO(STOOQ_CSV))):
+        normalized = dl._normalize_ohlcv(raw)
+        assert str(normalized["date"].dtype) == "datetime64[ns]"
+        assert normalized["date"].tolist() == [
+            pd.Timestamp("2026-10-15"),
+            pd.Timestamp("2026-10-16"),
+        ]
+
+
+def test_normalize_ohlcv_drops_dates_ns_cannot_hold():
+    # pandas 3 parses a pre-1677 date at [us]; it must drop that row (as
+    # pandas 2's errors="coerce" did), not fail the whole download.
+    csv = STOOQ_CSV + "1600-01-01,100,102,99,101,1000\n"
+    normalized = dl._normalize_ohlcv(pd.read_csv(io.StringIO(csv)))
+    assert str(normalized["date"].dtype) == "datetime64[ns]"
+    assert normalized["date"].tolist() == [
+        pd.Timestamp("2026-10-15"),
+        pd.Timestamp("2026-10-16"),
+    ]
+
+
 def _ok_response():
     response = MagicMock()
     response.text = STOOQ_CSV
@@ -206,6 +243,8 @@ def test_open_circuit_falls_through_to_yfinance():
 
 ALL_TESTS = [
     test_nonfinite_ohlcv_rows_are_rejected,
+    test_normalize_ohlcv_pins_date_to_ns,
+    test_normalize_ohlcv_drops_dates_ns_cannot_hold,
     test_stooq_circuit_opens_after_consecutive_connect_failures,
     test_stooq_half_open_probe_after_cooldown,
     test_stooq_success_resets_consecutive_failure_count,

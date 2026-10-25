@@ -23,6 +23,12 @@ import pandas as pd
 
 from .config import DATA_DIR
 
+# pandas 3 keeps the resolution a source hands back (yfinance: datetime64[s];
+# parsed strings: [us]; parquet round-trip of [s]: [ms]), while pandas 2 always
+# coerced to [ns]. merge_asof rejects keys of different resolutions, so every
+# date column built or loaded here is pinned to [ns] to match the stock frames.
+DATE_DTYPE = "datetime64[ns]"
+
 MACRO_DIR = DATA_DIR / "macro"
 MACRO_PANEL_FILE = MACRO_DIR / "macro_panel.parquet"
 
@@ -177,8 +183,10 @@ def _validated_market_frame(
     if has_open:
         cols.append("open")
 
+    from .data_loader import naive_ns_dates
+
     out = df[cols].copy()
-    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.tz_localize(None)
+    out["date"] = naive_ns_dates(pd.to_datetime(out["date"], errors="coerce"))
     out["close"] = pd.to_numeric(out["close"], errors="coerce")
     if has_open:
         out["open"] = pd.to_numeric(out["open"], errors="coerce")
@@ -308,7 +316,9 @@ def fetch_all_series(series_config: dict | None = None) -> dict[str, pd.DataFram
         df = fetch_market_series(spec)
         if df is not None and not df.empty:
             df = df.copy()
-            df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+            df["date"] = (
+                pd.to_datetime(df["date"]).dt.tz_localize(None).astype(DATE_DTYPE)
+            )
             out[key] = (
                 df.sort_values("date").drop_duplicates("date").reset_index(drop=True)
             )
@@ -341,7 +351,9 @@ def _aligned_levels(series_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
             take.append("open")
             renames["open"] = f"{key}_open"
         col = df[take].copy()
-        col["date"] = pd.to_datetime(col["date"]).dt.tz_localize(None)
+        col["date"] = (
+            pd.to_datetime(col["date"]).dt.tz_localize(None).astype(DATE_DTYPE)
+        )
         col = col.rename(columns=renames).sort_values("date")
         panel = col if panel is None else panel.merge(col, on="date", how="outer")
         close_cols.append(key)
@@ -421,7 +433,7 @@ def add_macro_features(
     momentum is Phase 2) and currently unused.
     """
     out = stock_df.copy()
-    out["date"] = pd.to_datetime(out["date"]).dt.tz_localize(None)
+    out["date"] = pd.to_datetime(out["date"]).dt.tz_localize(None).astype(DATE_DTYPE)
     out = out.sort_values("date").reset_index(drop=True)
 
     if macro_panel is None or macro_panel.empty or "date" not in macro_panel.columns:
@@ -431,7 +443,9 @@ def add_macro_features(
 
     feature_cols = [c for c in MACRO_FEATURE_COLS if c in macro_panel.columns]
     right = macro_panel[["date"] + feature_cols].copy()
-    right["date"] = pd.to_datetime(right["date"]).dt.tz_localize(None)
+    right["date"] = (
+        pd.to_datetime(right["date"]).dt.tz_localize(None).astype(DATE_DTYPE)
+    )
     right = right.sort_values("date").reset_index(drop=True)
 
     merged = pd.merge_asof(out, right, on="date", direction="backward")
@@ -499,5 +513,7 @@ def load_macro_panel(path: str | Path | None = None) -> pd.DataFrame | None:
     except Exception:  # noqa: BLE001
         return None
     if "date" in panel.columns:
-        panel["date"] = pd.to_datetime(panel["date"]).dt.tz_localize(None)
+        panel["date"] = (
+            pd.to_datetime(panel["date"]).dt.tz_localize(None).astype(DATE_DTYPE)
+        )
     return panel
