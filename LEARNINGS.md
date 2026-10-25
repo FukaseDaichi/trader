@@ -23,6 +23,8 @@
 - 2026-10-19: Phase 2 の週次推移は、`git log --grep='Weekly retrain refresh'` の各コミットから `git show <c>:docs/portfolio_backtest.json` と `docs/portfolio_shadow_report.json` を読めば数秒で並べられる（IR・turnover・`cs_ic_vs_phase1`・gate failures）。06 の「現在地」は手で更新されないと止まるので、状況判断の前に必ずこれで実測を取る。
 - 2026-10-23: Python 依存の脆弱性監査は `uv export --frozen --no-hashes --no-emit-project --format requirements-txt > req.txt` → `uvx pip-audit -r req.txt --no-deps --disable-pip` で回る（`--no-emit-project` を付けないと先頭の `-e .` 行で pip-audit がパースエラー）。修正は `uv lock --upgrade-package <pkg>` を脆弱パッケージ分だけ並べると影響が最小。web は `npm audit` → `npm install --save-exact next@X eslint-config-next@X` → `npm audit fix`。
 - 2026-10-25: dependabot のメジャー更新は CI が緑でも、npm install の ERESOLVE peer 警告を確認する。eslint 10 は eslint-config-next 16.4.3 配下の eslint-plugin-react / import / jsx-a11y が eslint ≤9 にしか peer 対応しておらず、lint は通っても非対応の組み合わせだった
+- 2026-10-25: 依存の major 更新の出力等価性を確かめるときは、データ取得を止めたオフライン実行だけでは足りない。取得経路のバグを見逃すため、外部 API の生レスポンスを録って両環境で再生する。この方法で pandas 3 の全銘柄 HOLD 化を見つけた
+- 2026-10-26: lockfile が同じ dependabot の web PR が複数あるときは、package.json の変更を1つのブランチにまとめて npm install で lock を作り直し、1本の PR でマージする。元の PR はマージ直後には自動で閉じなかったので、gh pr close で手動で閉じた
 
 ## Mistakes to Avoid
 （失敗と再発防止策）
@@ -69,6 +71,10 @@
 - 2026-10-19: Phase 2 公式 backtest の IR は週ごとに ±0.8 振れる（2026-09-19 −0.84 → 09-26 +0.80 → 10-17 +0.002）。単週の IR で畳む/育てるを決めてはいけない。一方 turnover は 0.99→0.69 と単調に下がりつつも、全週で `turnover>0.40` が唯一の安定した gate 不合格要因。
 - 2026-10-22: データ取得が stale な日の再実行は、前日と同じ `market_as_of_date` / `entry_date` のシグナルを別 `run_date` で再発行し、両方が同一 outcome に精算される。`docs/signal_outcomes_recent.json` で同じ `(ticker, entry_date)` が2行並び、直後の数営業日ぶんが欠けていればこのパターン。drift の `n_outcomes` はこれで水増しされていた（2026-10-22 に drift 側だけ重複排除）。
 - 2026-10-24: trader の tickers.yml/curation_pool.yml を守る PreToolUse フック protect-deterministic-files.sh は matcher が Edit|Write|MultiEdit だけで、Bash（sed -i やリダイレクト）での書き込みは止められない。parquet 削除にも機械的なガードはない
+- 2026-10-25: pandas 2.3's default read_csv parser mis-rounds floats written with 16-17 significant digits by 1 ulp; pandas 3 parses them exactly. Values with up to 11 decimals parsed exactly in both versions.
+- 2026-10-25: pandas 3 は yfinance の日付を datetime64[s] で返し、[s] 列を parquet に保存して読み戻すと [ms] になる。merge_asof は解像度違いのキーを MergeError で拒否する。通常の merge・concat・isin は自動で揃えるので落ちない
+- 2026-10-25: Yahoo の Adj Close と auto_adjust=True の値は、同じ pandas 版で続けて取得しても末尾桁が変わる。録画をバイト比較の基準に使うときは、生の OHLCV だけを使うか、1回の録画を両環境で共有する
+- 2026-10-26: Dependabot alerts と security updates は 2026-10-26 まで無効だった（同日に有効化）。それまで自動マージされていたのは毎週の uv/npm のマイナー・パッチ更新だけで、推移的依存の脆弱性は誰も拾っていなかった。security update の PR も `dependabot/uv/*`・`dependabot/npm_and_yarn/*` ブランチで来るため、メジャー以外は dependabot-auto-merge.yml で自動マージされる見込み（初回の PR で要確認）
 
 ## Open Questions
 （未解決・要調査）
