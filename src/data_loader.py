@@ -186,7 +186,12 @@ def _normalize_ohlcv(df):
         normalized[col] = pd.to_numeric(normalized[col], errors="coerce")
     normalized = normalized.dropna(subset=["open", "high", "low", "close", "volume"])
 
-    normalized["date"] = normalized["date"].dt.tz_localize(None)
+    # Pin to [ns]: under pandas 3 yfinance dates arrive as datetime64[s] and
+    # parsed CSV dates as [us]; keep the persisted parquet schema and the
+    # merge_asof keys in add_macro_features on the pandas 2 resolution.
+    normalized["date"] = (
+        normalized["date"].dt.tz_localize(None).astype("datetime64[ns]")
+    )
     normalized = (
         normalized.sort_values("date")
         .drop_duplicates(subset=["date"], keep="last")
