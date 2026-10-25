@@ -27,6 +27,17 @@ updates:
     groups:
       web-minor-patch:
         update-types: ["minor", "patch"]
+    # Majors that cannot land yet (2026-10). Remove an entry once its blocker clears.
+    ignore:
+      # eslint-config-next's plugins (react / import / jsx-a11y) peer-depend on eslint <=9.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint (via eslint-config-next) peer-depends on typescript <6.1; TS 7 also fails next build.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # Keep in step with the Node 22 runtime in ci-tests.yml / daily-publish-dashboard.yml.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
