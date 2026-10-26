@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI株式トレーダー 紹介動画</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #030712;
+  --bg2: #0b1222;
+  --panel: rgba(15, 23, 42, 0.78);
+  --panel-solid: #0f172a;
+  --line: rgba(148, 163, 184, 0.16);
+  --line-strong: rgba(148, 163, 184, 0.32);
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --dim: #64748b;
+  --up: #f87171;
+  --up-deep: #ef4444;
+  --orange: #fb923c;
+  --down: #60a5fa;
+  --down-deep: #3b82f6;
+  --gold: #fbbf24;
+  --ok: #34d399;
+  --violet: #a78bfa;
+  --grad: linear-gradient(100deg, #f87171 0%, #fb923c 35%, #c084fc 68%, #60a5fa 100%);
+  --sans: "Inter", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #000; overflow: hidden; }
+body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+#viewport { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
+#stage {
+  position: relative; width: 1920px; height: 1080px; overflow: hidden;
+  background: radial-gradient(1200px 700px at 50% 120%, #0b1730 0%, var(--bg) 60%), var(--bg);
+  transform-origin: center center; flex: none;
+}
+.abs { position: absolute; }
+.scene { position: absolute; inset: 0; opacity: 0; }
+.h { opacity: 0; }
+.c { display: inline-block; white-space: pre; }
+.mono { font-family: var(--mono); }
+.grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- background ---------- */
+#bg-grid {
+  position: absolute; inset: -200px;
+  background-image:
+    linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+.blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.38; }
+#blob1 { width: 760px; height: 760px; left: -160px; top: -220px; background: #7f1d1d; }
+#blob2 { width: 820px; height: 820px; right: -220px; bottom: -300px; background: #1e3a8a; }
+#blob3 { width: 520px; height: 520px; left: 820px; top: 280px; background: #4c1d95; opacity: 0.22; }
+#vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%); }
+#grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+/* ---------- chrome ---------- */
+#chrome { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+#wordmark { position: absolute; left: 72px; top: 52px; display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 22px; letter-spacing: 0.02em; }
+#wordmark .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--up); box-shadow: 0 0 18px var(--up); }
+#chapter { position: absolute; right: 72px; top: 54px; font-family: var(--mono); font-size: 16px; color: var(--muted); letter-spacing: 0.18em; }
+#chapter b { color: var(--text); font-weight: 700; }
+#progress { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--grad); transform-origin: left center; transform: scaleX(0); opacity: 0.85; }
+
+/* ---------- common headings ---------- */
+.kicker { font-family: var(--mono); font-size: 18px; letter-spacing: 0.3em; color: var(--orange); }
+.title { font-size: 64px; font-weight: 900; letter-spacing: 0.01em; line-height: 1.2; }
+.lead { font-size: 26px; color: var(--muted); font-weight: 500; }
+.head { position: absolute; left: 120px; top: 130px; }
+.head .title { margin-top: 18px; }
+.head .lead { margin-top: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 30px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04); backdrop-filter: blur(8px); }
+
+/* ---------- S1 cold open ---------- */
+#s1 .clockwrap { position: absolute; left: 0; right: 0; top: 300px; text-align: center; }
+#s1 .tz { font-family: var(--mono); color: var(--muted); letter-spacing: 0.5em; font-size: 20px; }
+#clock { font-family: var(--mono); font-size: 210px; font-weight: 700; letter-spacing: 0.02em; margin-top: 10px; color: #f1f5f9; text-shadow: 0 0 60px rgba(248,113,113,0.0); }
+#s1 .lines { position: absolute; left: 0; right: 0; top: 650px; text-align: center; font-size: 46px; font-weight: 700; line-height: 1.7; }
+#s1 .lines .sub { color: var(--muted); font-weight: 500; font-size: 36px; }
+
+/* ---------- S2 title ---------- */
+#s2 svg.bgline { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+#s2 .center { position: absolute; left: 0; right: 0; top: 330px; text-align: center; }
+#s2 .kick { font-family: var(--mono); font-size: 20px; letter-spacing: 0.55em; color: var(--muted); }
+#s2 .big { font-size: 168px; font-weight: 900; letter-spacing: 0.02em; margin-top: 26px; line-height: 1.1; }
+#s2 .rule { width: 760px; height: 3px; margin: 34px auto 0; background: var(--grad); transform-origin: center; }
+#s2 .tag { margin-top: 36px; font-size: 40px; font-weight: 700; }
+#s2 .tag2 { margin-top: 12px; font-size: 40px; font-weight: 900; }
+
+/* ---------- S3 day timeline ---------- */
+#track { position: absolute; left: 200px; top: 610px; width: 1520px; height: 4px; background: var(--line); border-radius: 4px; }
+#trackfill { position: absolute; left: 0; top: 0; height: 100%; width: 100%; background: var(--grad); border-radius: 4px; transform-origin: left center; transform: scaleX(0); box-shadow: 0 0 24px rgba(251,146,60,0.6); }
+.tnode { position: absolute; top: 612px; width: 0; height: 0; }
+.tnode .dot { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; background: var(--bg); border: 3px solid var(--line-strong); }
+.tnode .dot i { position: absolute; inset: 5px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 22px var(--orange); opacity: 0; }
+.tnode .tcard { position: absolute; left: -160px; width: 320px; padding: 22px 24px; }
+.tnode.up .tcard { bottom: 46px; }
+.tnode.down .tcard { top: 46px; }
+.tcard .time { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--orange); }
+.tcard .name { font-size: 24px; white-space: nowrap; font-weight: 800; margin-top: 6px; }
+.tcard .desc { font-size: 18px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+#s3 .weekly { position: absolute; left: 200px; right: 200px; bottom: 90px; display: flex; gap: 18px; justify-content: center; }
+.pill { display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(15,23,42,0.7); font-size: 20px; color: var(--text); font-weight: 500; }
+.pill b { font-family: var(--mono); color: var(--orange); font-weight: 700; }
+
+/* ---------- S4 pipeline ---------- */
+.pcol { position: absolute; top: 330px; width: 290px; height: 510px; padding: 26px 24px; }
+.pcol .step { font-family: var(--mono); font-size: 15px; letter-spacing: 0.25em; color: var(--orange); }
+.pcol .ptitle { font-size: 30px; font-weight: 900; margin-top: 8px; }
+.pcol .pcap { position: absolute; left: 24px; right: 24px; bottom: 22px; font-size: 17px; color: var(--muted); line-height: 1.5; }
+.pcol svg { position: absolute; left: 24px; top: 140px; }
+.chips { position: absolute; left: 20px; right: 20px; top: 112px; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 16px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--text); background: rgba(30,41,59,0.6); font-weight: 500; }
+.chip.m { border-color: rgba(167,139,250,0.55); color: #ddd6fe; background: rgba(76,29,149,0.25); }
+.chips .grp { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--dim); letter-spacing: 0.15em; margin-top: 6px; }
+.arrow { position: absolute; top: 575px; width: 46px; height: 20px; }
+#prob { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-family: var(--mono); font-size: 76px; font-weight: 700; color: var(--up); text-shadow: 0 0 40px rgba(248,113,113,0.45); }
+#probbar { position: absolute; left: 24px; right: 24px; top: 270px; height: 14px; border-radius: 10px; background: rgba(51,65,85,0.6); overflow: hidden; }
+#probbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, var(--orange), var(--up)); transform-origin: left; transform: scaleX(0); }
+#sig5 { position: absolute; left: 24px; right: 24px; top: 310px; display: flex; gap: 6px; }
+#sig5 span { flex: 1; text-align: center; font-size: 13px; font-weight: 700; padding: 7px 0; border-radius: 8px; background: rgba(51,65,85,0.5); color: var(--dim); }
+#sig5 span.on { background: rgba(251,146,60,0.2); color: var(--orange); outline: 1px solid var(--orange); }
+#s4 .foot { position: absolute; left: 0; right: 0; top: 900px; text-align: center; font-size: 28px; font-weight: 700; }
+
+/* ---------- S5 triple barrier ---------- */
+#tb { position: absolute; left: 260px; top: 360px; width: 1400px; height: 600px; }
+#s5 .lbl { position: absolute; font-size: 22px; font-weight: 700; }
+#s5 .res { position: absolute; padding: 14px 22px; border-radius: 16px; font-size: 24px; font-weight: 800; }
+
+/* ---------- S6 gate ---------- */
+#checks { position: absolute; left: 120px; top: 380px; width: 600px; padding: 34px 36px; }
+#checks .ct { font-size: 26px; font-weight: 800; margin-bottom: 20px; }
+.crow { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-top: 1px solid var(--line); font-size: 23px; }
+.crow .k { color: var(--text); font-weight: 500; }
+.crow .v { font-family: var(--mono); color: var(--muted); font-size: 20px; }
+.crow .ok { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(52,211,153,0.15); color: var(--ok); font-weight: 900; font-size: 18px; margin-left: 16px; }
+#gate { position: absolute; left: 1020px; top: 360px; width: 560px; height: 560px; }
+.pillar { position: absolute; top: 60px; width: 26px; height: 440px; border-radius: 14px; background: linear-gradient(180deg, #334155, #0f172a); border: 1px solid var(--line-strong); }
+#beam { position: absolute; left: 293px; top: 60px; width: 6px; height: 440px; background: linear-gradient(180deg, transparent, var(--gold), transparent); box-shadow: 0 0 30px var(--gold); }
+.token { position: absolute; top: 0; left: 0; padding: 16px 26px; border-radius: 16px; font-family: var(--mono); font-weight: 700; font-size: 26px; border: 2px solid; background: var(--panel-solid); }
+#tokA { border-color: var(--up); color: var(--up); box-shadow: 0 0 30px rgba(248,113,113,0.35); }
+#tokB { border-color: var(--up); color: var(--up); }
+#tokBhold { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 30px rgba(251,191,36,0.3); }
+#stamp { position: absolute; font-size: 30px; font-weight: 900; color: var(--gold); border: 4px solid var(--gold); padding: 6px 18px; border-radius: 12px; letter-spacing: 0.08em; }
+#s6 .foot { position: absolute; left: 120px; right: 120px; top: 950px; font-size: 24px; color: var(--muted); }
+
+/* ---------- S7 weekly loop ---------- */
+#ring { position: absolute; left: 960px; top: 640px; width: 0; height: 0; }
+#ring svg { position: absolute; left: -330px; top: -330px; }
+.rnode { position: absolute; width: 230px; margin-left: -115px; text-align: center; }
+.rnode .rb { width: 84px; height: 84px; margin: 0 auto; border-radius: 26px; background: var(--panel-solid); border: 2px solid var(--line-strong); display: grid; place-items: center; font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--muted); }
+.rnode .rn { font-size: 24px; font-weight: 800; margin-top: 10px; }
+.rnode .rd { font-size: 16px; color: var(--muted); margin-top: 2px; }
+#ringcore { position: absolute; left: -120px; top: -70px; width: 240px; text-align: center; }
+#ringcore .w { font-family: var(--mono); letter-spacing: 0.3em; font-size: 18px; color: var(--muted); }
+#ringcore .n { font-size: 52px; font-weight: 900; margin-top: 4px; }
+
+/* ---------- S8 resilience ---------- */
+.rrow { position: absolute; left: 200px; width: 1520px; height: 104px; }
+.rrow .fail, .rrow .alt { position: absolute; top: 12px; height: 80px; border-radius: 18px; padding: 0 28px; display: flex; align-items: center; font-size: 25px; font-weight: 700; }
+.rrow .fail { left: 0; width: 520px; background: rgba(127,29,29,0.25); border: 1px solid rgba(248,113,113,0.45); color: #fecaca; }
+.rrow .fail .x { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; background: rgba(248,113,113,0.2); display: grid; place-items: center; color: var(--up); font-weight: 900; }
+.rrow .alt { left: 860px; width: 660px; background: rgba(6,78,59,0.25); border: 1px solid rgba(52,211,153,0.45); color: #d1fae5; }
+.rrow .alt .y { margin-right: 16px; width: 38px; height: 38px; border-radius: 50%; background: rgba(52,211,153,0.18); display: grid; place-items: center; color: var(--ok); font-weight: 900; }
+.rrow svg { position: absolute; left: 520px; top: 0; }
+#alive { position: absolute; left: 0; right: 0; top: 900px; text-align: center; font-size: 34px; font-weight: 900; }
+#alive .pulse { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 20px var(--ok); margin-right: 16px; vertical-align: middle; }
+
+/* ---------- S9 design ---------- */
+#s9 .persp { position: absolute; inset: 0; perspective: 2200px; }
+.browser { position: absolute; border-radius: 18px; overflow: hidden; background: #0b1120; border: 1px solid var(--line-strong); box-shadow: 0 60px 140px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03); }
+.browser .bar { height: 46px; display: flex; align-items: center; gap: 9px; padding: 0 18px; background: #111827; border-bottom: 1px solid var(--line); }
+.browser .bar i { width: 13px; height: 13px; border-radius: 50%; background: #334155; }
+.browser .bar .url { margin-left: 18px; flex: 1; max-width: 520px; height: 28px; border-radius: 8px; background: #1f2937; color: var(--muted); font-size: 15px; display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+.browser .shot { position: relative; overflow: hidden; }
+.browser .shot img { display: block; width: 100%; }
+#bHome { left: 300px; top: 240px; width: 1180px; transform-style: preserve-3d; }
+#bHome .shot { height: 700px; }
+#bStock { left: 760px; top: 300px; width: 1020px; }
+#bStock .shot { height: 637px; }
+#phone { position: absolute; left: 1430px; top: 170px; width: 380px; height: 790px; border-radius: 56px; background: #0b0f19; border: 10px solid #1f2937; box-shadow: 0 60px 140px rgba(0,0,0,0.75), inset 0 0 0 2px #374151; overflow: hidden; }
+#phone .notch { position: absolute; left: 50%; top: 10px; width: 120px; height: 32px; margin-left: -60px; border-radius: 20px; background: #000; z-index: 3; }
+#phone .scr { position: absolute; inset: 0; overflow: hidden; border-radius: 46px; }
+#phone .scr img { width: 100%; display: block; }
+#notif { position: absolute; left: 1060px; top: 250px; width: 440px; padding: 18px 22px; border-radius: 22px; background: rgba(30,41,59,0.92); border: 1px solid var(--line-strong); box-shadow: 0 30px 80px rgba(0,0,0,0.6); backdrop-filter: blur(14px); z-index: 5; }
+#notif .ap { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
+#notif .ap i { width: 26px; height: 26px; border-radius: 8px; background: var(--grad); }
+#notif .nt { font-size: 20px; font-weight: 800; margin-top: 8px; }
+#notif .nb { font-size: 17px; color: #cbd5e1; margin-top: 6px; line-height: 1.55; }
+#notif .nb em { font-style: normal; color: var(--up); font-family: var(--mono); font-weight: 700; }
+.callout { position: absolute; padding: 12px 20px; border-radius: 14px; background: rgba(3,7,18,0.85); border: 1px solid var(--orange); color: var(--text); font-size: 21px; font-weight: 700; box-shadow: 0 0 30px rgba(251,146,60,0.25); white-space: nowrap; z-index: 6; }
+.callout::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--orange); margin-right: 10px; vertical-align: middle; box-shadow: 0 0 10px var(--orange); }
+#s9 .head { top: 110px; z-index: 7; }
+
+/* ---------- S10 numbers ---------- */
+#nums { position: absolute; left: 160px; right: 160px; top: 360px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+.num { padding: 34px 40px; }
+.num .v { font-family: var(--mono); font-size: 104px; font-weight: 700; line-height: 1; }
+.num .u { font-size: 26px; font-weight: 800; margin-top: 16px; }
+.num .d { font-size: 18px; color: var(--muted); margin-top: 6px; }
+
+/* ---------- S11 outro ---------- */
+#s11 .lines { position: absolute; left: 0; right: 0; top: 300px; text-align: center; font-size: 66px; font-weight: 900; line-height: 1.5; }
+#s11 .logo { position: absolute; left: 0; right: 0; top: 620px; text-align: center; }
+#s11 .logo .nm { font-size: 96px; font-weight: 900; }
+#s11 .logo .sl { font-family: var(--mono); font-size: 20px; letter-spacing: 0.4em; color: var(--muted); margin-top: 18px; }
+#s11 .stack { position: absolute; left: 0; right: 0; top: 880px; display: flex; justify-content: center; gap: 14px; }
+#s11 .disc { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center; font-size: 17px; color: var(--dim); }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+
+/* ---------- player UI (hidden in render mode) ---------- */
+#ui { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; z-index: 10; opacity: 0.0; transition: opacity .3s; font-family: var(--sans); }
+body:hover #ui { opacity: 1; }
+#ui button { background: rgba(15,23,42,0.85); color: #e5e7eb; border: 1px solid rgba(148,163,184,0.35); border-radius: 999px; padding: 10px 18px; font-size: 14px; cursor: pointer; }
+body.render #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="viewport">
+<div id="stage">
+  <!-- background -->
+  <div id="bg-grid"></div>
+  <div class="blob" id="blob1"></div>
+  <div class="blob" id="blob2"></div>
+  <div class="blob" id="blob3"></div>
+
+  <!-- S1: cold open -->
+  <section class="scene" id="s1">
+    <div class="clockwrap">
+      <div class="tz h">TOKYO · JST</div>
+      <div id="clock">05:59:57</div>
+    </div>
+    <div class="lines">
+      <div class="l1 h">市場が開く、3時間前。</div>
+      <div class="l2 sub h">人が眠っているあいだに、AIはもう働きはじめている。</div>
+    </div>
+  </section>
+
+  <!-- S2: title -->
+  <section class="scene" id="s2">
+    <svg class="bgline" viewBox="0 0 1920 1080">
+      <defs>
+        <linearGradient id="lg-line" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset=".55" stop-color="#c084fc"/><stop offset="1" stop-color="#f87171"/></linearGradient>
+        <linearGradient id="lg-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f87171" stop-opacity=".22"/><stop offset="1" stop-color="#f87171" stop-opacity="0"/></linearGradient>
+      </defs>
+      <path id="s2area" fill="url(#lg-area)" opacity="0"/>
+      <path id="s2line" fill="none" stroke="url(#lg-line)" stroke-width="4" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" style="filter: drop-shadow(0 0 12px rgba(248,113,113,.55))"/>
+    </svg>
+    <div class="center">
+      <div class="kick h">FULLY AUTONOMOUS · JAPANESE EQUITY AI</div>
+      <div class="big" data-split>AI株式トレーダー</div>
+      <div class="rule h"></div>
+      <div class="tag h">株価を学び、判断し、届ける。</div>
+      <div class="tag2 h grad-text">そのすべてを、全自動で。</div>
+    </div>
+  </section>
+
+  <!-- S3: daily timeline -->
+  <section class="scene" id="s3">
+    <div class="head">
+      <div class="kicker h">01 — DAILY AUTOPILOT</div>
+      <div class="title" data-split>毎営業日、誰も触らずに回る。</div>
+    </div>
+    <div id="track"><div id="trackfill"></div></div>
+    <div class="tnode up" style="left:280px"><div class="dot"><i></i></div><div class="tcard card h"><div class="time">04:30</div><div class="name">AI銘柄キュレーション</div><div class="desc">テクニカルを精査して<br>監視銘柄を少しずつ入れ替え</div></div></div>
+    <div class="tnode down" style="left:620px"><div class="dot"><i></i></div><div class="tcard card h"><div class="time">06:00</div><div class="name">データ取得 → 予測</div><div class="desc">50銘柄の株価を更新し<br>学習済みモデルで判断</div></div></div>
+    <div class="tnode up" style="left:960px"><div class="dot"><i></i></div><div class="tcard card h"><div class="time">06:20 / 06:40</div><div class="name">自動リトライ</div><div class="desc">未更新のときだけ<br>もう一度走り直す</div></div></div>
+    <div class="tnode down" style="left:1300px"><div class="dot"><i></i></div><div class="tcard card h"><div class="time">AUTO</div><div class="name">ダッシュボード公開</div><div class="desc">サイトをビルドして配信<br>朝のダイジェストを通知</div></div></div>
+    <div class="tnode up" style="left:1640px"><div class="dot"><i></i></div><div class="tcard card h"><div class="time">12:30</div><div class="name">ウォッチドッグ</div><div class="desc">鮮度と品質を監査<br>異常はIssueを自動起票</div></div></div>
+    <div class="weekly">
+      <div class="pill h"><b>土</b>モデル再学習</div>
+      <div class="pill h"><b>土</b>ファンダ分析・週次レポート</div>
+      <div class="pill h"><b>日</b>ユニバース見直し</div>
+      <div class="pill h"><b>隔週</b>候補プール見直し</div>
+    </div>
+  </section>
+
+  <!-- S4: learning pipeline -->
+  <section class="scene" id="s4">
+    <div class="head">
+      <div class="kicker h">02 — HOW IT LEARNS</div>
+      <div class="title" data-split>株価が“学習”されるしくみ。</div>
+    </div>
+    <div class="pcol card h" id="p1" style="left:120px">
+      <div class="step">STEP 1</div><div class="ptitle">日足データ</div>
+      <svg width="242" height="200" viewBox="0 0 242 200" id="candles"></svg>
+      <div class="pcap">異常値を検証して取り込み<br>失敗時は別ソースへ自動切替</div>
+    </div>
+    <svg class="arrow h" style="left:422px" viewBox="0 0 46 20"><path d="M2 10 H40 M32 3 L42 10 L32 17" stroke="#fb923c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="pcol card h" id="p2" style="left:480px">
+      <div class="step">STEP 2</div><div class="ptitle">45の特徴量</div>
+      <div class="chips">
+        <div class="grp">TECHNICAL ×34</div>
+        <span class="chip">リターン 1〜20日</span><span class="chip">移動平均乖離</span><span class="chip">RSI</span><span class="chip">MACD</span><span class="chip">ボリンジャー</span><span class="chip">ATR</span><span class="chip">出来高</span><span class="chip">ローソク足</span><span class="chip">曜日・月末</span>
+        <div class="grp">MACRO ×11</div>
+        <span class="chip m">USD/JPY</span><span class="chip m">TOPIX</span><span class="chip m">日経平均</span><span class="chip m">日経VI</span><span class="chip m">JGB10年</span>
+      </div>
+    </div>
+    <svg class="arrow h" style="left:782px" viewBox="0 0 46 20"><path d="M2 10 H40 M32 3 L42 10 L32 17" stroke="#fb923c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="pcol card h" id="p3" style="left:840px">
+      <div class="step">STEP 3</div><div class="ptitle">LightGBM</div>
+      <svg width="242" height="200" viewBox="0 0 242 200" id="tree"></svg>
+      <div class="pcap">勾配ブースティング木が<br>5営業日先の「上昇」を学習</div>
+    </div>
+    <svg class="arrow h" style="left:1142px" viewBox="0 0 46 20"><path d="M2 10 H40 M32 3 L42 10 L32 17" stroke="#fb923c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="pcol card h" id="p4" style="left:1200px">
+      <div class="step">STEP 4</div><div class="ptitle">確率を較正</div>
+      <svg width="242" height="200" viewBox="0 0 242 200" id="calib">
+        <rect x="1" y="1" width="240" height="198" rx="10" fill="none" stroke="rgba(148,163,184,.18)"/>
+        <path d="M10 190 L232 10" stroke="rgba(148,163,184,.45)" stroke-dasharray="5 6" fill="none"/>
+        <path id="calibcurve" d="M10 190 L40 190 L40 168 L78 168 L78 140 L112 140 L112 104 L150 104 L150 70 L190 70 L190 34 L232 34 L232 12" stroke="#c084fc" stroke-width="4" fill="none" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" style="filter: drop-shadow(0 0 8px rgba(192,132,252,.6))"/>
+      </svg>
+      <div class="pcap">isotonic回帰で「70%」が<br>本当に70%になるよう補正</div>
+    </div>
+    <svg class="arrow h" style="left:1502px" viewBox="0 0 46 20"><path d="M2 10 H40 M32 3 L42 10 L32 17" stroke="#fb923c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="pcol card h" id="p5" style="left:1560px; width:240px">
+      <div class="step">OUTPUT</div><div class="ptitle">上がる確率</div>
+      <div id="prob" style="font-size:62px">0.0%</div>
+      <div id="probbar"><i></i></div>
+      <div id="sig5"><span>売</span><span>弱売</span><span>様子</span><span class="hot">弱買</span><span>買</span></div>
+      <div class="pcap">5段階のシグナルへ</div>
+    </div>
+    <div class="foot h"><span class="grad-text">価格 × 指標 × マクロ</span> を毎朝読み込み、確率という“正直な数字”に変える。</div>
+  </section>
+
+  <!-- S5: triple barrier -->
+  <section class="scene" id="s5">
+    <div class="head">
+      <div class="kicker h">03 — LABELING</div>
+      <div class="title" data-split>“正解”の定義も、自動で。</div>
+      <div class="lead h">トリプルバリア法 ― 5営業日以内に、どちらの壁に先に触れたか。</div>
+    </div>
+    <svg id="tb" viewBox="0 0 1400 600" style="overflow:visible">
+      <g id="tbgrid" opacity=".5"></g>
+      <line class="bar-up" x1="0" x2="1100" y1="150" y2="150" stroke="#f87171" stroke-width="3" stroke-dasharray="14 10" pathLength="1"/>
+      <line class="bar-dn" x1="0" x2="1100" y1="450" y2="450" stroke="#60a5fa" stroke-width="3" stroke-dasharray="14 10"/>
+      <line class="bar-t" x1="1100" x2="1100" y1="90" y2="510" stroke="#fbbf24" stroke-width="3" stroke-dasharray="10 10"/>
+      <line x1="0" x2="1100" y1="330" y2="330" stroke="rgba(148,163,184,.35)" stroke-width="1.5"/>
+      <path id="pA" fill="none" stroke="#f87171" stroke-width="5" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" style="filter: drop-shadow(0 0 10px rgba(248,113,113,.7))"/>
+      <path id="pB" fill="none" stroke="#60a5fa" stroke-width="5" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" style="filter: drop-shadow(0 0 10px rgba(96,165,250,.7))"/>
+      <circle id="hitA" r="16" fill="none" stroke="#f87171" stroke-width="4" opacity="0"/>
+      <circle id="hitB" r="16" fill="none" stroke="#60a5fa" stroke-width="4" opacity="0"/>
+      <circle cx="0" cy="330" r="9" fill="#e5e7eb"/>
+    </svg>
+    <div class="lbl h" id="lUp" style="left:1380px; top:490px; color:#f87171">利確ライン  +1.5 ATR</div>
+    <div class="lbl h" id="lDn" style="left:1380px; top:790px; color:#60a5fa">損切りライン  −1.0 ATR</div>
+    <div class="lbl h" id="lT" style="left:1260px; top:880px; color:#fbbf24">期限  5営業日</div>
+    <div class="res h" id="rA" style="left:870px; top:420px; background:rgba(127,29,29,.45); border:1px solid #f87171; color:#fecaca">先に利確ライン → 「上昇」 1</div>
+    <div class="res h" id="rB" style="left:950px; top:784px; background:rgba(30,58,138,.45); border:1px solid #60a5fa; color:#dbeafe">先に損切りライン → 0</div>
+    <div class="lbl h" id="tbnote" style="left:120px; top:990px; color:#94a3b8; font-weight:500; font-size:22px">※ ATR＝その銘柄の“ふだんの値動きの幅”。同じ幅が、実際の売買の利確・損切りの目安にもなる。</div>
+  </section>
+
+  <!-- S6: KPI gate -->
+  <section class="scene" id="s6">
+    <div class="head">
+      <div class="kicker h">04 — KPI GATE</div>
+      <div class="title" data-split>勝てる証拠がなければ、動かない。</div>
+    </div>
+    <div id="checks" class="card h">
+      <div class="ct">合格基準（未来を見ない検証で判定）</div>
+      <div class="crow h"><span class="k">年率リターン CAGR</span><span><span class="v">≥ 3%</span></span><span class="ok">✓</span></div>
+      <div class="crow h"><span class="k">最大ドローダウン</span><span><span class="v">≤ 25%</span></span><span class="ok">✓</span></div>
+      <div class="crow h"><span class="k">シャープレシオ</span><span><span class="v">≥ 0.20</span></span><span class="ok">✓</span></div>
+      <div class="crow h"><span class="k">1日あたり純リターン</span><span><span class="v">&gt; 0.01%</span></span><span class="ok">✓</span></div>
+      <div class="crow h"><span class="k">往復取引数</span><span><span class="v">≥ 10回</span></span><span class="ok">✓</span></div>
+    </div>
+    <div id="gate">
+      <div class="pillar" style="left:240px"></div>
+      <div class="pillar" style="left:326px"></div>
+      <div id="beam" class="h"></div>
+    </div>
+    <div class="token" id="tokA" style="opacity:0">BUY</div>
+    <div class="token" id="tokB" style="opacity:0">BUY</div>
+    <div class="token" id="tokBhold" style="opacity:0">HOLD</div>
+    <div id="stamp" class="h" style="left:1040px; top:800px">基準未達</div>
+    <div id="passlbl" class="h" style="position:absolute; left:1520px; top:560px; font-size:22px; font-weight:800; color:#fecaca">合格 → シグナル発行</div>
+    <div class="foot h">コスト・スリッページ込みで検証し、<b style="color:#fbbf24">基準に届かない銘柄は強制的に HOLD</b>。シグナルの“質”を自分で守る。</div>
+  </section>
+
+  <!-- S7: weekly loop -->
+  <section class="scene" id="s7">
+    <div class="head">
+      <div class="kicker h">05 — SELF-RENEWAL</div>
+      <div class="title" data-split>毎週、自分で学び直す。</div>
+    </div>
+    <div id="ring">
+      <svg width="660" height="660" viewBox="-330 -330 660 660">
+        <circle r="270" fill="none" stroke="rgba(148,163,184,.16)" stroke-width="3"/>
+        <circle id="ringarc" r="270" fill="none" stroke="url(#lg-ring)" stroke-width="6" stroke-linecap="round" pathLength="1" stroke-dasharray="0.16 0.84" transform="rotate(-90)" opacity="0"/>
+        <defs><linearGradient id="lg-ring"><stop offset="0" stop-color="#fb923c" stop-opacity="0"/><stop offset="1" stop-color="#fb923c"/></linearGradient></defs>
+      </svg>
+      <div id="ringcore" class="h"><div class="w">WEEKLY LOOP</div><div class="n grad-text">∞</div></div>
+    </div>
+  </section>
+
+  <!-- S8: resilience -->
+  <section class="scene" id="s8">
+    <div class="head">
+      <div class="kicker h">06 — NEVER STOP</div>
+      <div class="title" data-split>どこかが落ちても、シグナルは止まらない。</div>
+    </div>
+    <div id="alive" class="h"><span class="pulse"></span>毎朝のシグナル生成 ― 縮退しながら必ず継続</div>
+  </section>
+
+  <!-- S9: design -->
+  <section class="scene" id="s9">
+    <div class="head">
+      <div class="kicker h">07 — DESIGN</div>
+      <div class="title" data-split>見える化まで、ぜんぶ自動。</div>
+    </div>
+    <div class="persp">
+      <div class="browser h" id="bHome">
+        <div class="bar"><i></i><i></i><i></i><div class="url">🔒 AI株式トレーダー — ホーム</div></div>
+        <div class="shot"><img src="assets/home_scroll.jpg" alt="" id="homeImg"></div>
+      </div>
+      <div class="browser h" id="bStock">
+        <div class="bar"><i></i><i></i><i></i><div class="url">🔒 AI株式トレーダー — 銘柄詳細</div></div>
+        <div class="shot"><img src="assets/stock.jpg" alt=""></div>
+      </div>
+    </div>
+    <div id="phone" class="h"><div class="notch"></div><div class="scr"><img src="assets/mobile.jpg" alt="" id="phoneImg"></div></div>
+    <div id="notif" class="h">
+      <div class="ap"><i></i>朝のダイジェスト · 06:0X</div>
+      <div class="nt">今日のAI判断：買い候補 2社</div>
+      <div class="nb">リクルートHD 上がる確率 <em>64.2%</em><br>レーザーテック 上がる確率 <em>61.3%</em><br>利確・損切り・期限の目安つき</div>
+    </div>
+    <div class="callout h" id="co1" style="left:240px; top:420px">今日のAI判断</div>
+    <div class="callout h" id="co2" style="left:1150px; top:600px">上がる確率をひと目で</div>
+    <div class="callout h" id="co3" style="left:240px; top:760px">全50銘柄を検索・並び替え</div>
+    <div class="callout h" id="co4" style="left:700px; top:960px">チャート × MA × RSI</div>
+    <div class="callout h" id="co6" style="left:1530px; top:820px">スマホでも見やすく</div>
+    <div class="callout h" id="co5" style="left:1180px; top:260px">AIのひとこと・サインと結果</div>
+  </section>
+
+  <!-- S10: numbers -->
+  <section class="scene" id="s10">
+    <div class="head">
+      <div class="kicker h">08 — BY THE NUMBERS</div>
+      <div class="title" data-split>数字で見る、全自動。</div>
+    </div>
+    <div id="nums">
+      <div class="num card h"><div class="v grad-text" data-n="50">0</div><div class="u">監視銘柄</div><div class="d">AIが毎日入れ替えを検討</div></div>
+      <div class="num card h"><div class="v grad-text" data-n="45">0</div><div class="u">特徴量</div><div class="d">テクニカル34 ＋ マクロ11</div></div>
+      <div class="num card h"><div class="v grad-text" data-n="15">0</div><div class="u">自動ワークフロー</div><div class="d">日次・週次・月次・四半期</div></div>
+      <div class="num card h"><div class="v grad-text" data-n="5">0</div><div class="u">段階のシグナル</div><div class="d">買い〜売り、未達なら様子見</div></div>
+      <div class="num card h"><div class="v grad-text" data-n="48">0</div><div class="u">テストスイート</div><div class="d">変更のたびにCIで検証</div></div>
+      <div class="num card h"><div class="v" data-n="0" style="color:#34d399">0</div><div class="u">毎日の手作業</div><div class="d">予測から公開・通知まで</div></div>
+    </div>
+  </section>
+
+  <!-- S11: outro -->
+  <section class="scene" id="s11">
+    <div class="lines">
+      <div class="l1 h">眠っているあいだに、</div>
+      <div class="l2 h">学び、判断し、<span class="grad-text">届ける。</span></div>
+    </div>
+    <div class="logo h">
+      <div class="nm">AI株式トレーダー</div>
+      <div class="sl">AUTONOMOUS · CALIBRATED · GATED</div>
+    </div>
+    <div class="stack">
+      <div class="pill h">Python</div><div class="pill h">LightGBM</div><div class="pill h">GitHub Actions</div><div class="pill h">PostgreSQL</div><div class="pill h">Next.js</div><div class="pill h">Claude</div>
+    </div>
+    <div class="disc h">※ 本動画はシステムの仕組みを紹介するものであり、特定銘柄の推奨や投資助言ではありません。</div>
+  </section>
+
+  <!-- chrome -->
+  <div id="chrome">
+    <div id="wordmark"><span class="dot"></span>AI株式トレーダー</div>
+    <div id="chapter"><b id="chapNo">01</b> / 08</div>
+  </div>
+  <div id="vignette"></div>
+  <div id="grain"></div>
+  <div id="progress"></div>
+  <div id="fade"></div>
+</div>
+</div>
+<div id="ui"><button id="btnPlay">⏸ 一時停止</button><button id="btnReplay">↺ 最初から</button></div>
+
+<script src="vendor/motion-12.43.0.js"></script>
+<script>
+(() => {
+  const { animate, motionValue, stagger } = Motion;
+  const RENDER = new URLSearchParams(location.search).has("render");
+  if (RENDER) document.body.classList.add("render");
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const E = { out: [0.16, 1, 0.3, 1], inout: [0.65, 0, 0.35, 1], in: [0.7, 0, 0.84, 0], back: [0.34, 1.56, 0.64, 1] };
+  const NS = "http://www.w3.org/2000/svg";
+
+  // deterministic PRNG so every render is identical
+  function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function smooth(pts) {
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0]} ${p2[1]}`;
+    }
+    return d;
+  }
+  function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; }
+
+  // split marked headings into per-character spans
+  $$("[data-split]").forEach(n => { n.innerHTML = [...n.textContent].map(ch => `<span class="c">${ch}</span>`).join(""); });
+
+  // ---------- procedural SVG content ----------
+  { // S2 background price line
+    const r = rng(7), pts = []; let y = 1010;
+    for (let x = -40; x <= 1960; x += 40) { y += (r() - 0.6) * 40; y = Math.max(700, Math.min(1040, y)); pts.push([x, Math.round(y)]); }
+    const d = smooth(pts);
+    $("#s2line").setAttribute("d", d);
+    $("#s2area").setAttribute("d", d + " L1960 1080 L-40 1080 Z");
+  }
+  { // S4 candles
+    const svg = $("#candles"), r = rng(11); let p = 120;
+    el("rect", { x: 1, y: 1, width: 240, height: 198, rx: 10, fill: "none", stroke: "rgba(148,163,184,.18)" }, svg);
+    for (let i = 0; i < 16; i++) {
+      const o = p; p += (r() - 0.42) * 26; p = Math.max(40, Math.min(170, p)); const c = p;
+      const hi = Math.min(o, c) - r() * 14, lo = Math.max(o, c) + r() * 14;
+      const upc = c < o; // smaller y = higher price
+      const col = upc ? "#f87171" : "#60a5fa";
+      const g = el("g", { class: "cdl" }, svg);
+      const x = 14 + i * 14;
+      el("line", { x1: x + 4, x2: x + 4, y1: hi.toFixed(1), y2: lo.toFixed(1), stroke: col, "stroke-width": 1.5 }, g);
+      el("rect", { x, y: Math.min(o, c).toFixed(1), width: 8, height: Math.max(2, Math.abs(c - o)).toFixed(1), fill: col, rx: 1.5 }, g);
+    }
+  }
+  { // S4 decision tree
+    const svg = $("#tree");
+    const L = [[[121, 24]], [[66, 84], [176, 84]], [[36, 144], [96, 144], [146, 144], [206, 144]]];
+    for (let lv = 0; lv < 2; lv++) L[lv].forEach((p, i) => [0, 1].forEach(k => {
+      const q = L[lv + 1][i * 2 + k];
+      el("path", { class: "edge", d: `M${p[0]} ${p[1]} L${q[0]} ${q[1]}`, stroke: "rgba(251,146,60,.7)", "stroke-width": 2.5, fill: "none", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1 }, svg);
+    }));
+    L.flat().forEach((p, i) => el("circle", { class: "tn", cx: p[0], cy: p[1], r: i < 3 ? 12 : 10, fill: i < 3 ? "#0f172a" : (i % 2 ? "#7f1d1d" : "#1e3a8a"), stroke: i < 3 ? "#fb923c" : (i % 2 ? "#f87171" : "#60a5fa"), "stroke-width": 2.5, opacity: 0 }, svg));
+    el("text", { x: 121, y: 192, "text-anchor": "middle", fill: "#64748b", "font-family": "JetBrains Mono", "font-size": 13, class: "tn", opacity: 0 }, svg).textContent = "× 数百本の木";
+  }
+  { // S5 barrier paths + grid
+    const g = $("#tbgrid");
+    for (let d = 0; d <= 5; d++) {
+      el("line", { x1: d * 220, x2: d * 220, y1: 90, y2: 510, stroke: "rgba(148,163,184,.15)" }, g);
+      el("text", { x: d * 220, y: 545, fill: "#64748b", "font-family": "JetBrains Mono", "font-size": 18, "text-anchor": "middle" }, g).textContent = d === 0 ? "今日" : `${d}日目`;
+    }
+    $("#pA").setAttribute("d", smooth([[0, 330], [90, 308], [170, 348], [260, 286], [350, 312], [440, 250], [530, 272], [610, 214], [690, 236], [760, 182], [814, 150]]));
+    $("#pB").setAttribute("d", smooth([[0, 330], [100, 342], [190, 318], [280, 372], [370, 356], [450, 402], [520, 384], [590, 428], [640, 450]]));
+    $("#hitA").setAttribute("cx", 814); $("#hitA").setAttribute("cy", 150);
+    $("#hitB").setAttribute("cx", 640); $("#hitB").setAttribute("cy", 450);
+  }
+  { // S7 ring nodes
+    const ring = $("#ring");
+    const nodes = [["01", "再学習", "土曜に全銘柄を学習し直す"], ["02", "検証", "未来を見ないholdoutで審査"], ["03", "署名", "manifest・checksumで固定"], ["04", "切替", "合格モデルだけを一瞬で採用"], ["05", "監視", "IC・Brier・PSIでズレを検知"], ["06", "起票", "異常はIssueを自動作成"]];
+    nodes.forEach(([n, t, d], i) => {
+      const a = -Math.PI / 2 + i * Math.PI / 3, x = Math.cos(a) * 270, y = Math.sin(a) * 270;
+      const div = document.createElement("div");
+      div.className = "rnode h";
+      div.style.left = `${x}px`; div.style.top = `${y - 42}px`;
+      div.innerHTML = `<div class="rb">${n}</div><div class="rn">${t}</div><div class="rd">${d}</div>`;
+      ring.appendChild(div);
+    });
+  }
+  { // S8 resilience rows
+    const s8 = $("#s8");
+    const rows = [["株価データの取得に失敗", "別ソース（yfinance）へ自動フォールバック"], ["データベースに接続できない", "outboxへ退避し、次回に冪等再送"], ["学習済みモデルが見つからない", "その場で学習・検証した候補で推論"], ["ポートフォリオ層でエラー", "スキップしてログ、日次シグナルは無傷"]];
+    rows.forEach(([f, a], i) => {
+      const row = document.createElement("div");
+      row.className = "rrow"; row.style.top = `${360 + i * 128}px`;
+      row.innerHTML = `<div class="fail h">${f}<span class="x">✕</span></div>
+        <svg width="340" height="104" viewBox="0 0 340 104"><path d="M0 52 C120 52 220 52 340 52" stroke="#34d399" stroke-width="3" fill="none" stroke-dasharray="1" stroke-dashoffset="1" pathLength="1"/></svg>
+        <div class="alt h"><span class="y">✓</span>${a}</div>`;
+      s8.appendChild(row);
+    });
+  }
+
+  // ---------- timeline ----------
+  const seq = [];
+  const add = (t, kf, o) => { const tg = typeof t === "string" ? $$(t) : t; if (Array.isArray(tg) && !tg.length) { console.warn("no target", t); return; } seq.push([tg, kf, o]); };
+  const counters = [];
+  const count = (node, to, at, duration, fmt) => {
+    const mv = motionValue(0); const draw = v => { node.textContent = fmt(v); }; draw(0); mv.on("change", draw);
+    seq.push([mv, to, { at, duration, ease: E.out }]); counters.push(mv);
+  };
+  const sceneIn = (id, at, d = 0.7) => add(id, { opacity: [0, 1] }, { at, duration: d, ease: "linear" });
+  const sceneOut = (id, at, d = 0.7) => add(id, { opacity: [1, 0], scale: [1, 1.04], filter: ["blur(0px)", "blur(10px)"] }, { at, duration: d, ease: E.in });
+  const rise = (t, at, o = {}) => add(t, { opacity: [0, 1], y: [o.y ?? 30, 0], filter: ["blur(8px)", "blur(0px)"] }, { at, duration: o.d ?? 0.8, ease: E.out, delay: o.stagger ? stagger(o.stagger) : 0 });
+  const chars = (sel, at, gap = 0.035) => add(`${sel} .c`, { opacity: [0, 1], y: [40, 0], filter: ["blur(10px)", "blur(0px)"] }, { at, duration: 0.7, ease: E.out, delay: stagger(gap) });
+  const head = (id, at) => { rise(`${id} .kicker`, at, { y: 12, d: 0.6 }); chars(`${id} .title`, at + 0.15, 0.03); };
+
+  const T = { s1: 0, s2: 7, s3: 14.5, s4: 26, s5: 41, s6: 49.5, s7: 60, s8: 68.5, s9: 76, s10: 91, s11: 97, end: 104 };
+  const DUR = T.end;
+
+  // background drift for the full length
+  add("#blob1", { x: [0, 420], y: [0, 180] }, { at: 0, duration: DUR, ease: "linear" });
+  add("#blob2", { x: [0, -380], y: [0, -140] }, { at: 0, duration: DUR, ease: "linear" });
+  add("#blob3", { x: [0, -500], y: [0, 120], scale: [1, 1.4] }, { at: 0, duration: DUR, ease: "linear" });
+  add("#bg-grid", { x: [0, -80 * 6], y: [0, 80 * 3] }, { at: 0, duration: DUR, ease: "linear" });
+  add("#progress", { scaleX: [0, 1] }, { at: 0, duration: DUR, ease: "linear" });
+
+  // chrome (wordmark + chapter) visible during the explainer chapters
+  add("#chrome", { opacity: [0, 1, 1, 0] }, { at: T.s3, duration: T.s11 - T.s3, times: [0, 0.03, 0.97, 1], ease: "linear" });
+  const chap = $("#chapNo");
+  const chapMv = motionValue(1); chapMv.on("change", v => { chap.textContent = String(Math.round(v)).padStart(2, "0"); });
+  [T.s4, T.s5, T.s6, T.s7, T.s8, T.s9, T.s10].forEach((t, i) => seq.push([chapMv, i + 2, { at: t, duration: 0.01, ease: "linear" }]));
+
+  // S1 — cold open
+  sceneIn("#s1", 0.0, 0.6);
+  rise("#s1 .tz", 0.3, { y: 10 });
+  add("#clock", { opacity: [0, 1], scale: [0.94, 1] }, { at: 0.2, duration: 1.0, ease: E.out });
+  {
+    const clock = $("#clock"), mv = motionValue(57);
+    mv.on("change", v => { clock.textContent = v >= 59.999 ? "06:00:00" : `05:59:${String(Math.floor(v)).padStart(2, "0")}`; });
+    seq.push([mv, 60, { at: 0.4, duration: 2.6, ease: "linear" }]); counters.push(mv);
+  }
+  add("#clock", { color: ["#f1f5f9", "#fb923c"], textShadow: ["0 0 0px rgba(251,146,60,0)", "0 0 70px rgba(251,146,60,.65)"] }, { at: 3.0, duration: 0.35, ease: E.out });
+  rise("#s1 .l1", 3.4);
+  rise("#s1 .l2", 4.4);
+  sceneOut("#s1", 6.4, 0.7);
+
+  // S2 — title
+  sceneIn("#s2", T.s2, 0.5);
+  add("#s2line", { strokeDashoffset: [1, 0] }, { at: T.s2, duration: 3.2, ease: E.inout });
+  add("#s2area", { opacity: [0, 1] }, { at: T.s2 + 1.6, duration: 1.6, ease: "linear" });
+  rise("#s2 .kick", T.s2 + 0.3, { y: 14 });
+  add("#s2 .big .c", { opacity: [0, 1], y: [80, 0], scale: [0.8, 1], filter: ["blur(16px)", "blur(0px)"] }, { at: T.s2 + 0.6, duration: 1.0, ease: E.out, delay: stagger(0.06) });
+  add("#s2 .rule", { opacity: [0, 1], scaleX: [0, 1] }, { at: T.s2 + 1.7, duration: 1.0, ease: E.out });
+  rise("#s2 .tag", T.s2 + 2.5);
+  rise("#s2 .tag2", T.s2 + 3.5);
+  add("#s2 .big", { scale: [1, 1.03] }, { at: T.s2 + 1.5, duration: 5.5, ease: "linear" });
+  sceneOut("#s2", T.s3 - 0.6, 0.6);
+
+  // S3 — daily timeline
+  sceneIn("#s3", T.s3, 0.5);
+  head("#s3", T.s3 + 0.2);
+  add("#track", { opacity: [0, 1], scaleX: [0.6, 1] }, { at: T.s3 + 0.8, duration: 0.8, ease: E.out });
+  add("#trackfill", { scaleX: [0, 1] }, { at: T.s3 + 1.4, duration: 7.2, ease: "linear" });
+  $$("#s3 .tnode").forEach((n, i) => {
+    const t = T.s3 + 1.4 + (i * 340 + 80) / 1520 * 7.2;
+    add($(".dot", n), { scale: [1, 1.35, 1], borderColor: ["rgba(148,163,184,.32)", "#fb923c"] }, { at: t, duration: 0.5, ease: E.out });
+    add($(".dot i", n), { opacity: [0, 1] }, { at: t, duration: 0.3 });
+    add($(".tcard", n), { opacity: [0, 1], y: [n.classList.contains("up") ? 24 : -24, 0], filter: ["blur(8px)", "blur(0px)"] }, { at: t - 0.1, duration: 0.7, ease: E.out });
+  });
+  rise("#s3 .weekly .pill", T.s3 + 8.4, { stagger: 0.12, y: 20 });
+  sceneOut("#s3", T.s4 - 0.6, 0.6);
+
+  // S4 — pipeline
+  sceneIn("#s4", T.s4, 0.5);
+  head("#s4", T.s4 + 0.2);
+  const pcols = ["#p1", "#p2", "#p3", "#p4", "#p5"], arrows = $$("#s4 .arrow");
+  pcols.forEach((p, i) => {
+    const t = T.s4 + 1.0 + i * 2.1;
+    add(p, { opacity: [0, 1], y: [50, 0], scale: [0.96, 1] }, { at: t, duration: 0.8, ease: E.out });
+    if (i > 0) add(arrows[i - 1], { opacity: [0, 1], x: [-14, 0] }, { at: t - 0.35, duration: 0.5, ease: E.out });
+  });
+  add("#candles .cdl", { opacity: [0, 1], y: [16, 0] }, { at: T.s4 + 1.3, duration: 0.45, ease: E.out, delay: stagger(0.06) });
+  add("#p2 .chip, #p2 .grp", { opacity: [0, 1], scale: [0.7, 1] }, { at: T.s4 + 3.3, duration: 0.4, ease: E.back, delay: stagger(0.06) });
+  add("#tree .edge", { strokeDashoffset: [1, 0] }, { at: T.s4 + 5.4, duration: 0.5, ease: E.out, delay: stagger(0.12) });
+  add("#tree .tn", { opacity: [0, 1] }, { at: T.s4 + 5.3, duration: 0.3, delay: stagger(0.1) });
+  add("#calibcurve", { strokeDashoffset: [1, 0] }, { at: T.s4 + 7.5, duration: 1.4, ease: E.inout });
+  count($("#prob"), 64.2, T.s4 + 9.6, 1.8, v => `${v.toFixed(1)}%`);
+  add("#probbar i", { scaleX: [0, 0.642] }, { at: T.s4 + 9.6, duration: 1.8, ease: E.out });
+  add("#sig5 .hot", { backgroundColor: ["rgba(51,65,85,.5)", "rgba(251,146,60,.22)"], color: ["#64748b", "#fb923c"], scale: [1, 1.12, 1] }, { at: T.s4 + 11.3, duration: 0.6, ease: E.out });
+  rise("#s4 .foot", T.s4 + 11.8);
+  sceneOut("#s4", T.s5 - 0.6, 0.6);
+
+  // S5 — triple barrier
+  sceneIn("#s5", T.s5, 0.5);
+  head("#s5", T.s5 + 0.2);
+  rise("#s5 .lead", T.s5 + 0.9, { y: 14 });
+  add("#tb", { opacity: [0, 1] }, { at: T.s5 + 0.8, duration: 0.6 });
+  add("#tb .bar-up, #tb .bar-dn, #tb .bar-t", { opacity: [0, 1] }, { at: T.s5 + 1.2, duration: 0.5, delay: stagger(0.25) });
+  rise("#lUp", T.s5 + 1.3, { y: 0 }); rise("#lDn", T.s5 + 1.55, { y: 0 }); rise("#lT", T.s5 + 1.8, { y: 0 });
+  add("#pA", { strokeDashoffset: [1, 0] }, { at: T.s5 + 2.2, duration: 1.8, ease: "linear" });
+  add("#hitA", { opacity: [0, 1, 0.9], scale: [0.3, 2.2, 1.4] }, { at: T.s5 + 4.0, duration: 0.6, ease: E.out });
+  add("#rA", { opacity: [0, 1], scale: [0.85, 1] }, { at: T.s5 + 4.1, duration: 0.5, ease: E.back });
+  add("#pB", { strokeDashoffset: [1, 0] }, { at: T.s5 + 4.7, duration: 1.4, ease: "linear" });
+  add("#hitB", { opacity: [0, 1, 0.9], scale: [0.3, 2.2, 1.4] }, { at: T.s5 + 6.1, duration: 0.6, ease: E.out });
+  add("#rB", { opacity: [0, 1], scale: [0.85, 1] }, { at: T.s5 + 6.2, duration: 0.5, ease: E.back });
+  rise("#tbnote", T.s5 + 5.2, { y: 10 });
+  sceneOut("#s5", T.s6 - 0.6, 0.6);
+
+  // S6 — KPI gate
+  sceneIn("#s6", T.s6, 0.5);
+  head("#s6", T.s6 + 0.2);
+  add("#checks", { opacity: [0, 1], x: [-40, 0] }, { at: T.s6 + 0.9, duration: 0.7, ease: E.out });
+  rise("#checks .crow", T.s6 + 1.3, { y: 10, stagger: 0.28, d: 0.5 });
+  add("#checks .ok", { scale: [0, 1.25, 1] }, { at: T.s6 + 1.6, duration: 0.4, ease: E.out, delay: stagger(0.28) });
+  add("#gate .pillar", { opacity: [0, 1], scaleY: [0, 1] }, { at: T.s6 + 1.0, duration: 0.7, ease: E.out, delay: stagger(0.1) });
+  add("#beam", { opacity: [0, 1, 0.55, 1] }, { at: T.s6 + 1.6, duration: 1.2, ease: "linear" });
+  // token A passes the gate
+  add("#tokA", { opacity: [0, 1, 1, 1], x: [860, 1180, 1300, 1560], y: [480, 480, 480, 480], scale: [0.9, 1, 1, 1.1] }, { at: T.s6 + 2.6, duration: 2.4, times: [0, 0.3, 0.6, 1], ease: E.inout });
+  add("#tokA", { boxShadow: ["0 0 30px rgba(248,113,113,.35)", "0 0 70px rgba(248,113,113,.9)", "0 0 40px rgba(248,113,113,.5)"] }, { at: T.s6 + 4.6, duration: 0.8 });
+  add("#beam", { background: ["linear-gradient(180deg, transparent, #fbbf24, transparent)", "linear-gradient(180deg, transparent, #34d399, transparent)", "linear-gradient(180deg, transparent, #fbbf24, transparent)"] }, { at: T.s6 + 3.6, duration: 0.8 });
+  // token B is stopped and forced to HOLD
+  add("#tokB", { opacity: [0, 1, 1, 0], x: [860, 1060, 1130, 1130], y: [700, 700, 700, 700] }, { at: T.s6 + 4.4, duration: 2.0, times: [0, 0.4, 0.75, 1], ease: E.inout });
+  add("#beam", { background: ["linear-gradient(180deg, transparent, #fbbf24, transparent)", "linear-gradient(180deg, transparent, #ef4444, transparent)", "linear-gradient(180deg, transparent, #fbbf24, transparent)"] }, { at: T.s6 + 5.6, duration: 0.9 });
+  add("#tokBhold", { opacity: [0, 1], x: [1130, 1080], y: [700, 700], scale: [1.3, 1] }, { at: T.s6 + 6.2, duration: 0.6, ease: E.back });
+  add("#stamp", { opacity: [0, 1], scale: [2.2, 1], rotate: [-18, -10] }, { at: T.s6 + 6.6, duration: 0.45, ease: E.out });
+  rise("#passlbl", T.s6 + 4.9, { y: 10, d: 0.5 });
+  rise("#s6 .foot", T.s6 + 7.4, { y: 12 });
+  sceneOut("#s6", T.s7 - 0.6, 0.6);
+
+  // S7 — weekly loop
+  sceneIn("#s7", T.s7, 0.5);
+  head("#s7", T.s7 + 0.2);
+  add("#ring svg", { opacity: [0, 1], scale: [0.85, 1], rotate: [-30, 0] }, { at: T.s7 + 0.6, duration: 1.0, ease: E.out });
+  rise("#ringcore", T.s7 + 1.0, { y: 0 });
+  $$("#ring .rnode").forEach((n, i) => {
+    const t = T.s7 + 1.4 + i * 0.9;
+    add(n, { opacity: [0, 1], scale: [0.6, 1] }, { at: t, duration: 0.55, ease: E.back });
+    add($(".rb", n), { borderColor: ["rgba(148,163,184,.32)", "#fb923c", "rgba(251,146,60,.55)"], color: ["#94a3b8", "#fb923c", "#fdba74"], boxShadow: ["0 0 0 rgba(251,146,60,0)", "0 0 40px rgba(251,146,60,.7)", "0 0 16px rgba(251,146,60,.3)"] }, { at: t + 0.1, duration: 0.9 });
+  });
+  add("#ringarc", { opacity: [0, 1] }, { at: T.s7 + 1.4, duration: 0.4 });
+  add("#ringarc", { strokeDashoffset: [0.08, -1.92] }, { at: T.s7 + 1.4, duration: 7.0, ease: "linear" });
+  add("#ringcore .n", { scale: [1, 1.15, 1, 1.15, 1] }, { at: T.s7 + 2.0, duration: 6.0, ease: E.inout });
+  sceneOut("#s7", T.s8 - 0.6, 0.6);
+
+  // S8 — resilience
+  sceneIn("#s8", T.s8, 0.5);
+  head("#s8", T.s8 + 0.2);
+  $$("#s8 .rrow").forEach((r, i) => {
+    const t = T.s8 + 1.0 + i * 1.15;
+    add($(".fail", r), { opacity: [0, 1], x: [-30, 0] }, { at: t, duration: 0.5, ease: E.out });
+    add($(".x", r), { scale: [0, 1.4, 1], rotate: [-90, 0] }, { at: t + 0.3, duration: 0.45, ease: E.out });
+    add($("path", r), { strokeDashoffset: [1, 0] }, { at: t + 0.45, duration: 0.45, ease: E.inout });
+    add($(".alt", r), { opacity: [0, 1], x: [30, 0] }, { at: t + 0.75, duration: 0.5, ease: E.out });
+  });
+  rise("#alive", T.s8 + 5.8, { y: 16 });
+  add("#alive .pulse", { scale: [1, 1.6, 1, 1.6, 1], opacity: [1, 0.5, 1, 0.5, 1] }, { at: T.s8 + 6.0, duration: 1.4, ease: "linear" });
+  sceneOut("#s8", T.s9 - 0.6, 0.6);
+
+  // S9 — design showcase
+  sceneIn("#s9", T.s9, 0.5);
+  head("#s9", T.s9 + 0.2);
+  add("#bHome", { opacity: [0, 1], rotateY: [-28, -10], rotateX: [14, 6], x: [-160, 0], y: [120, 0] }, { at: T.s9 + 0.4, duration: 1.6, ease: E.out });
+  add("#bHome", { rotateY: [-10, -4], rotateX: [6, 3] }, { at: T.s9 + 2.0, duration: 3.6, ease: "linear" });
+  add("#homeImg", { y: [0, -980] }, { at: T.s9 + 3.4, duration: 2.4, ease: E.inout });
+  add("#co1", { opacity: [0, 1, 1, 0], x: [-20, 0, 0, 0] }, { at: T.s9 + 1.4, duration: 2.6, times: [0, 0.15, 0.85, 1] });
+  add("#co2", { opacity: [0, 1, 1, 0], x: [20, 0, 0, 0] }, { at: T.s9 + 2.0, duration: 2.8, times: [0, 0.15, 0.85, 1] });
+  add("#co3", { opacity: [0, 1, 1, 0], x: [-20, 0, 0, 0] }, { at: T.s9 + 3.4, duration: 2.4, times: [0, 0.15, 0.85, 1] });
+  // stock detail comes forward
+  add("#bHome", { x: [0, -360], scale: [1, 0.82], opacity: [1, 0.5], filter: ["blur(0px)", "blur(3px)"] }, { at: T.s9 + 5.6, duration: 1.2, ease: E.inout });
+  add("#bStock", { opacity: [0, 1], x: [400, 0], rotateY: [24, -6], scale: [0.9, 1] }, { at: T.s9 + 5.7, duration: 1.4, ease: E.out });
+  add("#bStock", { rotateY: [-6, -2] }, { at: T.s9 + 7.1, duration: 2.4, ease: "linear" });
+  add("#co4", { opacity: [0, 1, 1, 0], y: [20, 0, 0, 0] }, { at: T.s9 + 6.8, duration: 2.6, times: [0, 0.15, 0.85, 1] });
+  add("#co5", { opacity: [0, 1, 1, 0], y: [-20, 0, 0, 0] }, { at: T.s9 + 7.2, duration: 2.4, times: [0, 0.15, 0.85, 1] });
+  // phone + digest notification
+  add("#bStock", { x: [0, -420], scale: [1, 0.86], opacity: [1, 0.55], filter: ["blur(0px)", "blur(3px)"] }, { at: T.s9 + 9.4, duration: 1.2, ease: E.inout });
+  add("#bHome", { opacity: [0.5, 0.15] }, { at: T.s9 + 9.4, duration: 1.2 });
+  add("#phone", { opacity: [0, 1], y: [260, 0], rotate: [8, 0], x: [0, -300] }, { at: T.s9 + 9.6, duration: 1.3, ease: E.out });
+  add("#phoneImg", { y: [0, -980] }, { at: T.s9 + 11.0, duration: 3.4, ease: E.inout });
+  add("#notif", { opacity: [0, 1], y: [-60, 0], scale: [0.92, 1] }, { at: T.s9 + 10.6, duration: 0.8, ease: E.back });
+  add("#co6", { opacity: [0, 1], x: [20, 0] }, { at: T.s9 + 11.6, duration: 0.5, ease: E.out });
+  sceneOut("#s9", T.s10 - 0.6, 0.6);
+
+  // S10 — numbers
+  sceneIn("#s10", T.s10, 0.5);
+  head("#s10", T.s10 + 0.2);
+  $$("#nums .num").forEach((n, i) => {
+    const t = T.s10 + 0.8 + i * 0.22;
+    add(n, { opacity: [0, 1], y: [40, 0], scale: [0.94, 1] }, { at: t, duration: 0.7, ease: E.out });
+    const v = $(".v", n), to = +v.dataset.n;
+    if (to > 0) count(v, to, t + 0.1, 1.6, x => String(Math.round(x)));
+  });
+  sceneOut("#s10", T.s11 - 0.6, 0.6);
+
+  // S11 — outro
+  sceneIn("#s11", T.s11, 0.5);
+  rise("#s11 .l1", T.s11 + 0.3, { y: 24, d: 1.0 });
+  rise("#s11 .l2", T.s11 + 1.2, { y: 24, d: 1.0 });
+  add("#s11 .lines", { y: [0, -80], opacity: [1, 0.35] }, { at: T.s11 + 3.0, duration: 1.0, ease: E.inout });
+  add("#s11 .logo", { opacity: [0, 1], scale: [0.9, 1], filter: ["blur(14px)", "blur(0px)"] }, { at: T.s11 + 3.2, duration: 1.2, ease: E.out });
+  rise("#s11 .stack .pill", T.s11 + 4.0, { y: 14, stagger: 0.08, d: 0.5 });
+  rise("#s11 .disc", T.s11 + 4.6, { y: 0 });
+  add("#fade", { opacity: [0, 1] }, { at: T.end - 0.8, duration: 0.8, ease: "linear" });
+
+  // ---------- playback ----------
+  const controls = animate(seq);
+  controls.pause();
+  const raf2 = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  window.__duration = DUR;
+  window.__seek = async t => { controls.time = Math.min(t, DUR - 1e-3); await raf2(); };
+
+  const stage = $("#stage");
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `scale(${s})`; };
+  addEventListener("resize", fit); fit();
+
+  if (!RENDER) {
+    const btn = $("#btnPlay");
+    const start = () => { controls.time = 0; controls.play(); btn.textContent = "⏸ 一時停止"; };
+    btn.onclick = () => { if (controls.state === "running") { controls.pause(); btn.textContent = "▶ 再生"; } else { if (controls.time >= DUR - 0.01) controls.time = 0; controls.play(); btn.textContent = "⏸ 一時停止"; } };
+    $("#btnReplay").onclick = start;
+    addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); btn.click(); } });
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(start, 250));
+  }
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
