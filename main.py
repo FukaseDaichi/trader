@@ -914,20 +914,29 @@ def run_phase2_inference(macro_panel, model_cfg, run_date):
     }
 
 
-def _prev_target_weights() -> dict:
+def _prev_target_weights(run_date=None) -> dict:
     """
     Yesterday's target book as ``{ticker: target_weight}``, best-effort.
 
-    DB first (latest portfolio_snapshots row), then docs/portfolio_latest.json,
-    else ``{}``. Never raises — the portfolio build treats ``{}`` as a fresh
-    book (everything is a "new" diff).
+    DB first (latest portfolio_snapshots row before ``run_date``), then
+    docs/portfolio_latest.json, else ``{}``. Never raises — the portfolio
+    build treats ``{}`` as a fresh book (everything is a "new" diff).
+
+    A same-day rerun must not treat today's own snapshot as the previous
+    book (every diff would collapse to "hold"). When the JSON fallback holds
+    today's snapshot, its ``prev_weight`` column is the previous book (names
+    exited today are not listed there, so they are absent from the result).
     """
+    run_date_str = str(run_date)[:10] if run_date is not None else None
+
     # DB-first.
     if db.db_enabled():
         try:
             conn = db.connect()
             try:
-                snap = db.fetch_latest_portfolio_snapshot(conn)
+                snap = db.fetch_latest_portfolio_snapshot(
+                    conn, before_run_date=run_date_str
+                )
             finally:
                 conn.close()
             if snap and snap.get("positions"):
@@ -954,6 +963,16 @@ def _prev_target_weights() -> dict:
                 and data.get("available")
                 and data.get("positions")
             ):
+                same_day = (
+                    run_date_str is not None
+                    and str(data.get("run_date") or "")[:10] >= run_date_str
+                )
+                if same_day:
+                    return {
+                        p["ticker"]: float(p.get("prev_weight") or 0.0)
+                        for p in data["positions"]
+                        if p.get("ticker") and float(p.get("prev_weight") or 0.0) > 0
+                    }
                 return {
                     p["ticker"]: float(p.get("target_weight") or 0.0)
                     for p in data["positions"]
@@ -994,7 +1013,7 @@ def _run_portfolio_snapshot(phase2, run_date):
             if "date" in df.columns:
                 price_frames[code] = df[["date", "close"]]
 
-    prev_weights = _prev_target_weights()
+    prev_weights = _prev_target_weights(run_date)
 
     # Qualitative regime from the weekly macro screen: risk_off halves gross
     # via risk_off_gross_mult (issue #3 wiring; defaults to neutral on any gap).

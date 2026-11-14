@@ -280,12 +280,54 @@ def test_flush_outbox_survives_parent_stub_failure():
             os.environ.pop("TRADER_DB_FALLBACK_DIR", None)
 
 
+def test_flush_outbox_quarantines_unparseable_lines():
+    """A line truncated by a crash must land in dead/, not vanish when the
+    outbox is cleared, and must not block the valid events around it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            out = _with_outbox(tmp, [_pred_event("7011.JP")])
+            with (out / "zz_truncated.jsonl").open("w", encoding="utf-8") as f:
+                f.write('{"kind": "prediction", "row": {"ticker": "70\n')
+                f.write("[1, 2]\n")
+            conn = FakeConn(FakeCursor())
+            applied = dbmod.flush_outbox(conn)
+            assert applied == 1, f"expected 1 applied, got {applied}"
+            assert list(out.glob("*.jsonl")) == []
+            dead = [
+                json.loads(line)
+                for path in (out / "dead").glob("*.jsonl")
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            assert len(dead) == 2, dead
+            assert {d["source_file"] for d in dead} == {"zz_truncated.jsonl"}
+            assert any("JSONDecodeError" in d["dead_reason"] for d in dead)
+            assert any(d["raw_line"] == "[1, 2]" for d in dead)
+        finally:
+            os.environ.pop("TRADER_DB_FALLBACK_DIR", None)
+
+
+def test_flush_outbox_only_unparseable_lines_is_cleared_and_quarantined():
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            out = _with_outbox(tmp, [])
+            (out / "bad.jsonl").write_text("{not json\n", encoding="utf-8")
+            conn = FakeConn(FakeCursor())
+            assert dbmod.flush_outbox(conn) == 0
+            assert list(out.glob("*.jsonl")) == []
+            assert len(list((out / "dead").glob("*.jsonl"))) == 1
+        finally:
+            os.environ.pop("TRADER_DB_FALLBACK_DIR", None)
+
+
 ALL_TESTS = [
     test_apply_events_ensures_fk_parents,
     test_flush_outbox_survives_parent_stub_failure,
     test_flush_outbox_quarantines_poison_events,
     test_flush_outbox_all_good_leaves_no_dead_letters,
     test_flush_outbox_dedups_by_event_id,
+    test_flush_outbox_quarantines_unparseable_lines,
+    test_flush_outbox_only_unparseable_lines_is_cleared_and_quarantined,
 ]
 
 

@@ -15,7 +15,7 @@
 | Weekly Model Retrain | `weekly-model-retrain.yml` | 土曜 08:00 | マクロ更新 → universe選定(report) → **Phase 1 実学習・版登録** → **Phase 2 CS再学習** → **shadow検証レポート** | `data/models/`, `docs/weekly_retrain_report.json`, `docs/cs_model_quality.json`, `docs/portfolio_backtest.json`, `docs/portfolio_shadow_report.json` |
 | Weekly Universe Refresh | `weekly-universe-refresh.yml` | 日曜 07:00 | ユニバーススナップショット | `docs/universe_refresh_report.json` |
 | Monthly Calendar Sync | `monthly-calendar-sync.yml` | 毎月1日 09:15 | JPX休日キャッシュ更新 | `data/jpx_holidays.json` |
-| Monthly Full Audit | `monthly-full-audit.yml` | 第1日曜 09:00 | KPI月次監査 | `docs/monthly_audit.json` |
+| Monthly Full Audit | `monthly-full-audit.yml` | 第1日曜 09:00（cron は毎週日曜、1〜7日以外はガードでスキップ） | KPI月次監査 | `docs/monthly_audit.json` |
 | Nightly Rotating Refresh | `nightly-rotating-refresh.yml` | 平日 16:37 | 銘柄をバケット分割して更新 | `data/`, `docs/rotating_refresh_report.json` |
 | Quarterly Stress Test | `quarterly-stress-test.yml` | 四半期初日 10:00 | 高コスト前提 KPI 評価 | `docs/stress_test_report.json` |
 | Manual DB Migrate | `manual-db-migrate.yml` | 手動（`workflow_dispatch`） | `migrations/*.sql` を冪等適用（`dry_run` でプレビュー） | なし（DB のみ） |
@@ -91,7 +91,7 @@ GitHub-hosted `ubuntu-latest` を前提とします。self-hosted runnerへ移�
 
 書き込み系 workflow は `contents: write`、watchdog は `contents: read` + `issues: write`、`manual-db-migrate` と `ci-tests` は `contents: read` のみ（commit/pushしない）。日次 core/retry は concurrency group `daily-core-main` で直列化、publish は `daily-publish-main`、キュレーション系は `daily-curation-main` / `weekly-fundamental-main`。`ci-tests` はref単位で旧実行をcancelし、`docs/`・`data/`・`reports/`だけのbot更新では起動しません。
 
-commit/push は `.github/scripts/commit-and-push.sh` に集約（`git add -A` → commit → `git pull --rebase --autostash` → push 最大 3 回リトライ、差分なしは正常終了）。
+commit/push は `.github/scripts/commit-and-push.sh` に集約（upstream より先行する既存ローカルコミットがあれば中断 → index をリセットして指定パスのみ `git add -A` → commit → `git pull --rebase --autostash` → push 最大 3 回リトライ、差分なしは正常終了）。
 
 ## 現行制約
 

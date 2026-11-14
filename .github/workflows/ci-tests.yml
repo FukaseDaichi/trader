@@ -16,6 +16,8 @@ on:
       - "web/**"
       - "pyproject.toml"
       - "uv.lock"
+      - ".python-version"
+      - "migrations/**"
       - ".github/workflows/**"
       - ".github/scripts/**"
   pull_request:
@@ -27,6 +29,8 @@ on:
       - "web/**"
       - "pyproject.toml"
       - "uv.lock"
+      - ".python-version"
+      - "migrations/**"
       - ".github/workflows/**"
       - ".github/scripts/**"
   workflow_dispatch:
@@ -53,7 +57,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run test suite
         run: |
