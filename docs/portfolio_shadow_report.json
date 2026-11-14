@@ -2,15 +2,10 @@
   "available": true,
   "n_dates": 39,
   "n_records": 1950,
-  "n_paired_dates": 23,
-  "n_paired_records": 67,
+  "n_paired_dates": 24,
+  "n_paired_records": 62,
   "date_coverage": {
     "observed_dates": [
-      "2026-09-08",
-      "2026-09-09",
-      "2026-09-10",
-      "2026-09-11",
-      "2026-09-14",
       "2026-09-15",
       "2026-09-16",
       "2026-09-17",
@@ -44,13 +39,14 @@
       "2026-11-02",
       "2026-11-04",
       "2026-11-05",
-      "2026-11-06"
+      "2026-11-06",
+      "2026-11-09",
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+      "2026-11-13"
     ],
     "paired_dates": [
-      "2026-09-09",
-      "2026-09-10",
-      "2026-09-11",
-      "2026-09-14",
       "2026-09-15",
       "2026-09-16",
       "2026-09-18",
@@ -69,12 +65,14 @@
       "2026-10-16",
       "2026-10-26",
       "2026-10-27",
-      "2026-10-28"
+      "2026-10-28",
+      "2026-10-30",
+      "2026-11-02",
+      "2026-11-04",
+      "2026-11-05",
+      "2026-11-06"
     ],
     "excluded_dates": {
-      "2026-09-08": [
-        "fewer_than_two_paired_names"
-      ],
       "2026-09-17": [
         "fewer_than_two_paired_names"
       ],
@@ -117,27 +115,27 @@
       "2026-10-29": [
         "fewer_than_two_paired_names"
       ],
-      "2026-10-30": [
+      "2026-11-09": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-11-02": [
+      "2026-11-10": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-11-04": [
+      "2026-11-11": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-11-05": [
+      "2026-11-12": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
       ],
-      "2026-11-06": [
+      "2026-11-13": [
         "missing_phase1_settled_outcome",
         "missing_phase2_settled_outcome",
         "fewer_than_two_paired_names"
@@ -145,42 +143,42 @@
     }
   },
   "top_n": 8,
-  "generated_at": "2026-11-07T11:59:59+09:00",
+  "generated_at": "2026-11-14T12:23:19+09:00",
   "window": {
-    "start": "2026-09-08",
-    "end": "2026-11-07",
+    "start": "2026-09-15",
+    "end": "2026-11-14",
     "lookback_days": 60,
     "horizon_days": 5
   },
-  "model_version": "cs-v1-20261107",
+  "model_version": "cs-v1-20261114",
   "comparison": {
     "phase1": {
-      "daily_ic": -0.07569877800334392,
-      "rank_ic": 0.011180124223602489,
-      "topn_realized_return": 0.0024305524041970754,
-      "hit_rate": 0.5223880597014925,
-      "max_drawdown": -0.1392948585238568,
+      "daily_ic": -0.3017899129721075,
+      "rank_ic": -0.22916666666666663,
+      "topn_realized_return": -0.0030946809271142467,
+      "hit_rate": 0.45161290322580644,
+      "max_drawdown": -0.1502264914172563,
       "turnover": null,
-      "n_dates_with_topn": 23
+      "n_dates_with_topn": 24
     },
     "phase2": {
-      "daily_ic": 0.16060324063610346,
-      "rank_ic": 0.12647108467304455,
-      "topn_realized_return": 0.0024305524041970754,
-      "hit_rate": 0.5223880597014925,
-      "max_drawdown": -0.1392948585238568,
-      "turnover": 0.011605432620798039,
+      "daily_ic": 0.1435145046152118,
+      "rank_ic": 0.11092230052614076,
+      "topn_realized_return": -0.0030946809271142467,
+      "hit_rate": 0.45161290322580644,
+      "max_drawdown": -0.1502264914172563,
+      "turnover": 0.007799939073276483,
       "expected_ret_calibration": {
-        "mean_expected_ret": 0.004990135479005254,
-        "mean_realized_ret": 0.006238922972627469,
-        "bias": -0.0012487874936222155,
-        "n": 67
+        "mean_expected_ret": 0.0048863069488833104,
+        "mean_realized_ret": -0.0040262170852567395,
+        "bias": 0.00891252403414005,
+        "n": 62
       },
-      "n_dates_with_topn": 23
+      "n_dates_with_topn": 24
     },
     "delta": {
-      "daily_ic": 0.2363020186394474,
-      "rank_ic": 0.11529096044944206,
+      "daily_ic": 0.4453044175873193,
+      "rank_ic": 0.3400889671928074,
       "topn_realized_return": 0.0,
       "hit_rate": 0.0,
       "max_drawdown": 0.0
@@ -198,7 +196,6 @@
     "phase2_prediction": "portfolio_snapshots.model_version",
     "outcome_contract_version": "next_session_open_to_close_v2",
     "snapshot_model_versions": [
-      "cs-v1-20260905",
       "cs-v1-20260912",
       "cs-v1-20260919",
       "cs-v1-20260926",
@@ -206,14 +203,10 @@
       "cs-v1-20261010",
       "cs-v1-20261017",
       "cs-v1-20261024",
-      "cs-v1-20261031"
+      "cs-v1-20261031",
+      "cs-v1-20261107"
     ],
     "snapshot_model_version_by_date": {
-      "2026-09-08": "cs-v1-20260905",
-      "2026-09-09": "cs-v1-20260905",
-      "2026-09-10": "cs-v1-20260905",
-      "2026-09-11": "cs-v1-20260905",
-      "2026-09-14": "cs-v1-20260912",
       "2026-09-15": "cs-v1-20260912",
       "2026-09-16": "cs-v1-20260912",
       "2026-09-17": "cs-v1-20260912",
@@ -247,15 +240,20 @@
       "2026-11-02": "cs-v1-20261031",
       "2026-11-04": "cs-v1-20261031",
       "2026-11-05": "cs-v1-20261031",
-      "2026-11-06": "cs-v1-20261031"
+      "2026-11-06": "cs-v1-20261031",
+      "2026-11-09": "cs-v1-20261107",
+      "2026-11-10": "cs-v1-20261107",
+      "2026-11-11": "cs-v1-20261107",
+      "2026-11-12": "cs-v1-20261107",
+      "2026-11-13": "cs-v1-20261107"
     }
   },
   "active_readiness": {
     "active_ready": false,
-    "shadow_days": 23,
+    "shadow_days": 24,
     "min_shadow_days": 10,
     "portfolio_gate_passed": false,
-    "cs_ic_vs_phase1": 0.2363020186394474,
+    "cs_ic_vs_phase1": 0.4453044175873193,
     "reasons": [
       "portfolio_gate not passed"
     ]
@@ -265,14 +263,50 @@
     "n_dates": 39,
     "n_records": 1950,
     "n_paired_dates": 34,
-    "n_paired_records": 1660,
+    "n_paired_records": 1649,
     "date_coverage": {
       "observed_dates": [
-        "2026-09-08",
-        "2026-09-09",
-        "2026-09-10",
-        "2026-09-11",
-        "2026-09-14",
+        "2026-09-15",
+        "2026-09-16",
+        "2026-09-17",
+        "2026-09-18",
+        "2026-09-24",
+        "2026-09-25",
+        "2026-09-28",
+        "2026-09-29",
+        "2026-09-30",
+        "2026-10-01",
+        "2026-10-02",
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07",
+        "2026-10-08",
+        "2026-10-09",
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15",
+        "2026-10-16",
+        "2026-10-19",
+        "2026-10-20",
+        "2026-10-21",
+        "2026-10-22",
+        "2026-10-23",
+        "2026-10-26",
+        "2026-10-27",
+        "2026-10-28",
+        "2026-10-29",
+        "2026-10-30",
+        "2026-11-02",
+        "2026-11-04",
+        "2026-11-05",
+        "2026-11-06",
+        "2026-11-09",
+        "2026-11-10",
+        "2026-11-11",
+        "2026-11-12",
+        "2026-11-13"
+      ],
+      "paired_dates": [
         "2026-09-15",
         "2026-09-16",
         "2026-09-17",
@@ -308,64 +342,27 @@
         "2026-11-05",
         "2026-11-06"
       ],
-      "paired_dates": [
-        "2026-09-08",
-        "2026-09-09",
-        "2026-09-10",
-        "2026-09-11",
-        "2026-09-14",
-        "2026-09-15",
-        "2026-09-16",
-        "2026-09-17",
-        "2026-09-18",
-        "2026-09-24",
-        "2026-09-25",
-        "2026-09-28",
-        "2026-09-29",
-        "2026-09-30",
-        "2026-10-01",
-        "2026-10-02",
-        "2026-10-05",
-        "2026-10-06",
-        "2026-10-07",
-        "2026-10-08",
-        "2026-10-09",
-        "2026-10-13",
-        "2026-10-14",
-        "2026-10-15",
-        "2026-10-16",
-        "2026-10-19",
-        "2026-10-20",
-        "2026-10-21",
-        "2026-10-22",
-        "2026-10-23",
-        "2026-10-26",
-        "2026-10-27",
-        "2026-10-28",
-        "2026-10-29"
-      ],
       "excluded_dates": {
-        "2026-10-30": [
+        "2026-11-09": [
+          "missing_phase2_settled_outcome",
+          "fewer_than_two_paired_names"
+        ],
+        "2026-11-10": [
           "missing_phase1_settled_outcome",
           "missing_phase2_settled_outcome",
           "fewer_than_two_paired_names"
         ],
-        "2026-11-02": [
+        "2026-11-11": [
           "missing_phase1_settled_outcome",
           "missing_phase2_settled_outcome",
           "fewer_than_two_paired_names"
         ],
-        "2026-11-04": [
+        "2026-11-12": [
           "missing_phase1_settled_outcome",
           "missing_phase2_settled_outcome",
           "fewer_than_two_paired_names"
         ],
-        "2026-11-05": [
-          "missing_phase1_settled_outcome",
-          "missing_phase2_settled_outcome",
-          "fewer_than_two_paired_names"
-        ],
-        "2026-11-06": [
+        "2026-11-13": [
           "missing_phase1_settled_outcome",
           "missing_phase2_settled_outcome",
           "fewer_than_two_paired_names"
@@ -375,35 +372,35 @@
     "top_n": 8,
     "comparison": {
       "phase1": {
-        "daily_ic": -0.07796814897870376,
-        "rank_ic": -0.09762831283389807,
-        "topn_realized_return": -0.013528208627624867,
-        "hit_rate": 0.43014705882352944,
-        "max_drawdown": -0.5405337209209431,
+        "daily_ic": -0.0757992339528264,
+        "rank_ic": -0.08761684107843841,
+        "topn_realized_return": -0.01680079671961066,
+        "hit_rate": 0.39705882352941174,
+        "max_drawdown": -0.6095830170079981,
         "turnover": null,
         "n_dates_with_topn": 34
       },
       "phase2": {
-        "daily_ic": -0.04946290216776623,
-        "rank_ic": -0.03536771410580349,
-        "topn_realized_return": -0.011172707403483837,
-        "hit_rate": 0.4742647058823529,
-        "max_drawdown": -0.6133390319597213,
-        "turnover": 0.0414213879269678,
+        "daily_ic": -0.07088907287371603,
+        "rank_ic": -0.06788038132671462,
+        "topn_realized_return": -0.011616836544808969,
+        "hit_rate": 0.44485294117647056,
+        "max_drawdown": -0.6795300269135102,
+        "turnover": 0.035750978513433535,
         "expected_ret_calibration": {
-          "mean_expected_ret": 0.005382428213426799,
-          "mean_realized_ret": -0.011172707403483839,
-          "bias": 0.01655513561691064,
+          "mean_expected_ret": 0.005208154084932559,
+          "mean_realized_ret": -0.011616836544808969,
+          "bias": 0.016824990629741528,
           "n": 272
         },
         "n_dates_with_topn": 34
       },
       "delta": {
-        "daily_ic": 0.02850524681093753,
-        "rank_ic": 0.06226059872809458,
-        "topn_realized_return": 0.00235550122414103,
-        "hit_rate": 0.044117647058823484,
-        "max_drawdown": -0.07280531103877819
+        "daily_ic": 0.004910161079110367,
+        "rank_ic": 0.019736459751723792,
+        "topn_realized_return": 0.00518396017480169,
+        "hit_rate": 0.04779411764705882,
+        "max_drawdown": -0.06994700990551206
       },
       "verdict": {
         "phase2_ic_ge_phase1": true,
