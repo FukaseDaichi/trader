@@ -76,6 +76,7 @@
 - 必須列: `date`, `open`, `high`, `low`, `close`, `volume`
 - Stooq URL: `https://stooq.com/q/d/l/?s={ticker_code}&i=d`、yfinance は `NNNN.JP` → `NNNN.T`
 - 鮮度判定: `data/jpx_holidays.json` で JST の直近完了営業日と比較（`TRADER_DATA_STALE_OPEN_DAYS`、既定 0）
+- 未確定足の除外: `drop_unconfirmed_bars()` が JST の壁時計で 16:00（東証大引け 15:30 ＋余裕、`SESSION_BAR_CONFIRMED_AT_JST`）より前なら当日付の足を、時刻に関係なく未来日付の足を落とす。`update_data()`（parquet 保存前）と `load_data()`（場中の実行で保存済みの当日足が残っていても読まない）の両方で適用。過去の足は触らない。日次処理が場中にずれ込むと、データ源が途中の当日足（終値・出来高が途中）を返し、それで特徴量・予測が作られ parquet にも保存されていた（2026-11 の Core 実行は 09:39〜12:19 JST）ための対策。`src/execution.py` の「前営業日終値までで寄付き前に判断」の契約に揃える
 - フォールバック: Stooq 失敗または鮮度不足時、`TRADER_YF_FALLBACK_ENABLED=true` なら yfinance
 - Stooq サーキットブレーカー: 接続レベルの失敗（`ConnectionError` / `Timeout`）が `TRADER_STOOQ_CIRCUIT_BREAKER_THRESHOLD`（既定 3、0で無効）回連続したら Stooq へ接続せず即 `None` を返し、上記フォールバック（yfinance → 既存 parquet）へ進む。遮断中も `TRADER_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC`（既定 300）ごとに1リクエストだけ試行し、応答を受け取れれば遮断を解除する（失敗なら待ち時間をやり直す）。応答を受け取れれば（HTTP エラー含む）連続カウントは 0 に戻る。状態はプロセス単位で、`update_macro_snapshots.py` と `main.py` は別々に判定する。Stooq 全断時に1銘柄あたり接続タイムアウト分待たされ、Core ジョブが `timeout-minutes: 30` で強制キャンセルされた（2026-10-19）ための対策
 - 検証: OHLCVの非有限値を含む行を除外したうえで、価格の正値、OHLC 関係、異常な終値変化を検査。警告は DataFrame attrs 経由でレポートの `data_validation_warnings` へ

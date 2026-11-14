@@ -6,6 +6,8 @@ from __future__ import annotations
 import io
 import os
 import sys
+import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 import src.data_loader as dl  # noqa: E402
 from src.data_loader import _validate_ohlcv  # noqa: E402
+from src.timeutil import JST  # noqa: E402
 
 STOOQ_CSV = (
     "Date,Open,High,Low,Close,Volume\n"
@@ -241,6 +244,117 @@ def test_open_circuit_falls_through_to_yfinance():
         dl.reset_stooq_circuit()
 
 
+def _bars(dates, volumes=None):
+    n = len(dates)
+    return pd.DataFrame(
+        {
+            "date": pd.to_datetime(dates).astype("datetime64[ns]"),
+            "open": [100.0 + i for i in range(n)],
+            "high": [102.0 + i for i in range(n)],
+            "low": [99.0 + i for i in range(n)],
+            "close": [101.0 + i for i in range(n)],
+            "volume": volumes or [1000.0] * n,
+        }
+    )
+
+
+def test_intraday_drops_todays_unconfirmed_bar():
+    # 2026-11-13 10:45 JST: the late daily run saw today's half-formed bar.
+    frame = _bars(["2026-11-11", "2026-11-12", "2026-11-13"])
+    now = datetime(2026, 11, 13, 10, 45, tzinfo=JST)
+
+    out = dl.drop_unconfirmed_bars(frame, now=now, ticker_code="7203.JP")
+
+    assert out["date"].tolist() == [
+        pd.Timestamp("2026-11-11"),
+        pd.Timestamp("2026-11-12"),
+    ]
+    # Input frame is not mutated.
+    assert len(frame) == 3
+
+
+def test_bar_kept_once_session_is_confirmed():
+    frame = _bars(["2026-11-12", "2026-11-13"])
+    for now in (
+        datetime(2026, 11, 13, 16, 0, tzinfo=JST),
+        datetime(2026, 11, 13, 23, 59, tzinfo=JST),
+        datetime(2026, 11, 14, 6, 0, tzinfo=JST),  # normal pre-open run
+    ):
+        out = dl.drop_unconfirmed_bars(frame, now=now)
+        assert out is frame, now
+
+
+def test_confirmation_cutoff_uses_jst_wall_clock():
+    frame = _bars(["2026-11-12", "2026-11-13"])
+    # 06:59 UTC == 15:59 JST (still unconfirmed); 07:00 UTC == 16:00 JST.
+    before = dl.drop_unconfirmed_bars(
+        frame, now=datetime(2026, 11, 13, 6, 59, tzinfo=UTC)
+    )
+    after = dl.drop_unconfirmed_bars(
+        frame, now=datetime(2026, 11, 13, 7, 0, tzinfo=UTC)
+    )
+    assert before["date"].max() == pd.Timestamp("2026-11-12")
+    assert after["date"].max() == pd.Timestamp("2026-11-13")
+    # A naive datetime is read as JST.
+    naive = dl.drop_unconfirmed_bars(frame, now=datetime(2026, 11, 13, 15, 0))
+    assert naive["date"].max() == pd.Timestamp("2026-11-12")
+
+
+def test_future_dated_bar_is_always_dropped():
+    frame = _bars(["2026-11-13", "2026-11-16"])
+    out = dl.drop_unconfirmed_bars(frame, now=datetime(2026, 11, 13, 20, 0, tzinfo=JST))
+    assert out["date"].tolist() == [pd.Timestamp("2026-11-13")]
+
+
+def test_update_data_does_not_persist_unconfirmed_bar():
+    on_disk = _bars(["2026-11-10", "2026-11-11", "2026-11-12"])
+    # Provider returns a revised 11/12 plus today's partial 11/13 bar.
+    fetched = _bars(["2026-11-12", "2026-11-13"], volumes=[19336700.0, 6629900.0])
+    fresh = {"is_stale": False}
+    now = datetime(2026, 11, 13, 10, 45, tzinfo=JST)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "7203.JP.parquet"
+        on_disk.to_parquet(path)
+        with (
+            patch.object(
+                dl, "_download_with_fallback", return_value=(fetched, "stooq", fresh)
+            ),
+            patch.object(dl, "_now_jst", return_value=now),
+        ):
+            returned = dl.update_data("7203.JP", dest_dir=tmp)
+
+        saved = pd.read_parquet(path)
+
+    expected_dates = [
+        pd.Timestamp("2026-11-10"),
+        pd.Timestamp("2026-11-11"),
+        pd.Timestamp("2026-11-12"),
+    ]
+    assert returned["date"].tolist() == expected_dates
+    assert saved["date"].tolist() == expected_dates
+    # The confirmed bar the provider revised is still taken from the download.
+    assert saved["volume"].iloc[-1] == 19336700.0
+
+
+def test_load_data_ignores_persisted_unconfirmed_bar():
+    # A parquet committed by an earlier intraday run still holds today's bar.
+    persisted = _bars(["2026-11-11", "2026-11-12", "2026-11-13"])
+    with tempfile.TemporaryDirectory() as tmp:
+        persisted.to_parquet(Path(tmp) / "7203.JP.parquet")
+        with patch.object(dl, "DATA_DIR", Path(tmp)):
+            with patch.object(
+                dl, "_now_jst", return_value=datetime(2026, 11, 13, 12, 0, tzinfo=JST)
+            ):
+                intraday = dl.load_data("7203.JP")
+            with patch.object(
+                dl, "_now_jst", return_value=datetime(2026, 11, 14, 6, 0, tzinfo=JST)
+            ):
+                next_morning = dl.load_data("7203.JP")
+
+    assert intraday["date"].max() == pd.Timestamp("2026-11-12")
+    assert next_morning["date"].max() == pd.Timestamp("2026-11-13")
+
+
 ALL_TESTS = [
     test_nonfinite_ohlcv_rows_are_rejected,
     test_normalize_ohlcv_pins_date_to_ns,
@@ -251,6 +365,12 @@ ALL_TESTS = [
     test_stooq_http_error_does_not_trip_circuit,
     test_stooq_circuit_disabled_with_zero_threshold,
     test_open_circuit_falls_through_to_yfinance,
+    test_intraday_drops_todays_unconfirmed_bar,
+    test_bar_kept_once_session_is_confirmed,
+    test_confirmation_cutoff_uses_jst_wall_clock,
+    test_future_dated_bar_is_always_dropped,
+    test_update_data_does_not_persist_unconfirmed_bar,
+    test_load_data_ignores_persisted_unconfirmed_bar,
 ]
 
 
