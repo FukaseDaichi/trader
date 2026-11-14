@@ -32,16 +32,16 @@ Phase 2 は **shadow モード**で本番稼働中です。shadow では Phase 1
 
 ## 日次処理の現在地
 
-平日の JPX 営業日に GitHub Actions が以下を自動実行します（時刻は JST）。
+平日の JPX 営業日に GitHub Actions が以下を自動実行します（時刻は JST の予定時刻。GitHub の定期実行は実際には数時間遅れて起動する。理由と時刻の決め方は [03_cicd_workflows.md](03_cicd_workflows.md) の「定期実行の遅延と予定時刻」）。
 
-1. 04:30 — AI 銘柄キュレーション: 候補 warmup → テクニカル screen → Claude 精査 → 決定論 merge で `tickers.yml` を少数入替
-2. 06:00 — preopen core:
+1. 00:07 — AI 銘柄キュレーション: 候補 warmup → テクニカル screen → Claude 精査 → 決定論 merge で `tickers.yml` を少数入替
+2. 01:07 — preopen core:
    1. マクロスナップショット更新（`scripts/update_macro_snapshots.py`）
    2. `main.py`: 銘柄ごとにデータ更新 → 特徴量（34テクニカル+11マクロ）→ 互換性検証済み保存モデル推論（無ければ自身のpurged OOS証跡を持つephemeral candidate）→ 同一candidateのholdoutゲートと閾値 → 5段階シグナル。証跡不一致・ゲート未達はHOLD、通過ロングには学習バリアと同じATR出口プランを付ける
    3. ループ後: Phase 2 クロスセクション推論 + ポートフォリオ snapshot → active 時のみ `target_weight` をシグナルへマージ → LINE 通知（日次ダイジェスト 1 通に買い/売り銘柄名とロングの利確/損切/期限を集約。個別通知は既定無効）→ DB write-through → `docs/` エクスポート
    4. 実現結果の決済（`scripts/settle_outcomes.py`、翌営業日寄付き基準。TOPIX同基準が無い場合は比較不能を明示）→ settle 当日分の実績 JSON 再エクスポート
    5. ドリフトチェック（`scripts/drift_check.py`）
-3. 06:20 / 06:40 — 当日未更新時のみのリトライ
+3. 01:27 / 01:47 — 当日未更新時のみのリトライ
 4. core/retry 成功後 — Next.js 静的ビルドを `docs/` へ publish
 5. 12:30 — watchdog: 成果物の鮮度・完全性とドリフトを検証し、異常時は GitHub Issue を起票
 

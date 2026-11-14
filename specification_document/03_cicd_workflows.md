@@ -1,14 +1,14 @@
 # GitHub Actions仕様
 
-更新日: 2026-10-24 JST
+更新日: 2026-11-14 JST
 
 ## ワークフロー一覧
 
 | Workflow | ファイル | JST | 主処理 | commit対象 |
 |---|---|---:|---|---|
-| Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 04:30 | 候補warmup → テクニカルscreen → Claude技術分析 → 決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
-| Daily Preopen Core | `daily-preopen-core.yml` | 平日 06:00 | マクロ更新 → `main.py` → 実現結果決済 → ドリフトチェック | `data/`, `docs/` |
-| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 06:20/06:40 | 当日未更新ならマクロ更新 → core同等envで `main.py` → 実現結果決済 | `data/`, `docs/` |
+| Daily Ticker Curation | `daily-ticker-curation.yml` | 平日 00:07 | 候補warmup → テクニカルscreen → Claude技術分析 → 決定論merge | `tickers.yml`, `data/`, `docs/curation/` |
+| Daily Preopen Core | `daily-preopen-core.yml` | 平日 01:07 | マクロ更新 → `main.py` → 実現結果決済 → ドリフトチェック | `data/`, `docs/` |
+| Daily Preopen Retry | `daily-preopen-retry.yml` | 平日 01:27/01:47 | 当日未更新ならマクロ更新 → core同等envで `main.py` → 実現結果決済 | `data/`, `docs/` |
 | Daily Publish Dashboard | `daily-publish-dashboard.yml` | core/retry成功後 | Next.js 静的ビルドを `docs/` へ同期 | `docs/` |
 | Daily Watchdog | `daily-watchdog.yml` | 平日 12:30 | 成果物の鮮度・完全性 + ドリフト検証。失敗/ドリフト時に GitHub Issue 起票 | なし |
 | Weekly Fundamental & Report | `weekly-fundamental-report.yml` | 土曜 07:00 | テクニカル更新 → マクロagent → ファンダagent → **[隔週]プールagent＋決定論merge** → 週次レポートagent → レポートURL通知 → **週間実績サマリ通知** | `reports/`, `docs/curation/`, `curation_pool.yml` |
@@ -16,11 +16,23 @@
 | Weekly Universe Refresh | `weekly-universe-refresh.yml` | 日曜 07:00 | ユニバーススナップショット | `docs/universe_refresh_report.json` |
 | Monthly Calendar Sync | `monthly-calendar-sync.yml` | 毎月1日 09:15 | JPX休日キャッシュ更新 | `data/jpx_holidays.json` |
 | Monthly Full Audit | `monthly-full-audit.yml` | 第1日曜 09:00 | KPI月次監査 | `docs/monthly_audit.json` |
-| Nightly Rotating Refresh | `nightly-rotating-refresh.yml` | 平日 19:30 | 銘柄をバケット分割して更新 | `data/`, `docs/rotating_refresh_report.json` |
+| Nightly Rotating Refresh | `nightly-rotating-refresh.yml` | 平日 16:37 | 銘柄をバケット分割して更新 | `data/`, `docs/rotating_refresh_report.json` |
 | Quarterly Stress Test | `quarterly-stress-test.yml` | 四半期初日 10:00 | 高コスト前提 KPI 評価 | `docs/stress_test_report.json` |
 | Manual DB Migrate | `manual-db-migrate.yml` | 手動（`workflow_dispatch`） | `migrations/*.sql` を冪等適用（`dry_run` でプレビュー） | なし（DB のみ） |
 | CI Tests | `ci-tests.yml` | code/workflow変更のpush・pull request、手動 | Pythonの全`tests/test_*.py`をplain scriptとして実行 + frontend lint・本番静的ビルド | なし |
 | Dependabot Auto-merge | `dependabot-auto-merge.yml` | `CI Tests` 完了時（`workflow_run`） | Dependabot の uv/npm minor・patch PR を CI 成功後に squash merge | なし（PR merge のみ） |
+
+## 定期実行の遅延と予定時刻
+
+GitHub の `schedule` は高負荷時に遅れる（公式ドキュメントに明記。毎時0分が特に混む）。このリポジトリの実績（2026-09-16〜11-14、schedule 実行300件）では全件が遅れて起動し、最短98分。`created_at` と `run_started_at` は一致しており、遅れはランナー待ちではなく起動そのもの。遅れは週ごとに伸び（全workflow中央値 9月中旬127分 → 11月第2週358分）、UTC昼（03:30/10:30 UTC枠）は6〜10時間、21:00〜23:00 UTC枠は2.5〜6時間だった。旧06:00 JSTのcoreは 11/4〜11/13 に 09:39〜12:19 JST に起動し、寄付き後にシグナルが出ていた。
+
+このため日次系は次のルールで予定時刻を置く（2026-11-14 前倒し）。
+
+- curation / core / retry は **JST 00:00 以降で最も早い枠**。各 workflow は `TZ=Asia/Tokyo date` で実行日を決めるため、日付をまたぐ前（前日夜）に置くと実行日が前営業日になる。cron の曜日（`0-4` UTC = 月〜金 JST）は旧時刻と同じ。
+- curation → core は1時間、core → retry は20/40分空ける（実績では起動順は保たれ、間隔は縮む）。
+- 分は0を避ける（`:07` など）。
+- nightly rotating refresh は 16:00 JST（未確定足カットオフ）後の16:37 JST。旧19:30 JSTのままだと実起動（03:00 JST前後）が新しい core と重なり、同じ `data/` parquet を両方が更新して push の rebase が衝突しうるため。
+- 前倒しは遅れの「上限」を変えない。core 枠の遅れが旧枠の最大（380分）程度なら 07:30 JST 前後に終わるが、UTC昼並み（最大625分）に伸びれば寄付き後になる。寄付き前を保証するには外部スケジューラから `workflow_dispatch` を叩く必要がある。
 
 ## 日次処理
 

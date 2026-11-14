@@ -2,8 +2,10 @@ name: Daily Preopen Core
 
 on:
   schedule:
-    # 21:00 UTC = 06:00 JST (Mon-Fri JST)
-    - cron: "0 21 * * 0-4"
+    # 16:07 UTC = 01:07 JST (Mon-Fri JST). Moved from 06:00 JST because GitHub
+    # starts scheduled runs hours late (2026-11: core began 09:39-12:19 JST).
+    # Must stay after 00:00 JST: TODAY_JST is taken from the wall clock.
+    - cron: "7 16 * * 0-4"
   workflow_dispatch:
 
 permissions:

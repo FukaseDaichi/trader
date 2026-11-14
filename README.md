@@ -315,17 +315,17 @@ GitHub Pages公開には、リポジトリ設定でPagesの公開元を`main`ブ
 
 | Workflow | JST | 役割 |
 |---|---:|---|
-| `Daily Preopen Core` | 平日 06:00 | 営業日ならマクロ更新→`main.py`→実現リターン決済→ドリフト判定→commit |
-| `Daily Preopen Retry` | 平日 06:20/06:40 | 当日未更新なら再実行 |
+| `Daily Preopen Core` | 平日 01:07（予定。実際の起動はGitHub側で数時間遅れる） | 営業日ならマクロ更新→`main.py`→実現リターン決済→ドリフト判定→commit |
+| `Daily Preopen Retry` | 平日 01:27/01:47 | 当日未更新なら再実行 |
 | `Daily Publish Dashboard` | core/retry成功後 | `web/out`を`docs/`へ同期（データJSONはexcludeで保護） |
 | `Daily Watchdog` | 平日 12:30 | 成果物の鮮度・整合性とドリフトを検証し、異常時はGitHub Issue起票 |
-| `Daily Ticker Curation` | 平日 04:30 | テクニカル分析→ガード付きで`tickers.yml`を少数入替 |
+| `Daily Ticker Curation` | 平日 00:07 | テクニカル分析→ガード付きで`tickers.yml`を少数入替 |
 | `Weekly Model Retrain` | 土曜 08:00 | Phase 1銘柄別再学習＋Phase 2 CS再学習＋シャドー検証レポート |
 | `Weekly Universe Refresh` | 日曜 07:00 | 有効銘柄のスナップショットレポート |
 | `Weekly Fundamental & Report` | 土曜 07:00 | マクロ→ファンダ分析→週次レポート生成→LINE通知 |
 | `Monthly Calendar Sync` | 毎月1日 09:15 | JPX休日キャッシュ更新 |
 | `Monthly Full Audit` | 第1日曜 09:00 | 月次KPI監査 |
-| `Nightly Rotating Refresh` | 平日 19:30 | 有効銘柄を分割して夜間更新 |
+| `Nightly Rotating Refresh` | 平日 16:37 | 有効銘柄を分割して夜間更新 |
 | `Quarterly Stress Test` | 四半期初日 10:00 | 高コスト前提のKPI確認 |
 | `Manual DB Migrate` | 手動 | `migrations/*.sql`を冪等適用（DB初期化/更新。`dry_run`でプレビュー） |
 | `CI Tests` | push / pull request / 手動 | Pythonの全plain-scriptテストとフロントエンドlint・本番静的ビルド |
@@ -338,7 +338,7 @@ workflowが直接使うJavaScript ActionはNode 24対応版（`actions/checkout@
 
 Claudeをサブスク（`CLAUDE_CODE_OAUTH_TOKEN`）でGitHub Actions上で実行し、トレンド分析から`tickers.yml`の有効ユニバースを自動更新します。詳細仕様は`specification_document/ai_ticker_curation/`にあります。
 
-- **日次**（平日 04:30 JST / `Daily Ticker Curation`）: 候補データのwarmup → `technical_screen.py`の決定論スコア → テクニカルagent（任意精査）→ `curation_merge.py`が「当日テクニカル＋直近週ファンダ（キャッシュ）」を合成し、ガード通過時のみ`tickers.yml`を少数入替。06:00の`Daily Preopen Core`が更新後ユニバースで予測します。
+- **日次**（平日 00:07 JST / `Daily Ticker Curation`）: 候補データのwarmup → `technical_screen.py`の決定論スコア → テクニカルagent（任意精査）→ `curation_merge.py`が「当日テクニカル＋直近週ファンダ（キャッシュ）」を合成し、ガード通過時のみ`tickers.yml`を少数入替。01:07の`Daily Preopen Core`が更新後ユニバースで予測します。
 - **週次**（土曜 07:00 JST / `Weekly Fundamental & Report`）: マクロagent（金利・為替・世界情勢／Web一次情報・Opus）が`macro_latest.json`を生成 → ファンダagent（Web一次情報・Opus）がそれを織り込み`fundamental_latest.json`を更新 → レポートagentがギャル投資家文体（口調はギャル・分析はガチ）で「今後2週間以降に伸びそうな銘柄」を中心とした週次解説`reports/weekly_YYYY-MM-DD.md`を生成 → そのGitHub URLをLINE通知します。
 - **隔週**（14日ごと / `Weekly Fundamental & Report`内のステップ）: プールagent（ファンダ＋流動性・Sonnet）が`pool_candidates_latest.json`を提案 → 決定論`curation_pool_merge.py`が候補母集団`curation_pool.yml`を更新（rollout phase 1はadd-onlyで`pool_target_size:60`までgrow、到達後はreplace-onlyへ自動切替）→ 変更を`curation_pool_notify.py`でLINE通知。詳細は`specification_document/ai_ticker_curation/07_pool_refresh.md`。
 

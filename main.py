@@ -621,10 +621,9 @@ def _process_ticker(ticker_info, ctx):
     validation_warnings = []
 
     # 1. Update Data
-    # In B-unyo, we run at 06:00 JST, so we should have data up to yesterday.
-    # Stooq usually updates around midnight UTC or later?
-    # Actually Stooq data for JP market closes at 15:00 JST, available shortly after.
-    # 06:00 JST next day is safe.
+    # Scheduled at 01:07 JST (GitHub starts it hours later), so the latest
+    # confirmed bar is the previous session's. Any same-day bar fetched before
+    # 16:00 JST is dropped by drop_unconfirmed_bars inside update/load_data.
     updated_df = update_data(code)
     if updated_df is not None:
         validation_warnings = updated_df.attrs.get("validation_warnings", []) or []

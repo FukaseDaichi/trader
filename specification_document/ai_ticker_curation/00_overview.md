@@ -18,7 +18,7 @@
 | 実行環境 | GitHub Actions |
 | Agent 実行 | `anthropics/claude-code-action@v1` + `CLAUDE_CODE_OAUTH_TOKEN` |
 | ユニバース反映 | `curation_merge.py` が guardrail 通過時のみ `tickers.yml` を更新 |
-| テクニカル頻度 | 平日 04:30 JST の日次 |
+| テクニカル頻度 | 平日 00:07 JST の日次 |
 | マクロ頻度 | 土曜 07:00 JST の週次、ファンダ前。`macro_latest.json` をファンダ/レポートが消費（merge は不参照） |
 | ファンダ頻度 | 土曜 07:00 JST の週次。日次 merge は直近 `fundamental_latest.json` をキャッシュ利用 |
 | プール頻度 | 土曜の**隔週（14日）**。ファンダ後に `/jp-stock-pool-screen` → `curation_pool_merge.py` が候補母集団 `curation_pool.yml` を更新（`07_pool_refresh.md`） |
@@ -44,7 +44,7 @@
 ## 4. 全体アーキテクチャ
 
 ```text
-毎営業日 04:30 JST: daily-ticker-curation.yml
+毎営業日 00:07 JST: daily-ticker-curation.yml
   checkout → uv sync → JPX営業日判定 → curation_guard
     → curation_warmup.py
     → technical_screen.py（決定論baseline）
@@ -53,7 +53,7 @@
     → load_tickers()検証
     → commit-and-push.sh
 
-毎営業日 06:00 JST: daily-preopen-core.yml
+毎営業日 01:07 JST: daily-preopen-core.yml
   最新 tickers.yml で main.py 実行
 
 毎週 土曜 07:00 JST: weekly-fundamental-report.yml
