@@ -64,7 +64,7 @@ GitHub の `schedule` は高負荷時に遅れる（公式ドキュメントに�
 
 - 作成者が `dependabot[bot]` で、CI の結論が `success`
 - ブランチが `dependabot/uv/*` か `dependabot/npm_and_yarn/*`（GitHub Actions の更新は `.github/workflows/` を変更し、`GITHUB_TOKEN` では merge できないため手動。merge したら下の Action 版表も更新する）
-- コミットメッセージの `update-type` に `semver-major` を含まない
+- どの依存も major 更新でない。判定は `.github/scripts/dependabot_bump_kind.py`（main のコピーを sparse checkout して実行）: コミットメッセージの `update-type` があればそれを使い、無い依存（`Update X requirement from >=3.3.6 to >=3.3.8` のような下限更新 PR）は本文の「from 旧 to 新」を比較する。新版が `dependency-version` と一致し、単一の版指定で、メジャー番号（0.x はマイナー番号）が同じときだけ非 major。判定できないもの（範囲指定・プレリリース・版が読めない等）は手動に残す。回帰ガードは `tests/test_dependabot_bump_kind.py`
 - PR の head が CI で検証したコミットのまま
 
 branch protection / required status checks は使わない。required checks は日次パイプラインの `main` への直接 push も拒否するため、`workflow_run` 側で CI 結果を見る方式にしている。PR の merge は `GITHUB_TOKEN` で行うので、merge 後の `main` への push で `CI Tests` は再実行されない。

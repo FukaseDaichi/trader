@@ -10,7 +10,11 @@ name: Dependabot Auto-merge
 #   - PR author is dependabot[bot]
 #   - ecosystem is uv or npm (github_actions bumps edit .github/workflows/,
 #     which GITHUB_TOKEN cannot merge — those stay manual)
-#   - no dependency in the PR is a semver-major update
+#   - no dependency in the PR is a semver-major update, judged by
+#     .github/scripts/dependabot_bump_kind.py: Dependabot's update-type
+#     metadata when present, otherwise the "from X to Y" versions in the
+#     commit message (requirement-range PRs such as ">=3.3.6 to >=3.3.8"
+#     carry no update-type). Undeterminable bumps are skipped.
 #   - the PR head is still the commit CI tested (--match-head-commit)
 # Anything else is skipped and left open for manual review.
 
@@ -36,6 +40,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # main's own copy (workflow_run runs on the default branch), never the PR
+      # head: only the classifier script is needed.
+      - name: Checkout classifier
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
       - name: Merge if eligible
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,17 +70,15 @@ jobs:
             exit 0
           fi
 
-          # Dependabot records each bump's update-type in the commit message
-          # metadata (the same source dependabot/fetch-metadata parses).
+          # Dependabot records each bump in the commit message metadata (the
+          # same source dependabot/fetch-metadata parses).
           message="$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}" --jq '.commit.message')"
-          if grep -q 'update-type: version-update:semver-major' <<<"$message"; then
-            echo "Skip: PR #${pr} contains a major update; leaving it for manual review."
-            exit 0
-          fi
-          if ! grep -q 'update-type: version-update:semver-' <<<"$message"; then
-            echo "Skip: PR #${pr} has no update-type metadata; leaving it for manual review."
-            exit 0
-          fi
+          kind="$(python3 .github/scripts/dependabot_bump_kind.py <<<"$message" || echo error)"
+          case "$kind" in
+            non-major) ;;
+            major) echo "Skip: PR #${pr} contains a major update; leaving it for manual review."; exit 0 ;;
+            *) echo "Skip: PR #${pr} bump size could not be determined (${kind}); leaving it for manual review."; exit 0 ;;
+          esac
 
           gh pr merge "$pr" --squash --match-head-commit "$HEAD_SHA"
           echo "Merged PR #${pr} at ${HEAD_SHA}."
