@@ -2,6 +2,7 @@ import io
 import json
 import time
 from datetime import UTC, date, datetime, timedelta
+from datetime import time as wall_time
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,7 @@ import yfinance as yf
 
 from .config import DATA_DIR
 from .env import get_env_bool, get_env_float, get_env_int
-from .timeutil import today_jst
+from .timeutil import JST, now_jst, today_jst
 
 REQUIRED_COLS = ["date", "open", "high", "low", "close", "volume"]
 DEFAULT_HTTP_TIMEOUT_SEC = 20
@@ -21,6 +22,10 @@ DEFAULT_MAX_DAILY_MOVE = 0.50
 DEFAULT_STOOQ_CIRCUIT_BREAKER_THRESHOLD = 3
 DEFAULT_STOOQ_CIRCUIT_BREAKER_COOLDOWN_SEC = 300
 JPX_HOLIDAY_CACHE = DATA_DIR / "jpx_holidays.json"
+# The TSE afternoon session ends with the 15:30 JST closing auction. Until then
+# a bar dated today is still forming (partial close/volume); 16:00 JST leaves
+# margin for the closing print to reach the data providers.
+SESSION_BAR_CONFIRMED_AT_JST = wall_time(16, 0)
 
 # Process-scoped Stooq circuit breaker. When Stooq is unreachable every request
 # blocks for the full connect timeout (per resolved address), which across ~50
@@ -86,6 +91,45 @@ _get_env_float = get_env_float
 
 def _today_jst() -> date:
     return today_jst()
+
+
+def _now_jst() -> datetime:
+    return now_jst()
+
+
+def _latest_confirmed_bar_date(now: datetime) -> date:
+    """Newest bar date whose session has closed as of ``now`` (JST)."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=JST)
+    now = now.astimezone(JST)
+    if now.time() >= SESSION_BAR_CONFIRMED_AT_JST:
+        return now.date()
+    return now.date() - timedelta(days=1)
+
+
+def drop_unconfirmed_bars(df, now: datetime | None = None, ticker_code=None):
+    """Drop bars whose session has not closed yet on the JST wall clock.
+
+    The execution contract (src/execution.py) decides pre-open on data through
+    the prior session's close. When the daily job runs late and lands inside
+    market hours, providers already return today's still-forming bar; keeping
+    it would feed a partial close/volume into features and predictions and
+    persist it to the parquet. Rows dated today before
+    ``SESSION_BAR_CONFIRMED_AT_JST`` (and any future-dated rows) are removed.
+    Historical rows are never touched.
+    """
+    if df is None or df.empty or "date" not in df.columns:
+        return df
+    cutoff = pd.Timestamp(_latest_confirmed_bar_date(now or _now_jst()))
+    keep = pd.to_datetime(df["date"]).dt.normalize() <= cutoff
+    dropped = int((~keep).sum())
+    if dropped == 0:
+        return df
+    print(
+        f"Dropped {dropped} unconfirmed bar(s) for {ticker_code or 'unknown'} "
+        f"dated after {cutoff.date()} (session not closed yet)."
+    )
+    return df.loc[keep].reset_index(drop=True)
 
 
 def _load_jpx_holiday_set(cache_path=JPX_HOLIDAY_CACHE) -> set[date]:
@@ -476,6 +520,12 @@ def update_data(ticker_code, dest_dir=None):
         print(f"No normalizable data remains for {ticker_code}.")
         return None
 
+    # Never persist (or hand downstream) a bar whose session is still open.
+    combined_df = drop_unconfirmed_bars(combined_df, ticker_code=ticker_code)
+    if combined_df is None or combined_df.empty:
+        print(f"No confirmed data remains for {ticker_code}.")
+        return None
+
     combined_df = _validate_ohlcv(combined_df, ticker_code=ticker_code, source=source)
     if combined_df is None or combined_df.empty:
         print(f"No valid data remains for {ticker_code} after OHLCV validation.")
@@ -511,6 +561,8 @@ def load_data(ticker_code):
         if normalized is None:
             print(f"Local data for {ticker_code} is missing required OHLCV columns.")
             return None
+        # A parquet written by an intraday run can still hold today's partial bar.
+        normalized = drop_unconfirmed_bars(normalized, ticker_code=ticker_code)
         return _validate_ohlcv(normalized, ticker_code=ticker_code, source="local")
     return None
 
