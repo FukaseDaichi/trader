@@ -2,8 +2,10 @@ name: Nightly Rotating Refresh
 
 on:
   schedule:
-    # 10:30 UTC = 19:30 JST (Mon-Fri JST)
-    - cron: "30 10 * * 1-5"
+    # 07:37 UTC = 16:37 JST (Mon-Fri JST), after the 16:00 JST bar-confirmation
+    # cutoff. Moved from 19:30 JST so the late-started run (7-10h in 2026-11)
+    # lands before the 01:07 JST core instead of colliding with it on data/.
+    - cron: "37 7 * * 1-5"
   workflow_dispatch:
 
 permissions:

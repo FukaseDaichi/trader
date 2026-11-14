@@ -8,7 +8,7 @@
 
 | 項目 | テクニカル | マクロ | ファンダメンタル | レポートライター |
 |---|---|---|---|---|
-| 頻度 | 平日 04:30 JST | 土曜 07:00 JST、ファンダ前 | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
+| 頻度 | 平日 00:07 JST | 土曜 07:00 JST、ファンダ前 | 土曜 07:00 JST | 土曜 07:00 JST、ファンダ後 |
 | 目的 | 価格/出来高トレンドで候補採点 | 金利・金融政策・為替レジームを調査 | 業績/ガイダンス/財務/株主還元で候補採点 | 週次解説 Markdown 生成 |
 | 主入力 | `technical_screen.py` の数値 | Web の一次/公式情報、`curation_pool.yml`, `tickers.yml` | Web の一次情報、`macro_latest.json`、`tickers.yml`, `curation_pool.yml` | `fundamental_latest.json`, `technical_latest.json`, `macro_latest.json`, `decision_*.json` |
 | モデル | `claude-sonnet-5` | `claude-opus-5` | `claude-opus-5` | `claude-sonnet-5` |

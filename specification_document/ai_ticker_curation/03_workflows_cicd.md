@@ -15,8 +15,8 @@ AI 銘柄キュレーション用 workflow は 2 本です。日次はテクニ�
 
 | Workflow | JST | cron(UTC) | 主処理 |
 |---|---:|---|---|
-| `daily-ticker-curation.yml` | 平日 04:30 | `30 19 * * 0-4` | warmup → technical baseline → technical agent → merge |
-| `daily-preopen-core.yml` | 平日 06:00 | `0 21 * * 0-4` | 最新ユニバースで `main.py` |
+| `daily-ticker-curation.yml` | 平日 00:07 | `7 15 * * 0-4` | warmup → technical baseline → technical agent → merge |
+| `daily-preopen-core.yml` | 平日 01:07 | `7 16 * * 0-4` | 最新ユニバースで `main.py` |
 | `weekly-fundamental-report.yml` | 土曜 07:00 | `0 22 * * 5` | macro → fundamental → [隔週]pool refresh → report writer → LINE |
 
 ## 3. 日次 workflow

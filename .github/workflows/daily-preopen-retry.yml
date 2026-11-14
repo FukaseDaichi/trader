@@ -2,9 +2,9 @@ name: Daily Preopen Retry
 
 on:
   schedule:
-    # 21:20 / 21:40 UTC = 06:20 / 06:40 JST (Mon-Fri JST)
-    - cron: "20 21 * * 0-4"
-    - cron: "40 21 * * 0-4"
+    # 16:27 / 16:47 UTC = 01:27 / 01:47 JST (Mon-Fri JST), 20/40 min after core
+    - cron: "27 16 * * 0-4"
+    - cron: "47 16 * * 0-4"
   workflow_dispatch:
 
 permissions:

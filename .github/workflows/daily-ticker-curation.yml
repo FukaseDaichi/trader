@@ -2,8 +2,11 @@ name: Daily Ticker Curation
 
 on:
   schedule:
-    # 19:30 UTC = 04:30 JST (Mon-Fri JST). Runs before Daily Preopen Core (06:00 JST).
-    - cron: "30 19 * * 0-4"
+    # 15:07 UTC = 00:07 JST (Mon-Fri JST). Runs before Daily Preopen Core (01:07 JST).
+    # GitHub starts scheduled runs hours late (2026-11: 1.5-7h); the slot is the
+    # earliest one that still falls on the JST trading day (TODAY_JST semantics).
+    # Off the top of the hour, which the docs name as peak load.
+    - cron: "7 15 * * 0-4"
   workflow_dispatch:
     inputs:
       apply:
