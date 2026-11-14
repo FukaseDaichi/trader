@@ -81,7 +81,14 @@ def _queue_events(events: list[dict]) -> int:
     return len(events)
 
 
-def _read_outbox_events() -> list[dict]:
+def _read_outbox_events(malformed: list[dict] | None = None) -> list[dict]:
+    """Parse every queued outbox line.
+
+    Lines that are not valid JSON objects (e.g. a write truncated by a crash)
+    are appended to ``malformed`` as dead letters when a list is given, so a
+    caller that clears the outbox afterwards can quarantine them instead of
+    silently dropping the queued data.
+    """
     out_dir = _fallback_dir()
     if not out_dir.exists():
         return []
@@ -92,9 +99,22 @@ def _read_outbox_events() -> list[dict]:
             if not line:
                 continue
             try:
-                events.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+                ev = json.loads(line)
+            except json.JSONDecodeError as exc:
+                reason = f"JSONDecodeError: {exc}"
+                ev = None
+            else:
+                reason = "not a JSON object"
+            if isinstance(ev, dict):
+                events.append(ev)
+            elif malformed is not None:
+                malformed.append(
+                    {
+                        "raw_line": line,
+                        "source_file": path.name,
+                        "dead_reason": reason[:500],
+                    }
+                )
     return events
 
 
@@ -501,8 +521,15 @@ def flush_outbox(conn) -> int:
     an all-or-nothing replay let one bad event stall write-through for
     weeks in 2026-07 while the backlog grew daily.
     """
-    events = _read_outbox_events()
+    malformed: list[dict] = []
+    events = _read_outbox_events(malformed)
+    if malformed:
+        # Quarantine before _clear_outbox() deletes the files they came from.
+        n = _quarantine_events(malformed)
+        print(f"outbox replay: quarantined {n} unparseable line(s) to dead/")
     if not events:
+        if malformed:
+            _clear_outbox()
         return 0
     applied, dead = _apply_events_tolerant(conn, events)
     if dead:
@@ -797,21 +824,32 @@ def upsert_portfolio_snapshot(conn, row: dict) -> None:
     conn.commit()
 
 
-def fetch_latest_portfolio_snapshot(conn) -> dict | None:
+def fetch_latest_portfolio_snapshot(conn, before_run_date=None) -> dict | None:
     """
     Return the most recent ``portfolio_snapshots`` row (max ``run_date``) as a
     dict, or ``None`` when the table is empty. JSONB columns come back as plain
     Python (e.g. ``positions`` is a list of dicts).
+
+    ``before_run_date`` restricts the lookup to rows strictly before that
+    date. The daily build passes its own run_date so a same-day rerun (retry
+    or manual dispatch after today's row was already written) diffs against
+    the previous session's book instead of against itself.
     """
     from psycopg.rows import dict_row
 
+    sql = (
+        "SELECT run_date, as_of_date, model_version, mode, status, positions,"
+        " diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
+        ' expected_ret, expected_vol, "constraints", warnings'
+        " FROM portfolio_snapshots"
+    )
+    params = None
+    if before_run_date is not None:
+        sql += " WHERE run_date < %(before)s"
+        params = {"before": before_run_date}
+    sql += " ORDER BY run_date DESC LIMIT 1"
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT run_date, as_of_date, model_version, mode, status, positions,"
-            " diff_from_prev, gross_exposure, net_exposure, sector_exposure,"
-            ' expected_ret, expected_vol, "constraints", warnings'
-            " FROM portfolio_snapshots ORDER BY run_date DESC LIMIT 1"
-        )
+        cur.execute(sql, params)
         return cur.fetchone()
 
 
@@ -950,12 +988,17 @@ def fetch_outcome_rows(conn) -> list[dict]:
     from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
+        # One row per (ticker, entry_date, horizon): a stale-data rerun
+        # re-issues the same trade under a later run_date (see
+        # _DRIFT_ONE_OUTCOME_PER_ENTRY); keep the earliest run's signal.
         cur.execute(
-            "SELECT o.entry_date, s.action, o.horizon_days,"
+            "SELECT DISTINCT ON (s.ticker, o.entry_date, o.horizon_days)"
+            " o.entry_date, s.action, o.horizon_days,"
             " o.realized_ret, o.hit"
             " FROM signal_outcomes o JOIN signals s ON s.id = o.signal_id"
             " WHERE s.action IN ('BUY','MILD_BUY','SELL','MILD_SELL')"
-            "   AND o.contract_version = %s",
+            "   AND o.contract_version = %s"
+            " ORDER BY s.ticker, o.entry_date, o.horizon_days, s.run_date, s.id",
             (EXECUTION_CONTRACT_VERSION,),
         )
         rows = cur.fetchall()
@@ -1734,8 +1777,13 @@ def fetch_outcome_detail_rows(
     from .execution import EXECUTION_CONTRACT_VERSION
 
     with conn.cursor(row_factory=dict_row) as cur:
+        # One row per (ticker, entry_date): a stale-data rerun re-issues the
+        # same trade under a later run_date (see _DRIFT_ONE_OUTCOME_PER_ENTRY);
+        # keep the earliest run's signal, then restore the display order.
         cur.execute(
-            "SELECT o.market_as_of_date, o.entry_date, o.eval_date,"
+            "SELECT * FROM ("
+            " SELECT DISTINCT ON (s.ticker, o.entry_date)"
+            " o.market_as_of_date, o.entry_date, o.eval_date,"
             " o.entry_price, o.exit_price, o.entry_price_basis, o.exit_price_basis,"
             " o.contract_version, o.benchmark_basis,"
             " s.ticker, t.name, s.action,"
@@ -1746,7 +1794,9 @@ def fetch_outcome_detail_rows(
             " LEFT JOIN tickers t ON t.code = s.ticker"
             " WHERE o.horizon_days = %(h)s AND o.entry_date >= (CURRENT_DATE - %(d)s::int)"
             "   AND o.contract_version = %(contract)s"
-            " ORDER BY o.entry_date DESC, s.ticker",
+            " ORDER BY s.ticker, o.entry_date, s.run_date, s.id"
+            ") AS one_per_entry"
+            " ORDER BY entry_date DESC, ticker",
             {
                 "h": horizon_days,
                 "d": history_days,

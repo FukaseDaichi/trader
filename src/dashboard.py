@@ -425,11 +425,22 @@ def export_dashboard_data():
         latest_signal = signal_history[0]["signal"] if signal_history else None
 
         records: list[dict[str, Any]] = []
-        df = load_data(code)
-        if df is not None and not df.empty:
-            # Add features without dropping NaNs to preserve chart continuity.
-            featured = add_features(df, dropna=False)
-            records = _to_dashboard_records(featured)
+        try:
+            df = load_data(code)
+            if df is not None and not df.empty:
+                # Add features without dropping NaNs to preserve chart continuity.
+                featured = add_features(df, dropna=False)
+                records = _to_dashboard_records(featured)
+        except Exception as e:  # noqa: BLE001
+            # One unreadable parquet must not abort the whole export: the
+            # daily job runs this after the digest and DB write, so a crash
+            # here skips the commit and makes the retry re-send the digest.
+            # The ticker keeps its signals and simply has no chart rows.
+            print(
+                f"Dashboard export: price data for {code} unavailable "
+                f"({type(e).__name__}: {e}); exporting without chart rows"
+            )
+            records = []
 
         latest_data = records[-1] if records else None
         avg_volume_20 = _calc_avg_volume(records, window=20)

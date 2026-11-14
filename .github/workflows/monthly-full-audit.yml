@@ -2,8 +2,11 @@ name: Monthly Full Audit
 
 on:
   schedule:
-    # 00:00 UTC on first Sunday window = 09:00 JST
-    - cron: "0 0 1-7 * 0"
+    # Every Sunday 00:00 UTC (09:00 JST); the "First Sunday guard" step below
+    # skips the run unless the JST day of month is 1-7. A cron that restricts
+    # both day-of-month and day-of-week fires when EITHER matches, so the old
+    # "0 0 1-7 * 0" ran on days 1-7 every day plus every Sunday (~11x/month).
+    - cron: "0 0 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -19,22 +22,39 @@ jobs:
     timeout-minutes: 240
 
     steps:
+      - name: First Sunday guard
+        id: guard
+        run: |
+          DAY_JST=$(TZ=Asia/Tokyo date +%-d)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$DAY_JST" -le 7 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not the first Sunday of the month (JST day $DAY_JST); skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.guard.outputs.run == 'true'
         uses: actions/checkout@v7
 
       - name: Install uv
+        if: steps.guard.outputs.run == 'true'
         uses: astral-sh/setup-uv@v10.3.3
 
       - name: Set up Python
+        if: steps.guard.outputs.run == 'true'
         run: uv python install
 
       - name: Install dependencies
+        if: steps.guard.outputs.run == 'true'
         run: uv sync
 
       - name: Run monthly audit
+        if: steps.guard.outputs.run == 'true'
         run: uv run python scripts/monthly_audit.py --output docs/monthly_audit.json
 
       - name: Commit and push audit report
+        if: steps.guard.outputs.run == 'true'
         run: |
           TODAY_JST=$(TZ=Asia/Tokyo date +%F)
           bash .github/scripts/commit-and-push.sh "Monthly full audit ($TODAY_JST)" docs/monthly_audit.json

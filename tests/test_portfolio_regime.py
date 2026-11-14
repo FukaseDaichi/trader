@@ -76,7 +76,7 @@ def _run_snapshot_with_bias(bias):
     main._build_macro_regime = lambda panel: {"market_bias": bias, "usdjpy": None}
     main.dashboard.export_portfolio_latest = lambda *a, **k: None
     main.db.record_portfolio_snapshot = lambda *a, **k: {"ok": False, "reason": "test"}
-    main._prev_target_weights = lambda: {}
+    main._prev_target_weights = lambda *a, **k: {}
     try:
         return main._run_portfolio_snapshot(_phase2_stub(), "2026-06-11")
     finally:

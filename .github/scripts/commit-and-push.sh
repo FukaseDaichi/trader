@@ -19,6 +19,23 @@ fi
 
 git config --local user.email "action@github.com"
 git config --local user.name "GitHub Action"
+
+# Push only what this helper commits. Earlier steps (including AI agent steps
+# with Bash access) must not be able to smuggle extra commits onto the branch.
+upstream="origin/${branch}"
+if git rev-parse --verify -q "$upstream" >/dev/null; then
+  ahead="$(git rev-list --count "${upstream}..HEAD")"
+  if [ "$ahead" != "0" ]; then
+    echo "Refusing to push: HEAD already has ${ahead} local commit(s) not created by this helper." >&2
+    git log --oneline "${upstream}..HEAD" >&2 || true
+    exit 1
+  fi
+fi
+
+# Commit only the paths named by the caller: anything staged earlier is
+# unstaged first (working-tree changes outside those paths stay uncommitted
+# and are carried over by --autostash below).
+git reset -q
 git add -A "$@"
 
 if git diff --cached --quiet; then
