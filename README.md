@@ -142,6 +142,7 @@ uv run python main.py
 | `TRADER_BT_COST_BPS` / `TRADER_BT_SLIPPAGE_BPS` | 片道コスト/スリッページbps | `10.0` / `5.0` |
 | `TRADER_BT_ALLOW_SHORT` | ショート評価の許可 | `false` |
 | `TRADER_KPI_MIN_CAGR` / `TRADER_KPI_MAX_DRAWDOWN` / `TRADER_KPI_MIN_AVG_DAILY_NET_RETURN` / `TRADER_KPI_MIN_SHARPE` / `TRADER_KPI_MIN_ROUND_TRIPS` | ゲート合格基準 | `0.03` / `0.25` / `0.0001` / `0.20` / `10` |
+| `TRADER_KPI_REQUIRE_POSITIVE_LOWER_BOUND` / `TRADER_KPI_BOOTSTRAP_CONFIDENCE` / `TRADER_KPI_BOOTSTRAP_SAMPLES` | holdout平均日次純リターンのブートストラップ片側下限 > 0 を合格条件にする | `true` / `0.90` / `2000` |
 | `TRADER_AUTO_THRESHOLD_ENABLED` / `TRADER_AUTO_THRESHOLD_OBJECTIVE` / `TRADER_AUTO_THRESHOLD_MIN_ROUND_TRIPS` / `TRADER_AUTO_THRESHOLD_MIN_GAP` | 閾値自動最適化 | `true` / `avg_daily_net_return` / `8` / `0.05` |
 
 旧 `TRADER_KPI_MIN_EXPECTANCY` / `TRADER_KPI_MIN_TRADES` / `TRADER_AUTO_THRESHOLD_MIN_TRADES` と objective `expectancy` は移行用aliasとして警告付きで読めます。新規設定では使用しません。

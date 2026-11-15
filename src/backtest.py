@@ -628,6 +628,60 @@ def _compute_metrics(sim, horizon=1):
     }
 
 
+_BOOTSTRAP_SEED = 20261115
+
+
+def _block_bootstrap_mean_lower_bound(
+    returns, *, block_days, n_samples, confidence, seed=_BOOTSTRAP_SEED
+):
+    """One-sided lower confidence bound of the mean daily return.
+
+    Circular moving-block bootstrap: holdout daily returns of an H-day
+    holding strategy are serially dependent, so blocks of ``block_days``
+    (the execution horizon) are resampled together. The seed is fixed so the
+    same holdout always yields the same bound (gate evidence is hashed).
+    Returns None when the holdout is too short to resample two blocks.
+    """
+    values = np.asarray(
+        pd.to_numeric(pd.Series(returns), errors="coerce").fillna(0.0),
+        dtype=float,
+    )
+    n = len(values)
+    block = max(1, int(block_days))
+    samples = max(1, int(n_samples))
+    if n < 2 * block:
+        return None
+    n_blocks = int(np.ceil(n / block))
+    rng = np.random.default_rng(int(seed))
+    starts = rng.integers(0, n, size=(samples, n_blocks))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
+    means = values[idx.reshape(samples, -1)[:, :n]].mean(axis=1)
+    alpha = 1.0 - float(confidence)
+    return float(np.quantile(means, alpha))
+
+
+def attach_holdout_significance(metrics, sim, config, horizon=1):
+    """Return ``metrics`` plus the bootstrap lower bound used by the gate."""
+    confidence = float(config.get("bootstrap_confidence", 0.90))
+    n_samples = int(config.get("bootstrap_samples", 2000))
+    block_days = max(1, int(horizon))
+    lower = None
+    if sim is not None and not sim.empty and "net_return" in sim.columns:
+        lower = _block_bootstrap_mean_lower_bound(
+            sim["net_return"],
+            block_days=block_days,
+            n_samples=n_samples,
+            confidence=confidence,
+        )
+    return {
+        **metrics,
+        "avg_daily_net_return_lower_bound": lower,
+        "bootstrap_confidence": confidence,
+        "bootstrap_block_days": block_days,
+        "bootstrap_samples": n_samples,
+    }
+
+
 def _sample_sufficiency(config, *, auto_threshold=False):
     metric = str(config.get("sample_sufficiency_metric", "round_trips")).strip()
     if metric == "independent_signal_cohorts":
@@ -691,6 +745,13 @@ def _evaluate_gate_rules(metrics, config):
         failures.append("sharpe_unavailable")
     elif sharpe < float(config["min_sharpe"]):
         failures.append(f"sharpe<{float(config['min_sharpe']):.2f}")
+    if bool(config.get("require_positive_lower_bound", False)):
+        confidence = float(config.get("bootstrap_confidence", 0.90))
+        lower_bound = finite_metric("avg_daily_net_return_lower_bound")
+        if lower_bound is None:
+            failures.append("avg_daily_net_return_lower_bound_unavailable")
+        elif lower_bound <= 0.0:
+            failures.append(f"avg_daily_net_return_lb{confidence:.0%}<=0")
 
     return failures
 
@@ -949,7 +1010,12 @@ def evaluate_kpi_gate(df, config, label_config=None):
     sim_holdout = _simulate_strategy(
         holdout_oos, config, thresholds=thresholds, horizon=horizon
     )
-    metrics_holdout = _compute_metrics(sim_holdout, horizon=horizon)
+    metrics_holdout = attach_holdout_significance(
+        _compute_metrics(sim_holdout, horizon=horizon),
+        sim_holdout,
+        config,
+        horizon=horizon,
+    )
 
     metrics_for_gate = metrics_holdout
     failures = _evaluate_gate_rules(metrics_for_gate, config)

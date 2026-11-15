@@ -125,6 +125,7 @@ artifact schema v3は、label config、実効H、順序付きfeature columns/has
 3. 閾値グリッドから全シミュレーション日を使う目的関数（既定 `avg_daily_net_return`）最大の組を選択（`TRADER_AUTO_THRESHOLD_*`）。既定では、エントリー間隔を実効horizon以上空けて数える`independent_signal_cohorts`が8件以上の候補だけを選択可能とする。条件を満たす候補が無い場合は疎な最良候補を採用せず既定閾値へ戻し、その候補は診断情報にだけ残す
 4. 毎日のシグナルへ `1/H` 資本のsleeveを割り当て、最大gross 1.0で日次mark-to-market。新規sleeve初日は翌日寄付き→終値、既存sleeveは前日終値→当日終値（overnightを含む）。入口・時間出口の両側にコスト/スリッページを課す
 5. `independent_signal_cohorts`（既定5件）/ `cagr` / `avg_daily_net_return` / `max_drawdown` / `sharpe` でゲート判定。`round_trips`は集約建玉の損益診断として残し、サンプル充足性には使わない。必須値が欠損・NaN・Infなら閾値比較を通さず`*_unavailable`でfail-closeし、未達銘柄と同様に表示`HOLD`へ強制
+6. holdoutの日次純リターン平均について、実効horizon長のブロックで循環ブロックブートストラップ（既定2000回・固定seed）を行い、片側信頼下限（既定90%）が0以下なら`avg_daily_net_return_lb90%<=0`で不合格（`TRADER_KPI_REQUIRE_POSITIVE_LOWER_BOUND` / `TRADER_KPI_BOOTSTRAP_CONFIDENCE` / `TRADER_KPI_BOOTSTRAP_SAMPLES`）。holdout約60日・独立cohort約12件では平均が偶然プラスに出やすく、閾値候補の多さから来る選択ノイズを点推定のSharpe閾値だけでは落とせないため。下限は`metrics_holdout.avg_daily_net_return_lower_bound`に残る。2ブロック未満のholdoutは`*_unavailable`でfail-close。設定はgate contractに含まれるので、変更後は再学習まで旧activeモデルは非互換となり日次はephemeral candidateへ縮退する
 
 指標schema v3は、売買発生日数 `turnover_days`、完結した建玉エピソード数 `round_trips`、全エントリー数 `signal_cohorts`、実効horizon分の重複を除いた `independent_signal_cohorts`、全シミュレーション日の日次純リターン平均 `avg_daily_net_return`、完結エピソードごとの複利純損益平均 `expectancy_per_trade` を分離します。互換フィールド `trades` / `expectancy` / `turnover` はそれぞれ `round_trips` / `expectancy_per_trade` / `avg_daily_turnover` の非推奨aliasで、意味は `metrics_semantics` に明示します。
 
