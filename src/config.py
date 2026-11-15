@@ -231,6 +231,14 @@ def get_backtest_gate_config():
         "min_avg_daily_net_return": min_avg_daily_net_return,
         "max_drawdown": _get_env_float("TRADER_KPI_MAX_DRAWDOWN", 0.25),
         "min_sharpe": _get_env_float("TRADER_KPI_MIN_SHARPE", 0.20),
+        # Require the holdout's mean daily net return to stay above zero even at
+        # the lower end of a block-bootstrap confidence interval, so a ticker
+        # cannot pass on a lucky 60-day holdout alone.
+        "require_positive_lower_bound": _get_env_bool(
+            "TRADER_KPI_REQUIRE_POSITIVE_LOWER_BOUND", True
+        ),
+        "bootstrap_confidence": _get_env_float("TRADER_KPI_BOOTSTRAP_CONFIDENCE", 0.90),
+        "bootstrap_samples": _get_env_int("TRADER_KPI_BOOTSTRAP_SAMPLES", 2000),
         "min_round_trips": min_round_trips,
         "sample_sufficiency_metric": sample_sufficiency_metric,
         "min_independent_signal_cohorts": _get_env_int(

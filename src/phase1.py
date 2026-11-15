@@ -315,8 +315,11 @@ def train_ticker_bundle(
     metrics_tuning = backtest_module._compute_metrics(
         sim_tuning, horizon=horizon_days
     )
-    metrics_holdout = backtest_module._compute_metrics(
-        sim_holdout, horizon=horizon_days
+    metrics_holdout = backtest_module.attach_holdout_significance(
+        backtest_module._compute_metrics(sim_holdout, horizon=horizon_days),
+        sim_holdout,
+        canonical_gate_config,
+        horizon=horizon_days,
     )
     gate_disabled = not bool(canonical_gate_config.get("enabled", True))
     failures = (

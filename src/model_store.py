@@ -211,6 +211,11 @@ def canonical_phase1_gate_config(
         ),
         "max_drawdown": float(cfg.get("max_drawdown", 0.25)),
         "min_sharpe": float(cfg.get("min_sharpe", 0.20)),
+        "require_positive_lower_bound": bool(
+            cfg.get("require_positive_lower_bound", False)
+        ),
+        "bootstrap_confidence": float(cfg.get("bootstrap_confidence", 0.90)),
+        "bootstrap_samples": int(cfg.get("bootstrap_samples", 2000)),
         "min_round_trips": int(cfg.get("min_round_trips", cfg.get("min_trades", 10))),
         "sample_sufficiency_metric": sample_metric,
         "min_independent_signal_cohorts": int(
